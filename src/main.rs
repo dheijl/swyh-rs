@@ -33,6 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fx = ((wind.width() - 30) / 2) - (fw / 2);
     let mut frame = Frame::new(fx, 5, fw, 30, "Scanning for UPNP rendering devices...")
         .with_align(Align::Center);
+    frame.set_frame(FrameType::BorderBox);
 
     wind.make_resizable(true);
     wind.end();

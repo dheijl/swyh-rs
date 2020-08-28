@@ -1,6 +1,6 @@
 // #![windows_subsystem = "windows"]  // enable to suppress println!
 
-use fltk::{app, button::*, frame::*, window::*};
+use fltk::{app, button::*, frame::*, window::*, text::*};
 use futures::prelude::*;
 use rupnp::ssdp::{SearchTarget, URN};
 use std::time::Duration;
@@ -31,49 +31,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let fw = (sw as i32) / 4;
     let fx = ((wind.width() - 30) / 2) - (fw / 2);
+    let mut frame = Frame::new(fx, 5, fw, 30, "Scanning for UPNP rendering devices...")
+        .with_align(Align::Center);
 
     wind.make_resizable(true);
     wind.end();
     wind.show();
 
-    let mut frame = Frame::default()
-    .with_size(fw, 40)
-    .with_pos(fx, 10)
-    .with_align(Align::Center)
-    .with_label("Scanning for UPNP rendering devices...");
-    wind.add(&frame);
-    wind.redraw();
-
     let mut scanning = true;
     // the renderers discovered
     let mut buttons: Vec<LightButton> = Vec::new();
-    // Event handling 
+    // Event handling
     let (s, r) = app::channel::<i32>();
 
     while app.wait()? {
         if scanning {
-    
             // build a list with renderers descovered on the network
             let renderers = discover().await?;
             // now create a button for each renderer
-            let bwidth = frame.width() / 2;                         // button width
-            let bheight = frame.height();                           // button height
-            let bx = ((wind.width() - 30) / 2) - (bwidth / 2);      // button x offset
-            let mut by = frame.y() + frame.height();                // button y offset
-            let mut bi = 0;                                         // button index
+            let bwidth = frame.width() / 2; // button width
+            let bheight = frame.height(); // button height
+            let bx = ((wind.width() - 30) / 2) - (bwidth / 2); // button x offset
+            let mut by = frame.y() + frame.height() +10; // button y offset
+            let mut bi = 0; // button index
             match renderers {
                 Some(rs) => {
                     for renderer in rs.iter() {
-                        let mut but = LightButton::default()        // create the button
+                        let mut but = LightButton::default() // create the button
                             .with_size(bwidth, bheight)
                             .with_pos(bx, by)
                             .with_align(Align::Center)
                             .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-                        but.emit(s, bi);        // button click events arrive on a channel with the button index as message data
-                        wind.add(&but);         // add the button to the window
-                        buttons.push(but);      // and keep a reference to it
-                        bi += 1;                // bump the button index
-                        by += bheight + 10;     // and the button y offset
+                        but.emit(s, bi); // button click events arrive on a channel with the button index as message data
+                        wind.add(&but); // add the button to the window
+                        buttons.push(but); // and keep a reference to it
+                        bi += 1; // bump the button index
+                        by += bheight + 10; // and the button y offset
                     }
                 }
                 None => {}
@@ -84,9 +77,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         match r.recv() {
-            Some(i) => {                        // a button has been clicked
-                let b = &buttons[i as usize];   // get a reference to the button that was clicked
-                println!("Device button {} pushed, state = {}", b.label(), if b.is_on() { "ON" } else { "OFF" });
+            Some(i) => {
+                // a button has been clicked
+                let b = &buttons[i as usize]; // get a reference to the button that was clicked
+                println!(
+                    "Device button {} pushed, state = {}",
+                    b.label(),
+                    if b.is_on() { "ON" } else { "OFF" }
+                );
             }
             None => (),
         }

@@ -1,6 +1,6 @@
 // #![windows_subsystem = "windows"]  // enable to suppress println!
 
-use fltk::{app, button::*, frame::*, window::*, text::*};
+use fltk::{app, button::*, frame::*, window::*};
 use futures::prelude::*;
 use rupnp::ssdp::{SearchTarget, URN};
 use std::time::Duration;
@@ -9,6 +9,13 @@ use std::time::Duration;
 pub enum Message {
     Increment,
     Decrement,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ScanState {
+    Started,
+    Complete,
+    Done,
 }
 
 #[derive(Debug)]
@@ -38,45 +45,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.make_resizable(true);
     wind.end();
     wind.show();
+    app::wait_for(0.1)?;
 
-    let mut scanning = true;
-    // the renderers discovered
-    let mut buttons: Vec<LightButton> = Vec::new();
-    // Event handling
+    // Event handling channel
     let (s, r) = app::channel::<i32>();
+    // the buttons with the discovered renderers
+    let mut buttons: Vec<LightButton> = Vec::new();
+
+    // build a list with renderers descovered on the network
+    let renderers = discover().await?;
+    // now create a button for each renderer
+    let bwidth = frame.width() / 2; // button width
+    let bheight = frame.height(); // button height
+    let bx = ((wind.width() - 30) / 2) - (bwidth / 2); // button x offset
+    let mut by = frame.y() + frame.height() + 10; // button y offset
+    let mut bi = 0; // button index
+    match renderers {
+        Some(rs) => {
+            for renderer in rs.iter() {
+                let mut but = LightButton::default() // create the button
+                    .with_size(bwidth, bheight)
+                    .with_pos(bx, by)
+                    .with_align(Align::Center)
+                    .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
+                but.emit(s, bi); // button click events arrive on a channel with the button index as message data
+                wind.add(&but); // add the button to the window
+                buttons.push(but); // and keep a reference to it
+                bi += 1; // bump the button index
+                by += bheight + 10; // and the button y offset
+            }
+        }
+        None => {}
+    }
+    frame.set_label("Rendering Devices");
+    wind.redraw();
+    app::wait_for(0.1)?;
 
     while app.wait()? {
-        if scanning {
-            // build a list with renderers descovered on the network
-            let renderers = discover().await?;
-            // now create a button for each renderer
-            let bwidth = frame.width() / 2; // button width
-            let bheight = frame.height(); // button height
-            let bx = ((wind.width() - 30) / 2) - (bwidth / 2); // button x offset
-            let mut by = frame.y() + frame.height() +10; // button y offset
-            let mut bi = 0; // button index
-            match renderers {
-                Some(rs) => {
-                    for renderer in rs.iter() {
-                        let mut but = LightButton::default() // create the button
-                            .with_size(bwidth, bheight)
-                            .with_pos(bx, by)
-                            .with_align(Align::Center)
-                            .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-                        but.emit(s, bi); // button click events arrive on a channel with the button index as message data
-                        wind.add(&but); // add the button to the window
-                        buttons.push(but); // and keep a reference to it
-                        bi += 1; // bump the button index
-                        by += bheight + 10; // and the button y offset
-                    }
-                }
-                None => {}
-            }
-            frame.set_label("Rendering Devices");
-            wind.redraw();
-            scanning = false;
-        }
-
         match r.recv() {
             Some(i) => {
                 // a button has been clicked

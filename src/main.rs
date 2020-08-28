@@ -31,15 +31,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let fw = (sw as i32) / 4;
     let fx = ((wind.width() - 30) / 2) - (fw / 2);
-    let mut frame = Frame::default()
-        .with_size(fw, 40)
-        .with_pos(fx, 10)
-        .with_align(Align::Center)
-        .with_label("Scanning for UPNP rendering devices...");
 
     wind.make_resizable(true);
     wind.end();
     wind.show();
+
+    let mut frame = Frame::default()
+    .with_size(fw, 40)
+    .with_pos(fx, 10)
+    .with_align(Align::Center)
+    .with_label("Scanning for UPNP rendering devices...");
+    wind.add(&frame);
+    wind.redraw();
 
     let mut scanning = true;
     // the renderers discovered
@@ -49,6 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while app.wait()? {
         if scanning {
+    
             // build a list with renderers descovered on the network
             let renderers = discover().await?;
             // now create a button for each renderer

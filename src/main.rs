@@ -68,10 +68,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .with_pos(bx, by)
                     .with_align(Align::Center)
                     .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-                but.emit(s, bi); // button click events arrive on a channel with the button index as message data
-                wind.add(&but); // add the button to the window
-                buttons.push(but); // and keep a reference to it
-                bi += 1; // bump the button index
+                but.emit(s, bi);    // button click events arrive on a channel with the button index as message data
+                wind.add(&but);     // add the button to the window
+                buttons.push(but);  // and keep a reference to it
+                bi += 1;            // bump the button index
                 by += bheight + 10; // and the button y offset
             }
         }

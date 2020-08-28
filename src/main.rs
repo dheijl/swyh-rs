@@ -21,8 +21,6 @@ struct Renderer {
     svc_id: String,
 }
 
-const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = app::App::default().with_scheme(app::Scheme::Gleam);
@@ -91,6 +89,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
+
+const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
 async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     let mut renderers: Vec<Renderer> = Vec::new();

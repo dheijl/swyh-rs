@@ -11,13 +11,6 @@ pub enum Message {
     Decrement,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ScanState {
-    Started,
-    Complete,
-    Done,
-}
-
 #[derive(Debug)]
 struct Renderer {
     dev_name: String,
@@ -47,13 +40,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.show();
     app::wait_for(0.1)?;
 
+
+    // build a list with renderers descovered on the network
+    let renderers = discover().await?;
     // Event handling channel
     let (s, r) = app::channel::<i32>();
     // the buttons with the discovered renderers
     let mut buttons: Vec<LightButton> = Vec::new();
-
-    // build a list with renderers descovered on the network
-    let renderers = discover().await?;
     // now create a button for each renderer
     let bwidth = frame.width() / 2; // button width
     let bheight = frame.height(); // button height
@@ -82,6 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     app::wait_for(0.1)?;
 
     while app.wait()? {
+        //println!("in wait loop");
         match r.recv() {
             Some(i) => {
                 // a button has been clicked
@@ -98,22 +92,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
 async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
-    let mut renderers: Vec<Renderer> = Vec::new();
+
+    const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
     println!("Starting renderer discovery");
+
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
     let devices = rupnp::discover(&search_target, Duration::from_secs(3)).await?;
     pin_utils::pin_mut!(devices);
 
+    let mut renderers: Vec<Renderer> = Vec::new();
     loop {
         if let Some(device) = devices.try_next().await? {
             if device.services().len() > 0 {
                 if let Some(service) = device.find_service(&RENDERING_CONTROL) {
-                    //Some(service) => {
-                    renderers.push(Renderer {
+                        print_renderer(&device, &service);
+                        renderers.push(Renderer {
                         dev_name: device.friendly_name().to_string(),
                         dev_model: device.model_name().to_string(),
                         dev_type: device.device_type().to_string(),
@@ -121,30 +117,19 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                         svc_id: service.service_type().to_string(),
                         svc_type: service.service_type().to_string(),
                     });
-                    println!(
-                        "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
-                        device.device_type(),
-                        device.manufacturer(),
-                        device.friendly_name(),
-                        device.model_name(),
-                        device.url()
-                    );
-                    println!("  Service");
-                    println!("    type: {}", service.service_type());
-                    println!("    id:   {}", service.service_id());
-
+/*
                     let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
                     match service.action(device.url(), "GetVolume", args).await {
                         Ok(response) => {
                             println!("Got response from {}", device.friendly_name());
-                            let volume =
-                                response.get("CurrentVolume").expect("Error getting volume");
+                            let volume = response.get("CurrentVolume").expect("Error getting volume");
                             println!("'{}' is at volume {}", device.friendly_name(), volume);
                         }
                         Err(err) => {
                             println!("Error '{}' in GetVolume", err);
                         }
                     }
+*/
                 }
             } else {
                 println!(
@@ -162,4 +147,16 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     }
 
     Ok(Some(renderers))
+}
+
+fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
+    println!(
+        "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
+        device.device_type(),
+        device.manufacturer(),
+        device.friendly_name(),
+        device.model_name(),
+        device.url()
+    );
+    println!("  Service type: {}, id:   {}", service.service_type(), service.service_id());
 }

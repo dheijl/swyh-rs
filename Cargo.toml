@@ -7,8 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fltk = { version = "^0.8", features = ["fltk-bundled"] }
+fltk = { version = "^0.8.3", features = ["fltk-bundled"] }
 tokio = { version = "^0.2", features = ["macros", "fs"] }
 futures = "^0.3"
 pin-utils = "^0.1"
 rupnp = { path="X:\\Documents\\GitHub\\rupnp", version="*", features = ["full_device_spec"]}
+ssdp-client = { path="X:\\Documents\\GitHub\\ssdp-client" }

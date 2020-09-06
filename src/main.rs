@@ -11,13 +11,6 @@ pub enum Message {
     Decrement,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ScanState {
-    Started,
-    Complete,
-    Done,
-}
-
 #[derive(Debug)]
 struct Renderer {
     dev_name: String,
@@ -47,13 +40,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.show();
     app::wait_for(0.1)?;
 
+    let local_addr = get_local_addr().expect("Could not obtain local address.");   
+    println!("Local ip = {}", local_addr);
+
+    // build a list with renderers descovered on the network
+    let renderers = discover().await?;
     // Event handling channel
     let (s, r) = app::channel::<i32>();
     // the buttons with the discovered renderers
     let mut buttons: Vec<LightButton> = Vec::new();
-
-    // build a list with renderers descovered on the network
-    let renderers = discover().await?;
     // now create a button for each renderer
     let bwidth = frame.width() / 2; // button width
     let bheight = frame.height(); // button height
@@ -79,8 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     frame.set_label("Rendering Devices");
     wind.redraw();
-    app::wait_for(0.1)?;
-
+    
     while app.wait()? {
         match r.recv() {
             Some(i) => {
@@ -98,68 +92,98 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
 async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
-    let mut renderers: Vec<Renderer> = Vec::new();
+
+    const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
     println!("Starting renderer discovery");
+
+    let mut renderers: Vec<Renderer> = Vec::new();
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
-    let devices = rupnp::discover(&search_target, Duration::from_secs(3)).await?;
-    pin_utils::pin_mut!(devices);
-
-    loop {
-        if let Some(device) = devices.try_next().await? {
-            if device.services().len() > 0 {
-                if let Some(service) = device.find_service(&RENDERING_CONTROL) {
-                    //Some(service) => {
-                    renderers.push(Renderer {
-                        dev_name: device.friendly_name().to_string(),
-                        dev_model: device.model_name().to_string(),
-                        dev_type: device.device_type().to_string(),
-                        dev_url: device.url().to_string(),
-                        svc_id: service.service_type().to_string(),
-                        svc_type: service.service_type().to_string(),
-                    });
-                    println!(
-                        "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
-                        device.device_type(),
-                        device.manufacturer(),
-                        device.friendly_name(),
-                        device.model_name(),
-                        device.url()
-                    );
-                    println!("  Service");
-                    println!("    type: {}", service.service_type());
-                    println!("    id:   {}", service.service_id());
-
-                    let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
-                    match service.action(device.url(), "GetVolume", args).await {
-                        Ok(response) => {
-                            println!("Got response from {}", device.friendly_name());
-                            let volume =
-                                response.get("CurrentVolume").expect("Error getting volume");
-                            println!("'{}' is at volume {}", device.friendly_name(), volume);
+    match rupnp::discover(&search_target, Duration::from_secs(3)).await  {
+        Ok(d) => { 
+            pin_utils::pin_mut!(d);
+            loop {
+                if let Some(device) = d.try_next().await? {
+                    if device.services().len() > 0 {
+                        if let Some(service) = device.find_service(&RENDERING_CONTROL) {
+                                print_renderer(&device, &service);
+                                renderers.push(Renderer {
+                                dev_name: device.friendly_name().to_string(),
+                                dev_model: device.model_name().to_string(),
+                                dev_type: device.device_type().to_string(),
+                                dev_url: device.url().to_string(),
+                                svc_id: service.service_type().to_string(),
+                                svc_type: service.service_type().to_string(),
+                            });
+        /*
+                            let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
+                            match service.action(device.url(), "GetVolume", args).await {
+                                Ok(response) => {
+                                    println!("Got response from {}", device.friendly_name());
+                                    let volume = response.get("CurrentVolume").expect("Error getting volume");
+                                    println!("'{}' is at volume {}", device.friendly_name(), volume);
+                                }
+                                Err(err) => {
+                                    println!("Error '{}' in GetVolume", err);
+                                }
+                            }
+        */
                         }
-                        Err(err) => {
-                            println!("Error '{}' in GetVolume", err);
-                        }
+                    } else {
+                        println!(
+                            "No services: type={}, manufacturer={}, name={}, model={}, at url= {}",
+                            device.device_type(),
+                            device.manufacturer(),
+                            device.friendly_name(),
+                            device.model_name(),
+                            device.url()
+                        );
                     }
+                } else {
+                    println!("End of devices discovery");
+                    break;
                 }
-            } else {
-                println!(
-                    "No services: type={}, manufacturer={}, name={}, model={}, at url= {}",
-                    device.device_type(),
-                    device.manufacturer(),
-                    device.friendly_name(),
-                    device.model_name(),
-                    device.url()
-                );
             }
-        } else {
-            break;
+        
+        }
+        Err(e) => {
+            println!("Error {} running discover", e);
         }
     }
 
     Ok(Some(renderers))
+}
+
+fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
+    println!(
+        "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
+        device.device_type(),
+        device.manufacturer(),
+        device.friendly_name(),
+        device.model_name(),
+        device.url()
+    );
+    println!("  Service type: {}, id:   {}", service.service_type(), service.service_id());
+}
+
+use std::net::{UdpSocket, IpAddr};
+
+/// get the local ip address, return an `Option<String>`. when it fails, return `None`.
+fn get_local_addr() -> Option<IpAddr> {
+    let socket = match UdpSocket::bind("0.0.0.0:0") {
+        Ok(s) => s,
+        Err(_) => return None,
+    };
+
+    match socket.connect("8.8.8.8:80") {
+        Ok(()) => (),
+        Err(_) => return None,
+    };
+
+    match socket.local_addr() {
+        Ok(addr) => return Some(addr.ip()),
+        Err(_) => return None,
+    };
 }

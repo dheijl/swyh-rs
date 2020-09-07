@@ -31,18 +31,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let fw = (sw as i32) / 4;
     let fx = ((wind.width() - 30) / 2) - (fw / 2);
-    let mut frame = Frame::new(fx, 5, fw, 30, "Scanning for UPNP rendering devices...")
+    let mut frame = Frame::new(fx, 5, fw, 30, "")
         .with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
 
+    let local_addr = get_local_addr().expect("Could not obtain local address.");   
+    println!("Local ip = {}", local_addr);
+    frame.set_label(&format!("Scanning {} for UPNP rendering devices", local_addr));
+ 
     wind.make_resizable(true);
     wind.end();
     wind.show();
-    app::wait_for(0.1)?;
-
-    let local_addr = get_local_addr().expect("Could not obtain local address.");   
-    println!("Local ip = {}", local_addr);
-
+    for _ in 1..100 {
+        app::wait_for(0.001)?
+    }
+ 
     // build a list with renderers descovered on the network
     let renderers = discover().await?;
     // Event handling channel

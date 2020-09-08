@@ -21,6 +21,14 @@ struct Renderer {
     svc_id: String,
 }
 
+macro_rules! DEBUG {
+    ($x:stmt) => {
+        if cfg!(debug_assertions) {
+            $x
+        }
+    };
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = app::App::default().with_scheme(app::Scheme::Gleam);
@@ -31,21 +39,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let fw = (sw as i32) / 4;
     let fx = ((wind.width() - 30) / 2) - (fw / 2);
-    let mut frame = Frame::new(fx, 5, fw, 30, "")
-        .with_align(Align::Center);
+    let mut frame = Frame::new(fx, 5, fw, 30, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
 
-    let local_addr = get_local_addr().expect("Could not obtain local address.");   
-    println!("Local ip = {}", local_addr);
-    frame.set_label(&format!("Scanning {} for UPNP rendering devices", local_addr));
- 
+    let local_addr = get_local_addr().expect("Could not obtain local address.");
+    frame.set_label(&format!(
+        "Scanning {} for UPNP rendering devices",
+        local_addr
+    ));
     wind.make_resizable(true);
     wind.end();
     wind.show();
     for _ in 1..100 {
         app::wait_for(0.001)?
     }
- 
     // build a list with renderers descovered on the network
     let renderers = discover().await?;
     // Event handling channel
@@ -66,10 +73,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .with_pos(bx, by)
                     .with_align(Align::Center)
                     .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-                but.emit(s, bi);    // button click events arrive on a channel with the button index as message data
-                wind.add(&but);     // add the button to the window
-                buttons.push(but);  // and keep a reference to it
-                bi += 1;            // bump the button index
+                but.emit(s, bi); // button click events arrive on a channel with the button index as message data
+                wind.add(&but); // add the button to the window
+                buttons.push(but); // and keep a reference to it
+                bi += 1; // bump the button index
                 by += bheight + 10; // and the button y offset
             }
         }
@@ -77,17 +84,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     frame.set_label("Rendering Devices");
     wind.redraw();
-    
     while app.wait()? {
         match r.recv() {
             Some(i) => {
                 // a button has been clicked
                 let b = &buttons[i as usize]; // get a reference to the button that was clicked
-                println!(
-                    "Device button {} pushed, state = {}",
+                DEBUG!(eprintln!(
+                    "{} pushed, state = {}",
                     b.label(),
                     if b.is_on() { "ON" } else { "OFF" }
-                );
+                ));
             }
             None => (),
         }
@@ -95,24 +101,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
-
     const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
-    println!("Starting renderer discovery");
+    if cfg!(debug_assertions) {
+        println!("Starting renderer discovery");
+    }
 
     let mut renderers: Vec<Renderer> = Vec::new();
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
-    match rupnp::discover(&search_target, Duration::from_secs(3)).await  {
-        Ok(d) => { 
+    match rupnp::discover(&search_target, Duration::from_secs(3)).await {
+        Ok(d) => {
             pin_utils::pin_mut!(d);
             loop {
                 if let Some(device) = d.try_next().await? {
                     if device.services().len() > 0 {
                         if let Some(service) = device.find_service(&RENDERING_CONTROL) {
-                                print_renderer(&device, &service);
-                                renderers.push(Renderer {
+                            DEBUG!(print_renderer(&device, &service));
+                            renderers.push(Renderer {
                                 dev_name: device.friendly_name().to_string(),
                                 dev_model: device.model_name().to_string(),
                                 dev_type: device.device_type().to_string(),
@@ -120,39 +126,38 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                                 svc_id: service.service_type().to_string(),
                                 svc_type: service.service_type().to_string(),
                             });
-        /*
-                            let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
-                            match service.action(device.url(), "GetVolume", args).await {
-                                Ok(response) => {
-                                    println!("Got response from {}", device.friendly_name());
-                                    let volume = response.get("CurrentVolume").expect("Error getting volume");
-                                    println!("'{}' is at volume {}", device.friendly_name(), volume);
-                                }
-                                Err(err) => {
-                                    println!("Error '{}' in GetVolume", err);
-                                }
-                            }
-        */
+                            /*
+                                                let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
+                                                match service.action(device.url(), "GetVolume", args).await {
+                                                    Ok(response) => {
+                                                        println!("Got response from {}", device.friendly_name());
+                                                        let volume = response.get("CurrentVolume").expect("Error getting volume");
+                                                        println!("'{}' is at volume {}", device.friendly_name(), volume);
+                                                    }
+                                                    Err(err) => {
+                                                        println!("Error '{}' in GetVolume", err);
+                                                    }
+                                                }
+                            */
                         }
                     } else {
-                        println!(
-                            "No services: type={}, manufacturer={}, name={}, model={}, at url= {}",
+                        DEBUG!(eprintln!(
+                            "*No services* type={}, manufacturer={}, name={}, model={}, at url= {}",
                             device.device_type(),
                             device.manufacturer(),
                             device.friendly_name(),
                             device.model_name(),
                             device.url()
-                        );
+                        ));
                     }
                 } else {
-                    println!("End of devices discovery");
+                    DEBUG!(eprintln!("End of devices discovery"));
                     break;
                 }
             }
-        
         }
         Err(e) => {
-            println!("Error {} running discover", e);
+            eprintln!("Error {} running discover", e);
         }
     }
 
@@ -160,7 +165,7 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
 }
 
 fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
-    println!(
+    eprintln!(
         "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
         device.device_type(),
         device.manufacturer(),
@@ -168,10 +173,14 @@ fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
         device.model_name(),
         device.url()
     );
-    println!("  Service type: {}, id:   {}", service.service_type(), service.service_id());
+    eprintln!(
+        "  Service type: {}, id:   {}",
+        service.service_type(),
+        service.service_id()
+    );
 }
 
-use std::net::{UdpSocket, IpAddr};
+use std::net::{IpAddr, UdpSocket};
 
 /// get the local ip address, return an `Option<String>`. when it fails, return `None`.
 fn get_local_addr() -> Option<IpAddr> {

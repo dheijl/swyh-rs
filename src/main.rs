@@ -1,9 +1,10 @@
-// #![windows_subsystem = "windows"]  // enable to suppress println!
+// #![windows_subsystem = "windows"]  // enable to suppress console println!
 
 use cpal::traits::{DeviceTrait, HostTrait};
 use fltk::{app, button::*, frame::*, window::*};
 use futures::prelude::*;
 use rupnp::ssdp::{SearchTarget, URN};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
@@ -12,7 +13,7 @@ pub enum Message {
     Decrement,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Renderer {
     dev_name: String,
     dev_model: String,
@@ -20,6 +21,13 @@ struct Renderer {
     dev_url: String,
     svc_type: String,
     svc_id: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct WavData {
+    sample_format: cpal::SampleFormat,
+    sample_rate: cpal::SampleRate,
+    channels: u16,
 }
 
 macro_rules! DEBUG {
@@ -32,9 +40,22 @@ macro_rules! DEBUG {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
+    // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_input_device = get_audio_device();
-    DEBUG!(eprintln!("Default audio input device: {}", audio_input_device.name()?));
+    DEBUG!(eprintln!(
+        "Default audio input device: {}",
+        audio_input_device.name()?
+    ));
+    let audio_cfg = &audio_input_device
+        .default_input_config()
+        .expect("No default input config found");
+    DEBUG!(eprintln!("Default config {:?}", audio_cfg));
+
+    let wavdata = WavData {
+        sample_format: audio_cfg.sample_format(),
+        sample_rate: audio_cfg.sample_rate(),
+        channels: audio_cfg.channels(),
+    };
 
     let app = app::App::default().with_scheme(app::Scheme::Gleam);
     let (sw, sh) = app::screen_size();
@@ -71,8 +92,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bx = ((wind.width() - 30) / 2) - (bwidth / 2); // button x offset
     let mut by = frame.y() + frame.height() + 10; // button y offset
     let mut bi = 0; // button index
+    let mut rs: Vec<Renderer> = Vec::new();
     match renderers {
-        Some(rs) => {
+        Some(rends) => {
+            rs = rends;
             for renderer in rs.iter() {
                 let mut but = LightButton::default() // create the button
                     .with_size(bwidth, bheight)
@@ -90,16 +113,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     frame.set_label("Rendering Devices");
     wind.redraw();
+
     while app.wait()? {
         match r.recv() {
             Some(i) => {
                 // a button has been clicked
                 let b = &buttons[i as usize]; // get a reference to the button that was clicked
+                let renderer = &rs[i as usize];
                 DEBUG!(eprintln!(
-                    "{} pushed, state = {}",
-                    b.label(),
+                    "Pushed renderer {} {}, state = {}",
+                    renderer.dev_model,
+                    renderer.dev_name,
                     if b.is_on() { "ON" } else { "OFF" }
                 ));
+                let stream = match audio_cfg.sample_format() {
+                    cpal::SampleFormat::F32 => {
+                        let (tx, rx): (Sender<f32>, Receiver<f32>) = channel();
+                        audio_input_device.build_input_stream(
+                            &audio_cfg.config(),
+                            move |data, _: &_| wave_reader::<f32>(tx.clone(), data),
+                            err_fn,
+                        )?;
+                    }
+                    cpal::SampleFormat::I16 => {
+                        let (tx, rx): (Sender<i16>, Receiver<i16>) = channel();
+                        audio_input_device.build_input_stream(
+                            &audio_cfg.config(),
+                            move |data, _: &_| wave_reader::<i16>(tx.clone(), data),
+                            err_fn,
+                        )?;
+                    }
+                    cpal::SampleFormat::U16 => {
+                        let (tx, rx): (Sender<f32>, Receiver<f32>) = channel();
+                        audio_input_device.build_input_stream(
+                            &audio_cfg.config(),
+                            move |data, _: &_| wave_reader::<f32>(tx.clone(), data),
+                            err_fn,
+                        )?;
+                    }
+                };
             }
             None => (),
         }
@@ -107,6 +159,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn err_fn(err: cpal::StreamError) {
+    eprintln!("Error {} building audio input stream", err);
+}
+
+fn wave_reader<T>(s: Sender<T>, samples: &[T])
+where T: cpal::Sample
+{
+    for &sample in samples.iter() {
+        s.send(sample).ok();
+    }
+}
+
+///
+/// discover the available (audio) renderers on the network
+///  
 async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
@@ -170,6 +237,9 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     Ok(Some(renderers))
 }
 
+///
+/// print the information for a renderer
+///
 fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
     eprintln!(
         "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
@@ -186,16 +256,19 @@ fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
     );
 }
 
+///
+/// return the default audio device
+///
 fn get_audio_device() -> cpal::Device {
-        // audio hosts
-        DEBUG!(eprintln!("Supported audio hosts: {:?}", cpal::ALL_HOSTS));
-        let available_hosts = cpal::available_hosts();
-        DEBUG!(eprintln!("Available audio hosts: {:?}", available_hosts));
-        let default_host = cpal::default_host();
-        let default_device = default_host
-            .default_input_device()
-            .expect("Failed to get default input device");
-        default_device
+    // audio hosts
+    DEBUG!(eprintln!("Supported audio hosts: {:?}", cpal::ALL_HOSTS));
+    let available_hosts = cpal::available_hosts();
+    DEBUG!(eprintln!("Available audio hosts: {:?}", available_hosts));
+    let default_host = cpal::default_host();
+    let default_device = default_host
+        .default_input_device()
+        .expect("Failed to get the default input device");
+    default_device
 }
 
 use std::net::{IpAddr, UdpSocket};

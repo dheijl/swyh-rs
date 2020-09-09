@@ -1,5 +1,6 @@
 // #![windows_subsystem = "windows"]  // enable to suppress println!
 
+use cpal::traits::{DeviceTrait, HostTrait};
 use fltk::{app, button::*, frame::*, window::*};
 use futures::prelude::*;
 use rupnp::ssdp::{SearchTarget, URN};
@@ -31,6 +32,10 @@ macro_rules! DEBUG {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    let audio_input_device = get_audio_device();
+    DEBUG!(eprintln!("Default audio input device: {}", audio_input_device.name()?));
+
     let app = app::App::default().with_scheme(app::Scheme::Gleam);
     let (sw, sh) = app::screen_size();
     let mut wind = Window::default()
@@ -53,6 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for _ in 1..100 {
         app::wait_for(0.001)?
     }
+
     // build a list with renderers descovered on the network
     let renderers = discover().await?;
     // Event handling channel
@@ -105,7 +111,7 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
     if cfg!(debug_assertions) {
-        println!("Starting renderer discovery");
+        println!("Starting SSDP renderer discovery");
     }
 
     let mut renderers: Vec<Renderer> = Vec::new();
@@ -151,13 +157,13 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                         ));
                     }
                 } else {
-                    DEBUG!(eprintln!("End of devices discovery"));
+                    DEBUG!(eprintln!("End of SSDP devices discovery"));
                     break;
                 }
             }
         }
         Err(e) => {
-            eprintln!("Error {} running discover", e);
+            eprintln!("Error {} running SSDP discover", e);
         }
     }
 
@@ -178,6 +184,18 @@ fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
         service.service_type(),
         service.service_id()
     );
+}
+
+fn get_audio_device() -> cpal::Device {
+        // audio hosts
+        DEBUG!(eprintln!("Supported audio hosts: {:?}", cpal::ALL_HOSTS));
+        let available_hosts = cpal::available_hosts();
+        DEBUG!(eprintln!("Available audio hosts: {:?}", available_hosts));
+        let default_host = cpal::default_host();
+        let default_device = default_host
+            .default_input_device()
+            .expect("Failed to get default input device");
+        default_device
 }
 
 use std::net::{IpAddr, UdpSocket};

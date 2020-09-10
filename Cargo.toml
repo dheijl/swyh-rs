@@ -13,5 +13,5 @@ futures = "^0.3"
 pin-utils = "^0.1"
 rupnp = { path="X:\\Documents\\GitHub\\rupnp", version="*", features = ["full_device_spec"]}
 ssdp-client = { path="X:\\Documents\\GitHub\\ssdp-client" }
-cpal = "^0.12"
+cpal = { path="X:\\Documents\\GitHub\\cpal" }
 

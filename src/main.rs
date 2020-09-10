@@ -1,6 +1,6 @@
 // #![windows_subsystem = "windows"]  // enable to suppress console println!
 
-use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use fltk::{app, button::*, frame::*, window::*};
 use futures::prelude::*;
 use rupnp::ssdp::{SearchTarget, URN};
@@ -41,14 +41,14 @@ macro_rules! DEBUG {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
-    let audio_input_device = get_audio_device();
+    let audio_output_device = get_audio_device();
     DEBUG!(eprintln!(
-        "Default audio input device: {}",
-        audio_input_device.name()?
+        "Default audio output device: {}",
+        audio_output_device.name()?
     ));
-    let audio_cfg = &audio_input_device
-        .default_input_config()
-        .expect("No default input config found");
+    let audio_cfg = &audio_output_device
+        .default_output_config()
+        .expect("No default output config found");
     DEBUG!(eprintln!("Default config {:?}", audio_cfg));
 
     let wavdata = WavData {
@@ -114,6 +114,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     frame.set_label("Rendering Devices");
     wind.redraw();
 
+    let stream = capture_output_audio();
+    stream.play().expect("Could not play audio capture stream");
+
     while app.wait()? {
         match r.recv() {
             Some(i) => {
@@ -126,32 +129,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     renderer.dev_name,
                     if b.is_on() { "ON" } else { "OFF" }
                 ));
-                let stream = match audio_cfg.sample_format() {
-                    cpal::SampleFormat::F32 => {
-                        let (tx, rx): (Sender<f32>, Receiver<f32>) = channel();
-                        audio_input_device.build_input_stream(
-                            &audio_cfg.config(),
-                            move |data, _: &_| wave_reader::<f32>(tx.clone(), data),
-                            err_fn,
-                        )?;
-                    }
-                    cpal::SampleFormat::I16 => {
-                        let (tx, rx): (Sender<i16>, Receiver<i16>) = channel();
-                        audio_input_device.build_input_stream(
-                            &audio_cfg.config(),
-                            move |data, _: &_| wave_reader::<i16>(tx.clone(), data),
-                            err_fn,
-                        )?;
-                    }
-                    cpal::SampleFormat::U16 => {
-                        let (tx, rx): (Sender<f32>, Receiver<f32>) = channel();
-                        audio_input_device.build_input_stream(
-                            &audio_cfg.config(),
-                            move |data, _: &_| wave_reader::<f32>(tx.clone(), data),
-                            err_fn,
-                        )?;
-                    }
-                };
             }
             None => (),
         }
@@ -159,15 +136,85 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn capture_output_audio() -> cpal::Stream {
+    // first initialize cpal audio to prevent COM reinitialize panic on Windows
+    let audio_output_device = get_audio_device();
+    DEBUG!(eprintln!(
+        "Default audio output device: {}",
+        audio_output_device
+            .name()
+            .expect("Could not get default audio device name")
+    ));
+    let audio_cfg = &audio_output_device
+        .default_output_config()
+        .expect("No default output config found");
+    DEBUG!(eprintln!("Default config {:?}", audio_cfg));
+
+    let wavdata = WavData {
+        sample_format: audio_cfg.sample_format(),
+        sample_rate: audio_cfg.sample_rate(),
+        channels: audio_cfg.channels(),
+    };
+
+    let stream = match audio_cfg.sample_format() {
+        cpal::SampleFormat::F32 => {
+            let (tx, rx): (Sender<f32>, Receiver<f32>) = channel();
+            let s = audio_output_device
+                .build_input_stream(
+                    &audio_cfg.config(),
+                    move |data, _: &_| wave_reader::<f32>(tx.clone(), data),
+                    err_fn,
+                )
+                .expect("Could not capture f32 stream format");
+            s
+        }
+        cpal::SampleFormat::I16 => {
+            let (tx, rx): (Sender<i16>, Receiver<i16>) = channel();
+            let s = audio_output_device
+                .build_input_stream(
+                    &audio_cfg.config(),
+                    move |data, _: &_| wave_reader::<i16>(tx.clone(), data),
+                    err_fn,
+                )
+                .expect("Could not capture i16 stream format");
+            s
+        }
+        cpal::SampleFormat::U16 => {
+            let (tx, rx): (Sender<u16>, Receiver<u16>) = channel();
+            let s = audio_output_device
+                .build_input_stream(
+                    &audio_cfg.config(),
+                    move |data, _: &_| wave_reader::<u16>(tx.clone(), data),
+                    err_fn,
+                )
+                .expect("Could not capture u16 stream format");
+            s
+        }
+    };
+    stream
+}
+
 fn err_fn(err: cpal::StreamError) {
     eprintln!("Error {} building audio input stream", err);
 }
 
 fn wave_reader<T>(s: Sender<T>, samples: &[T])
-where T: cpal::Sample
+where
+    T: cpal::Sample,
 {
+    DEBUG!(eprintln!("received {} samples", samples.len()));
     for &sample in samples.iter() {
         s.send(sample).ok();
+    }
+}
+
+fn wave_writer<T>(r: Receiver<T>) -> () {
+    let mut iter = r.iter();
+    match iter.next() {
+        Some(sample) => {
+            
+        }
+        None => ()
     }
 }
 
@@ -257,7 +304,7 @@ fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
 }
 
 ///
-/// return the default audio device
+/// return the default output audio device
 ///
 fn get_audio_device() -> cpal::Device {
     // audio hosts
@@ -266,8 +313,8 @@ fn get_audio_device() -> cpal::Device {
     DEBUG!(eprintln!("Available audio hosts: {:?}", available_hosts));
     let default_host = cpal::default_host();
     let default_device = default_host
-        .default_input_device()
-        .expect("Failed to get the default input device");
+        .default_output_device()
+        .expect("Failed to get the default audio output device");
     default_device
 }
 

@@ -15,3 +15,4 @@ rupnp = { path="X:\\Documents\\GitHub\\rupnp", version="*", features = ["full_de
 ssdp-client = { path="X:\\Documents\\GitHub\\ssdp-client" }
 cpal = { path="X:\\Documents\\GitHub\\cpal" }
 tiny_http = "*"
+ascii = "*"

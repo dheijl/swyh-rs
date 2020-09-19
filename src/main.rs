@@ -10,6 +10,8 @@ use futures::prelude::*;
 use rupnp::ssdp::{SearchTarget, URN};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::Duration;
+use ascii::AsciiString;
+
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -156,7 +158,14 @@ fn run_server(local_addr: &IpAddr) -> () {
 
         handles.push(thread::spawn(move || {
             for rq in server.incoming_requests() {
-                let response = tiny_http::Response::from_string("hello world".to_string());
+                DEBUG!(eprintln!("Reveived request {} from {}", rq.url(), rq.remote_addr()));
+                let s = std::fs::File::open("example.txt").unwrap();
+                let ct = tiny_http::Header {
+                    field: "Content-Type".parse().unwrap(),
+                    value: AsciiString::from_ascii("text/xml").unwrap(),
+                };
+                let response = tiny_http::Response::empty(200).with_header(ct);
+                let response = response.with_data(s, None);
                 let _ = rq.respond(response);
             }
         }));

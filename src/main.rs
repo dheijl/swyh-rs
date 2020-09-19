@@ -1,9 +1,12 @@
 // #![windows_subsystem = "windows"]  // enable to suppress console println!
 
+extern crate tiny_http;
+
+use std::sync::Arc;
+use std::thread;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use fltk::{app, button::*, frame::*, window::*};
 use futures::prelude::*;
-use rouille::*;
 use rupnp::ssdp::{SearchTarget, URN};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::Duration;
@@ -144,60 +147,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn run_server(local_addr: &IpAddr) -> () {
     let addr = format!("{}:{}", local_addr, 5901);
     DEBUG!(eprintln!("Serving on {}", addr));
-    rouille::start_server(addr, move |request| {
-        router!(request,
-            (GET) (/) => {
-                // If the request's URL is `/`, we jump here.
-                // This block builds a `Response` object that redirects to the `/hello/world`.
-                rouille::Response::redirect_302("/hello/world")
-            },
+    let server = Arc::new(tiny_http::Server::http(addr).unwrap());
 
-            (GET) (/hello/world) => {
-                // If the request's URL is `/hello/world`, we jump here.
-                println!("hello world");
+    let mut handles = Vec::new();
 
-                // Builds a `Response` object that contains the "hello world" text.
-                rouille::Response::text("hello world")
-            },
+    for _ in 0..4 {
+        let server = server.clone();
 
-            (GET) (/panic) => {
-                // If the request's URL is `/panic`, we jump here.
-                //
-                // This block panics. Fortunately rouille will automatically catch the panic and
-                // send back a 500 error message to the client. This prevents the server from
-                // closing unexpectedly.
-                panic!("Oops!")
-            },
+        handles.push(thread::spawn(move || {
+            for rq in server.incoming_requests() {
+                let response = tiny_http::Response::from_string("hello world".to_string());
+                let _ = rq.respond(response);
+            }
+        }));
+    }
 
-            (GET) (/{id: u32}) => {
-                // If the request's URL is for example `/5`, we jump here.
-                //
-                // The `router!` macro will attempt to parse the identfier (eg. `5`) as a `u32`. If
-                // the parsing fails (for example if the URL is `/hello`), then this block is not
-                // called and the `router!` macro continues looking for another block.
-                println!("u32 {:?}", id);
+    for h in handles {
+        h.join().unwrap();
+    }
 
-                // For the same of the example we return an empty response with a 400 status code.
-                rouille::Response::empty_400()
-            },
-
-            (GET) (/{id: String}) => {
-                // If the request's URL is for example `/foo`, we jump here.
-                //
-                // This route is similar to the previous one, but this time we have a `String`.
-                // Parsing into a `String` never fails.
-                println!("String {:?}", id);
-
-                // Builds a `Response` object that contains "hello, " followed with the value
-                // of `id`.
-                rouille::Response::text(format!("hello, {}", id))
-            },
-
-            // The code block is called if none of the other blocks matches the request.
-            // We return an empty response with a 404 status code.
-            _ => rouille::Response::empty_404()
-        )
-    });
 }
 
 fn capture_output_audio() -> cpal::Stream {

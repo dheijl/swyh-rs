@@ -2,16 +2,19 @@
 
 extern crate tiny_http;
 
-use std::sync::Arc;
-use std::thread;
+use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use fltk::{app, button::*, frame::*, window::*};
 use futures::prelude::*;
 use rupnp::ssdp::{SearchTarget, URN};
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
-use ascii::AsciiString;
 
+pub use utils::rwstream::*;
+
+mod utils;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -158,7 +161,11 @@ fn run_server(local_addr: &IpAddr) -> () {
 
         handles.push(thread::spawn(move || {
             for rq in server.incoming_requests() {
-                DEBUG!(eprintln!("Reveived request {} from {}", rq.url(), rq.remote_addr()));
+                DEBUG!(eprintln!(
+                    "Reveived request {} from {}",
+                    rq.url(),
+                    rq.remote_addr()
+                ));
                 let s = std::fs::File::open("example.txt").unwrap();
                 let ct = tiny_http::Header {
                     field: "Content-Type".parse().unwrap(),
@@ -174,7 +181,6 @@ fn run_server(local_addr: &IpAddr) -> () {
     for h in handles {
         h.join().unwrap();
     }
-
 }
 
 fn capture_output_audio() -> cpal::Stream {

@@ -17,3 +17,4 @@ cpal = { path="X:\\Documents\\GitHub\\cpal" }
 tiny_http = "*"
 ascii = "*"
 crossbeam-channel = "*"
+lazy_static = "*"

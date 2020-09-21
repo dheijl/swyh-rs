@@ -6,15 +6,18 @@ use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use fltk::{app, button::*, frame::*, window::*};
 use futures::prelude::*;
+use lazy_static::*;
 use rupnp::ssdp::{SearchTarget, URN};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::collections::HashMap;
+use std::sync::Mutex;
+//use std::sync::mpsc::{channel, Receiver, Sender};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-pub use utils::rwstream::*;
-
 mod utils;
+use utils::rwstream::ChannelStream;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -47,6 +50,10 @@ macro_rules! DEBUG {
     };
 }
 
+lazy_static! {
+    static ref Clients: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
@@ -59,12 +66,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .default_output_config()
         .expect("No default output config found");
     DEBUG!(eprintln!("Default config {:?}", audio_cfg));
-
-    let wavdata = WavData {
-        sample_format: audio_cfg.sample_format(),
-        sample_rate: audio_cfg.sample_rate(),
-        channels: audio_cfg.channels(),
-    };
 
     let app = app::App::default().with_scheme(app::Scheme::Gleam);
     let (sw, sh) = app::screen_size();
@@ -128,7 +129,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     stream.play().expect("Could not play audio capture stream");
 
     // start webserver
-    let _ = std::thread::spawn(move || run_server(&local_addr));
+    let wd = WavData {
+        sample_format: audio_cfg.sample_format(),
+        sample_rate: audio_cfg.sample_rate(),
+        channels: audio_cfg.channels(),
+    };
+
+    let _ = std::thread::spawn(move || run_server(&local_addr, wd));
 
     while app.wait()? {
         match r.recv() {
@@ -149,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn run_server(local_addr: &IpAddr) -> () {
+fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
     let addr = format!("{}:{}", local_addr, 5901);
     DEBUG!(eprintln!("Serving on {}", addr));
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
@@ -166,14 +173,30 @@ fn run_server(local_addr: &IpAddr) -> () {
                     rq.url(),
                     rq.remote_addr()
                 ));
-                let s = std::fs::File::open("example.txt").unwrap();
+                let remote_addr = format!("{}", rq.remote_addr());
+                let (tx, rx): (Sender<u16>, Receiver<u16>) = unbounded();
+                let channel_stream = ChannelStream {
+                    s: tx.clone(),
+                    r: rx.clone(),
+                };
+                let mut clients = Clients.lock().unwrap();
+                clients.insert(remote_addr.clone(), channel_stream);
+                drop(clients);
+                let channel_stream = ChannelStream {
+                    s: tx.clone(),
+                    r: rx.clone(),
+                };
+                //                let s = std::fs::File::open("example.txt").unwrap();
                 let ct = tiny_http::Header {
                     field: "Content-Type".parse().unwrap(),
                     value: AsciiString::from_ascii("text/xml").unwrap(),
                 };
                 let response = tiny_http::Response::empty(200).with_header(ct);
-                let response = response.with_data(s, None);
+                let response = response.with_data(channel_stream, None);
                 let _ = rq.respond(response);
+                let mut clients = Clients.lock().unwrap();
+                clients.remove(&remote_addr);
+                drop(clients);
             }
         }));
     }
@@ -197,7 +220,7 @@ fn capture_output_audio() -> cpal::Stream {
         .expect("No default output config found");
     DEBUG!(eprintln!("Default config {:?}", audio_cfg));
 
-    let wavdata = WavData {
+    let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
@@ -205,7 +228,7 @@ fn capture_output_audio() -> cpal::Stream {
 
     let stream = match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => {
-            let (tx, rx): (Sender<f32>, Receiver<f32>) = channel();
+            let (tx, rx): (Sender<f32>, Receiver<f32>) = unbounded();
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
@@ -213,10 +236,13 @@ fn capture_output_audio() -> cpal::Stream {
                     err_fn,
                 )
                 .expect("Could not capture f32 stream format");
+            let _ = std::thread::spawn(move || {
+                wave_writer(rx);
+            });
             s
         }
         cpal::SampleFormat::I16 => {
-            let (tx, rx): (Sender<i16>, Receiver<i16>) = channel();
+            let (tx, rx): (Sender<i16>, Receiver<i16>) = unbounded();
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
@@ -224,10 +250,13 @@ fn capture_output_audio() -> cpal::Stream {
                     err_fn,
                 )
                 .expect("Could not capture i16 stream format");
+            let _ = std::thread::spawn(move || {
+                wave_writer(rx);
+            });
             s
         }
         cpal::SampleFormat::U16 => {
-            let (tx, rx): (Sender<u16>, Receiver<u16>) = channel();
+            let (tx, rx): (Sender<u16>, Receiver<u16>) = unbounded();
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
@@ -235,6 +264,9 @@ fn capture_output_audio() -> cpal::Stream {
                     err_fn,
                 )
                 .expect("Could not capture u16 stream format");
+            let _ = std::thread::spawn(move || {
+                wave_writer(rx);
+            });
             s
         }
     };
@@ -255,11 +287,22 @@ where
     }
 }
 
-fn wave_writer<T>(r: Receiver<T>) -> () {
-    let mut iter = r.iter();
-    match iter.next() {
-        Some(sample) => {}
-        None => (),
+fn wave_writer<T>(r: Receiver<T>) -> ()
+where
+    T: cpal::Sample,
+{
+    let clients = Clients.lock().unwrap();
+    let mut channels = vec![];
+    for (_, client) in clients.iter() {
+        channels.push(client.s.clone());
+    }
+    drop(clients);
+
+    for sample in r.iter() {
+        let dest_sample = sample.to_u16();
+        for channel in channels.iter() {
+            channel.send(dest_sample).unwrap();
+        }
     }
 }
 

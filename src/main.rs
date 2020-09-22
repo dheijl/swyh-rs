@@ -232,45 +232,33 @@ fn capture_output_audio() -> cpal::Stream {
 
     let stream = match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => {
-            let (tx, rx): (Sender<f32>, Receiver<f32>) = unbounded();
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<f32>(tx.clone(), data),
+                    move |data, _: &_| wave_reader::<f32>(data),
                     err_fn,
                 )
                 .expect("Could not capture f32 stream format");
-            let _ = std::thread::spawn(move || {
-                wave_writer(rx);
-            });
             s
         }
         cpal::SampleFormat::I16 => {
-            let (tx, rx): (Sender<i16>, Receiver<i16>) = unbounded();
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<i16>(tx.clone(), data),
+                    move |data, _: &_| wave_reader::<i16>(data),
                     err_fn,
                 )
                 .expect("Could not capture i16 stream format");
-            let _ = std::thread::spawn(move || {
-                wave_writer(rx);
-            });
             s
         }
         cpal::SampleFormat::U16 => {
-            let (tx, rx): (Sender<u16>, Receiver<u16>) = unbounded();
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<u16>(tx.clone(), data),
+                    move |data, _: &_| wave_reader::<u16>(data),
                     err_fn,
                 )
                 .expect("Could not capture u16 stream format");
-            let _ = std::thread::spawn(move || {
-                wave_writer(rx);
-            });
             s
         }
     };
@@ -281,7 +269,7 @@ fn err_fn(err: cpal::StreamError) {
     eprintln!("Error {} building audio input stream", err);
 }
 
-fn wave_reader<T>(s: Sender<T>, samples: &[T])
+fn wave_reader<T>(samples: &[T])
 where
     T: cpal::Sample,
 {
@@ -293,37 +281,10 @@ where
         }
     }
 
-    for &sample in samples.iter() {
-        s.send(sample).ok();
-    }
-}
-
-fn wave_writer<T>(r: Receiver<T>) -> ()
-where
-    T: cpal::Sample,
-{
-    DEBUG!(eprintln!("wave_writer started"));
-    let mut samples: Vec<i16> = Vec::with_capacity(4096);
-    loop {
-        loop {
-            match r.recv() {
-                Ok(sample) => {
-                    samples.push(sample.to_i16());
-                    if samples.len() == 4096 {
-                        break;
-                    }
-                }
-                Err(_) => {
-                    break;
-                }
-            }
-        }
-        let clients = CLIENTS.lock().unwrap();
-        for (_, v) in clients.iter() {
-            v.write(&samples);
-        }
-        drop(clients);
-        samples.clear();
+    let i16_samples: Vec<i16> = samples.into_iter().map(|x| x.to_i16()).collect();
+    let clients = CLIENTS.lock().unwrap();
+    for (_, v) in clients.iter() {
+        v.write(&i16_samples);
     }
 }
 

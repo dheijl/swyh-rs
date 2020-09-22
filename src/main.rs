@@ -224,12 +224,6 @@ fn capture_output_audio() -> cpal::Stream {
         .expect("No default output config found");
     DEBUG!(eprintln!("Default config {:?}", audio_cfg));
 
-    let wd = WavData {
-        sample_format: audio_cfg.sample_format(),
-        sample_rate: audio_cfg.sample_rate(),
-        channels: audio_cfg.channels(),
-    };
-
     let stream = match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => {
             let s = audio_output_device

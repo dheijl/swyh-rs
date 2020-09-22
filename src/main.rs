@@ -51,7 +51,7 @@ macro_rules! DEBUG {
 }
 
 lazy_static! {
-    static ref Clients: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
+    static ref CLIENTS: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
 }
 
 #[tokio::main]
@@ -169,34 +169,38 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
         handles.push(thread::spawn(move || {
             for rq in server.incoming_requests() {
                 DEBUG!(eprintln!(
-                    "Reveived request {} from {}",
+                    "Received request {} from {}",
                     rq.url(),
                     rq.remote_addr()
                 ));
                 let remote_addr = format!("{}", rq.remote_addr());
-                let (tx, rx): (Sender<u16>, Receiver<u16>) = unbounded();
+                let (tx, rx): (Sender<i16>, Receiver<i16>) = unbounded();
                 let channel_stream = ChannelStream {
                     s: tx.clone(),
                     r: rx.clone(),
                 };
-                let mut clients = Clients.lock().unwrap();
+                let mut clients = CLIENTS.lock().unwrap();
                 clients.insert(remote_addr.clone(), channel_stream);
                 drop(clients);
+                std::thread::yield_now();
                 let channel_stream = ChannelStream {
                     s: tx.clone(),
                     r: rx.clone(),
                 };
-                //                let s = std::fs::File::open("example.txt").unwrap();
-                let ct = tiny_http::Header {
+                let ct_text = format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string());
+                let ct_hdr = tiny_http::Header {
                     field: "Content-Type".parse().unwrap(),
-                    value: AsciiString::from_ascii("text/xml").unwrap(),
+                    value: AsciiString::from_ascii(ct_text).unwrap(),
                 };
-                let response = tiny_http::Response::empty(200).with_header(ct);
-                let response = response.with_data(channel_stream, None);
+                let response = tiny_http::Response::empty(200)
+                    .with_header(ct_hdr)
+                    .with_data(channel_stream, None)
+                    .with_chunked_threshold(4096);
                 let _ = rq.respond(response);
-                let mut clients = Clients.lock().unwrap();
+                let mut clients = CLIENTS.lock().unwrap();
                 clients.remove(&remote_addr);
                 drop(clients);
+                DEBUG!(eprintln!("End of response to {}", remote_addr));
             }
         }));
     }
@@ -281,7 +285,14 @@ fn wave_reader<T>(s: Sender<T>, samples: &[T])
 where
     T: cpal::Sample,
 {
-    DEBUG!(eprintln!("received {} samples", samples.len()));
+    static mut ONETIME_SW: bool = false;
+    unsafe {
+        if !ONETIME_SW {
+            DEBUG!(eprintln!("wave_reader is receiving samples"));
+            ONETIME_SW = true;
+        }
+    }
+
     for &sample in samples.iter() {
         s.send(sample).ok();
     }
@@ -291,18 +302,28 @@ fn wave_writer<T>(r: Receiver<T>) -> ()
 where
     T: cpal::Sample,
 {
-    let clients = Clients.lock().unwrap();
-    let mut channels = vec![];
-    for (_, client) in clients.iter() {
-        channels.push(client.s.clone());
-    }
-    drop(clients);
-
-    for sample in r.iter() {
-        let dest_sample = sample.to_u16();
-        for channel in channels.iter() {
-            channel.send(dest_sample).unwrap();
+    DEBUG!(eprintln!("wave_writer started"));
+    let mut samples: Vec<i16> = Vec::with_capacity(4096);
+    loop {
+        loop {
+            match r.recv() {
+                Ok(sample) => {
+                    samples.push(sample.to_i16());
+                    if samples.len() == 4096 {
+                        break;
+                    }
+                }
+                Err(_) => {
+                    break;
+                }
+            }
         }
+        let clients = CLIENTS.lock().unwrap();
+        for (_, v) in clients.iter() {
+            v.write(&samples);
+        }
+        drop(clients);
+        samples.clear();
     }
 }
 

@@ -4,15 +4,15 @@ extern crate tiny_http;
 
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
 use fltk::{app, button::*, frame::*, text::*, window::*};
 use futures::prelude::*;
 use lazy_static::*;
 use rupnp::ssdp::{SearchTarget, URN};
 use std::collections::HashMap;
-use std::sync::Mutex;
 //use std::sync::mpsc::{channel, Receiver, Sender};
-use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -52,6 +52,8 @@ macro_rules! DEBUG {
 
 lazy_static! {
     static ref CLIENTS: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
+    static ref LOGCHANNEL: Mutex<(OtherSender<String>, OtherReceiver<String>)> =
+        Mutex::new(unbounded());
 }
 
 #[tokio::main]
@@ -67,6 +69,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut wind = Window::default()
         .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
         .with_label("UPNP/DLNA Renderers");
+    wind.handle(Box::new(move |_ev| {
+        //eprintln!("{:?}", app::event());
+        let ev = app::event();
+        match ev {
+            Event::Close => {
+                std::process::exit(0);
+            }
+            _ => false,
+        }
+    }));
 
     let fw = (sw as i32) / 3;
     let fx = ((wind.width() - 30) / 2) - (fw / 2);
@@ -93,29 +105,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // setup logger thread that updates text display
-    let (msg_s, msg_r): (Sender<String>, Receiver<String>) = unbounded();
-    std::thread::spawn(move || loop {
-        let msg = msg_r.recv().unwrap();
-        let mut _tb = tb.lock().unwrap();
-        _tb.buffer().unwrap().append(&msg);
-        _tb.buffer().unwrap().append("\n");
-        let buflen = _tb.buffer().unwrap().length();
-        _tb.set_insert_position(buflen);
-        let buflines = _tb.count_lines(0, buflen, true);
-        _tb.scroll(buflines, 0);
-        drop(_tb);
-    });
+    //let (msg_s, msg_r): (Sender<String>, Receiver<String>) = channel();
+    let logreader: OtherReceiver<String>;
+    {
+        let ch = &LOGCHANNEL.lock().unwrap();
+        logreader = ch.1.clone();
+    }
+    let _ = std::thread::spawn(move || log_reader(logreader, tb));
 
     for _ in 1..100 {
         app::wait_for(0.001)?
     }
 
     // build a list with renderers descovered on the network
-    let renderers = discover(msg_s.clone()).await?;
+    let renderers = discover().await?;
     // now create a button for each discovered renderer
     let mut buttons: Vec<LightButton> = Vec::new();
-    // event handling channel for the buttons
-    let (s, r) = app::channel::<i32>();
     // button dimensions and starting position
     let bwidth = frame.width() / 2; // button width
     let bheight = frame.height(); // button height
@@ -137,14 +142,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 but.handle(Box::new(move |ev| {
                     let but_cc = but_c.clone();
                     let renderer = &rs_c[bi as usize];
-                    DEBUG!(eprintln!(
-                        "Pushed renderer #{} {} {}, state = {}",
-                        bi,
-                        renderer.dev_model,
-                        renderer.dev_name,
-                        if but_cc.is_on() { "ON" } else { "OFF" }
-                    ));
-                    true
+                    match ev {
+                        Event::Push => {
+                            DEBUG!(eprintln!(
+                                "Pushed renderer #{} {} {}, state = {}",
+                                bi,
+                                renderer.dev_model,
+                                renderer.dev_name,
+                                if but_cc.is_on() { "ON" } else { "OFF" }
+                            ));
+                            true
+                        }
+                        _ => true,
+                    }
                 }));
                 wind.add(&but); // add the button to the window
                 buttons.push(but); // and keep a reference to it
@@ -161,45 +171,76 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // capture system audio
-    let stream = capture_output_audio(msg_s.clone());
+    let stream = capture_output_audio();
     stream.play().expect("Could not play audio capture stream");
-    
+
     // start webserver
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
     };
-    let _ = std::thread::spawn(move || run_server(&local_addr, wd, msg_s.clone()));
+    let _ = std::thread::spawn(move || run_server(&local_addr, wd));
+    std::thread::yield_now();
 
     // run GUI
-    _app.run().unwrap();
-
+    loop {
+        for _ in 1..100 {
+            app::wait_for(0.00001).unwrap();
+            std::thread::sleep(std::time::Duration::new(0, 100000));
+        }
+        if app::should_program_quit() {
+            break;
+        }
+}
     Ok(())
 }
 
-fn run_server(local_addr: &IpAddr, wd: WavData, logger: Sender<String>) -> () {
+fn log_reader(logreader: OtherReceiver<String>, tb: Arc<Mutex<TextDisplay>>) {
+    loop {
+        let msg = logreader.recv().unwrap();
+        eprintln!("LOG: {}", msg);
+        let mut _tb = tb.lock().unwrap();
+        _tb.buffer().unwrap().append(&msg);
+        _tb.buffer().unwrap().append("\n");
+        let buflen = _tb.buffer().unwrap().length();
+        _tb.set_insert_position(buflen);
+        let buflines = _tb.count_lines(0, buflen, true);
+        _tb.scroll(buflines, 0);
+        _tb.redraw();
+        drop(_tb);
+    }
+}
+
+fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
+    let logger: OtherSender<String>;
+    {
+        let ch = &LOGCHANNEL.lock().unwrap();
+        logger = ch.0.clone();
+    }
     let addr = format!("{}:{}", local_addr, 5901);
-    logger.send(format!("Serving on {}", addr)).unwrap();
+    let logmsg = format!("Serving on {}", addr);
+    let dmsg = logmsg.clone();
+    logger.send(logmsg).unwrap();
+    DEBUG!(eprintln!("{}", dmsg));
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
-
     let mut handles = Vec::new();
-
-    for _ in 0..4 {
+    for _ in 0..8 {
         let server = server.clone();
 
-        let logger_c = logger.clone();
         handles.push(thread::spawn(move || {
             for rq in server.incoming_requests() {
-                logger_c
-                    .send(format!(
-                        "Received request {} from {}",
-                        rq.url(),
-                        rq.remote_addr()
-                    ))
-                    .unwrap();
+                let logger_c: OtherSender<String>;
+                {
+                    let _ch = &LOGCHANNEL.lock().unwrap();
+                    logger_c = _ch.0.clone();
+                }
+                let logmsg = format!("Received request {} from {}", rq.url(), rq.remote_addr());
+                let dmsg = logmsg.clone();
+                logger_c.send(logmsg).unwrap();
+                DEBUG!(eprintln!("{}", dmsg));
                 let remote_addr = format!("{}", rq.remote_addr());
-                let (tx, rx): (Sender<i16>, Receiver<i16>) = unbounded();
+                let (tx, rx): (OtherSender<i16>, OtherReceiver<i16>) = unbounded();
                 let channel_stream = ChannelStream {
                     s: tx.clone(),
                     r: rx.clone(),
@@ -225,9 +266,10 @@ fn run_server(local_addr: &IpAddr, wd: WavData, logger: Sender<String>) -> () {
                 let mut clients = CLIENTS.lock().unwrap();
                 clients.remove(&remote_addr);
                 drop(clients);
-                logger_c
-                    .send(format!("End of response to {}", remote_addr))
-                    .unwrap();
+                let logmsg = format!("End of response to {}", remote_addr);
+                let dmsg = logmsg.clone();
+                logger_c.send(logmsg).unwrap();
+                DEBUG!(eprintln!("{}", dmsg));
             }
         }));
     }
@@ -237,9 +279,14 @@ fn run_server(local_addr: &IpAddr, wd: WavData, logger: Sender<String>) -> () {
     }
 }
 
-fn capture_output_audio(logger: Sender<String>) -> cpal::Stream {
+fn capture_output_audio() -> cpal::Stream {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_output_device = get_audio_device();
+    let logger: OtherSender<String>;
+    {
+        let ch = &LOGCHANNEL.lock().unwrap();
+        logger = ch.0.clone();
+    }
     logger
         .send(format!(
             "Default audio output device: {}",
@@ -260,7 +307,7 @@ fn capture_output_audio(logger: Sender<String>) -> cpal::Stream {
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<f32>(data, logger.clone()),
+                    move |data, _: &_| wave_reader::<f32>(data),
                     err_fn,
                 )
                 .expect("Could not capture f32 stream format");
@@ -270,7 +317,7 @@ fn capture_output_audio(logger: Sender<String>) -> cpal::Stream {
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<i16>(data, logger.clone()),
+                    move |data, _: &_| wave_reader::<i16>(data),
                     err_fn,
                 )
                 .expect("Could not capture i16 stream format");
@@ -280,7 +327,7 @@ fn capture_output_audio(logger: Sender<String>) -> cpal::Stream {
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<u16>(data, logger.clone()),
+                    move |data, _: &_| wave_reader::<u16>(data),
                     err_fn,
                 )
                 .expect("Could not capture u16 stream format");
@@ -294,13 +341,18 @@ fn err_fn(err: cpal::StreamError) {
     eprintln!("Error {} building audio input stream", err);
 }
 
-fn wave_reader<T>(samples: &[T], logger: Sender<String>)
+fn wave_reader<T>(samples: &[T])
 where
     T: cpal::Sample,
 {
     static mut ONETIME_SW: bool = false;
     unsafe {
         if !ONETIME_SW {
+            let logger: OtherSender<String>;
+            {
+                let ch = &LOGCHANNEL.lock().unwrap();
+                logger = ch.0.clone();
+            }
             logger
                 .send(format!("wave_reader is receiving samples"))
                 .unwrap();
@@ -318,7 +370,7 @@ where
 ///
 /// discover the available (audio) renderers on the network
 ///  
-async fn discover(logger: Sender<String>) -> Result<Option<Vec<Renderer>>, rupnp::Error> {
+async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
     if cfg!(debug_assertions) {
@@ -334,7 +386,7 @@ async fn discover(logger: Sender<String>) -> Result<Option<Vec<Renderer>>, rupnp
                 if let Some(device) = d.try_next().await? {
                     if device.services().len() > 0 {
                         if let Some(service) = device.find_service(&RENDERING_CONTROL) {
-                            print_renderer(&device, &service, logger.clone());
+                            print_renderer(&device, &service);
                             renderers.push(Renderer {
                                 dev_name: device.friendly_name().to_string(),
                                 dev_model: device.model_name().to_string(),
@@ -384,7 +436,12 @@ async fn discover(logger: Sender<String>) -> Result<Option<Vec<Renderer>>, rupnp
 ///
 /// print the information for a renderer
 ///
-fn print_renderer(device: &rupnp::Device, service: &rupnp::Service, logger: Sender<String>) {
+fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
+    let logger: OtherSender<String>;
+    {
+        let ch = &LOGCHANNEL.lock().unwrap();
+        logger = ch.0.clone();
+    }
     logger
         .send(format!(
             "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",

@@ -4,7 +4,7 @@ extern crate tiny_http;
 
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use fltk::{app, button::*, frame::*, window::*};
+use fltk::{app, button::*, frame::*, text::*, window::*};
 use futures::prelude::*;
 use lazy_static::*;
 use rupnp::ssdp::{SearchTarget, URN};
@@ -58,25 +58,27 @@ lazy_static! {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_output_device = get_audio_device();
-    DEBUG!(eprintln!(
-        "Default audio output device: {}",
-        audio_output_device.name()?
-    ));
     let audio_cfg = &audio_output_device
         .default_output_config()
         .expect("No default output config found");
-    DEBUG!(eprintln!("Default config {:?}", audio_cfg));
 
-    let app = app::App::default().with_scheme(app::Scheme::Gleam);
+    let _app = app::App::default().with_scheme(app::Scheme::Gleam);
     let (sw, sh) = app::screen_size();
     let mut wind = Window::default()
-        .with_size((sw as i32) / 3, (sh as i32) / 3)
+        .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
         .with_label("UPNP/DLNA Renderers");
 
-    let fw = (sw as i32) / 4;
+    let fw = (sw as i32) / 3;
     let fx = ((wind.width() - 30) / 2) - (fw / 2);
-    let mut frame = Frame::new(fx, 5, fw, 30, "").with_align(Align::Center);
+    let mut frame = Frame::new(fx, 5, fw, 25, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
+    let buf = TextBuffer::default();
+    let tb = Arc::from(Mutex::from(
+        TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left),
+    ));
+    let mut _tb = tb.lock().unwrap();
+    _tb.set_buffer(Some(buf));
+    drop(_tb);
 
     let local_addr = get_local_addr().expect("Could not obtain local address.");
     frame.set_label(&format!(
@@ -90,29 +92,60 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         app::wait_for(0.001)?
     }
 
+    // setup logger thread that updates text display
+    let (msg_s, msg_r): (Sender<String>, Receiver<String>) = unbounded();
+    std::thread::spawn(move || loop {
+        let msg = msg_r.recv().unwrap();
+        let mut _tb = tb.lock().unwrap();
+        _tb.buffer().unwrap().append(&msg);
+        _tb.buffer().unwrap().append("\n");
+        let buflen = _tb.buffer().unwrap().length();
+        _tb.set_insert_position(buflen);
+        let buflines = _tb.count_lines(0, buflen, true);
+        _tb.scroll(buflines, 0);
+        drop(_tb);
+    });
+
+    for _ in 1..100 {
+        app::wait_for(0.001)?
+    }
+
     // build a list with renderers descovered on the network
-    let renderers = discover().await?;
-    // Event handling channel
-    let (s, r) = app::channel::<i32>();
-    // the buttons with the discovered renderers
+    let renderers = discover(msg_s.clone()).await?;
+    // now create a button for each discovered renderer
     let mut buttons: Vec<LightButton> = Vec::new();
-    // now create a button for each renderer
+    // event handling channel for the buttons
+    let (s, r) = app::channel::<i32>();
+    // button dimensions and starting position
     let bwidth = frame.width() / 2; // button width
     let bheight = frame.height(); // button height
     let bx = ((wind.width() - 30) / 2) - (bwidth / 2); // button x offset
     let mut by = frame.y() + frame.height() + 10; // button y offset
+                                                  // create the buttons
     let mut bi = 0; // button index
-    let mut rs: Vec<Renderer> = Vec::new();
     match renderers {
         Some(rends) => {
-            rs = rends;
+            let rs = rends;
             for renderer in rs.iter() {
                 let mut but = LightButton::default() // create the button
                     .with_size(bwidth, bheight)
                     .with_pos(bx, by)
                     .with_align(Align::Center)
                     .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-                but.emit(s, bi); // button click events arrive on a channel with the button index as message data
+                let rs_c = rs.clone();
+                let but_c = but.clone();
+                but.handle(Box::new(move |ev| {
+                    let but_cc = but_c.clone();
+                    let renderer = &rs_c[bi as usize];
+                    DEBUG!(eprintln!(
+                        "Pushed renderer #{} {} {}, state = {}",
+                        bi,
+                        renderer.dev_model,
+                        renderer.dev_name,
+                        if but_cc.is_on() { "ON" } else { "OFF" }
+                    ));
+                    true
+                }));
                 wind.add(&but); // add the button to the window
                 buttons.push(but); // and keep a reference to it
                 bi += 1; // bump the button index
@@ -123,42 +156,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     frame.set_label("Rendering Devices");
     wind.redraw();
+    for _ in 1..100 {
+        app::wait_for(0.001)?
+    }
 
     // capture system audio
-    let stream = capture_output_audio();
+    let stream = capture_output_audio(msg_s.clone());
     stream.play().expect("Could not play audio capture stream");
-
+    
     // start webserver
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
     };
+    let _ = std::thread::spawn(move || run_server(&local_addr, wd, msg_s.clone()));
 
-    let _ = std::thread::spawn(move || run_server(&local_addr, wd));
+    // run GUI
+    _app.run().unwrap();
 
-    while app.wait()? {
-        match r.recv() {
-            Some(i) => {
-                // a button has been clicked
-                let b = &buttons[i as usize]; // get a reference to the button that was clicked
-                let renderer = &rs[i as usize];
-                DEBUG!(eprintln!(
-                    "Pushed renderer {} {}, state = {}",
-                    renderer.dev_model,
-                    renderer.dev_name,
-                    if b.is_on() { "ON" } else { "OFF" }
-                ));
-            }
-            None => (),
-        }
-    }
     Ok(())
 }
 
-fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
+fn run_server(local_addr: &IpAddr, wd: WavData, logger: Sender<String>) -> () {
     let addr = format!("{}:{}", local_addr, 5901);
-    DEBUG!(eprintln!("Serving on {}", addr));
+    logger.send(format!("Serving on {}", addr)).unwrap();
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
 
     let mut handles = Vec::new();
@@ -166,13 +188,16 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
     for _ in 0..4 {
         let server = server.clone();
 
+        let logger_c = logger.clone();
         handles.push(thread::spawn(move || {
             for rq in server.incoming_requests() {
-                DEBUG!(eprintln!(
-                    "Received request {} from {}",
-                    rq.url(),
-                    rq.remote_addr()
-                ));
+                logger_c
+                    .send(format!(
+                        "Received request {} from {}",
+                        rq.url(),
+                        rq.remote_addr()
+                    ))
+                    .unwrap();
                 let remote_addr = format!("{}", rq.remote_addr());
                 let (tx, rx): (Sender<i16>, Receiver<i16>) = unbounded();
                 let channel_stream = ChannelStream {
@@ -200,7 +225,9 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
                 let mut clients = CLIENTS.lock().unwrap();
                 clients.remove(&remote_addr);
                 drop(clients);
-                DEBUG!(eprintln!("End of response to {}", remote_addr));
+                logger_c
+                    .send(format!("End of response to {}", remote_addr))
+                    .unwrap();
             }
         }));
     }
@@ -210,26 +237,30 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
     }
 }
 
-fn capture_output_audio() -> cpal::Stream {
+fn capture_output_audio(logger: Sender<String>) -> cpal::Stream {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_output_device = get_audio_device();
-    DEBUG!(eprintln!(
-        "Default audio output device: {}",
-        audio_output_device
-            .name()
-            .expect("Could not get default audio device name")
-    ));
+    logger
+        .send(format!(
+            "Default audio output device: {}",
+            audio_output_device
+                .name()
+                .expect("Could not get default audio device name")
+        ))
+        .unwrap();
     let audio_cfg = &audio_output_device
         .default_output_config()
         .expect("No default output config found");
-    DEBUG!(eprintln!("Default config {:?}", audio_cfg));
+    logger
+        .send(format!("Default config {:?}", audio_cfg))
+        .unwrap();
 
     let stream = match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => {
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<f32>(data),
+                    move |data, _: &_| wave_reader::<f32>(data, logger.clone()),
                     err_fn,
                 )
                 .expect("Could not capture f32 stream format");
@@ -239,7 +270,7 @@ fn capture_output_audio() -> cpal::Stream {
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<i16>(data),
+                    move |data, _: &_| wave_reader::<i16>(data, logger.clone()),
                     err_fn,
                 )
                 .expect("Could not capture i16 stream format");
@@ -249,7 +280,7 @@ fn capture_output_audio() -> cpal::Stream {
             let s = audio_output_device
                 .build_input_stream(
                     &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<u16>(data),
+                    move |data, _: &_| wave_reader::<u16>(data, logger.clone()),
                     err_fn,
                 )
                 .expect("Could not capture u16 stream format");
@@ -263,14 +294,16 @@ fn err_fn(err: cpal::StreamError) {
     eprintln!("Error {} building audio input stream", err);
 }
 
-fn wave_reader<T>(samples: &[T])
+fn wave_reader<T>(samples: &[T], logger: Sender<String>)
 where
     T: cpal::Sample,
 {
     static mut ONETIME_SW: bool = false;
     unsafe {
         if !ONETIME_SW {
-            DEBUG!(eprintln!("wave_reader is receiving samples"));
+            logger
+                .send(format!("wave_reader is receiving samples"))
+                .unwrap();
             ONETIME_SW = true;
         }
     }
@@ -285,7 +318,7 @@ where
 ///
 /// discover the available (audio) renderers on the network
 ///  
-async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
+async fn discover(logger: Sender<String>) -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
     if cfg!(debug_assertions) {
@@ -301,7 +334,7 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                 if let Some(device) = d.try_next().await? {
                     if device.services().len() > 0 {
                         if let Some(service) = device.find_service(&RENDERING_CONTROL) {
-                            DEBUG!(print_renderer(&device, &service));
+                            print_renderer(&device, &service, logger.clone());
                             renderers.push(Renderer {
                                 dev_name: device.friendly_name().to_string(),
                                 dev_model: device.model_name().to_string(),
@@ -351,20 +384,24 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
 ///
 /// print the information for a renderer
 ///
-fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
-    eprintln!(
-        "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
-        device.device_type(),
-        device.manufacturer(),
-        device.friendly_name(),
-        device.model_name(),
-        device.url()
-    );
-    eprintln!(
-        "  Service type: {}, id:   {}",
-        service.service_type(),
-        service.service_id()
-    );
+fn print_renderer(device: &rupnp::Device, service: &rupnp::Service, logger: Sender<String>) {
+    logger
+        .send(format!(
+            "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
+            device.device_type(),
+            device.manufacturer(),
+            device.friendly_name(),
+            device.model_name(),
+            device.url()
+        ))
+        .unwrap();
+    logger
+        .send(format!(
+            "  Service type: {}, id:   {}",
+            service.service_type(),
+            service.service_id()
+        ))
+        .unwrap();
 }
 
 ///

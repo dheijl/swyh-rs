@@ -15,6 +15,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use url::{Url};
 
 mod utils;
 use utils::rwstream::ChannelStream;
@@ -147,6 +148,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 renderer.dev_name,
                                 if but_cc.is_on() { "ON" } else { "OFF" }
                             ));
+                            if but_cc.is_on() {
+                                play(&renderer);
+                            } else {
+                                stop(&renderer);
+                            }
                             true
                         }
                         _ => true,
@@ -191,6 +197,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn play(renderer: &Renderer) {
+    let url = renderer.dev_url.clone();
+    let (ip, port) = parse_url(url);
+    log(format!("Start playing on {} ip={} port={}", renderer.dev_name, ip, port));
+}
+
+fn stop(renderer: &Renderer) {
+    let url = renderer.dev_url.clone();
+    let (ip, port) = parse_url(url);
+    log(format!("Stop playing on {} ip={} port={}", renderer.dev_name, ip, port));
+}
+
+fn parse_url(dev_url: String) -> (IpAddr, u16) {
+    let ip: IpAddr;
+    let port: u16;
+    match Url::parse(&dev_url) {
+        Ok(url) => {
+            let ips = url.host_str().unwrap();
+            ip = ips.parse::<IpAddr>().unwrap();
+            port = url.port().unwrap();
+        }
+        Err(e) => {
+            log(format!("Error {} parsing url {}",e ,dev_url));
+            ip = "0.0.0.0".parse::<IpAddr>().unwrap();
+            port = 0;
+        }
+    }
+    (ip, port)
+
+}
+
 fn log_reader(tb: Arc<Mutex<TextDisplay>>) {
     let logreader: OtherReceiver<String>;
     {
@@ -224,7 +261,8 @@ fn log(s: String) {
 }
 
 fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
-    let addr = format!("{}:{}", local_addr, 5901);
+    const PORT: i32 = 5902; //5901;
+    let addr = format!("{}:{}", local_addr, PORT);
     let logmsg = format!("Serving on {}", addr);
     log(logmsg);
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());

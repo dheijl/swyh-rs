@@ -74,6 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let ev = app::event();
         match ev {
             Event::Close => {
+                _app.quit();
                 std::process::exit(0);
             }
             _ => false,
@@ -101,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.end();
     wind.show();
     for _ in 1..100 {
-        app::wait_for(0.001)?
+        app::wait_for(0.00001)?
     }
 
     // setup logger thread that updates text display
@@ -167,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     frame.set_label("Rendering Devices");
     wind.redraw();
     for _ in 1..100 {
-        app::wait_for(0.001)?
+        app::wait_for(0.00001)?
     }
 
     // capture system audio
@@ -192,7 +193,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if app::should_program_quit() {
             break;
         }
-}
+    }
     Ok(())
 }
 
@@ -212,17 +213,21 @@ fn log_reader(logreader: OtherReceiver<String>, tb: Arc<Mutex<TextDisplay>>) {
     }
 }
 
-fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
+fn log(s: String) {
     let logger: OtherSender<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();
         logger = ch.0.clone();
     }
+    let d = s.clone();
+    logger.send(s).unwrap();
+    DEBUG!(eprintln!("{}", d));
+}
+
+fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
     let addr = format!("{}:{}", local_addr, 5901);
     let logmsg = format!("Serving on {}", addr);
-    let dmsg = logmsg.clone();
-    logger.send(logmsg).unwrap();
-    DEBUG!(eprintln!("{}", dmsg));
+    log(logmsg);
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
     let mut handles = Vec::new();
     for _ in 0..8 {
@@ -282,26 +287,16 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
 fn capture_output_audio() -> cpal::Stream {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_output_device = get_audio_device();
-    let logger: OtherSender<String>;
-    {
-        let ch = &LOGCHANNEL.lock().unwrap();
-        logger = ch.0.clone();
-    }
-    logger
-        .send(format!(
-            "Default audio output device: {}",
-            audio_output_device
-                .name()
-                .expect("Could not get default audio device name")
-        ))
-        .unwrap();
+    log(format!(
+        "Default audio output device: {}",
+        audio_output_device
+            .name()
+            .expect("Could not get default audio device name")
+    ));
     let audio_cfg = &audio_output_device
         .default_output_config()
         .expect("No default output config found");
-    logger
-        .send(format!("Default config {:?}", audio_cfg))
-        .unwrap();
-
+    log(format!("Default config {:?}", audio_cfg));
     let stream = match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => {
             let s = audio_output_device
@@ -338,7 +333,7 @@ fn capture_output_audio() -> cpal::Stream {
 }
 
 fn err_fn(err: cpal::StreamError) {
-    eprintln!("Error {} building audio input stream", err);
+    log(format!("Error {} building audio input stream", err));
 }
 
 fn wave_reader<T>(samples: &[T])
@@ -348,14 +343,7 @@ where
     static mut ONETIME_SW: bool = false;
     unsafe {
         if !ONETIME_SW {
-            let logger: OtherSender<String>;
-            {
-                let ch = &LOGCHANNEL.lock().unwrap();
-                logger = ch.0.clone();
-            }
-            logger
-                .send(format!("wave_reader is receiving samples"))
-                .unwrap();
+            log(format!("wave_reader is receiving samples"));
             ONETIME_SW = true;
         }
     }
@@ -373,9 +361,7 @@ where
 async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
-    if cfg!(debug_assertions) {
-        println!("Starting SSDP renderer discovery");
-    }
+    log(format!("Starting SSDP renderer discovery"));
 
     let mut renderers: Vec<Renderer> = Vec::new();
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
@@ -420,13 +406,13 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                         ));
                     }
                 } else {
-                    DEBUG!(eprintln!("End of SSDP devices discovery"));
+                    log(format!("End of SSDP devices discovery"));
                     break;
                 }
             }
         }
         Err(e) => {
-            eprintln!("Error {} running SSDP discover", e);
+            log(format!("Error {} running SSDP discover", e));
         }
     }
 
@@ -437,28 +423,19 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
 /// print the information for a renderer
 ///
 fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
-    let logger: OtherSender<String>;
-    {
-        let ch = &LOGCHANNEL.lock().unwrap();
-        logger = ch.0.clone();
-    }
-    logger
-        .send(format!(
-            "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
-            device.device_type(),
-            device.manufacturer(),
-            device.friendly_name(),
-            device.model_name(),
-            device.url()
-        ))
-        .unwrap();
-    logger
-        .send(format!(
-            "  Service type: {}, id:   {}",
-            service.service_type(),
-            service.service_id()
-        ))
-        .unwrap();
+    log(format!(
+        "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
+        device.device_type(),
+        device.manufacturer(),
+        device.friendly_name(),
+        device.model_name(),
+        device.url()
+    ));
+    log(format!(
+        "  Service type: {}, id:   {}",
+        service.service_type(),
+        service.service_id()
+    ));
 }
 
 ///
@@ -466,9 +443,7 @@ fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
 ///
 fn get_audio_device() -> cpal::Device {
     // audio hosts
-    DEBUG!(eprintln!("Supported audio hosts: {:?}", cpal::ALL_HOSTS));
-    let available_hosts = cpal::available_hosts();
-    DEBUG!(eprintln!("Available audio hosts: {:?}", available_hosts));
+    let _available_hosts = cpal::available_hosts();
     let default_host = cpal::default_host();
     let default_device = default_host
         .default_output_device()

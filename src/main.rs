@@ -107,12 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // setup logger thread that updates text display
     //let (msg_s, msg_r): (Sender<String>, Receiver<String>) = channel();
-    let logreader: OtherReceiver<String>;
-    {
-        let ch = &LOGCHANNEL.lock().unwrap();
-        logreader = ch.1.clone();
-    }
-    let _ = std::thread::spawn(move || log_reader(logreader, tb));
+    let _ = std::thread::spawn(move || log_reader(tb));
 
     for _ in 1..100 {
         app::wait_for(0.001)?
@@ -184,12 +179,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = std::thread::spawn(move || run_server(&local_addr, wd));
     std::thread::yield_now();
 
-    // run GUI
+    // run GUI, _app.wait() and _app.run() somehow block the logger channel
+    // from receiving messages
     loop {
-        for _ in 1..100 {
-            app::wait_for(0.00001).unwrap();
-            std::thread::sleep(std::time::Duration::new(0, 100000));
-        }
+        app::wait_for(0.00001).unwrap();
+        std::thread::sleep(std::time::Duration::new(0, 100000));
         if app::should_program_quit() {
             break;
         }
@@ -197,7 +191,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn log_reader(logreader: OtherReceiver<String>, tb: Arc<Mutex<TextDisplay>>) {
+fn log_reader(tb: Arc<Mutex<TextDisplay>>) {
+    let logreader: OtherReceiver<String>;
+    {
+        let ch = &LOGCHANNEL.lock().unwrap();
+        logreader = ch.1.clone();
+    }
     loop {
         let msg = logreader.recv().unwrap();
         eprintln!("LOG: {}", msg);
@@ -235,15 +234,11 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
 
         handles.push(thread::spawn(move || {
             for rq in server.incoming_requests() {
-                let logger_c: OtherSender<String>;
-                {
-                    let _ch = &LOGCHANNEL.lock().unwrap();
-                    logger_c = _ch.0.clone();
-                }
-                let logmsg = format!("Received request {} from {}", rq.url(), rq.remote_addr());
-                let dmsg = logmsg.clone();
-                logger_c.send(logmsg).unwrap();
-                DEBUG!(eprintln!("{}", dmsg));
+                log(format!(
+                    "Received request {} from {}",
+                    rq.url(),
+                    rq.remote_addr()
+                ));
                 let remote_addr = format!("{}", rq.remote_addr());
                 let (tx, rx): (OtherSender<i16>, OtherReceiver<i16>) = unbounded();
                 let channel_stream = ChannelStream {
@@ -266,15 +261,12 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
                 let response = tiny_http::Response::empty(200)
                     .with_header(ct_hdr)
                     .with_data(channel_stream, None)
-                    .with_chunked_threshold(4096);
+                    .with_chunked_threshold(8192);
                 let _ = rq.respond(response);
                 let mut clients = CLIENTS.lock().unwrap();
                 clients.remove(&remote_addr);
                 drop(clients);
-                let logmsg = format!("End of response to {}", remote_addr);
-                let dmsg = logmsg.clone();
-                logger_c.send(logmsg).unwrap();
-                DEBUG!(eprintln!("{}", dmsg));
+                log(format!("End of response to {}", remote_addr));
             }
         }));
     }
@@ -343,7 +335,7 @@ where
     static mut ONETIME_SW: bool = false;
     unsafe {
         if !ONETIME_SW {
-            log(format!("wave_reader is receiving samples"));
+            log(format!("The wave_reader is receiving samples"));
             ONETIME_SW = true;
         }
     }

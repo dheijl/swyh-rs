@@ -19,3 +19,6 @@ ascii = "*"
 crossbeam-channel = "*"
 lazy_static = "*"
 url = "*"
+ureq = { version = "*", features = ["charset"] }
+xml-rs = "*"
+stringreader = "*"

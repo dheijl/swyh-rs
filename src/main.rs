@@ -1,7 +1,5 @@
 // #![windows_subsystem = "windows"]  // enable to suppress console println!
 
-extern crate tiny_http;
-
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
@@ -10,15 +8,14 @@ use futures::prelude::*;
 use lazy_static::*;
 use rupnp::ssdp::{SearchTarget, URN};
 use std::collections::HashMap;
-//use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use url::{Url};
-
+use url::Url;
 mod utils;
+use stringreader::StringReader;
 use utils::rwstream::ChannelStream;
+use xml::reader::{EventReader, XmlEvent};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -149,9 +146,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if but_cc.is_on() { "ON" } else { "OFF" }
                             ));
                             if but_cc.is_on() {
-                                play(&renderer);
+                                let _ = play(&renderer);
                             } else {
-                                stop(&renderer);
+                                let _ = stop(&renderer);
                             }
                             true
                         }
@@ -197,35 +194,102 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn play(renderer: &Renderer) {
+fn play(renderer: &Renderer) -> Result<(), ureq::Error> {
+    struct Service {
+        serviceId: String,
+        serviceType: String,
+        controlURL: String,
+    }
     let url = renderer.dev_url.clone();
-    let (ip, port) = parse_url(url);
-    log(format!("Start playing on {} ip={} port={}", renderer.dev_name, ip, port));
+    let (host, port) = parse_url(url);
+    log(format!(
+        "Start playing on {} host={} port={}",
+        renderer.dev_name, host, port
+    ));
+    // get the description, need the renderer control url
+    let url = renderer.dev_url.clone();
+    let resp = ureq::get(url.as_str())
+        .set("User-Agent", "swyh-rs-Rust")
+        .set("Content-Type", "text/xml")
+        .send_string("");
+    let xml = resp.into_string().unwrap();
+    DEBUG!(eprintln!("resp: {}", xml));
+    let xmlstream = StringReader::new(&xml);
+    let parser = EventReader::new(xmlstream);
+    let mut depth = 0;
+    let mut cur_elem = String::new();
+    let mut service = Service {
+        serviceType: String::new(),
+        serviceId: String::new(),
+        controlURL: String::new(),
+    };
+    for e in parser {
+        match e {
+            Ok(XmlEvent::StartElement { name, .. }) => {
+                DEBUG!(eprintln!("{}+{}", indent(depth), name));
+                depth += 1;
+                cur_elem = name.local_name;
+            }
+            Ok(XmlEvent::EndElement { name }) => {
+                depth -= 1;
+                DEBUG!(eprintln!("{}-{}", indent(depth), name));
+            }
+            Ok(XmlEvent::Characters(value)) => {
+                DEBUG!(eprintln!("{}*{}={}", indent(depth), cur_elem, value));
+                if cur_elem.contains("serviceType") {
+                    service.serviceType = value;
+                } else if cur_elem.contains("serviceId") {
+                    service.serviceId = value;
+                } else if cur_elem.contains("controlURL")
+                    && service.serviceType.contains("AVTransport:1")
+                    && service.serviceId.contains("AVTransport")
+                {
+                    service.controlURL = value;
+                    break;
+                }
+            }
+            Err(e) => {
+                DEBUG!(eprintln!("Error: {}", e));
+                break;
+            }
+            _ => {}
+        }
+    }
+    DEBUG!(eprintln!("controlURL {}", service.controlURL));
+    Ok(())
+}
+
+fn indent(size: usize) -> String {
+    const INDENT: &'static str = "    ";
+    (0..size)
+        .map(|_| INDENT)
+        .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
 }
 
 fn stop(renderer: &Renderer) {
     let url = renderer.dev_url.clone();
-    let (ip, port) = parse_url(url);
-    log(format!("Stop playing on {} ip={} port={}", renderer.dev_name, ip, port));
+    let (host, port) = parse_url(url);
+    log(format!(
+        "Stop playing on {} host={} port={}",
+        renderer.dev_name, host, port
+    ));
 }
 
-fn parse_url(dev_url: String) -> (IpAddr, u16) {
-    let ip: IpAddr;
+fn parse_url(dev_url: String) -> (String, u16) {
+    let host: String;
     let port: u16;
     match Url::parse(&dev_url) {
         Ok(url) => {
-            let ips = url.host_str().unwrap();
-            ip = ips.parse::<IpAddr>().unwrap();
+            host = url.host_str().unwrap().to_string();
             port = url.port().unwrap();
         }
         Err(e) => {
-            log(format!("Error {} parsing url {}",e ,dev_url));
-            ip = "0.0.0.0".parse::<IpAddr>().unwrap();
+            log(format!("Error {} parsing url {}", e, dev_url));
+            host = "0.0.0.0".to_string();
             port = 0;
         }
     }
-    (ip, port)
-
+    (host, port)
 }
 
 fn log_reader(tb: Arc<Mutex<TextDisplay>>) {

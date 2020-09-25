@@ -31,6 +31,7 @@ struct Renderer {
     dev_url: String,
     svc_type: String,
     svc_id: String,
+    control_url: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -194,76 +195,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+
 fn play(renderer: &Renderer) -> Result<(), ureq::Error> {
-    struct Service {
-        serviceId: String,
-        serviceType: String,
-        controlURL: String,
-    }
     let url = renderer.dev_url.clone();
     let (host, port) = parse_url(url);
     log(format!(
         "Start playing on {} host={} port={}",
         renderer.dev_name, host, port
     ));
-    // get the description, need the renderer control url
-    let url = renderer.dev_url.clone();
-    let resp = ureq::get(url.as_str())
-        .set("User-Agent", "swyh-rs-Rust")
-        .set("Content-Type", "text/xml")
-        .send_string("");
-    let xml = resp.into_string().unwrap();
-    DEBUG!(eprintln!("resp: {}", xml));
-    let xmlstream = StringReader::new(&xml);
-    let parser = EventReader::new(xmlstream);
-    let mut depth = 0;
-    let mut cur_elem = String::new();
-    let mut service = Service {
-        serviceType: String::new(),
-        serviceId: String::new(),
-        controlURL: String::new(),
-    };
-    for e in parser {
-        match e {
-            Ok(XmlEvent::StartElement { name, .. }) => {
-                DEBUG!(eprintln!("{}+{}", indent(depth), name));
-                depth += 1;
-                cur_elem = name.local_name;
-            }
-            Ok(XmlEvent::EndElement { name }) => {
-                depth -= 1;
-                DEBUG!(eprintln!("{}-{}", indent(depth), name));
-            }
-            Ok(XmlEvent::Characters(value)) => {
-                DEBUG!(eprintln!("{}*{}={}", indent(depth), cur_elem, value));
-                if cur_elem.contains("serviceType") {
-                    service.serviceType = value;
-                } else if cur_elem.contains("serviceId") {
-                    service.serviceId = value;
-                } else if cur_elem.contains("controlURL")
-                    && service.serviceType.contains("AVTransport:1")
-                    && service.serviceId.contains("AVTransport")
-                {
-                    service.controlURL = value;
-                    break;
-                }
-            }
-            Err(e) => {
-                DEBUG!(eprintln!("Error: {}", e));
-                break;
-            }
-            _ => {}
-        }
-    }
-    DEBUG!(eprintln!("controlURL {}", service.controlURL));
-    Ok(())
-}
 
-fn indent(size: usize) -> String {
-    const INDENT: &'static str = "    ";
-    (0..size)
-        .map(|_| INDENT)
-        .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
+    Ok(())
 }
 
 fn stop(renderer: &Renderer) {
@@ -467,14 +408,17 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                     if device.services().len() > 0 {
                         if let Some(service) = device.find_service(&RENDERING_CONTROL) {
                             print_renderer(&device, &service);
-                            renderers.push(Renderer {
+                            let mut renderer = Renderer {
                                 dev_name: device.friendly_name().to_string(),
                                 dev_model: device.model_name().to_string(),
                                 dev_type: device.device_type().to_string(),
                                 dev_url: device.url().to_string(),
                                 svc_id: service.service_type().to_string(),
                                 svc_type: service.service_type().to_string(),
-                            });
+                                control_url: String::new(),
+                            };
+                            renderer.control_url = get_control_url(&renderer).unwrap();
+                            renderers.push(renderer);
                             /*
                                                 let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
                                                 match service.action(device.url(), "GetVolume", args).await {
@@ -511,6 +455,75 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     }
 
     Ok(Some(renderers))
+}
+
+fn indent(size: usize) -> String {
+    const INDENT: &'static str = "    ";
+    (0..size)
+        .map(|_| INDENT)
+        .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
+}
+
+fn get_control_url(renderer: &Renderer) -> Option<String> {
+    struct AvService {
+        service_id: String,
+        service_type: String,
+        control_url: String,
+    }
+    // get the description, need the renderer control url
+    let url = renderer.dev_url.clone();
+    let resp = ureq::get(url.as_str())
+        .set("User-Agent", "swyh-rs-Rust")
+        .set("Content-Type", "text/xml")
+        .send_string("");
+    let xml = resp.into_string().unwrap();
+    DEBUG!(eprintln!("resp: {}", xml));
+    let xmlstream = StringReader::new(&xml);
+    let parser = EventReader::new(xmlstream);
+    let mut depth = 0;
+    let mut cur_elem = String::new();
+    let mut service = AvService {
+        service_id: String::new(),
+        service_type: String::new(),
+        control_url: String::new(),
+    };
+    for e in parser {
+        match e {
+            Ok(XmlEvent::StartElement { name, .. }) => {
+                DEBUG!(eprintln!("{}+{}", indent(depth), name));
+                depth += 1;
+                cur_elem = name.local_name;
+            }
+            Ok(XmlEvent::EndElement { name }) => {
+                depth -= 1;
+                DEBUG!(eprintln!("{}-{}", indent(depth), name));
+            }
+            Ok(XmlEvent::Characters(value)) => {
+                DEBUG!(eprintln!("{}*{}={}", indent(depth), cur_elem, value));
+                if cur_elem.contains("serviceType") {
+                    service.service_type = value;
+                } else if cur_elem.contains("serviceId") {
+                    service.service_id = value;
+                } else if cur_elem.contains("controlURL")
+                    && service.service_type.contains("AVTransport:1")
+                    && service.service_id.contains("AVTransport")
+                {
+                    service.control_url = value;
+                    break;
+                }
+            }
+            Err(e) => {
+                DEBUG!(eprintln!("Error: {}", e));
+                break;
+            }
+            _ => {}
+        }
+    }
+    DEBUG!(eprintln!(
+        "{}/{}={}",
+        service.service_type, service.service_id, service.control_url
+    ));
+    Some(service.control_url)
 }
 
 ///

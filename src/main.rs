@@ -13,6 +13,7 @@ use std::thread;
 use std::time::Duration;
 use url::Url;
 mod utils;
+use strfmt::strfmt;
 use stringreader::StringReader;
 use utils::rwstream::ChannelStream;
 use xml::reader::{EventReader, XmlEvent};
@@ -54,6 +55,8 @@ lazy_static! {
     static ref LOGCHANNEL: Mutex<(OtherSender<String>, OtherReceiver<String>)> =
         Mutex::new(unbounded());
 }
+
+const PORT: i32 = 5901;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -147,7 +150,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if but_cc.is_on() { "ON" } else { "OFF" }
                             ));
                             if but_cc.is_on() {
-                                let _ = play(&renderer);
+                                let _ = play(&renderer, &local_addr);
                             } else {
                                 let _ = stop(&renderer);
                             }
@@ -195,15 +198,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
+    let body_template: String = "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">
+   <s:Body>
+      <u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\">
+         <InstanceID>0</InstanceID>
+         <CurrentURI>{server_uri}</CurrentURI>
+         <CurrentURIMetaData>&lt;DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"&gt;&lt;item id=\"1$14$744776839$2758061249\"&gt;&lt;dc:title&gt;swyh-rs&lt;/dc:title&gt;&lt;dc:creator&gt;dheijl&lt;/dc:creator&gt;&lt;upnp:artist&gt;various&lt;/upnp:artist&gt;&lt;upnp:album&gt;variousa&lt;/upnp:album&gt;&lt;upnp:genre&gt;various&lt;/upnp:genre&gt;&lt;upnp:albumArtURI&gt;(null)&lt;/upnp:albumArtURI&gt;&lt;upnp:originalTrackNumber&gt;(null)&lt;/upnp:originalTrackNumber&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</CurrentURIMetaData>
+      </u:SetAVTransportURI>
+   </s:Body>
+</s:Envelope>".to_string();
 
-fn play(renderer: &Renderer) -> Result<(), ureq::Error> {
     let url = renderer.dev_url.clone();
     let (host, port) = parse_url(url);
     log(format!(
-        "Start playing on {} host={} port={}",
-        renderer.dev_name, host, port
+        "Start playing on {} host={} port={} from {}",
+        renderer.dev_name, host, port, local_addr
     ));
-
+    let url = format!("http://{}:{}{}", host, port, renderer.control_url);
+    DEBUG!(eprintln!("AVTransport ControlURL: {}", url));
+    let addr = format!("{}:{}", local_addr, PORT);
+    let local_url = format!("http://{}/stream/swyh.wav", addr);
+    DEBUG!(eprintln!("AvTransport server URL: {}", local_url));
+    let mut vars = HashMap::new();
+    vars.insert("server_uri".to_string(), local_url);
+    let xmlbody = strfmt(&body_template, &vars).unwrap();
+    DEBUG!(eprintln!("xml body \r\n{}", xmlbody));
+    let resp = ureq::post(url.as_str())
+        .set("User-Agent", "swyh-rs-Rust")
+        .set("Content-Type", "text/xml")
+        .send_string(&xmlbody);
+    let xml = resp.into_string().unwrap();
+    DEBUG!(eprintln!("resp: {}", xml));
     Ok(())
 }
 
@@ -266,7 +293,6 @@ fn log(s: String) {
 }
 
 fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
-    const PORT: i32 = 5902; //5901;
     let addr = format!("{}:{}", local_addr, PORT);
     let logmsg = format!("Serving on {}", addr);
     log(logmsg);
@@ -477,7 +503,7 @@ fn get_control_url(renderer: &Renderer) -> Option<String> {
         .set("Content-Type", "text/xml")
         .send_string("");
     let xml = resp.into_string().unwrap();
-    DEBUG!(eprintln!("resp: {}", xml));
+    //DEBUG!(eprintln!("resp: {}", xml));
     let xmlstream = StringReader::new(&xml);
     let parser = EventReader::new(xmlstream);
     let mut depth = 0;

@@ -200,36 +200,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
-    let body_template: String = 
-"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">
-<s:Body>
-<u:Insert xmlns:u=\"urn:av-openhome-org:service:Playlist:1\">
-<AfterId>0</AfterId>
-<Uri>{server_uri}</Uri>
-<Metadata>{didl_data}</Metadata>
-</u:Insert>
-</s:Body>
+    let body_template: String = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:Insert xmlns:u=\"urn:av-openhome-org:service:Playlist:1\">\
+<AfterId>0</AfterId>\
+<Uri>{server_uri}</Uri>\
+<Metadata>{didl_data}</Metadata>\
+</u:Insert>\
+</s:Body>\
 </s:Envelope>".to_string();
 
-    let didl_template: String = 
-"
-<DIDL-Lite>
-<item>
-<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" 
-xmlns:dc=\"http://purl.org/dc/elements/1.1/\" 
-xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">
-<item id=\"1\" parentID=\"0\" restricted=\"0\">
-<dc:title>swyh-rs</dc:title>
-<res bitsPerSample=\"16\" 
-nrAudioChannels=\"2\" 
-protocolInfo=\"http-get:*:audio/wav:*\"
-sampleFrequency=\"44100\">{server_uri}</res>
-<upnp:class>object.item.audioItem.musicTrack</upnp:class>
-</item>
-</DIDL-Lite>
-</item>
-</DIDL-Lite>".to_string();
+    let didl_template: String = "\
+<DIDL-Lite>\
+<item>\
+<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"\
+xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\
+xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
+<item id=\"1\" parentID=\"0\" restricted=\"0\">\
+<dc:title>swyh-rs</dc:title>\
+<res bitsPerSample=\"16\"\
+nrAudioChannels=\"2\"\
+protocolInfo=\"http-get:*:audio/wav:*\"\
+sampleFrequency=\"44100\">{server_uri}</res>\
+<upnp:class>object.item.audioItem.musicTrack</upnp:class>\
+</item>\
+</DIDL-Lite>\
+</item>\
+</DIDL-Lite>"
+        .to_string();
 
     let url = renderer.dev_url.clone();
     let (host, port) = parse_url(url);
@@ -255,7 +255,10 @@ sampleFrequency=\"44100\">{server_uri}</res>
         .set("User-Agent", "swyh-rs-Rust")
         .set("Content-Type", "text/xml; charset=\"utf-8\"")
         .set("Accept", "*/*")
-        .set("SOAPAction", "urn:av-openhome-org:service:Playlist:1#Insert")
+        .set(
+            "SOAPAction",
+            "urn:av-openhome-org:service:Playlist:1#Insert",
+        )
         .send_string(&xmlbody);
     let xml = resp.into_string().unwrap();
     DEBUG!(eprintln!("resp: {}", xml));
@@ -473,22 +476,19 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                                 ovh_control_url: String::new(),
                             };
                             let xml = get_service_description(&renderer).unwrap();
-                            renderer.pl_control_url = get_control_url(&xml, &"Playlist:1".to_string(), &"Playlist".to_string()).unwrap();
-                            renderer.ovh_control_url = get_control_url(&xml, &"Volume:1".to_string(), &"Volume".to_string()).unwrap();
+                            renderer.pl_control_url = get_control_url(
+                                &xml,
+                                &"Playlist:1".to_string(),
+                                &"Playlist".to_string(),
+                            )
+                            .unwrap();
+                            renderer.ovh_control_url = get_control_url(
+                                &xml,
+                                &"Volume:1".to_string(),
+                                &"Volume".to_string(),
+                            )
+                            .unwrap();
                             renderers.push(renderer);
-                            /*
-                                                let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
-                                                match service.action(device.url(), "GetVolume", args).await {
-                                                    Ok(response) => {
-                                                        println!("Got response from {}", device.friendly_name());
-                                                        let volume = response.get("CurrentVolume").expect("Error getting volume");
-                                                        println!("'{}' is at volume {}", device.friendly_name(), volume);
-                                                    }
-                                                    Err(err) => {
-                                                        println!("Error '{}' in GetVolume", err);
-                                                    }
-                                                }
-                            */
                         }
                     } else {
                         DEBUG!(eprintln!(
@@ -521,7 +521,7 @@ fn _indent(size: usize) -> String {
         .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
 }
 
-fn get_service_description(renderer: &Renderer) -> Option<String>  {
+fn get_service_description(renderer: &Renderer) -> Option<String> {
     // get the description, need the renderer control url
     let url = renderer.dev_url.clone();
     let resp = ureq::get(url.as_str())
@@ -580,7 +580,7 @@ fn get_control_url(xml: &String, service_type: &String, service_id: &String) -> 
             _ => {}
         }
     }
-    DEBUG!(eprintln!(
+    log(format!(
         "{}/{}={}",
         service.service_type, service.service_id, service.control_url
     ));

@@ -32,7 +32,8 @@ struct Renderer {
     dev_url: String,
     svc_type: String,
     svc_id: String,
-    control_url: String,
+    pl_control_url: String,
+    ovh_control_url: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -237,7 +238,7 @@ sampleFrequency=\"44100\">{server_uri}</res>
         renderer.dev_name, host, port, local_addr
     ));
 
-    let url = format!("http://{}:{}{}", host, port, renderer.control_url);
+    let url = format!("http://{}:{}{}", host, port, renderer.pl_control_url);
     DEBUG!(eprintln!("AVTransport ControlURL: {}", url));
     let addr = format!("{}:{}", local_addr, PORT);
     let local_url = format!("http://{}/stream/swyh.wav", addr);
@@ -468,9 +469,12 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                                 dev_url: device.url().to_string(),
                                 svc_id: service.service_type().to_string(),
                                 svc_type: service.service_type().to_string(),
-                                control_url: String::new(),
+                                pl_control_url: String::new(),
+                                ovh_control_url: String::new(),
                             };
-                            renderer.control_url = get_control_url(&renderer).unwrap();
+                            let xml = get_service_description(&renderer).unwrap();
+                            renderer.pl_control_url = get_control_url(&xml, &"Playlist:1".to_string(), &"Playlist".to_string()).unwrap();
+                            renderer.ovh_control_url = get_control_url(&xml, &"Volume:1".to_string(), &"Volume".to_string()).unwrap();
                             renderers.push(renderer);
                             /*
                                                 let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
@@ -517,12 +521,7 @@ fn _indent(size: usize) -> String {
         .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
 }
 
-fn get_control_url(renderer: &Renderer) -> Option<String> {
-    struct AvService {
-        service_id: String,
-        service_type: String,
-        control_url: String,
-    }
+fn get_service_description(renderer: &Renderer) -> Option<String>  {
     // get the description, need the renderer control url
     let url = renderer.dev_url.clone();
     let resp = ureq::get(url.as_str())
@@ -531,6 +530,14 @@ fn get_control_url(renderer: &Renderer) -> Option<String> {
         .send_string("");
     let xml = resp.into_string().unwrap();
     DEBUG!(eprintln!("resp: {}", xml));
+    Some(xml)
+}
+fn get_control_url(xml: &String, service_type: &String, service_id: &String) -> Option<String> {
+    struct AvService {
+        service_id: String,
+        service_type: String,
+        control_url: String,
+    }
     let xmlstream = StringReader::new(&xml);
     let parser = EventReader::new(xmlstream);
     let mut _depth = 0;
@@ -559,8 +566,8 @@ fn get_control_url(renderer: &Renderer) -> Option<String> {
                 } else if cur_elem.contains("serviceId") {
                     service.service_id = value;
                 } else if cur_elem.contains("controlURL")
-                    && service.service_type.contains("Playlist:1")
-                    && service.service_id.contains("Playlist")
+                    && service.service_type.contains(service_type)
+                    && service.service_id.contains(service_id)
                 {
                     service.control_url = value;
                     break;

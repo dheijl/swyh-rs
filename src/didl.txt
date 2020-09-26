@@ -1,0 +1,21 @@
+&lt;DIDL-Lite 
+xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; 
+xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot; 
+xmlns:dlna=&quot;urn:schemas-dlna-org:metadata-1-0/&quot; 
+xmlns:arib=&quot;urn:schemas-arib-or-jp:elements-1-0/&quot; 
+xmlns:dtcp=&quot;urn:schemas-dtcp-com:metadata-1-0/&quot; 
+xmlns:pv=&quot;http://www.pv.com/pvns/&quot; 
+xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;&gt;
+&lt;item id=&quot;0$1$12$16583R2268170&quot; refID=&quot;0$1$8I2268170&quot; parentID=&quot;0$1$12$16583&quot; restricted=&quot;1&quot;&gt;
+&lt;res protocolInfo=&quot;http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_FLAGS=01700000000000000000000000000000&quot; &gt;http://example.com/test.wav&lt;/res&gt;
+&lt;/item&gt;
+&lt;/DIDL-Lite&gt;
+
+to fixes this.
+
+this I extracted from a test run of gupnp-av-cp (strace of an mp3) and adapted to the wav test file.
+
+volumio runs upmpdcli. I sorted this out by adding logelevel = 6 and logfilename = /var/log/upmpdcli.log and running systemctl restart upmpdcli. With vanilla dlna I get:
+
+:2:src/upmpd.cxx:132::checkContentFormat: didl parse failed
+:2:src/avtransport.cxx:393::set(Next)AVTransportURI: unsupported format: uri http://example.com/test.wav metadata 

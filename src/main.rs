@@ -199,16 +199,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
-    let body_template: String = "<?xml version=\"1.0\" encoding=\"utf-8\"?>
-<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">
-   <s:Body>
-      <u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\">
-         <InstanceID>0</InstanceID>
-         <CurrentURI>{server_uri}</CurrentURI>
-         <CurrentURIMetaData>&lt;DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"&gt;&lt;item id=\"1$14$744776839$2758061249\"&gt;&lt;dc:title&gt;swyh-rs&lt;/dc:title&gt;&lt;dc:creator&gt;dheijl&lt;/dc:creator&gt;&lt;upnp:artist&gt;various&lt;/upnp:artist&gt;&lt;upnp:album&gt;variousa&lt;/upnp:album&gt;&lt;upnp:genre&gt;various&lt;/upnp:genre&gt;&lt;upnp:albumArtURI&gt;(null)&lt;/upnp:albumArtURI&gt;&lt;upnp:originalTrackNumber&gt;(null)&lt;/upnp:originalTrackNumber&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</CurrentURIMetaData>
-      </u:SetAVTransportURI>
-   </s:Body>
+    let body_template: String = 
+"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">
+<s:Body>
+<u:Insert xmlns:u=\"urn:av-openhome-org:service:Playlist:1\">
+<AfterId>0</AfterId>
+<Uri>{server_uri}</Uri>
+<Metadata>{didl_data}</Metadata>
+</u:Insert>
+</s:Body>
 </s:Envelope>".to_string();
+
+    let didl_template: String = 
+"
+<DIDL-Lite>
+<item>
+<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" 
+xmlns:dc=\"http://purl.org/dc/elements/1.1/\" 
+xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">
+<item id=\"1\" parentID=\"0\" restricted=\"0\">
+<dc:title>swyh-rs</dc:title>
+<res bitsPerSample=\"16\" 
+nrAudioChannels=\"2\" 
+protocolInfo=\"http-get:*:audio/wav:*\"
+sampleFrequency=\"44100\">{server_uri}</res>
+<upnp:class>object.item.audioItem.musicTrack</upnp:class>
+</item>
+</DIDL-Lite>
+</item>
+</DIDL-Lite>".to_string();
 
     let url = renderer.dev_url.clone();
     let (host, port) = parse_url(url);
@@ -216,18 +236,25 @@ fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
         "Start playing on {} host={} port={} from {}",
         renderer.dev_name, host, port, local_addr
     ));
+
     let url = format!("http://{}:{}{}", host, port, renderer.control_url);
     DEBUG!(eprintln!("AVTransport ControlURL: {}", url));
     let addr = format!("{}:{}", local_addr, PORT);
     let local_url = format!("http://{}/stream/swyh.wav", addr);
     DEBUG!(eprintln!("AvTransport server URL: {}", local_url));
+
+    let mut didl_data = htmlescape::encode_minimal(&didl_template);
     let mut vars = HashMap::new();
     vars.insert("server_uri".to_string(), local_url);
+    didl_data = strfmt(&didl_data, &vars).unwrap();
+    vars.insert("didl_data".to_string(), didl_data);
     let xmlbody = strfmt(&body_template, &vars).unwrap();
     DEBUG!(eprintln!("xml body \r\n{}", xmlbody));
     let resp = ureq::post(url.as_str())
         .set("User-Agent", "swyh-rs-Rust")
-        .set("Content-Type", "text/xml")
+        .set("Content-Type", "text/xml; charset=\"utf-8\"")
+        .set("Accept", "*/*")
+        .set("SOAPAction", "urn:av-openhome-org:service:Playlist:1#Insert")
         .send_string(&xmlbody);
     let xml = resp.into_string().unwrap();
     DEBUG!(eprintln!("resp: {}", xml));
@@ -483,7 +510,7 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     Ok(Some(renderers))
 }
 
-fn indent(size: usize) -> String {
+fn _indent(size: usize) -> String {
     const INDENT: &'static str = "    ";
     (0..size)
         .map(|_| INDENT)
@@ -503,10 +530,10 @@ fn get_control_url(renderer: &Renderer) -> Option<String> {
         .set("Content-Type", "text/xml")
         .send_string("");
     let xml = resp.into_string().unwrap();
-    //DEBUG!(eprintln!("resp: {}", xml));
+    DEBUG!(eprintln!("resp: {}", xml));
     let xmlstream = StringReader::new(&xml);
     let parser = EventReader::new(xmlstream);
-    let mut depth = 0;
+    let mut _depth = 0;
     let mut cur_elem = String::new();
     let mut service = AvService {
         service_id: String::new(),
@@ -516,23 +543,24 @@ fn get_control_url(renderer: &Renderer) -> Option<String> {
     for e in parser {
         match e {
             Ok(XmlEvent::StartElement { name, .. }) => {
-                DEBUG!(eprintln!("{}+{}", indent(depth), name));
-                depth += 1;
+                //DEBUG!(eprintln!("{}+{}", _indent(depth), name));
+                _depth += 1;
                 cur_elem = name.local_name;
             }
             Ok(XmlEvent::EndElement { name }) => {
-                depth -= 1;
-                DEBUG!(eprintln!("{}-{}", indent(depth), name));
+                _depth -= 1;
+                let _ = name;
+                //DEBUG!(eprintln!("{}-{}", _indent(depth), name));
             }
             Ok(XmlEvent::Characters(value)) => {
-                DEBUG!(eprintln!("{}*{}={}", indent(depth), cur_elem, value));
+                //DEBUG!(eprintln!("{}*{}={}", _indent(depth), cur_elem, value));
                 if cur_elem.contains("serviceType") {
                     service.service_type = value;
                 } else if cur_elem.contains("serviceId") {
                     service.service_id = value;
                 } else if cur_elem.contains("controlURL")
-                    && service.service_type.contains("AVTransport:1")
-                    && service.service_id.contains("AVTransport")
+                    && service.service_type.contains("Playlist:1")
+                    && service.service_id.contains("Playlist")
                 {
                     service.control_url = value;
                     break;

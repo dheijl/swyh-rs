@@ -1,0 +1,20 @@
+POST /ctl/OHPlaylist HTTP/1.1
+Host: 192.168.0.254:49152
+Connection: close
+User-Agent: foobar2000/1.x
+Accept: */*
+Soapaction: "urn:av-openhome-org:service:Playlist:1#SeekId"
+Content-Length: 296
+Content-Type: text/xml; charset="utf-8"
+
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:SeekId xmlns:u="urn:av-openhome-org:service:Playlist:1"><Value>27</Value></u:SeekId></s:Body></s:Envelope>HTTP/1.1 200 OK
+CONTENT-LENGTH: 244
+CONTENT-TYPE: text/xml; charset="utf-8"
+DATE: Sat, 26 Sep 2020 13:15:59 GMT
+EXT:
+SERVER: Linux/4.19.118-v7l+, UPnP/1.0, Portable SDK for UPnP devices/1.6.20.jfd5
+X-User-Agent: redsonic
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:SeekIdResponse xmlns:u="urn:av-openhome-org:service:Playlist:1"></u:SeekIdResponse>
+</s:Body> </s:Envelope>

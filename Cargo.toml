@@ -23,3 +23,4 @@ ureq = { version = "*", features = ["charset"] }
 xml-rs = "*"
 stringreader = "*"
 strfmt = "*"
+htmlescape = "*"

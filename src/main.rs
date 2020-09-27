@@ -552,7 +552,7 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
                                 dev_model: device.model_name().to_string(),
                                 dev_type: device.device_type().to_string(),
                                 dev_url: device.url().to_string(),
-                                svc_id: service.service_type().to_string(),
+                                svc_id: service.service_id().to_string(),
                                 svc_type: service.service_type().to_string(),
                                 pl_control_url: String::new(),
                                 ovh_control_url: String::new(),

@@ -17,5 +17,5 @@ Todo:
 
 - get rid of ssdp-client and rupnp because they are async, as async is just useless overhead here, it complicates matters (not usable in fltk-rs callbacks), it conflicts with some libraries like http-tiny in blocking mode (different runtimes), and it has no added value in any way here (AFAICS).
 - make everything more robust (error handling)
-- cleanu-up and some refactoring
+- clean-up and some refactoring
 

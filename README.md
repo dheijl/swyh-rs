@@ -1,5 +1,5 @@
 # swyh-rs
-Basic SWYH (https://www.streamwhatyouhear.com/) clone entirely written in rust.
+Basic SWYH (https://www.streamwhatyouhear.com/, source repo https://github.com/StreamWhatYouHear/SWYH) clone entirely written in rust.
 
 Has only been tested with Volumio (https://volumio.org/) streamers, but will probably support any streamer that supports the OpenHome protocol (not the original DLNA).
 

@@ -199,8 +199,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
-    let body_template: String = "\
+fn oh_soap_request(url: &String, soap_action: &String, body: &String) -> Option<String> {
+    DEBUG!(eprintln!(
+        "url: {}, SOAP Action: {}, SOAP xml body \r\n{}",
+        url.clone(), soap_action, body
+    ));
+    let resp = ureq::post(url.as_str())
+        .set("Connection", "close")
+        .set("User-Agent", "swyh-rs-Rust/0.x")
+        .set("Accept", "*/*")
+        .set("SOAPAction", &format!("\"{}\"", soap_action))
+        .set("Content-Type", "text/xml; charset=\"utf-8\"")
+        .send_string(body);
+    let xml = resp.into_string().unwrap();
+    DEBUG!(eprintln!("resp: {}", xml));
+
+    Some(xml)
+}
+
+static INSERT_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <s:Body>\
@@ -210,27 +227,54 @@ fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
 <Metadata>{didl_data}</Metadata>\
 </u:Insert>\
 </s:Body>\
-</s:Envelope>".to_string();
+</s:Envelope>";
 
-    let didl_template: String = "\
+static DIDL_TEMPLATE: &str = "\
 <DIDL-Lite>\
 <item>\
-<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"\
-xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\
-xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
+<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
 <item id=\"1\" parentID=\"0\" restricted=\"0\">\
 <dc:title>swyh-rs</dc:title>\
-<res bitsPerSample=\"16\"\
-nrAudioChannels=\"2\"\
-protocolInfo=\"http-get:*:audio/wav:*\"\
+<res bitsPerSample=\"16\" \
+nrAudioChannels=\"2\" \
+protocolInfo=\"http-get:*:audio/wav:*\" \
 sampleFrequency=\"44100\">{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
 </item>\
 </DIDL-Lite>\
 </item>\
-</DIDL-Lite>"
-        .to_string();
+</DIDL-Lite>";
 
+static SEEKID_PL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:SeekId xmlns:u=\"urn:av-openhome-org:service:Playlist:1\">\
+<Value>{seek_id}</Value>\
+</u:SeekId>\
+</s:Body>\
+</s:Envelope>";
+
+static PLAY_PL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:Play xmlns:u=\"urn:av-openhome-org:service:Playlist:1\"/>\
+</s:Body>\
+</s:Envelope>";
+
+static DELETE_PL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:DeleteAll xmlns:u=\"urn:av-openhome-org:service:Playlist:1\"/>\
+</s:Body>\
+</s:Envelope>";
+
+fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
     let url = renderer.dev_url.clone();
     let (host, port) = parse_url(url);
     log(format!(
@@ -239,29 +283,58 @@ sampleFrequency=\"44100\">{server_uri}</res>\
     ));
 
     let url = format!("http://{}:{}{}", host, port, renderer.pl_control_url);
-    DEBUG!(eprintln!("AVTransport ControlURL: {}", url));
     let addr = format!("{}:{}", local_addr, PORT);
     let local_url = format!("http://{}/stream/swyh.wav", addr);
-    DEBUG!(eprintln!("AvTransport server URL: {}", local_url));
+    DEBUG!(eprintln!("OHPlaylist server URL: {}", local_url.clone()));
 
-    let mut didl_data = htmlescape::encode_minimal(&didl_template);
+    // delete current playlist
+    let _resp = oh_soap_request(
+        &url,
+        &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
+        &DELETE_PL_TEMPLATE.to_string(),
+    )
+    .unwrap();
+
+    // create new playlist
     let mut vars = HashMap::new();
-    vars.insert("server_uri".to_string(), local_url);
+    vars.insert("server_uri".to_string(), local_url.clone());
+    let mut didl_data = htmlescape::encode_minimal(&DIDL_TEMPLATE);
     didl_data = strfmt(&didl_data, &vars).unwrap();
     vars.insert("didl_data".to_string(), didl_data);
-    let xmlbody = strfmt(&body_template, &vars).unwrap();
-    DEBUG!(eprintln!("xml body \r\n{}", xmlbody));
-    let resp = ureq::post(url.as_str())
-        .set("User-Agent", "swyh-rs-Rust")
-        .set("Content-Type", "text/xml; charset=\"utf-8\"")
-        .set("Accept", "*/*")
-        .set(
-            "SOAPAction",
-            "urn:av-openhome-org:service:Playlist:1#Insert",
-        )
-        .send_string(&xmlbody);
-    let xml = resp.into_string().unwrap();
-    DEBUG!(eprintln!("resp: {}", xml));
+    let xmlbody = strfmt(&INSERT_PL_TEMPLATE, &vars).unwrap();
+    let resp = oh_soap_request(
+        &url,
+        &"urn:av-openhome-org:service:Playlist:1#Insert".to_string(),
+        &xmlbody,
+    )
+    .unwrap();
+    // extract new seek id
+    let mut seek_id = String::new();
+    if resp.contains("NewId") {
+        let s = resp.find("<NewId>").unwrap();
+        let e = resp.find("</NewId>").unwrap();
+        seek_id = resp.as_str()[s + 7 .. e].to_string();
+    }
+    DEBUG!(eprintln!("SeekId: {}", seek_id.clone()));
+
+    // send seek_id
+    vars.insert("seek_id".to_string(), seek_id);
+    let xmlbody = strfmt(&SEEKID_PL_TEMPLATE, &vars).unwrap();
+    let _resp = oh_soap_request(
+        &url,
+        &"urn:av-openhome-org:service:Playlist:1#SeekId".to_string(),
+        &xmlbody,
+    )
+    .unwrap();
+
+    // send play command
+    let _resp = oh_soap_request(
+        &url,
+        &"urn:av-openhome-org:service:Playlist:1#Play".to_string(),
+        &PLAY_PL_TEMPLATE.to_string(),
+    )
+    .unwrap();
+
     Ok(())
 }
 
@@ -272,6 +345,15 @@ fn stop(renderer: &Renderer) {
         "Stop playing on {} host={} port={}",
         renderer.dev_name, host, port
     ));
+    let url = format!("http://{}:{}{}", host, port, renderer.pl_control_url);
+
+    // delete current playlist
+    let _resp = oh_soap_request(
+        &url,
+        &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
+        &DELETE_PL_TEMPLATE.to_string(),
+    )
+    .unwrap();
 }
 
 fn parse_url(dev_url: String) -> (String, u16) {
@@ -532,6 +614,7 @@ fn get_service_description(renderer: &Renderer) -> Option<String> {
     DEBUG!(eprintln!("resp: {}", xml));
     Some(xml)
 }
+
 fn get_control_url(xml: &String, service_type: &String, service_id: &String) -> Option<String> {
     struct AvService {
         service_id: String,

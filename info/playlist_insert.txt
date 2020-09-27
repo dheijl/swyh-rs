@@ -8,6 +8,7 @@ Content-Length: 1061
 Content-Type: text/xml; charset="utf-8"
 
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:Insert xmlns:u="urn:av-openhome-org:service:Playlist:1"><AfterId>0</AfterId><Uri>http://192.168.0.135:58300/1/stream.flac</Uri><Metadata>&lt;DIDL-Lite&gt;&lt;item&gt;&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot; xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot;&gt;&lt;item id=&quot;1&quot; parentID=&quot;0&quot; restricted=&quot;0&quot;&gt;&lt;dc:title&gt;foobar2000 DannyPC&lt;/dc:title&gt;&lt;res bitsPerSample=&quot;24&quot; nrAudioChannels=&quot;2&quot; protocolInfo=&quot;http-get:*:audio/flac:*&quot; sampleFrequency=&quot;44100&quot;&gt;http://192.168.0.135:58300/1/stream.flac&lt;/res&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</Metadata></u:Insert></s:Body></s:Envelope>HTTP/1.1 200 OK
+
 CONTENT-LENGTH: 265
 CONTENT-TYPE: text/xml; charset="utf-8"
 DATE: Sat, 26 Sep 2020 13:15:59 GMT
@@ -20,3 +21,37 @@ X-User-Agent: redsonic
 <NewId>27</NewId>
 </u:InsertResponse>
 </s:Body> </s:Envelope>
+
+===============================================
+
+POST /ctl/OHPlaylist HTTP/1.1
+Host: 192.168.0.254:49152
+Connection: close
+User-Agent: swyh-rs-Rust/0.x
+Accept: */*
+SOAPAction: "urn:av-openhome-org:service:Playlist:1#Insert"
+Content-Type: text/xml; charset="utf-8"
+Content-Length: 1046
+
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:Insert xmlns:u="urn:av-openhome-org:service:Playlist:1"><AfterId>0</AfterId><Uri>http://192.168.0.135:5901/stream/swyh.wav</Uri><Metadata>&lt;DIDL-Lite&gt;&lt;item&gt;&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot;xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot;&gt;&lt;item id=&quot;1&quot; parentID=&quot;0&quot; restricted=&quot;0&quot;&gt;&lt;dc:title&gt;swyh-rs&lt;/dc:title&gt;&lt;res bitsPerSample=&quot;16&quot;nrAudioChannels=&quot;2&quot;protocolInfo=&quot;http-get:*:audio/wav:*&quot;sampleFrequency=&quot;44100&quot;&gt;http://192.168.0.135:5901/stream/swyh.wav&lt;/res&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</Metadata></u:Insert></s:Body></s:Envelope>HTTP/1.1 500 Internal Server Error
+CONTENT-LENGTH: 411
+CONTENT-TYPE: text/xml; charset="utf-8"
+DATE: Sun, 27 Sep 2020 12:54:20 GMT
+EXT:
+SERVER: Linux/4.19.118-v7l+, UPnP/1.0, Portable SDK for UPnP devices/1.6.20.jfd5
+X-User-Agent: redsonic
+
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<s:Fault>
+<faultcode>s:Client</faultcode>
+<faultstring>UPnPError</faultstring>
+<detail>
+<UPnPError xmlns="urn:schemas-upnp-org:control-1-0">
+<errorCode>501</errorCode>
+<errorDescription>Action Failed</errorDescription>
+</UPnPError>
+</detail>
+</s:Fault>
+</s:Body>
+</s:Envelope>

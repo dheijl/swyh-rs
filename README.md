@@ -15,7 +15,7 @@ Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio devices
 
 Todo: 
 
-- get rid of ssdp-client and rupnp because they are async, as async is just useless overhead here, it complicates matters (not usable in fltk-rs callbacks), it conflicts with some libraries like http-tiny in blocking mode (different runtimes), and it has no added value in any way here (AFAICS).
+- get rid of ssdp-client and rupnp because they are async, as async is just useless overhead here, it complicates matters (not usable in fltk-rs callbacks), it conflicts with some libraries like reqwest in blocking mode (different runtimes), and it has no added value in any way here (AFAICS).
 - make everything more robust (error handling)
 - clean-up and some refactoring
 

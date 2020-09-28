@@ -19,3 +19,6 @@ Todo:
 - make everything more robust (error handling)
 - clean-up and some refactoring
 
+Screenshot:
+
+![alt tag](https://user-images.githubusercontent.com/2384545/94453790-62998700-01b1-11eb-9f8a-a42d4ef4761b.PNG)

@@ -1,4 +1,52 @@
-// #![windows_subsystem = "windows"]  // enable to suppress console println!
+//#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
+
+///
+/// swyh-rs
+/// 
+/// Basic SWYH (https://www.streamwhatyouhear.com/, source repo https://github.com/StreamWhatYouHear/SWYH) clone entirely written in rust.
+/// 
+/// Has only been tested with Volumio (https://volumio.org/) streamers, but will probably support any streamer that supports the OpenHome protocol (not the original DLNA).
+/// 
+/// I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
+/// 
+/// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
+/// 
+/// I had to fork cpal (https://github.com/RustAudio/cpal), ssdp-client (https://github.com/jakobhellermann/ssdp-client) en rupnp (https://github.com/jakobhellermann/rupnp) to add missing functionality, so if you want to build swyh-rs yourself you have to clone dheijl/cpal, dheijl/ssdp-client and dheijl/rupnp from GitHub and change the cargo.toml file accordingly.
+/// 
+/// I use fltk-rs (https://github.com/MoAlyousef/fltk-rs) for the GUI, as it's easy to use and works well.
+/// 
+/// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio devices. Don't have access to a Mac, so I don't know if this would work.
+/// 
+/// Todo: 
+/// 
+/// - get rid of ssdp-client and rupnp because they are async, as async is just useless overhead here, it complicates matters (not usable in fltk-rs callbacks), it conflicts with some libraries like http-tiny in blocking mode (different runtimes), and it has no added value in any way here (AFAICS).
+/// - make everything more robust (error handling)
+/// - clean-up and some refactoring
+/// 
+/// 
+/*
+MIT License
+
+Copyright (c) 2020 dheijl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -59,6 +107,13 @@ lazy_static! {
 
 const PORT: i32 = 5901;
 
+/// swyh-rs 
+/// 
+/// - set up the fltk GUI
+/// - discover ssdp media renderers and show them in the GUI as buttons (start/stop play)
+/// - setup and start audio capture 
+/// - start the webserver
+/// - run the GUI
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
@@ -108,9 +163,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         app::wait_for(0.00001)?
     }
 
-    // setup logger thread that updates text display
-    //let (msg_s, msg_r): (Sender<String>, Receiver<String>) = channel();
-    let _ = std::thread::spawn(move || log_reader(tb));
+    // setup the he textbox logger thread 
+    let _ = std::thread::spawn(move || tb_logger(tb));
 
     for _ in 1..100 {
         app::wait_for(0.001)?
@@ -151,9 +205,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if but_cc.is_on() { "ON" } else { "OFF" }
                             ));
                             if but_cc.is_on() {
-                                let _ = play(&renderer, &local_addr);
+                                let _ = oh_play(&renderer, &local_addr);
                             } else {
-                                let _ = stop(&renderer);
+                                let _ = oh_stop(&renderer);
                             }
                             true
                         }
@@ -199,6 +253,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// oh_soap_request - send an OpenHome SOAP message to a renderer
 fn oh_soap_request(url: &String, soap_action: &String, body: &String) -> Option<String> {
     DEBUG!(eprintln!(
         "url: {}, SOAP Action: {}, SOAP xml body \r\n{}",
@@ -217,6 +272,7 @@ fn oh_soap_request(url: &String, soap_action: &String, body: &String) -> Option<
     Some(xml)
 }
 
+/// insert playlist template
 static INSERT_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
@@ -229,6 +285,7 @@ static INSERT_PL_TEMPLATE: &str = "\
 </s:Body>\
 </s:Envelope>";
 
+/// didl metadata template 
 static DIDL_TEMPLATE: &str = "\
 <DIDL-Lite>\
 <item>\
@@ -245,6 +302,7 @@ sampleFrequency=\"44100\">{server_uri}</res>\
 </item>\
 </DIDL-Lite>";
 
+/// seek id templete
 static SEEKID_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
@@ -256,6 +314,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
+/// play playlist template
 static PLAY_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
@@ -274,7 +333,11 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
-fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
+/// oh_play - set up a playlist on this OpenHome renderer and tell it to play it
+/// 
+/// the renderer will then try to get the audio from our built-in webserver 
+/// at http://_my_ip_:PORT/stream/swyh.wav  
+fn oh_play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
     let url = renderer.dev_url.clone();
     let (host, port) = parse_url(url);
     log(format!(
@@ -338,7 +401,8 @@ fn play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
     Ok(())
 }
 
-fn stop(renderer: &Renderer) {
+/// oh_stop - delete the playlist on the OpenHome renderer, so that it stops playing
+fn oh_stop(renderer: &Renderer) {
     let url = renderer.dev_url.clone();
     let (host, port) = parse_url(url);
     log(format!(
@@ -373,7 +437,10 @@ fn parse_url(dev_url: String) -> (String, u16) {
     (host, port)
 }
 
-fn log_reader(tb: Arc<Mutex<TextDisplay>>) {
+/// tb_logger - a TextBox logger
+/// this function reads log messages from the LOGCHANNEL receiver
+/// and adds them in an fltk TextBox
+fn tb_logger(tb: Arc<Mutex<TextDisplay>>) {
     let logreader: OtherReceiver<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();
@@ -394,6 +461,7 @@ fn log_reader(tb: Arc<Mutex<TextDisplay>>) {
     }
 }
 
+/// log - send a logmessage on the LOGCHANNEL sender
 fn log(s: String) {
     let logger: OtherSender<String>;
     {
@@ -405,6 +473,12 @@ fn log(s: String) {
     DEBUG!(eprintln!("{}", d));
 }
 
+/// run_server - run a webserver to serve requests from OpenHome media renderers
+/// 
+/// all music is sent in audio/l16 PCM format (i16) with the sample rate of the source
+/// the samples are read from a crossbeam channel fed by the wave_reader 
+/// a ChannelStream is created for this purpose, and inserted in the array of active
+/// "clients" for the wave_reader
 fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
     let addr = format!("{}:{}", local_addr, PORT);
     let logmsg = format!("Serving on {}", addr);
@@ -458,6 +532,9 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
     }
 }
 
+/// capture_audio_output - capture the audio stream from the default audio output device
+/// 
+/// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16) 
 fn capture_output_audio() -> cpal::Stream {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_output_device = get_audio_device();
@@ -477,7 +554,7 @@ fn capture_output_audio() -> cpal::Stream {
                 .build_input_stream(
                     &audio_cfg.config(),
                     move |data, _: &_| wave_reader::<f32>(data),
-                    err_fn,
+                    capture_err_fn,
                 )
                 .expect("Could not capture f32 stream format");
             s
@@ -487,7 +564,7 @@ fn capture_output_audio() -> cpal::Stream {
                 .build_input_stream(
                     &audio_cfg.config(),
                     move |data, _: &_| wave_reader::<i16>(data),
-                    err_fn,
+                    capture_err_fn,
                 )
                 .expect("Could not capture i16 stream format");
             s
@@ -497,7 +574,7 @@ fn capture_output_audio() -> cpal::Stream {
                 .build_input_stream(
                     &audio_cfg.config(),
                     move |data, _: &_| wave_reader::<u16>(data),
-                    err_fn,
+                    capture_err_fn,
                 )
                 .expect("Could not capture u16 stream format");
             s
@@ -506,10 +583,15 @@ fn capture_output_audio() -> cpal::Stream {
     stream
 }
 
-fn err_fn(err: cpal::StreamError) {
+/// capture_err_fn - called whan it's impossible to build an audio input stream
+fn capture_err_fn(err: cpal::StreamError) {
     log(format!("Error {} building audio input stream", err));
 }
 
+/// wave_reader - the captured audio input stream reader
+/// 
+/// writes the captured samples to all registered clients in the 
+/// CLIENTS ChannnelStream hashmap 
 fn wave_reader<T>(samples: &[T])
 where
     T: cpal::Sample,
@@ -529,9 +611,7 @@ where
     }
 }
 
-///
-/// discover the available (audio) renderers on the network
-///  
+/// discover - ssdp discovery of the available (audio) renderers on the network
 async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
@@ -596,6 +676,7 @@ async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
     Ok(Some(renderers))
 }
 
+/// _indent - indent the xml parser debug output
 fn _indent(size: usize) -> String {
     const INDENT: &'static str = "    ";
     (0..size)
@@ -603,8 +684,9 @@ fn _indent(size: usize) -> String {
         .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
 }
 
+/// get_service_description - get the upnp service description xml for a media renderer
 fn get_service_description(renderer: &Renderer) -> Option<String> {
-    // get the description, need the renderer control url
+    DEBUG!(eprintln!("Get service description: {}", renderer.dev_url.clone()));
     let url = renderer.dev_url.clone();
     let resp = ureq::get(url.as_str())
         .set("User-Agent", "swyh-rs-Rust")
@@ -615,6 +697,7 @@ fn get_service_description(renderer: &Renderer) -> Option<String> {
     Some(xml)
 }
 
+/// get_control_url - extract the control url for a partical service from the renderer description xml
 fn get_control_url(xml: &String, service_type: &String, service_id: &String) -> Option<String> {
     struct AvService {
         service_id: String,
@@ -670,9 +753,7 @@ fn get_control_url(xml: &String, service_type: &String, service_id: &String) -> 
     Some(service.control_url)
 }
 
-///
-/// print the information for a renderer
-///
+/// print_renderer - log the information for a renderer
 fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
     log(format!(
         "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
@@ -689,9 +770,7 @@ fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
     ));
 }
 
-///
-/// return the default output audio device
-///
+/// get_audio_device - return the default output audio device
 fn get_audio_device() -> cpal::Device {
     // audio hosts
     let _available_hosts = cpal::available_hosts();
@@ -704,7 +783,7 @@ fn get_audio_device() -> cpal::Device {
 
 use std::net::{IpAddr, UdpSocket};
 
-/// get the local ip address, return an `Option<String>`. when it fails, return `None`.
+/// get_local_address - get the local ip address, return an `Option<String>`. when it fails, return `None`.
 fn get_local_addr() -> Option<IpAddr> {
     // bind to IN_ADDR_ANY, can be multiple interfaces/addresses
     let socket = match UdpSocket::bind("0.0.0.0:0") {

@@ -2,28 +2,28 @@
 
 ///
 /// swyh-rs
-/// 
+///
 /// Basic SWYH (https://www.streamwhatyouhear.com/, source repo https://github.com/StreamWhatYouHear/SWYH) clone entirely written in rust.
-/// 
+///
 /// Has only been tested with Volumio (https://volumio.org/) streamers, but will probably support any streamer that supports the OpenHome protocol (not the original DLNA).
-/// 
+///
 /// I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
-/// 
+///
 /// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
-/// 
+///
 /// I had to fork cpal (https://github.com/RustAudio/cpal), ssdp-client (https://github.com/jakobhellermann/ssdp-client) en rupnp (https://github.com/jakobhellermann/rupnp) to add missing functionality, so if you want to build swyh-rs yourself you have to clone dheijl/cpal, dheijl/ssdp-client and dheijl/rupnp from GitHub and change the cargo.toml file accordingly.
-/// 
+///
 /// I use fltk-rs (https://github.com/MoAlyousef/fltk-rs) for the GUI, as it's easy to use and works well.
-/// 
+///
 /// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio devices. Don't have access to a Mac, so I don't know if this would work.
-/// 
-/// Todo: 
-/// 
+///
+/// Todo:
+///
 /// - get rid of ssdp-client and rupnp because they are async, as async is just useless overhead here, it complicates matters (not usable in fltk-rs callbacks), it conflicts with some libraries like http-tiny in blocking mode (different runtimes), and it has no added value in any way here (AFAICS).
 /// - make everything more robust (error handling)
 /// - clean-up and some refactoring
-/// 
-/// 
+///
+///
 /*
 MIT License
 
@@ -47,41 +47,25 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
 use fltk::{app, button::*, frame::*, text::*, window::*};
-use futures::prelude::*;
 use lazy_static::*;
-use rupnp::ssdp::{SearchTarget, URN};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
 use url::Url;
+mod openhome;
 mod utils;
+use openhome::{avmedia, avmedia::*};
 use strfmt::strfmt;
-use stringreader::StringReader;
 use utils::rwstream::ChannelStream;
-use xml::reader::{EventReader, XmlEvent};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
     Increment,
     Decrement,
-}
-
-#[derive(Debug, Clone)]
-struct Renderer {
-    dev_name: String,
-    dev_model: String,
-    dev_type: String,
-    dev_url: String,
-    svc_type: String,
-    svc_id: String,
-    pl_control_url: String,
-    ovh_control_url: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -107,15 +91,14 @@ lazy_static! {
 
 const PORT: i32 = 5901;
 
-/// swyh-rs 
-/// 
+/// swyh-rs
+///
 /// - set up the fltk GUI
 /// - discover ssdp media renderers and show them in the GUI as buttons (start/stop play)
-/// - setup and start audio capture 
+/// - setup and start audio capture
 /// - start the webserver
 /// - run the GUI
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_output_device = get_audio_device();
     let audio_cfg = &audio_output_device
@@ -126,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sw, sh) = app::screen_size();
     let mut wind = Window::default()
         .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
-        .with_label("UPNP/DLNA Renderers");
+        .with_label("swyh-rs UPNP/DLNA Media Renderers");
     wind.handle(Box::new(move |_ev| {
         //eprintln!("{:?}", app::event());
         let ev = app::event();
@@ -151,6 +134,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     _tb.set_buffer(Some(buf));
     drop(_tb);
 
+    // setup the he textbox logger thread
+    let _ = std::thread::spawn(move || tb_logger(tb));
+
+    for _ in 1..100 {
+        app::wait_for(0.001)?
+    }
+
     let local_addr = get_local_addr().expect("Could not obtain local address.");
     frame.set_label(&format!(
         "Scanning {} for UPNP rendering devices",
@@ -163,15 +153,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         app::wait_for(0.00001)?
     }
 
-    // setup the he textbox logger thread 
-    let _ = std::thread::spawn(move || tb_logger(tb));
+    // get the av media renderers in this network
+    let renderers = avmedia::discover(&log);
 
-    for _ in 1..100 {
-        app::wait_for(0.001)?
-    }
-
-    // build a list with renderers descovered on the network
-    let renderers = discover().await?;
     // now create a button for each discovered renderer
     let mut buttons: Vec<LightButton> = Vec::new();
     // button dimensions and starting position
@@ -257,7 +241,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn oh_soap_request(url: &String, soap_action: &String, body: &String) -> Option<String> {
     DEBUG!(eprintln!(
         "url: {}, SOAP Action: {}, SOAP xml body \r\n{}",
-        url.clone(), soap_action, body
+        url.clone(),
+        soap_action,
+        body
     ));
     let resp = ureq::post(url.as_str())
         .set("Connection", "close")
@@ -285,7 +271,7 @@ static INSERT_PL_TEMPLATE: &str = "\
 </s:Body>\
 </s:Envelope>";
 
-/// didl metadata template 
+/// didl metadata template
 static DIDL_TEMPLATE: &str = "\
 <DIDL-Lite>\
 <item>\
@@ -334,8 +320,8 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Envelope>";
 
 /// oh_play - set up a playlist on this OpenHome renderer and tell it to play it
-/// 
-/// the renderer will then try to get the audio from our built-in webserver 
+///
+/// the renderer will then try to get the audio from our built-in webserver
 /// at http://_my_ip_:PORT/stream/swyh.wav  
 fn oh_play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
     let url = renderer.dev_url.clone();
@@ -376,7 +362,7 @@ fn oh_play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> 
     if resp.contains("NewId") {
         let s = resp.find("<NewId>").unwrap();
         let e = resp.find("</NewId>").unwrap();
-        seek_id = resp.as_str()[s + 7 .. e].to_string();
+        seek_id = resp.as_str()[s + 7..e].to_string();
     }
     DEBUG!(eprintln!("SeekId: {}", seek_id.clone()));
 
@@ -474,9 +460,9 @@ fn log(s: String) {
 }
 
 /// run_server - run a webserver to serve requests from OpenHome media renderers
-/// 
+///
 /// all music is sent in audio/l16 PCM format (i16) with the sample rate of the source
-/// the samples are read from a crossbeam channel fed by the wave_reader 
+/// the samples are read from a crossbeam channel fed by the wave_reader
 /// a ChannelStream is created for this purpose, and inserted in the array of active
 /// "clients" for the wave_reader
 fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
@@ -533,8 +519,8 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
 }
 
 /// capture_audio_output - capture the audio stream from the default audio output device
-/// 
-/// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16) 
+///
+/// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16)
 fn capture_output_audio() -> cpal::Stream {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_output_device = get_audio_device();
@@ -589,9 +575,9 @@ fn capture_err_fn(err: cpal::StreamError) {
 }
 
 /// wave_reader - the captured audio input stream reader
-/// 
-/// writes the captured samples to all registered clients in the 
-/// CLIENTS ChannnelStream hashmap 
+///
+/// writes the captured samples to all registered clients in the
+/// CLIENTS ChannnelStream hashmap
 fn wave_reader<T>(samples: &[T])
 where
     T: cpal::Sample,
@@ -611,163 +597,12 @@ where
     }
 }
 
-/// discover - ssdp discovery of the available (audio) renderers on the network
-async fn discover() -> Result<Option<Vec<Renderer>>, rupnp::Error> {
-    const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
-
-    log(format!("Starting SSDP renderer discovery"));
-
-    let mut renderers: Vec<Renderer> = Vec::new();
-    let search_target = SearchTarget::URN(RENDERING_CONTROL);
-    match rupnp::discover(&search_target, Duration::from_secs(3)).await {
-        Ok(d) => {
-            pin_utils::pin_mut!(d);
-            loop {
-                if let Some(device) = d.try_next().await? {
-                    if device.services().len() > 0 {
-                        if let Some(service) = device.find_service(&RENDERING_CONTROL) {
-                            print_renderer(&device, &service);
-                            let mut renderer = Renderer {
-                                dev_name: device.friendly_name().to_string(),
-                                dev_model: device.model_name().to_string(),
-                                dev_type: device.device_type().to_string(),
-                                dev_url: device.url().to_string(),
-                                svc_id: service.service_id().to_string(),
-                                svc_type: service.service_type().to_string(),
-                                pl_control_url: String::new(),
-                                ovh_control_url: String::new(),
-                            };
-                            let xml = get_service_description(&renderer).unwrap();
-                            renderer.pl_control_url = get_control_url(
-                                &xml,
-                                &"Playlist:1".to_string(),
-                                &"Playlist".to_string(),
-                            )
-                            .unwrap();
-                            renderer.ovh_control_url = get_control_url(
-                                &xml,
-                                &"Volume:1".to_string(),
-                                &"Volume".to_string(),
-                            )
-                            .unwrap();
-                            renderers.push(renderer);
-                        }
-                    } else {
-                        DEBUG!(eprintln!(
-                            "*No services* type={}, manufacturer={}, name={}, model={}, at url= {}",
-                            device.device_type(),
-                            device.manufacturer(),
-                            device.friendly_name(),
-                            device.model_name(),
-                            device.url()
-                        ));
-                    }
-                } else {
-                    log(format!("End of SSDP devices discovery"));
-                    break;
-                }
-            }
-        }
-        Err(e) => {
-            log(format!("Error {} running SSDP discover", e));
-        }
-    }
-
-    Ok(Some(renderers))
-}
-
 /// _indent - indent the xml parser debug output
 fn _indent(size: usize) -> String {
     const INDENT: &'static str = "    ";
     (0..size)
         .map(|_| INDENT)
         .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
-}
-
-/// get_service_description - get the upnp service description xml for a media renderer
-fn get_service_description(renderer: &Renderer) -> Option<String> {
-    DEBUG!(eprintln!("Get service description: {}", renderer.dev_url.clone()));
-    let url = renderer.dev_url.clone();
-    let resp = ureq::get(url.as_str())
-        .set("User-Agent", "swyh-rs-Rust")
-        .set("Content-Type", "text/xml")
-        .send_string("");
-    let xml = resp.into_string().unwrap();
-    DEBUG!(eprintln!("resp: {}", xml));
-    Some(xml)
-}
-
-/// get_control_url - extract the control url for a partical service from the renderer description xml
-fn get_control_url(xml: &String, service_type: &String, service_id: &String) -> Option<String> {
-    struct AvService {
-        service_id: String,
-        service_type: String,
-        control_url: String,
-    }
-    let xmlstream = StringReader::new(&xml);
-    let parser = EventReader::new(xmlstream);
-    let mut _depth = 0;
-    let mut cur_elem = String::new();
-    let mut service = AvService {
-        service_id: String::new(),
-        service_type: String::new(),
-        control_url: String::new(),
-    };
-    for e in parser {
-        match e {
-            Ok(XmlEvent::StartElement { name, .. }) => {
-                //DEBUG!(eprintln!("{}+{}", _indent(depth), name));
-                _depth += 1;
-                cur_elem = name.local_name;
-            }
-            Ok(XmlEvent::EndElement { name }) => {
-                _depth -= 1;
-                let _ = name;
-                //DEBUG!(eprintln!("{}-{}", _indent(depth), name));
-            }
-            Ok(XmlEvent::Characters(value)) => {
-                //DEBUG!(eprintln!("{}*{}={}", _indent(depth), cur_elem, value));
-                if cur_elem.contains("serviceType") {
-                    service.service_type = value;
-                } else if cur_elem.contains("serviceId") {
-                    service.service_id = value;
-                } else if cur_elem.contains("controlURL")
-                    && service.service_type.contains(service_type)
-                    && service.service_id.contains(service_id)
-                {
-                    service.control_url = value;
-                    break;
-                }
-            }
-            Err(e) => {
-                DEBUG!(eprintln!("Error: {}", e));
-                break;
-            }
-            _ => {}
-        }
-    }
-    log(format!(
-        "{}/{}={}",
-        service.service_type, service.service_id, service.control_url
-    ));
-    Some(service.control_url)
-}
-
-/// print_renderer - log the information for a renderer
-fn print_renderer(device: &rupnp::Device, service: &rupnp::Service) {
-    log(format!(
-        "Found renderer type={}, manufacturer={}, name={}, model={}, at url= {}",
-        device.device_type(),
-        device.manufacturer(),
-        device.friendly_name(),
-        device.model_name(),
-        device.url()
-    ));
-    log(format!(
-        "  Service type: {}, id:   {}",
-        service.service_type(),
-        service.service_id()
-    ));
 }
 
 /// get_audio_device - return the default output audio device

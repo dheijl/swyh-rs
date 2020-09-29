@@ -8,11 +8,6 @@ edition = "2018"
 
 [dependencies]
 fltk = { version = "^0.8.3", features = ["fltk-bundled"] }
-tokio = { version = "^0.2", features = ["macros", "fs", "rt-core", "blocking"] }
-futures = "^0.3"
-pin-utils = "^0.1"
-rupnp = { path="X:\\Documents\\GitHub\\rupnp", version="*", features = ["full_device_spec"]}
-ssdp-client = { path="X:\\Documents\\GitHub\\ssdp-client" }
 cpal = { path="X:\\Documents\\GitHub\\cpal" }
 tiny_http = "*"
 ascii = "*"
@@ -24,3 +19,4 @@ xml-rs = "*"
 stringreader = "*"
 strfmt = "*"
 htmlescape = "*"
+chrono = "*"

@@ -1,8 +1,8 @@
+use crossbeam_channel::{Receiver, Sender};
 use std::io::Read;
 use std::io::Result as IoResult;
-use crossbeam_channel::{Receiver, Sender};
 
-/// Channelstream - used to transport the samples from the wave_reader to the http output wav stream 
+/// Channelstream - used to transport the samples from the wave_reader to the http output wav stream
 pub struct ChannelStream {
     pub s: Sender<i16>,
     pub r: Receiver<i16>,

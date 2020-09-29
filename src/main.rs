@@ -5,14 +5,14 @@
 ///
 /// Basic SWYH (https://www.streamwhatyouhear.com/, source repo https://github.com/StreamWhatYouHear/SWYH) clone entirely written in rust.
 ///
-/// Has only been tested with Volumio (https://volumio.org/) streamers, but will probably support any streamer that supports the OpenHome 
+/// Has only been tested with Volumio (https://volumio.org/) streamers, but will probably support any streamer that supports the OpenHome
 /// protocol (not the original DLNA).
 ///
 /// I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 ///
 /// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
 ///
-/// I had to fork cpal (https://github.com/RustAudio/cpal), so if you want to build swyh-rs yourself you have to clone dheijl/cpal 
+/// I had to fork cpal (https://github.com/RustAudio/cpal), so if you want to build swyh-rs yourself you have to clone dheijl/cpal
 /// and change the cargo.toml file accordingly.
 ///
 /// I use fltk-rs (https://github.com/MoAlyousef/fltk-rs) for the GUI, as it's easy to use and works well.
@@ -22,7 +22,7 @@
 /// Todo:
 ///
 /// - make everything more robust (error handling)
-/// - clean-up and some refactoring
+/// - clean-up and comments
 ///
 ///
 /*
@@ -56,11 +56,9 @@ use lazy_static::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use url::Url;
 mod openhome;
 mod utils;
-use openhome::{avmedia, avmedia::*};
-use strfmt::strfmt;
+use openhome::avmedia;
 use utils::rwstream::ChannelStream;
 
 #[derive(Debug, Clone, Copy)]
@@ -190,9 +188,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if but_cc.is_on() { "ON" } else { "OFF" }
                             ));
                             if but_cc.is_on() {
-                                let _ = oh_play(&renderer, &local_addr);
+                                let _ = renderer.oh_play(&local_addr, &log);
                             } else {
-                                let _ = oh_stop(&renderer);
+                                let _ = renderer.oh_stop_play(&log);
                             }
                             true
                         }
@@ -238,192 +236,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// oh_soap_request - send an OpenHome SOAP message to a renderer
-fn oh_soap_request(url: &String, soap_action: &String, body: &String) -> Option<String> {
-    DEBUG!(eprintln!(
-        "url: {}, SOAP Action: {}, SOAP xml body \r\n{}",
-        url.clone(),
-        soap_action,
-        body
-    ));
-    let resp = ureq::post(url.as_str())
-        .set("Connection", "close")
-        .set("User-Agent", "swyh-rs-Rust/0.x")
-        .set("Accept", "*/*")
-        .set("SOAPAction", &format!("\"{}\"", soap_action))
-        .set("Content-Type", "text/xml; charset=\"utf-8\"")
-        .send_string(body);
-    let xml = resp.into_string().unwrap();
-    DEBUG!(eprintln!("resp: {}", xml));
-
-    Some(xml)
-}
-
-/// insert playlist template
-static INSERT_PL_TEMPLATE: &str = "\
-<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
-<s:Body>\
-<u:Insert xmlns:u=\"urn:av-openhome-org:service:Playlist:1\">\
-<AfterId>0</AfterId>\
-<Uri>{server_uri}</Uri>\
-<Metadata>{didl_data}</Metadata>\
-</u:Insert>\
-</s:Body>\
-</s:Envelope>";
-
-/// didl metadata template
-static DIDL_TEMPLATE: &str = "\
-<DIDL-Lite>\
-<item>\
-<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
-<item id=\"1\" parentID=\"0\" restricted=\"0\">\
-<dc:title>swyh-rs</dc:title>\
-<res bitsPerSample=\"16\" \
-nrAudioChannels=\"2\" \
-protocolInfo=\"http-get:*:audio/wav:*\" \
-sampleFrequency=\"44100\">{server_uri}</res>\
-<upnp:class>object.item.audioItem.musicTrack</upnp:class>\
-</item>\
-</DIDL-Lite>\
-</item>\
-</DIDL-Lite>";
-
-/// seek id templete
-static SEEKID_PL_TEMPLATE: &str = "\
-<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
-xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
-<s:Body>\
-<u:SeekId xmlns:u=\"urn:av-openhome-org:service:Playlist:1\">\
-<Value>{seek_id}</Value>\
-</u:SeekId>\
-</s:Body>\
-</s:Envelope>";
-
-/// play playlist template
-static PLAY_PL_TEMPLATE: &str = "\
-<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
-xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
-<s:Body>\
-<u:Play xmlns:u=\"urn:av-openhome-org:service:Playlist:1\"/>\
-</s:Body>\
-</s:Envelope>";
-
-static DELETE_PL_TEMPLATE: &str = "\
-<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
-xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
-<s:Body>\
-<u:DeleteAll xmlns:u=\"urn:av-openhome-org:service:Playlist:1\"/>\
-</s:Body>\
-</s:Envelope>";
-
-/// oh_play - set up a playlist on this OpenHome renderer and tell it to play it
-///
-/// the renderer will then try to get the audio from our built-in webserver
-/// at http://_my_ip_:PORT/stream/swyh.wav  
-fn oh_play(renderer: &Renderer, local_addr: &IpAddr) -> Result<(), ureq::Error> {
-    let url = renderer.dev_url.clone();
-    let (host, port) = parse_url(url);
-    log(format!(
-        "Start playing on {} host={} port={} from {}",
-        renderer.dev_name, host, port, local_addr
-    ));
-
-    let url = format!("http://{}:{}{}", host, port, renderer.pl_control_url);
-    let addr = format!("{}:{}", local_addr, PORT);
-    let local_url = format!("http://{}/stream/swyh.wav", addr);
-    DEBUG!(eprintln!("OHPlaylist server URL: {}", local_url.clone()));
-
-    // delete current playlist
-    let _resp = oh_soap_request(
-        &url,
-        &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
-        &DELETE_PL_TEMPLATE.to_string(),
-    )
-    .unwrap();
-
-    // create new playlist
-    let mut vars = HashMap::new();
-    vars.insert("server_uri".to_string(), local_url.clone());
-    let mut didl_data = htmlescape::encode_minimal(&DIDL_TEMPLATE);
-    didl_data = strfmt(&didl_data, &vars).unwrap();
-    vars.insert("didl_data".to_string(), didl_data);
-    let xmlbody = strfmt(&INSERT_PL_TEMPLATE, &vars).unwrap();
-    let resp = oh_soap_request(
-        &url,
-        &"urn:av-openhome-org:service:Playlist:1#Insert".to_string(),
-        &xmlbody,
-    )
-    .unwrap();
-    // extract new seek id
-    let mut seek_id = String::new();
-    if resp.contains("NewId") {
-        let s = resp.find("<NewId>").unwrap();
-        let e = resp.find("</NewId>").unwrap();
-        seek_id = resp.as_str()[s + 7..e].to_string();
-    }
-    DEBUG!(eprintln!("SeekId: {}", seek_id.clone()));
-
-    // send seek_id
-    vars.insert("seek_id".to_string(), seek_id);
-    let xmlbody = strfmt(&SEEKID_PL_TEMPLATE, &vars).unwrap();
-    let _resp = oh_soap_request(
-        &url,
-        &"urn:av-openhome-org:service:Playlist:1#SeekId".to_string(),
-        &xmlbody,
-    )
-    .unwrap();
-
-    // send play command
-    let _resp = oh_soap_request(
-        &url,
-        &"urn:av-openhome-org:service:Playlist:1#Play".to_string(),
-        &PLAY_PL_TEMPLATE.to_string(),
-    )
-    .unwrap();
-
-    Ok(())
-}
-
-/// oh_stop - delete the playlist on the OpenHome renderer, so that it stops playing
-fn oh_stop(renderer: &Renderer) {
-    let url = renderer.dev_url.clone();
-    let (host, port) = parse_url(url);
-    log(format!(
-        "Stop playing on {} host={} port={}",
-        renderer.dev_name, host, port
-    ));
-    let url = format!("http://{}:{}{}", host, port, renderer.pl_control_url);
-
-    // delete current playlist
-    let _resp = oh_soap_request(
-        &url,
-        &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
-        &DELETE_PL_TEMPLATE.to_string(),
-    )
-    .unwrap();
-}
-
-fn parse_url(dev_url: String) -> (String, u16) {
-    let host: String;
-    let port: u16;
-    match Url::parse(&dev_url) {
-        Ok(url) => {
-            host = url.host_str().unwrap().to_string();
-            port = url.port().unwrap();
-        }
-        Err(e) => {
-            log(format!("Error {} parsing url {}", e, dev_url));
-            host = "0.0.0.0".to_string();
-            port = 0;
-        }
-    }
-    (host, port)
-}
-
 /// tb_logger - a TextBox logger
 /// this function reads log messages from the LOGCHANNEL receiver
 /// and adds them in an fltk TextBox
@@ -444,6 +256,7 @@ fn tb_logger(tb: Arc<Mutex<TextDisplay>>) {
         let buflines = _tb.count_lines(0, buflen, true);
         _tb.scroll(buflines, 0);
         _tb.redraw();
+        // this seems to work to let the UI update the TextBox
         drop(_tb);
     }
 }
@@ -458,7 +271,8 @@ fn log(s: String) {
     let d = s.clone();
     logger.send(s).unwrap();
     DEBUG!(eprintln!("{}", d));
-    for _ in 1..100 {
+    // this seems to work to let the UI update the TextBox
+    for _ in 1..200 {
         app::wait_for(0.000001).unwrap();
     }
 }

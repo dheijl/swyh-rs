@@ -16,8 +16,7 @@ Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio devices
 Todo: 
 
 - make everything more robust (error handling)
-- clean-up and some refactoring
-- commenting code
+- clean-up and commenting code
 
 Screenshot:
 

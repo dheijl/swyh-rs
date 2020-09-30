@@ -15,8 +15,11 @@ Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/HifI Berry based Volu
 
 Todo: 
 
-- introduce buffering in the channelstream instead of sending every sample to the Reader
 - ... ?
+
+Known problems: 
+
+- if you start playing from the GUI and stop it from the media renderer, the device button in the GUI stays highlighted.
 
 Screenshot:
 

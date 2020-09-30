@@ -1,13 +1,4 @@
 //#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
-
-use ascii::AsciiString;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
-use fltk::{app, button::*, frame::*, text::*, window::*};
-use lazy_static::*;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
 ///
 /// swyh-rs
 ///
@@ -56,6 +47,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+use ascii::AsciiString;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
+use fltk::{app, button::*, frame::*, text::*, window::*};
+use lazy_static::*;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 mod openhome;
 mod utils;
@@ -63,7 +62,7 @@ use openhome::avmedia::{discover, Renderer};
 use utils::rwstream::ChannelStream;
 
 /// app version
-const APP_VERSION: &str = "0.3";
+const APP_VERSION: &str = "0.4";
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
@@ -317,19 +316,13 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
                     rq.remote_addr()
                 ));
                 let remote_addr = format!("{}", rq.remote_addr());
-                let (tx, rx): (OtherSender<i16>, OtherReceiver<i16>) = unbounded();
-                let channel_stream = ChannelStream {
-                    s: tx.clone(),
-                    r: rx.clone(),
-                };
+                let (tx, rx): (OtherSender<Vec<i16>>, OtherReceiver<Vec<i16>>) = unbounded();
+                let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                 let mut clients = CLIENTS.lock().unwrap();
                 clients.insert(remote_addr.clone(), channel_stream);
                 drop(clients);
                 std::thread::yield_now();
-                let channel_stream = ChannelStream {
-                    s: tx.clone(),
-                    r: rx.clone(),
-                };
+                let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                 let ct_text = format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string());
                 let ct_hdr = tiny_http::Header {
                     field: "Content-Type".parse().unwrap(),

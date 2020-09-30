@@ -1,9 +1,9 @@
 ///
 /// controller for avmedia renderers (audio only) using OpenHome protocol
-/// 
-/// Only tested with Volumio streamers (https://volumio.org/) 
-/// 
-/// 
+///
+/// Only tested with Volumio streamers (https://volumio.org/)
+///
+///
 /*
 MIT License
 
@@ -27,8 +27,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-
-
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::net::SocketAddr;
@@ -47,7 +45,7 @@ macro_rules! DEBUG {
     };
 }
 
-///An UPNP/DLNA service desciption
+/// An UPNP/DLNA service desciption
 #[derive(Debug, Clone)]
 pub struct AvService {
     service_id: String,
@@ -64,9 +62,6 @@ impl AvService {
         }
     }
 }
-
-/// the port number our media server listens on
-const PORT: i32 = 5901;
 
 /// insert playlist template
 static INSERT_PL_TEMPLATE: &str = "\
@@ -199,9 +194,9 @@ impl Renderer {
     /// oh_play - set up a playlist on this OpenHome renderer and tell it to play it
     ///
     /// the renderer will then try to get the audio from our built-in webserver
-    /// at http://_my_ip_:PORT/stream/swyh.wav  
+    /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
 
-    pub fn oh_play(&self, local_addr: &IpAddr, log: &dyn Fn(String)) -> Result<(), ureq::Error> {
+    pub fn oh_play(&self, local_addr: &IpAddr, server_port: u16, log: &dyn Fn(String)) -> Result<(), ureq::Error> {
         let url = self.dev_url.clone();
         let (host, port) = self.parse_url(url, log);
         log(format!(
@@ -209,7 +204,7 @@ impl Renderer {
             self.dev_name, host, port, local_addr
         ));
         let url = format!("http://{}:{}{}", host, port, self.pl_control_url);
-        let addr = format!("{}:{}", local_addr, PORT);
+        let addr = format!("{}:{}", local_addr, server_port);
         let local_url = format!("http://{}/stream/swyh.wav", addr);
         DEBUG!(eprintln!("OHPlaylist server URL: {}", local_url.clone()));
         // delete current playlist

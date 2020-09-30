@@ -1,5 +1,13 @@
 //#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
 
+use ascii::AsciiString;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
+use fltk::{app, button::*, frame::*, text::*, window::*};
+use lazy_static::*;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 ///
 /// swyh-rs
 ///
@@ -48,18 +56,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-use ascii::AsciiString;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
-use fltk::{app, button::*, frame::*, text::*, window::*};
-use lazy_static::*;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::time::{Duration, Instant};
 mod openhome;
 mod utils;
-use openhome::avmedia;
+use openhome::avmedia::{Renderer, discover};
 use utils::rwstream::ChannelStream;
+
+/// app version
+const APP_VERSION: &str = "0.3";
+ 
+/// the HTTP server port
+pub const SERVER_PORT: u16 = 5901;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -88,8 +95,6 @@ lazy_static! {
         Mutex::new(unbounded());
 }
 
-const PORT: i32 = 5901;
-
 /// swyh-rs
 ///
 /// - set up the fltk GUI
@@ -108,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sw, sh) = app::screen_size();
     let mut wind = Window::default()
         .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
-        .with_label("swyh-rs UPNP/DLNA Media Renderers");
+        .with_label(&format!("swyh-rs UPNP/DLNA Media Renderers V{}", APP_VERSION));
     wind.handle(Box::new(move |_ev| {
         //eprintln!("{:?}", app::event());
         let ev = app::event();
@@ -148,12 +153,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.make_resizable(true);
     wind.end();
     wind.show();
+    // update UI
     for _ in 1..100 {
         app::wait_for(0.00001)?
     }
 
     // get the av media renderers in this network
-    let renderers = avmedia::discover(&log);
+    let renderers: Vec<Renderer>; 
+    let discover_handle: JoinHandle<Vec<Renderer>> =
+        std::thread::spawn(|| discover(&log).unwrap_or_default());
+    // wait for discovery to complete (max 3.1 secs)
+    let start = Instant::now();
+    loop {
+        let duration = start.elapsed();
+        // keep capturing responses for 3.1 seconds
+        if duration > Duration::from_millis(3100) {
+            break;
+        }
+        // update UI
+        for _ in 1..100 {
+            app::wait_for(0.00001)?
+        }
+        // and yield CPU for 1 ms
+        std::thread::sleep(std::time::Duration::new(0, 1000000));
+    }
+
+    // collect the discovery result
+    renderers = discover_handle.join().unwrap_or_default();
 
     // now create a button for each discovered renderer
     let mut buttons: Vec<LightButton> = Vec::new();
@@ -164,16 +190,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut by = frame.y() + frame.height() + 10; // button y offset
                                                   // create the buttons
     let mut bi = 0; // button index
-    match renderers {
-        Some(rends) => {
-            let rs = rends;
-            for renderer in rs.iter() {
+    //match renderers {
+        //Some(rends) => {
+            //let rs = rends;
+            for renderer in renderers.iter() {
                 let mut but = LightButton::default() // create the button
                     .with_size(bwidth, bheight)
                     .with_pos(bx, by)
                     .with_align(Align::Center)
                     .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-                let rs_c = rs.clone();
+                let rs_c = renderers.clone();
                 let but_c = but.clone();
                 but.handle(Box::new(move |ev| {
                     let but_cc = but_c.clone();
@@ -188,7 +214,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if but_cc.is_on() { "ON" } else { "OFF" }
                             ));
                             if but_cc.is_on() {
-                                let _ = renderer.oh_play(&local_addr, &log);
+                                let _ = renderer.oh_play(&local_addr, SERVER_PORT, &log);
                             } else {
                                 let _ = renderer.oh_stop_play(&log);
                             }
@@ -202,11 +228,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 bi += 1; // bump the button index
                 by += bheight + 10; // and the button y offset
             }
-        }
-        None => {}
-    }
+        //}
+        //None => {}
+    //}
     frame.set_label("Rendering Devices");
     wind.redraw();
+    // update UI
     for _ in 1..100 {
         app::wait_for(0.00001)?
     }
@@ -236,9 +263,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// tb_logger - a TextBox logger
+/// tb_logger - the TextBox logger thread
 /// this function reads log messages from the LOGCHANNEL receiver
-/// and adds them in an fltk TextBox
+/// and adds them to an fltk TextBox (using a mutex)
 fn tb_logger(tb: Arc<Mutex<TextDisplay>>) {
     let logreader: OtherReceiver<String>;
     {
@@ -247,7 +274,6 @@ fn tb_logger(tb: Arc<Mutex<TextDisplay>>) {
     }
     loop {
         let msg = logreader.recv().unwrap();
-        eprintln!("LOG: {}", msg);
         let mut _tb = tb.lock().unwrap();
         _tb.buffer().unwrap().append(&msg);
         _tb.buffer().unwrap().append("\n");
@@ -256,25 +282,19 @@ fn tb_logger(tb: Arc<Mutex<TextDisplay>>) {
         let buflines = _tb.count_lines(0, buflen, true);
         _tb.scroll(buflines, 0);
         _tb.redraw();
-        // this seems to work to let the UI update the TextBox
         drop(_tb);
     }
 }
 
 /// log - send a logmessage on the LOGCHANNEL sender
 fn log(s: String) {
+    DEBUG!(eprintln!("{}", s.clone()));
     let logger: OtherSender<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();
         logger = ch.0.clone();
     }
-    let d = s.clone();
     logger.send(s).unwrap();
-    DEBUG!(eprintln!("{}", d));
-    // this seems to work to let the UI update the TextBox
-    for _ in 1..200 {
-        app::wait_for(0.000001).unwrap();
-    }
 }
 
 /// run_server - run a webserver to serve requests from OpenHome media renderers
@@ -284,7 +304,7 @@ fn log(s: String) {
 /// a ChannelStream is created for this purpose, and inserted in the array of active
 /// "clients" for the wave_reader
 fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
-    let addr = format!("{}:{}", local_addr, PORT);
+    let addr = format!("{}:{}", local_addr, SERVER_PORT);
     let logmsg = format!("Serving on {}", addr);
     log(logmsg);
     let server = Arc::new(tiny_http::Server::http(addr).unwrap());
@@ -292,7 +312,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
     for _ in 0..8 {
         let server = server.clone();
 
-        handles.push(thread::spawn(move || {
+        handles.push(std::thread::spawn(move || {
             for rq in server.incoming_requests() {
                 log(format!(
                     "Received request {} from {}",

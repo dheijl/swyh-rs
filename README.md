@@ -20,4 +20,4 @@ Todo:
 
 Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/94599526-d65e9100-0290-11eb-9efe-def5506339ba.PNG)
+![alt_tag](https://user-images.githubusercontent.com/2384545/94679970-461c5c80-0321-11eb-8b70-ac34679f9cb3.PNG)

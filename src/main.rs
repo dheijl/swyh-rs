@@ -59,12 +59,12 @@ SOFTWARE.
 use std::time::{Duration, Instant};
 mod openhome;
 mod utils;
-use openhome::avmedia::{Renderer, discover};
+use openhome::avmedia::{discover, Renderer};
 use utils::rwstream::ChannelStream;
 
 /// app version
 const APP_VERSION: &str = "0.3";
- 
+
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
 
@@ -113,7 +113,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sw, sh) = app::screen_size();
     let mut wind = Window::default()
         .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
-        .with_label(&format!("swyh-rs UPNP/DLNA Media Renderers V{}", APP_VERSION));
+        .with_label(&format!(
+            "swyh-rs UPNP/DLNA Media Renderers V{}",
+            APP_VERSION
+        ));
     wind.handle(Box::new(move |_ev| {
         //eprintln!("{:?}", app::event());
         let ev = app::event();
@@ -159,7 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // get the av media renderers in this network
-    let renderers: Vec<Renderer>; 
+    let renderers: Vec<Renderer>;
     let discover_handle: JoinHandle<Vec<Renderer>> =
         std::thread::spawn(|| discover(&log).unwrap_or_default());
     // wait for discovery to complete (max 3.1 secs)
@@ -190,47 +193,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut by = frame.y() + frame.height() + 10; // button y offset
                                                   // create the buttons
     let mut bi = 0; // button index
-    //match renderers {
-        //Some(rends) => {
-            //let rs = rends;
-            for renderer in renderers.iter() {
-                let mut but = LightButton::default() // create the button
-                    .with_size(bwidth, bheight)
-                    .with_pos(bx, by)
-                    .with_align(Align::Center)
-                    .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-                let rs_c = renderers.clone();
-                let but_c = but.clone();
-                but.handle(Box::new(move |ev| {
-                    let but_cc = but_c.clone();
-                    let renderer = &rs_c[bi as usize];
-                    match ev {
-                        Event::Push => {
-                            DEBUG!(eprintln!(
-                                "Pushed renderer #{} {} {}, state = {}",
-                                bi,
-                                renderer.dev_model,
-                                renderer.dev_name,
-                                if but_cc.is_on() { "ON" } else { "OFF" }
-                            ));
-                            if but_cc.is_on() {
-                                let _ = renderer.oh_play(&local_addr, SERVER_PORT, &log);
-                            } else {
-                                let _ = renderer.oh_stop_play(&log);
-                            }
-                            true
-                        }
-                        _ => true,
+    for renderer in renderers.iter() {
+        let mut but = LightButton::default() // create the button
+            .with_size(bwidth, bheight)
+            .with_pos(bx, by)
+            .with_align(Align::Center)
+            .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
+        let rs_c = renderers.clone();
+        let but_c = but.clone();
+        but.handle(Box::new(move |ev| {
+            let but_cc = but_c.clone();
+            let renderer = &rs_c[bi as usize];
+            match ev {
+                Event::Push => {
+                    DEBUG!(eprintln!(
+                        "Pushed renderer #{} {} {}, state = {}",
+                        bi,
+                        renderer.dev_model,
+                        renderer.dev_name,
+                        if but_cc.is_on() { "ON" } else { "OFF" }
+                    ));
+                    if but_cc.is_on() {
+                        let _ = renderer.oh_play(&local_addr, SERVER_PORT, &log);
+                    } else {
+                        let _ = renderer.oh_stop_play(&log);
                     }
-                }));
-                wind.add(&but); // add the button to the window
-                buttons.push(but); // and keep a reference to it
-                bi += 1; // bump the button index
-                by += bheight + 10; // and the button y offset
+                    true
+                }
+                _ => true,
             }
-        //}
-        //None => {}
-    //}
+        }));
+        wind.add(&but); // add the button to the window
+        buttons.push(but); // and keep a reference to it
+        bi += 1; // bump the button index
+        by += bheight + 10; // and the button y offset
+    }
     frame.set_label("Rendering Devices");
     wind.redraw();
     // update UI

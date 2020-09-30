@@ -196,7 +196,12 @@ impl Renderer {
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
 
-    pub fn oh_play(&self, local_addr: &IpAddr, server_port: u16, log: &dyn Fn(String)) -> Result<(), ureq::Error> {
+    pub fn oh_play(
+        &self,
+        local_addr: &IpAddr,
+        server_port: u16,
+        log: &dyn Fn(String),
+    ) -> Result<(), ureq::Error> {
         let url = self.dev_url.clone();
         let (host, port) = self.parse_url(url, log);
         log(format!(

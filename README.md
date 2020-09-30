@@ -7,17 +7,17 @@ I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux
 
 For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
 
-I had to fork cpal (https://github.com/RustAudio/cpal)to add missing functionality, so if you want to build swyh-rs yourself you have to clone dheijl/cpal from GitHub and change the cargo.toml file accordingly.
+I had to fork cpal (https://github.com/RustAudio/cpal) to add missing functionality, so if you want to build swyh-rs yourself you have to clone dheijl/cpal from GitHub and change the cargo.toml file accordingly.
 
 I use fltk-rs (https://github.com/MoAlyousef/fltk-rs) for the GUI, as it's easy to use and works well.
 
-Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio devices. Don't have access to a Mac, so I don't know if this would work.
+Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/HifI Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
 
 Todo: 
 
-- make everything more robust (error handling)
-- clean-up and commenting code
+- introduce buffering in the channelstream instead of sending every sample to the Reader
+- ... ?
 
 Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/94599526-d65e9100-0290-11eb-9efe-def5506339ba.PNG)
+![alt_tag](https://user-images.githubusercontent.com/2384545/94679970-461c5c80-0321-11eb-8b70-ac34679f9cb3.PNG)

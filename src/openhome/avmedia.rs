@@ -302,9 +302,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     let bind_addr = socket
         .local_addr()
         .expect("Could not obtain local ip address for udp broadcast socket");
-
-    //  SSDP UDP broadcast address
-    let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
+    let bind_addr = SocketAddr::new(bind_addr.ip(), 0); 
     let socket = UdpSocket::bind(&bind_addr).unwrap();
     let _ = socket
         .set_read_timeout(Some(Duration::from_millis(250)))
@@ -312,6 +310,8 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     let _ = socket.set_broadcast(true).unwrap();
 
     // broadcast the M-SEARCH message (MX is 3 secs)
+    //  SSDP UDP broadcast address
+    let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
     socket
         .send_to(SSDP_DISCOVER_MSG.as_bytes(), &broadcast_address)
         .unwrap();

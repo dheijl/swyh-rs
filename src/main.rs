@@ -256,19 +256,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if app::should_program_quit() {
             break;
         }
-        // check if the webserver has closed a connection not caused by pushing the renderer button 
+        // check if the webserver has closed a connection not caused by pushing the renderer button
         // in that case we turn the button off as a visual feedback
         match feedback_rx.try_recv() {
-            Ok(remote_addr) => {
-                match buttons.get_mut(&remote_addr) {
-                    Some(button) => {
-                        if button.is_on() {             
-                            button.turn_on(false);
-                        }
+            Ok(remote_addr) => match buttons.get_mut(&remote_addr) {
+                Some(button) => {
+                    if button.is_on() {
+                        button.turn_on(false);
                     }
-                    None => {}
                 }
-            }
+                None => {}
+            },
             Err(_) => {}
         }
     }
@@ -354,7 +352,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<String>
                 drop(clients);
                 log(format!("End of response to {}", remote_addr));
                 // inform the main thread that this renderer has finished receiving
-                // necessary if the connection close was not caused by our own GUI 
+                // necessary if the connection close was not caused by our own GUI
                 // so that we can update the corresponding button state
                 let mut s = remote_addr.to_string();
                 match s.find(':') {

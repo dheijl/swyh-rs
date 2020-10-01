@@ -17,10 +17,6 @@ Todo:
 
 - ... ?
 
-Known problems: 
-
-- if you start playing from the GUI and stop it from the media renderer, the device button in the GUI stays highlighted.
-
 Screenshot:
 
 ![alt_tag](https://user-images.githubusercontent.com/2384545/94679970-461c5c80-0321-11eb-8b70-ac34679f9cb3.PNG)

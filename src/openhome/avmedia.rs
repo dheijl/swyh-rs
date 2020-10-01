@@ -133,10 +133,9 @@ pub struct Renderer {
     pub dev_model: String,
     pub dev_type: String,
     pub dev_url: String,
-    pub svc_type: String,
-    pub svc_id: String,
     pub pl_control_url: String,
     pub vol_control_url: String,
+    pub remote_addr: String,
     pub services: Vec<AvService>,
 }
 
@@ -149,8 +148,7 @@ impl Renderer {
             dev_type: String::new(),
             vol_control_url: String::new(),
             pl_control_url: String::new(),
-            svc_id: String::new(),
-            svc_type: String::new(),
+            remote_addr: String::new(),
             services: Vec::new(),
         }
     }
@@ -319,7 +317,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
         .unwrap();
 
     // collect the responses and remeber all renderers
-    let mut devices: Vec<String> = Vec::new();
+    let mut devices: Vec<(String, SocketAddr)> = Vec::new();
     let start = Instant::now();
     loop {
         let duration = start.elapsed();
@@ -329,12 +327,13 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
         }
         let mut buf: [u8; 2048] = [0; 2048];
         let resp: String;
-        match socket.recv(&mut buf) {
-            Ok(received) => {
+        match socket.recv_from(&mut buf) {
+            Ok((received, from)) => {
                 resp = std::str::from_utf8(&buf[0..received]).unwrap().to_string();
                 DEBUG!(eprintln!(
-                    "UDP response at {}: \r\n{}",
+                    "UDP response at {} from {}: \r\n{}",
                     start.elapsed().as_millis(),
+                    from,
                     resp
                 ));
                 let response: Vec<&str> = resp.split("\r\n").collect();
@@ -369,7 +368,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
                     }
                     if is_renderer {
                         logger(format!("Renderer at : {}", dev_url.clone()));
-                        devices.push(dev_url);
+                        devices.push((dev_url, from));
                     }
                 } else {
                     continue;
@@ -382,12 +381,20 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     logger(format!("Getting renderer descriptions"));
     let mut renderers: Vec<Renderer> = Vec::new();
 
-    for dev in devices {
+    for (dev, from) in devices {
         //let mut rend = Renderer:: new();
         //rend.dev_url = dev.clone();
         match get_service_description(&dev) {
             Some(xml) => match get_renderer(&xml) {
-                Some(rend) => {
+                Some(mut rend) => {
+                    let mut s = from.to_string();
+                    match s.find(':') {
+                        Some(i) => {
+                            s.truncate(i);
+                        }
+                        None => {}
+                    }
+                    rend.remote_addr = s;
                     renderers.push(rend);
                 }
                 None => {}
@@ -401,7 +408,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
             "Renderer {} {} {} has {} services",
             r.dev_name,
             r.dev_model,
-            r.dev_url,
+            r.remote_addr,
             r.services.len()
         ));
         for s in r.services.iter() {

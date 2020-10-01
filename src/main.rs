@@ -62,7 +62,7 @@ use openhome::avmedia::{discover, Renderer};
 use utils::rwstream::ChannelStream;
 
 /// app version
-const APP_VERSION: &str = "0.4";
+const APP_VERSION: &str = "0.5";
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
@@ -184,7 +184,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     renderers = discover_handle.join().unwrap_or_default();
 
     // now create a button for each discovered renderer
-    let mut buttons: Vec<LightButton> = Vec::new();
+    let mut buttons: HashMap<String, LightButton> = HashMap::new();
     // button dimensions and starting position
     let bwidth = frame.width() / 2; // button width
     let bheight = frame.height(); // button height
@@ -223,7 +223,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }));
         wind.add(&but); // add the button to the window
-        buttons.push(but); // and keep a reference to it
+        buttons.insert(renderer.remote_addr.clone(), but.clone()); // and keep a reference to it
         bi += 1; // bump the button index
         by += bheight + 10; // and the button y offset
     }
@@ -244,16 +244,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
     };
-    let _ = std::thread::spawn(move || run_server(&local_addr, wd));
+    let (feedback_tx, feedback_rx): (OtherSender<String>, OtherReceiver<String>) = unbounded();
+    let _ = std::thread::spawn(move || run_server(&local_addr, wd, feedback_tx.clone()));
     std::thread::yield_now();
 
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
     loop {
-        app::wait_for(0.00001).unwrap();
+        app::wait_for(0.0001).unwrap();
         std::thread::sleep(std::time::Duration::new(0, 100000));
         if app::should_program_quit() {
             break;
+        }
+        // check if the webserver has closed a connection not caused by pushing the renderer button 
+        // in that case we turn the button off as a visual feedback
+        match feedback_rx.try_recv() {
+            Ok(remote_addr) => {
+                match buttons.get_mut(&remote_addr) {
+                    Some(button) => {
+                        if button.is_on() {             
+                            button.turn_on(false);
+                        }
+                    }
+                    None => {}
+                }
+            }
+            Err(_) => {}
         }
     }
     Ok(())
@@ -299,7 +315,7 @@ fn log(s: String) {
 /// the samples are read from a crossbeam channel fed by the wave_reader
 /// a ChannelStream is created for this purpose, and inserted in the array of active
 /// "clients" for the wave_reader
-fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
+fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<String>) -> () {
     let addr = format!("{}:{}", local_addr, SERVER_PORT);
     let logmsg = format!("Serving on {}", addr);
     log(logmsg);
@@ -307,7 +323,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
     let mut handles = Vec::new();
     for _ in 0..8 {
         let server = server.clone();
-
+        let feedback_tx_c = feedback_tx.clone();
         handles.push(std::thread::spawn(move || {
             for rq in server.incoming_requests() {
                 log(format!(
@@ -337,6 +353,17 @@ fn run_server(local_addr: &IpAddr, wd: WavData) -> () {
                 clients.remove(&remote_addr);
                 drop(clients);
                 log(format!("End of response to {}", remote_addr));
+                // inform the main thread that this renderer has finished receiving
+                // necessary if the connection close was not caused by our own GUI 
+                // so that we can update the corresponding button state
+                let mut s = remote_addr.to_string();
+                match s.find(':') {
+                    Some(i) => {
+                        s.truncate(i);
+                    }
+                    None => {}
+                }
+                feedback_tx_c.send(s).unwrap();
             }
         }));
     }

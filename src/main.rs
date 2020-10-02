@@ -139,11 +139,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // setup the he textbox logger thread
     let tb = tb.clone();
     let _ = std::thread::spawn(move || tb_logger(tb));
-
-    for _ in 1..100 {
-        app::wait_for(0.0)?;
-        std::thread::sleep(std::time::Duration::new(0, 1000000));
-    }
+    update_ui();
 
     let local_addr = get_local_addr().expect("Could not obtain local address.");
     frame.set_label(&format!(
@@ -153,10 +149,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.make_resizable(true);
     wind.end();
     wind.show();
-    // update UI
-    for _ in 1..100 {
-        app::wait_for(0.0)?;
-    }
+    update_ui();
+    
 
     // get the av media renderers in this network
     let renderers: Vec<Renderer>;
@@ -170,9 +164,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if duration > Duration::from_millis(4_000) {
             break;
         }
-        for _ in 1..100 {
-            app::wait_for(0.0)?;
-        }
+        update_ui();
         std::thread::sleep(std::time::Duration::new(0, 250_000_000));
     }
     // collect the discovery result
@@ -225,10 +217,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     frame.set_label("Rendering Devices");
     wind.redraw();
-    // update UI
-    for _ in 1..100 {
-        app::wait_for(0.0)?;
-    }
+    update_ui();
 
     // capture system audio
     DEBUG!(eprintln!("Try capturing system audio"));
@@ -248,8 +237,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
     loop {
-        app::wait_for(0.0001).unwrap();
-        std::thread::sleep(std::time::Duration::new(0, 100000));
+        app::wait_for(0.0)?;
+        std::thread::sleep(std::time::Duration::new(0, 1_000_000));
         if app::should_program_quit() {
             break;
         }
@@ -270,6 +259,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+///
+/// update_ui - let fltk update the UI that was changed by other threads
+/// 
+fn update_ui() {
+    for _ in 1..100 {
+        let _ = app::wait_for(0.0).unwrap_or_default();
+        std::thread::sleep(std::time::Duration::new(0, 1_000_000));
+    }
+
+}
 /// tb_logger - the TextBox logger thread
 /// this function reads log messages from the LOGCHANNEL receiver
 /// and adds them to an fltk TextBox (using a mutex)
@@ -343,7 +342,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<String>
                 let response = tiny_http::Response::empty(200)
                     .with_header(ct_hdr)
                     .with_data(channel_stream, None)
-                    .with_chunked_threshold(8192);
+                    .with_chunked_threshold(16384);
                 let _ = rq.respond(response);
                 let mut clients = CLIENTS.lock().unwrap();
                 clients.remove(&remote_addr);

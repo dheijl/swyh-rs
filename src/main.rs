@@ -340,8 +340,8 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<String>
                 };
                 let response = tiny_http::Response::empty(200)
                     .with_header(ct_hdr)
-                    .with_data(channel_stream, None)
-                    .with_chunked_threshold(16384);
+                    .with_chunked_threshold(16384)
+                    .with_data(channel_stream, None);
                 let _ = rq.respond(response);
                 let mut clients = CLIENTS.lock().unwrap();
                 clients.remove(&remote_addr);

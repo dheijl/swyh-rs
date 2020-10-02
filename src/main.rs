@@ -62,7 +62,7 @@ use openhome::avmedia::{discover, Renderer};
 use utils::rwstream::ChannelStream;
 
 /// app version
-const APP_VERSION: &str = "0.5";
+const APP_VERSION: &str = "0.6";
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;

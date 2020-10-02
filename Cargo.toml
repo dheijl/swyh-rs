@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 fltk = { version = "*", features = ["fltk-bundled"] }
-cpal = { path="/home/danny/Documenten/GitHub/cpal/" }
+cpal = { path="X:\\Documents\\GitHub\\cpal\\" }
 tiny_http = "*"
 ascii = "*"
 crossbeam-channel = "*"

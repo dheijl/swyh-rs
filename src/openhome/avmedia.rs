@@ -302,7 +302,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     let bind_addr = socket
         .local_addr()
         .expect("Could not obtain local ip address for udp broadcast socket");
-    let bind_addr = SocketAddr::new(bind_addr.ip(), 0); 
+    let bind_addr = SocketAddr::new(bind_addr.ip(), 0);
     let socket = UdpSocket::bind(&bind_addr).unwrap();
     let _ = socket
         .set_read_timeout(Some(Duration::from_millis(250)))

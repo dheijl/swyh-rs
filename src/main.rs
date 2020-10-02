@@ -134,7 +134,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut frame = Frame::new(fx, 5, fw, 25, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
     let buf = TextBuffer::default();
-    let mut tb = TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left);
+    let mut tb =
+        TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left);
     tb.set_buffer(Some(buf));
     // setup the he textbox logger thread
     let tb = tb.clone();
@@ -150,7 +151,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.end();
     wind.show();
     update_ui();
-    
 
     // get the av media renderers in this network
     let renderers: Vec<Renderer>;
@@ -261,13 +261,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ///
 /// update_ui - let fltk update the UI that was changed by other threads
-/// 
+///
 fn update_ui() {
     for _ in 1..100 {
         let _ = app::wait_for(0.0).unwrap_or_default();
         std::thread::sleep(std::time::Duration::new(0, 1_000_000));
     }
-
 }
 /// tb_logger - the TextBox logger thread
 /// this function reads log messages from the LOGCHANNEL receiver

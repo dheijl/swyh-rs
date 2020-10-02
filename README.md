@@ -29,7 +29,7 @@ How does it work?
 - a built-in web server is started on port 5901. 
 - if you click the button for a renderer the OpenHome protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source
--  you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: http://{ip_address}/stream/swyh.wav, so you start playing from the Volumio UI if swyh-rs is already running
+-  you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: http://{ip_address}/stream/swyh.wav, so that you can start playing from the Volumio UI if swyh-rs is already running
 
 Screenshot:
 

@@ -25,7 +25,7 @@ How does it work?
 
 - first all media renderers are discoverded on the local network, this takes four seconds to complete
 - then a button is shown for every renderer found
-- audio is captured from the default audio device (WasApi on Windows, Also on Linux, not tested on Mac)
+- audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac)
 - a built-in web server is started on port 5901. 
 - if you click the button for a renderer the OpenHome protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source

@@ -109,6 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("No default output config found");
 
     let _app = app::App::default().with_scheme(app::Scheme::Gleam);
+    let _ = app::lock();
     let (sw, sh) = app::screen_size();
     let mut wind = Window::default()
         .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
@@ -133,18 +134,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut frame = Frame::new(fx, 5, fw, 25, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
     let buf = TextBuffer::default();
-    let tb = Arc::from(Mutex::from(
-        TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left),
-    ));
-    let mut _tb = tb.lock().unwrap();
-    _tb.set_buffer(Some(buf));
-    drop(_tb);
-
+    let mut tb = TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left);
+    tb.set_buffer(Some(buf));
     // setup the he textbox logger thread
+    let tb = tb.clone();
     let _ = std::thread::spawn(move || tb_logger(tb));
 
     for _ in 1..100 {
-        app::wait_for(0.001)?
+        app::wait_for(0.0)?;
+        std::thread::sleep(std::time::Duration::new(0, 1000000));
     }
 
     let local_addr = get_local_addr().expect("Could not obtain local address.");
@@ -157,7 +155,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.show();
     // update UI
     for _ in 1..100 {
-        app::wait_for(0.00001)?
+        app::wait_for(0.0)?;
     }
 
     // get the av media renderers in this network
@@ -168,20 +166,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
     loop {
         let duration = start.elapsed();
-        // keep capturing responses for 3.1 seconds
-        if duration > Duration::from_millis(3100) {
+        // keep capturing responses for more then 3 seconds (M_SEARCH MX time)
+        if duration > Duration::from_millis(4_000) {
             break;
         }
-        // update UI
         for _ in 1..100 {
-            app::wait_for(0.00001)?
+            app::wait_for(0.0)?;
         }
-        // and yield CPU for 1 ms
-        std::thread::sleep(std::time::Duration::new(0, 1000000));
+        std::thread::sleep(std::time::Duration::new(0, 250_000_000));
     }
-
     // collect the discovery result
     renderers = discover_handle.join().unwrap_or_default();
+    DEBUG!(eprintln!("Got {} renderers", renderers.len()));
 
     // now create a button for each discovered renderer
     let mut buttons: HashMap<String, LightButton> = HashMap::new();
@@ -231,10 +227,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.redraw();
     // update UI
     for _ in 1..100 {
-        app::wait_for(0.00001)?
+        app::wait_for(0.0)?;
     }
 
     // capture system audio
+    DEBUG!(eprintln!("Try capturing system audio"));
     let stream = capture_output_audio();
     stream.play().expect("Could not play audio capture stream");
 
@@ -276,29 +273,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// tb_logger - the TextBox logger thread
 /// this function reads log messages from the LOGCHANNEL receiver
 /// and adds them to an fltk TextBox (using a mutex)
-fn tb_logger(tb: Arc<Mutex<TextDisplay>>) {
+fn tb_logger(mut tb: TextDisplay) {
     let logreader: OtherReceiver<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();
         logreader = ch.1.clone();
     }
     loop {
-        let msg = logreader.recv().unwrap();
-        let mut _tb = tb.lock().unwrap();
-        _tb.buffer().unwrap().append(&msg);
-        _tb.buffer().unwrap().append("\n");
-        let buflen = _tb.buffer().unwrap().length();
-        _tb.set_insert_position(buflen);
-        let buflines = _tb.count_lines(0, buflen, true);
-        _tb.scroll(buflines, 0);
-        _tb.redraw();
-        drop(_tb);
+        let msg = logreader.recv().unwrap_or("*E*E*TB LOGGER".to_string());
+        DEBUG!(eprintln!("**Textbox data** {}", msg));
+        let _ = app::lock();
+        tb.buffer().unwrap().append(&msg);
+        tb.buffer().unwrap().append("\n");
+        let buflen = tb.buffer().unwrap().length();
+        tb.set_insert_position(buflen);
+        let buflines = tb.count_lines(0, buflen, true);
+        tb.scroll(buflines, 0);
+        let _ = app::unlock();
+        std::thread::yield_now();
     }
 }
 
 /// log - send a logmessage on the LOGCHANNEL sender
 fn log(s: String) {
-    DEBUG!(eprintln!("{}", s.clone()));
+    DEBUG!(eprintln!("log: {}", s.clone()));
     let logger: OtherSender<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();

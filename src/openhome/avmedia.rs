@@ -162,7 +162,7 @@ impl Renderer {
                 port = url.port().unwrap();
             }
             Err(e) => {
-                log(format!("Error {} parsing url {}", e, dev_url));
+                log(format!("parse_url(): Error '{}' while parsing base url '{}'", e, dev_url));
                 host = "0.0.0.0".to_string();
                 port = 0;
             }
@@ -382,8 +382,6 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     let mut renderers: Vec<Renderer> = Vec::new();
 
     for (dev, from) in devices {
-        //let mut rend = Renderer:: new();
-        //rend.dev_url = dev.clone();
         match get_service_description(&dev) {
             Some(xml) => match get_renderer(&xml) {
                 Some(mut rend) => {
@@ -395,6 +393,10 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
                         None => {}
                     }
                     rend.remote_addr = s;
+                    // check for an absent URLBase in the description
+                    if rend.dev_url.is_empty() {
+                        rend.dev_url = format!("http://{}/", from.to_string());
+                    }
                     renderers.push(rend);
                 }
                 None => {}

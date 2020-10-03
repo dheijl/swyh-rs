@@ -80,6 +80,24 @@ struct WavData {
     channels: u16,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum StreamingState {
+    Started,
+    Ended,
+}
+
+impl PartialEq for StreamingState {
+    fn eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct StreamerFeedBack {
+    remote_ip: String,
+    streaming_state: StreamingState,
+}
+
 macro_rules! DEBUG {
     ($x:stmt) => {
         if cfg!(debug_assertions) {
@@ -230,7 +248,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
     };
-    let (feedback_tx, feedback_rx): (OtherSender<String>, OtherReceiver<String>) = unbounded();
+    let (feedback_tx, feedback_rx): (
+        OtherSender<StreamerFeedBack>,
+        OtherReceiver<StreamerFeedBack>,
+    ) = unbounded();
     let _ = std::thread::spawn(move || run_server(&local_addr, wd, feedback_tx.clone()));
     std::thread::yield_now();
 
@@ -245,12 +266,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // check if the webserver has closed a connection not caused by pushing the renderer button
         // in that case we turn the button off as a visual feedback
         match feedback_rx.try_recv() {
-            Ok(remote_addr) => match buttons.get_mut(&remote_addr) {
-                Some(button) => {
-                    if button.is_on() {
-                        button.turn_on(false);
+            Ok(streamer_feedback) => match buttons.get_mut(&streamer_feedback.remote_ip) {
+                Some(button) => match streamer_feedback.streaming_state {
+                    StreamingState::Started => {
+                        if !button.is_on() {
+                            button.turn_on(true);
+                        }
                     }
-                }
+                    StreamingState::Ended => {
+                        if button.is_on() {
+                            button.turn_on(false);
+                        }
+                    }
+                },
                 None => {}
             },
             Err(_) => {}
@@ -309,7 +337,7 @@ fn log(s: String) {
 /// the samples are read from a crossbeam channel fed by the wave_reader
 /// a ChannelStream is created for this purpose, and inserted in the array of active
 /// "clients" for the wave_reader
-fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<String>) -> () {
+fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<StreamerFeedBack>) -> () {
     let addr = format!("{}:{}", local_addr, SERVER_PORT);
     let logmsg = format!("Serving on {}", addr);
     log(logmsg);
@@ -326,11 +354,25 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<String>
                     rq.remote_addr()
                 ));
                 let remote_addr = format!("{}", rq.remote_addr());
+                let mut remote_ip = remote_addr.clone();
+                match remote_ip.find(':') {
+                    Some(i) => {
+                        remote_ip.truncate(i);
+                    }
+                    None => {}
+                }
                 let (tx, rx): (OtherSender<Vec<i16>>, OtherReceiver<Vec<i16>>) = unbounded();
-                let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
-                let mut clients = CLIENTS.lock().unwrap();
-                clients.insert(remote_addr.clone(), channel_stream);
-                drop(clients);
+                {
+                    let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
+                    let mut clients = CLIENTS.lock().unwrap();
+                    clients.insert(remote_ip.clone(), channel_stream);
+                }
+                feedback_tx_c
+                    .send(StreamerFeedBack {
+                        remote_ip: remote_ip.clone(),
+                        streaming_state: StreamingState::Started,
+                    })
+                    .unwrap();
                 std::thread::yield_now();
                 let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                 let ct_text = format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string());
@@ -343,21 +385,20 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<String>
                     .with_chunked_threshold(16384)
                     .with_data(channel_stream, None);
                 let _ = rq.respond(response);
-                let mut clients = CLIENTS.lock().unwrap();
-                clients.remove(&remote_addr);
-                drop(clients);
+                {
+                    let mut clients = CLIENTS.lock().unwrap();
+                    clients.remove(&remote_addr);
+                }
                 log(format!("End of response to {}", remote_addr));
                 // inform the main thread that this renderer has finished receiving
                 // necessary if the connection close was not caused by our own GUI
                 // so that we can update the corresponding button state
-                let mut s = remote_addr.to_string();
-                match s.find(':') {
-                    Some(i) => {
-                        s.truncate(i);
-                    }
-                    None => {}
-                }
-                feedback_tx_c.send(s).unwrap();
+                feedback_tx_c
+                    .send(StreamerFeedBack {
+                        remote_ip: remote_ip,
+                        streaming_state: StreamingState::Ended,
+                    })
+                    .unwrap();
             }
         }));
     }

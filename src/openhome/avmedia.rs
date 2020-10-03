@@ -162,7 +162,10 @@ impl Renderer {
                 port = url.port().unwrap();
             }
             Err(e) => {
-                log(format!("parse_url(): Error '{}' while parsing base url '{}'", e, dev_url));
+                log(format!(
+                    "parse_url(): Error '{}' while parsing base url '{}'",
+                    e, dev_url
+                ));
                 host = "0.0.0.0".to_string();
                 port = 0;
             }
@@ -395,7 +398,15 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
                     rend.remote_addr = s;
                     // check for an absent URLBase in the description
                     if rend.dev_url.is_empty() {
-                        rend.dev_url = format!("http://{}/", from.to_string());
+                        let mut url_base = dev;
+                        if url_base.contains("http://") {
+                            url_base = url_base["http://".to_string().len()..].to_string();
+                            let pos = url_base.find('/').unwrap_or_default();
+                            if pos > 0 {
+                                url_base = url_base[0..pos].to_string();
+                            }
+                        }
+                        rend.dev_url = format!("http://{}/", url_base);
                     }
                     renderers.push(rend);
                 }
@@ -407,10 +418,11 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
 
     for r in renderers.iter() {
         logger(format!(
-            "Renderer {} {} {} has {} services",
+            "Renderer {} {} ip {} at urlbase {} has {} services",
             r.dev_name,
             r.dev_model,
             r.remote_addr,
+            r.dev_url,
             r.services.len()
         ));
         for s in r.services.iter() {

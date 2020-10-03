@@ -60,6 +60,7 @@ mod openhome;
 mod utils;
 use openhome::avmedia::{discover, Renderer};
 use utils::rwstream::ChannelStream;
+use tiny_http::*;
 
 /// app version
 const APP_VERSION: &str = "0.7-beta2";
@@ -307,7 +308,7 @@ fn tb_logger(mut tb: TextDisplay) {
     }
     loop {
         let msg = logreader.recv().unwrap_or("*E*E*TB LOGGER".to_string());
-        DEBUG!(eprintln!("**Textbox data** {}", msg));
+        //DEBUG!(eprintln!("**Textbox data** {}", msg));
         let _ = app::lock();
         tb.buffer().unwrap().append(&msg);
         tb.buffer().unwrap().append("\n");
@@ -339,15 +340,18 @@ fn log(s: String) {
 /// "clients" for the wave_reader
 fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<StreamerFeedBack>) -> () {
     let addr = format!("{}:{}", local_addr, SERVER_PORT);
-    let logmsg = format!("Serving on {}", addr);
+    let logmsg = format!("The streaming server is listening on http://{}/stream/swyh.wav", addr);
     log(logmsg);
-    let server = Arc::new(tiny_http::Server::http(addr).unwrap());
+    let server = Arc::new(Server::http(addr).unwrap());
     let mut handles = Vec::new();
     for _ in 0..8 {
         let server = server.clone();
         let feedback_tx_c = feedback_tx.clone();
         handles.push(std::thread::spawn(move || {
             for rq in server.incoming_requests() {
+                if rq.url() != "/stream/swyh.wav" {
+                    log(format!("Unrecognized request '{}' from {}'", rq.url(), rq.remote_addr()));
+                }
                 log(format!(
                     "Received request {} from {}",
                     rq.url(),
@@ -380,16 +384,21 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                     field: "Content-Type".parse().unwrap(),
                     value: AsciiString::from_ascii(ct_text).unwrap(),
                 };
-                let response = tiny_http::Response::empty(200)
+                let response = Response::empty(200)
                     .with_header(ct_hdr)
                     .with_chunked_threshold(16384)
                     .with_data(channel_stream, None);
-                let _ = rq.respond(response);
+                match rq.respond(response) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        log(format!("=>Http connection with {} terminated [{}]", remote_addr, e));
+                    }
+                }
                 {
                     let mut clients = CLIENTS.lock().unwrap();
                     clients.remove(&remote_addr);
                 }
-                log(format!("End of response to {}", remote_addr));
+                log(format!("Streaming to {} has ended", remote_addr));
                 // inform the main thread that this renderer has finished receiving
                 // necessary if the connection close was not caused by our own GUI
                 // so that we can update the corresponding button state

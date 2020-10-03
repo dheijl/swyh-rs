@@ -65,7 +65,7 @@ impl AvService {
     }
 }
 
-/// insert playlist template
+/// OH insert playlist template
 static INSERT_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
@@ -77,6 +77,20 @@ static INSERT_PL_TEMPLATE: &str = "\
 </u:Insert>\
 </s:Body>\
 </s:Envelope>";
+
+/// AV SetTransportURI template
+static _AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"utf-8\"?>\
+<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\
+<s:Body>\
+<u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\">\
+<InstanceID>0</InstanceID>\
+<CurrentURI>{server_uri}</CurrentURI>\
+<CurrentURIMetaData>{didl_data}</CurrentURIMetaData>\
+</u:SetAVTransportURI>
+</s:Body>\
+</s:Envelope>";
+
 
 /// didl metadata template
 static DIDL_TEMPLATE: &str = "\
@@ -95,7 +109,7 @@ sampleFrequency=\"44100\">{server_uri}</res>\
 </item>\
 </DIDL-Lite>";
 
-/// seek id templete
+/// OH seek id templete
 static SEEKID_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
@@ -107,7 +121,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
-/// play playlist template
+/// OH play playlist template
 static PLAY_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
@@ -117,12 +131,36 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
+/// AV Play template
+static _AV_PLAY_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"utf-8\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\">\
+<InstanceID>0</InstanceID>\
+<Speed>1</Speed>\
+</u:Play>\
+</s:Body>\
+</s:Envelope>";
+
+/// OH delete playlist template
 static DELETE_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
 xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <s:Body>\
 <u:DeleteAll xmlns:u=\"urn:av-openhome-org:service:Playlist:1\"/>\
+</s:Body>\
+</s:Envelope>";
+
+/// AV Stop play template
+static _AV_STOP_PLAY_TEMPLATE: &str ="\
+<?xml version=\"1.0\" encoding=\"utf-8\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:Stop xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\">\
+<InstanceID>0</InstanceID>\
+</u:Stop>\
 </s:Body>\
 </s:Envelope>";
 

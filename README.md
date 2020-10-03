@@ -16,6 +16,10 @@ I use fltk-rs (https://github.com/MoAlyousef/fltk-rs) for the GUI, as it's easy 
 
 Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/HifI Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
 
+You can get the latest Windows binary from the Release page (https://github.com/dheijl/swyh-rs/releases).
+
+If it doesn't work for you, please run the debug exe from the zip file (swyh-rs-deb.exe), this will give you a console window with loads of debug information.  Please open a new issue and include all this debug information. I will try to provide a fix ASAP.
+
 Todo: 
 
 - implement AVTransport for streamers that don't haven OpenHome support ?

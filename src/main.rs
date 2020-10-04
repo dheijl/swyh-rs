@@ -47,6 +47,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
+#[macro_use]
+extern crate bitflags;
+
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
@@ -220,9 +224,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if but_cc.is_on() { "ON" } else { "OFF" }
                     ));
                     if but_cc.is_on() {
-                        let _ = renderer.oh_play(&local_addr, SERVER_PORT, &log);
+                        let _ = renderer.play(&local_addr, SERVER_PORT, &log);
                     } else {
-                        let _ = renderer.oh_stop_play(&log);
+                        let _ = renderer.stop_play(&log);
                     }
                     true
                 }

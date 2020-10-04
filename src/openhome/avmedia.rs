@@ -163,6 +163,15 @@ static _AV_STOP_PLAY_TEMPLATE: &str ="\
 </s:Body>\
 </s:Envelope>";
 
+bitflags! {
+    pub struct SupportedProtocols: u32 {
+        const NONE        = 0b0000;
+        const OPENHOME    = 0b0001;
+        const AVTRANSPORT = 0b0010;
+        const ALL = Self::OPENHOME.bits | Self::AVTRANSPORT.bits;
+    }
+}
+
 /// Renderer struct describers a media renderer, info is collected from GetDescription.xml
 #[derive(Debug, Clone)]
 pub struct Renderer {
@@ -172,6 +181,7 @@ pub struct Renderer {
     pub dev_url: String,
     pub oh_control_url: String,
     pub av_control_url: String,
+    pub supported_protocols: SupportedProtocols,
     //pub vol_control_url: String,
     pub remote_addr: String,
     pub services: Vec<AvService>,
@@ -187,6 +197,7 @@ impl Renderer {
             //vol_control_url: String::new(),
             av_control_url: String::new(),
             oh_control_url: String::new(),
+            supported_protocols: SupportedProtocols::NONE,
             remote_addr: String::new(),
             services: Vec::new(),
         }
@@ -233,12 +244,28 @@ impl Renderer {
         Some(xml)
     }
 
+    /// play - start play on this renderer, Openhome or AvTransport protocol
+    pub fn play(
+        &self,
+        local_addr: &IpAddr,
+        server_port: u16,
+        log: &dyn Fn(String),
+    ) -> Result<(), ureq::Error> {
+        if self.supported_protocols.contains(SupportedProtocols::OPENHOME) {
+            return self.oh_play(local_addr, server_port, log);
+        } else if self.supported_protocols.contains(SupportedProtocols::AVTRANSPORT) {
+            return Ok(());
+        } else {
+            log(format!("ERROR: play: no supported renderer protocol found"))
+        }
+        Ok(())
+    }
+
     /// oh_play - set up a playlist on this OpenHome renderer and tell it to play it
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
-
-    pub fn oh_play(
+    fn oh_play(
         &self,
         local_addr: &IpAddr,
         server_port: u16,
@@ -305,8 +332,20 @@ impl Renderer {
         Ok(())
     }
 
+    /// stop_play - stop playing on this renderer (OpenHome or AvTransport)
+    pub fn stop_play(&self, log: &dyn Fn(String)) {
+        if self.supported_protocols.contains(SupportedProtocols::OPENHOME) {
+            return self.oh_stop_play(log);
+        } else if self.supported_protocols.contains(SupportedProtocols::AVTRANSPORT) {
+            ();
+        } else {
+            log(format!("ERROR: stop_play: no supported renderer protocol found"));
+        }
+    }
+
+
     /// oh_stop_play - delete the playlist on the OpenHome renderer, so that it stops playing
-    pub fn oh_stop_play(&self, log: &dyn Fn(String)) {
+    fn oh_stop_play(&self, log: &dyn Fn(String)) {
         let url = self.dev_url.clone();
         let (host, port) = self.parse_url(url, log);
         log(format!(
@@ -466,8 +505,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
         ));
         logger(format!(
             "  => OpenHome Playlist control url: '{}', AvTransport url: '{}'",
-            r.oh_control_url, 
-            r.av_control_url
+            r.oh_control_url, r.av_control_url
         ));
         for s in r.services.iter() {
             DEBUG!(eprintln!(
@@ -517,10 +555,12 @@ fn get_renderer(xml: &String) -> Option<Renderer> {
                 if end_elem == "service" {
                     if service.service_id.contains("Playlist") {
                         renderer.oh_control_url = service.control_url.clone();
+                        renderer.supported_protocols |= SupportedProtocols::OPENHOME;
                     // } else if service.service_id.contains("Volume") {
                     //     renderer.vol_control_url = service.control_url.clone();
                     } else if service.service_id.contains("AVTransport") {
                         renderer.av_control_url = service.control_url.clone();
+                        renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
                     }
                     renderer.services.push(service);
                     service = AvService::new();

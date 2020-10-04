@@ -87,14 +87,12 @@ static _AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 <InstanceID>0</InstanceID>\
 <CurrentURI>{server_uri}</CurrentURI>\
 <CurrentURIMetaData>{didl_data}</CurrentURIMetaData>\
-</u:SetAVTransportURI>
+</u:SetAVTransportURI>\
 </s:Body>\
 </s:Envelope>";
 
 /// didl metadata template
 static DIDL_TEMPLATE: &str = "\
-<DIDL-Lite>\
-<item>\
 <DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
 <item id=\"1\" parentID=\"0\" restricted=\"0\">\
 <dc:title>swyh-rs</dc:title>\
@@ -103,8 +101,6 @@ nrAudioChannels=\"2\" \
 protocolInfo=\"http-get:*:audio/wav:*\" \
 sampleFrequency=\"44100\">{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
-</item>\
-</DIDL-Lite>\
 </item>\
 </DIDL-Lite>";
 
@@ -648,6 +644,13 @@ fn get_renderer(xml: &String) -> Option<Renderer> {
                     service.service_id = value;
                 } else if cur_elem.contains("controlURL") {
                     service.control_url = value;
+                    // sometimes the control url is not prefixed with a '/'
+                    if service.control_url.len() > 0 {
+                        let vchars: Vec<char> = service.control_url.chars().collect();
+                        if vchars[0] != '/' {
+                            service.control_url.insert(0, '/');
+                        }
+                    }
                 } else if cur_elem.contains("modelName") {
                     renderer.dev_model = value;
                 } else if cur_elem.contains("friendlyName") {
@@ -684,5 +687,17 @@ mod tests {
         let (host, port) = renderer.parse_url("http://192.168.1.26:12345/".to_string(), &log);
         assert_eq!(host, "192.168.1.26");
         assert_eq!(port, 12345); // other port
+    }
+
+    #[test]
+    fn control_url_harman_kardon() {
+        let mut url = "Avcontrol.url".to_string();
+        if url.len() > 0 {
+            let vchars: Vec<char> = url.chars().collect();
+            if vchars[0] != '/' {
+                url.insert(0, '/');
+            }
+        }
+        assert_eq!(url, "/Avcontrol.url");
     }
 }

@@ -197,7 +197,7 @@ impl Renderer {
         match Url::parse(&dev_url) {
             Ok(url) => {
                 host = url.host_str().unwrap().to_string();
-                port = url.port().unwrap();
+                port = url.port_or_known_default().unwrap();
             }
             Err(e) => {
                 log(format!(

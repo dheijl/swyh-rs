@@ -91,7 +91,6 @@ static _AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 </s:Body>\
 </s:Envelope>";
 
-
 /// didl metadata template
 static DIDL_TEMPLATE: &str = "\
 <DIDL-Lite>\
@@ -171,8 +170,9 @@ pub struct Renderer {
     pub dev_model: String,
     pub dev_type: String,
     pub dev_url: String,
-    pub pl_control_url: String,
-    pub vol_control_url: String,
+    pub oh_control_url: String,
+    pub av_control_url: String,
+    //pub vol_control_url: String,
     pub remote_addr: String,
     pub services: Vec<AvService>,
 }
@@ -184,8 +184,9 @@ impl Renderer {
             dev_url: String::new(),
             dev_model: String::new(),
             dev_type: String::new(),
-            vol_control_url: String::new(),
-            pl_control_url: String::new(),
+            //vol_control_url: String::new(),
+            av_control_url: String::new(),
+            oh_control_url: String::new(),
             remote_addr: String::new(),
             services: Vec::new(),
         }
@@ -249,7 +250,7 @@ impl Renderer {
             "Start playing on {} host={} port={} from {}",
             self.dev_name, host, port, local_addr
         ));
-        let url = format!("http://{}:{}{}", host, port, self.pl_control_url);
+        let url = format!("http://{}:{}{}", host, port, self.oh_control_url);
         let addr = format!("{}:{}", local_addr, server_port);
         let local_url = format!("http://{}/stream/swyh.wav", addr);
         DEBUG!(eprintln!("OHPlaylist server URL: {}", local_url.clone()));
@@ -312,7 +313,7 @@ impl Renderer {
             "Stop playing on {} host={} port={}",
             self.dev_name, host, port
         ));
-        let url = format!("http://{}:{}{}", host, port, self.pl_control_url);
+        let url = format!("http://{}:{}{}", host, port, self.oh_control_url);
 
         // delete current playlist
         let _resp = self
@@ -463,6 +464,11 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
             r.dev_url,
             r.services.len()
         ));
+        logger(format!(
+            "  => OpenHome Playlist control url: '{}', AvTransport url: '{}'",
+            r.oh_control_url, 
+            r.av_control_url
+        ));
         for s in r.services.iter() {
             DEBUG!(eprintln!(
                 ".. {} {} {}",
@@ -510,9 +516,11 @@ fn get_renderer(xml: &String) -> Option<Renderer> {
                 let end_elem = name.local_name;
                 if end_elem == "service" {
                     if service.service_id.contains("Playlist") {
-                        renderer.pl_control_url = service.control_url.clone();
-                    } else if service.service_id.contains("Volume") {
-                        renderer.vol_control_url = service.control_url.clone();
+                        renderer.oh_control_url = service.control_url.clone();
+                    // } else if service.service_id.contains("Volume") {
+                    //     renderer.vol_control_url = service.control_url.clone();
+                    } else if service.service_id.contains("AVTransport") {
+                        renderer.av_control_url = service.control_url.clone();
                     }
                     renderer.services.push(service);
                     service = AvService::new();

@@ -59,8 +59,8 @@ use std::time::{Duration, Instant};
 mod openhome;
 mod utils;
 use openhome::avmedia::{discover, Renderer};
-use utils::rwstream::ChannelStream;
 use tiny_http::*;
+use utils::rwstream::ChannelStream;
 
 /// app version
 const APP_VERSION: &str = "0.7-beta2";
@@ -340,7 +340,10 @@ fn log(s: String) {
 /// "clients" for the wave_reader
 fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<StreamerFeedBack>) -> () {
     let addr = format!("{}:{}", local_addr, SERVER_PORT);
-    let logmsg = format!("The streaming server is listening on http://{}/stream/swyh.wav", addr);
+    let logmsg = format!(
+        "The streaming server is listening on http://{}/stream/swyh.wav",
+        addr
+    );
     log(logmsg);
     let server = Arc::new(Server::http(addr).unwrap());
     let mut handles = Vec::new();
@@ -350,7 +353,11 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
         handles.push(std::thread::spawn(move || {
             for rq in server.incoming_requests() {
                 if rq.url() != "/stream/swyh.wav" {
-                    log(format!("Unrecognized request '{}' from {}'", rq.url(), rq.remote_addr()));
+                    log(format!(
+                        "Unrecognized request '{}' from {}'",
+                        rq.url(),
+                        rq.remote_addr()
+                    ));
                 }
                 log(format!(
                     "Received request {} from {}",
@@ -391,7 +398,10 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                 match rq.respond(response) {
                     Ok(_) => {}
                     Err(e) => {
-                        log(format!("=>Http connection with {} terminated [{}]", remote_addr, e));
+                        log(format!(
+                            "=>Http connection with {} terminated [{}]",
+                            remote_addr, e
+                        ));
                     }
                 }
                 {

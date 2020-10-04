@@ -182,7 +182,6 @@ pub struct Renderer {
     pub oh_control_url: String,
     pub av_control_url: String,
     pub supported_protocols: SupportedProtocols,
-    //pub vol_control_url: String,
     pub remote_addr: String,
     pub services: Vec<AvService>,
 }
@@ -244,19 +243,25 @@ impl Renderer {
         Some(xml)
     }
 
-    /// play - start play on this renderer, Openhome or AvTransport protocol
+    /// play - start play on this renderer, using Openhome if present, else AvTransport (if present)
     pub fn play(
         &self,
         local_addr: &IpAddr,
         server_port: u16,
         log: &dyn Fn(String),
     ) -> Result<(), ureq::Error> {
-        if self.supported_protocols.contains(SupportedProtocols::OPENHOME) {
+        if self
+            .supported_protocols
+            .contains(SupportedProtocols::OPENHOME)
+        {
             return self.oh_play(local_addr, server_port, log);
-        } else if self.supported_protocols.contains(SupportedProtocols::AVTRANSPORT) {
-            return Ok(());
+        } else if self
+            .supported_protocols
+            .contains(SupportedProtocols::AVTRANSPORT)
+        {
+            return self.av_play(local_addr, server_port, log);
         } else {
-            log(format!("ERROR: play: no supported renderer protocol found"))
+            log(format!("ERROR: play: no supported renderer protocol found"));
         }
         Ok(())
     }
@@ -274,7 +279,7 @@ impl Renderer {
         let url = self.dev_url.clone();
         let (host, port) = self.parse_url(url, log);
         log(format!(
-            "Start playing on {} host={} port={} from {}",
+            "OH Start playing on {} host={} port={} from {} using OpenHome Playlist",
             self.dev_name, host, port, local_addr
         ));
         let url = format!("http://{}:{}{}", host, port, self.oh_control_url);
@@ -332,24 +337,76 @@ impl Renderer {
         Ok(())
     }
 
-    /// stop_play - stop playing on this renderer (OpenHome or AvTransport)
-    pub fn stop_play(&self, log: &dyn Fn(String)) {
-        if self.supported_protocols.contains(SupportedProtocols::OPENHOME) {
-            return self.oh_stop_play(log);
-        } else if self.supported_protocols.contains(SupportedProtocols::AVTRANSPORT) {
-            ();
-        } else {
-            log(format!("ERROR: stop_play: no supported renderer protocol found"));
-        }
+    /// av_play - send the AVTransport URI to the player and tell it to play
+    ///
+    /// the renderer will then try to get the audio from our built-in webserver
+    /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
+    fn av_play(
+        &self,
+        local_addr: &IpAddr,
+        server_port: u16,
+        log: &dyn Fn(String),
+    ) -> Result<(), ureq::Error> {
+        let url = self.dev_url.clone();
+        let (host, port) = self.parse_url(url, log);
+        log(format!(
+            "AV Start playing on {} host={} port={} from {} using AvTransport Play",
+            self.dev_name, host, port, local_addr
+        ));
+        let url = format!("http://{}:{}{}", host, port, self.av_control_url);
+        let addr = format!("{}:{}", local_addr, server_port);
+        let local_url = format!("http://{}/stream/swyh.wav", addr);
+        DEBUG!(eprintln!("AvTransport server URL: {}", local_url.clone()));
+        // set AVTransportURI
+        let mut vars = HashMap::new();
+        vars.insert("server_uri".to_string(), local_url.clone());
+        let mut didl_data = htmlescape::encode_minimal(&DIDL_TEMPLATE);
+        didl_data = strfmt(&didl_data, &vars).unwrap();
+        vars.insert("didl_data".to_string(), didl_data);
+        let xmlbody = strfmt(&_AV_SET_TRANSPORT_URI_TEMPLATE, &vars).unwrap();
+        let _ = self
+            .oh_soap_request(
+                &url,
+                &"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI".to_string(),
+                &xmlbody,
+            )
+            .unwrap();
+        // send play command
+        let _ = self
+            .oh_soap_request(
+                &url,
+                &"urn:schemas-upnp-org:service:AVTransport:1#Play".to_string(),
+                &_AV_PLAY_TEMPLATE.to_string(),
+            )
+            .unwrap();
+        Ok(())
     }
 
+    /// stop_play - stop playing on this renderer (OpenHome or AvTransport)
+    pub fn stop_play(&self, log: &dyn Fn(String)) {
+        if self
+            .supported_protocols
+            .contains(SupportedProtocols::OPENHOME)
+        {
+            return self.oh_stop_play(log);
+        } else if self
+            .supported_protocols
+            .contains(SupportedProtocols::AVTRANSPORT)
+        {
+            return self.av_stop_play(log);
+        } else {
+            log(format!(
+                "ERROR: stop_play: no supported renderer protocol found"
+            ));
+        }
+    }
 
     /// oh_stop_play - delete the playlist on the OpenHome renderer, so that it stops playing
     fn oh_stop_play(&self, log: &dyn Fn(String)) {
         let url = self.dev_url.clone();
         let (host, port) = self.parse_url(url, log);
         log(format!(
-            "Stop playing on {} host={} port={}",
+            "OH Stop playing on {} host={} port={}",
             self.dev_name, host, port
         ));
         let url = format!("http://{}:{}{}", host, port, self.oh_control_url);
@@ -360,6 +417,26 @@ impl Renderer {
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
                 &DELETE_PL_TEMPLATE.to_string(),
+            )
+            .unwrap();
+    }
+
+    /// av_stop_play - stop playing on the AV renderer
+    fn av_stop_play(&self, log: &dyn Fn(String)) {
+        let url = self.dev_url.clone();
+        let (host, port) = self.parse_url(url, log);
+        log(format!(
+            "AV Stop playing on {} host={} port={}",
+            self.dev_name, host, port
+        ));
+        let url = format!("http://{}:{}{}", host, port, self.av_control_url);
+
+        // delete current playlist
+        let _resp = self
+            .oh_soap_request(
+                &url,
+                &"urn:schemas-upnp-org:service:AVTransport:1#Stop".to_string(),
+                &_AV_STOP_PLAY_TEMPLATE.to_string(),
             )
             .unwrap();
     }
@@ -556,8 +633,6 @@ fn get_renderer(xml: &String) -> Option<Renderer> {
                     if service.service_id.contains("Playlist") {
                         renderer.oh_control_url = service.control_url.clone();
                         renderer.supported_protocols |= SupportedProtocols::OPENHOME;
-                    // } else if service.service_id.contains("Volume") {
-                    //     renderer.vol_control_url = service.control_url.clone();
                     } else if service.service_id.contains("AVTransport") {
                         renderer.av_control_url = service.control_url.clone();
                         renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
@@ -592,4 +667,22 @@ fn get_renderer(xml: &String) -> Option<Renderer> {
     }
 
     Some(renderer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn log(_s: String) {}
+
+    #[test]
+    fn renderer() {
+        let renderer = Renderer::new();
+        let (host, port) = renderer.parse_url("http://192.168.1.26:80/".to_string(), &log);
+        assert_eq!(host, "192.168.1.26");
+        assert_eq!(port, 80); // default port
+        let (host, port) = renderer.parse_url("http://192.168.1.26:12345/".to_string(), &log);
+        assert_eq!(host, "192.168.1.26");
+        assert_eq!(port, 12345); // other port
+    }
 }

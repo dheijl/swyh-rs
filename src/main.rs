@@ -67,7 +67,7 @@ use tiny_http::*;
 use utils::rwstream::ChannelStream;
 
 /// app version
-const APP_VERSION: &str = "0.7-beta2";
+const APP_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;

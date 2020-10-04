@@ -4,13 +4,13 @@ Stream What You Hear written in Rust
 
 Basic SWYH (https://www.streamwhatyouhear.com/, source at https://github.com/StreamWhatYouHear/SWYH) clone, entirely written in rust.
 
-Has only been tested with Volumio (https://volumio.org/) streamers, but will probably support any streamer that supports the OpenHome protocol (not the original DLNA).
+Has only been tested with Volumio (https://volumio.org/) streamers, but will probably support any streamer that supports the OpenHome or AVTransport protocol.
 
 I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 
 For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
 
-I had to fork cpal (https://github.com/RustAudio/cpal) to add missing functionality, so if you want to build swyh-rs yourself you have to clone dheijl/cpal from GitHub and change the cargo.toml file accordingly.
+I had to fork cpal (https://github.com/RustAudio/cpal) to add missing functionality, so if you want to build swyh-rs yourself you have to clone dheijl/cpal from GitHub and change the cargo.toml file accordingly. I'm waiting for a cpal pull request to be merged.
 
 I use fltk-rs (https://github.com/MoAlyousef/fltk-rs) for the GUI, as it's easy to use, is cross-platform, is fast and works well.
 
@@ -22,7 +22,6 @@ If it doesn't work for you, please run the debug exe from the zip file (swyh-rs-
 
 Todo: 
 
-- implement AVTransport for streamers that don't haven OpenHome support ?
 - ... ?
 
 How does it work?
@@ -31,7 +30,7 @@ How does it work?
 - then a button is shown for every renderer found
 - audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac)
 - a built-in web server is started on port 5901. 
-- if you click the button for a renderer the OpenHome protocol is used to let the renderer play the captured audio from the webserver
+- if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source
 -  you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: http://{ip_address}/stream/swyh.wav, so that you can start playing from the Volumio UI if swyh-rs is already running
 

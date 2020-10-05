@@ -343,6 +343,10 @@ impl Renderer {
         server_port: u16,
         log: &dyn Fn(String),
     ) -> Result<(), ureq::Error> {
+        // to prevent error 705 (transport locked) on some devices 
+        // it's necessary to send a stop play request first
+        self.av_stop_play(log);
+        // now send AVTransportURI with metadate(DIDL-Lite) and play requests
         let url = self.dev_url.clone();
         let (host, port) = self.parse_url(url, log);
         log(format!(

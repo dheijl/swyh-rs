@@ -132,7 +132,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("No default output config found");
 
     let _app = app::App::default().with_scheme(app::Scheme::Gleam);
-    let _ = app::lock();
+    //let _ = app::lock();
     let (sw, sh) = app::screen_size();
     let mut wind = Window::default()
         .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
@@ -313,14 +313,14 @@ fn tb_logger(mut tb: TextDisplay) {
     loop {
         let msg = logreader.recv().unwrap_or("*E*E*TB LOGGER".to_string());
         //DEBUG!(eprintln!("**Textbox data** {}", msg));
-        let _ = app::lock();
+        //let _ = app::lock();
         tb.buffer().unwrap().append(&msg);
         tb.buffer().unwrap().append("\n");
         let buflen = tb.buffer().unwrap().length();
         tb.set_insert_position(buflen);
         let buflines = tb.count_lines(0, buflen, true);
         tb.scroll(buflines, 0);
-        let _ = app::unlock();
+        //let _ = app::unlock();
         std::thread::yield_now();
     }
 }

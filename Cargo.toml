@@ -7,8 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fltk = { version = "*", features = ["fltk-bundled"] }
-cpal = { path="X:\\Documents\\GitHub\\cpal\\" }
+fltk = { git = "https://github.com/moalyousef/fltk-rs", features = ["fltk-bundled"]}
+cpal = { git = "https://github.com/dheijl/cpal" }
 tiny_http = "*"
 ascii = "*"
 crossbeam-channel = "*"

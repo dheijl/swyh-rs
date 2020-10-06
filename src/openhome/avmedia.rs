@@ -293,7 +293,7 @@ impl Renderer {
         // create new playlist
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url.clone());
-        let mut didl_data = htmlescape::encode_minimal(&DIDL_TEMPLATE);
+        let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
             Err(e) => {
@@ -306,7 +306,7 @@ impl Renderer {
         let mut xmlbody: String;
         match strfmt(INSERT_PL_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
-            Err(e) => { 
+            Err(e) => {
                 xmlbody = format!("oh_play: error {} formatting oh playlist xml", e);
                 log(xmlbody.clone());
                 return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
@@ -382,10 +382,10 @@ impl Renderer {
         // set AVTransportURI
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url.clone());
-        let mut didl_data = htmlescape::encode_minimal(&DIDL_TEMPLATE);
+        let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
-            Err(e) => { 
+            Err(e) => {
                 didl_data = format!("av_play: error {} formatting didl_data", e);
                 log(didl_data.clone());
                 return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
@@ -395,7 +395,7 @@ impl Renderer {
         let xmlbody: String;
         match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
-            Err(e) => { 
+            Err(e) => {
                 xmlbody = format!("av_play: error {} formatting set transport uri", e);
                 log(xmlbody.clone());
                 return Err(ureq::Error::BadUrl("bad xml".to_string()).into());

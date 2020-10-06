@@ -79,7 +79,7 @@ static INSERT_PL_TEMPLATE: &str = "\
 </s:Envelope>";
 
 /// AV SetTransportURI template
-static _AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
+static AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"utf-8\"?>\
 <s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\
 <s:Body>\
@@ -127,7 +127,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Envelope>";
 
 /// AV Play template
-static _AV_PLAY_TEMPLATE: &str = "\
+static AV_PLAY_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"utf-8\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <s:Body>\
@@ -149,7 +149,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Envelope>";
 
 /// AV Stop play template
-static _AV_STOP_PLAY_TEMPLATE: &str ="\
+static AV_STOP_PLAY_TEMPLATE: &str ="\
 <?xml version=\"1.0\" encoding=\"utf-8\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <s:Body>\
@@ -221,7 +221,7 @@ impl Renderer {
     /// oh_soap_request - send an OpenHome SOAP message to a renderer
     fn oh_soap_request(&self, url: &String, soap_action: &String, body: &String) -> Option<String> {
         DEBUG!(eprintln!(
-            "url: {}, SOAP Action: {}, SOAP xml body \r\n{}",
+            "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
             url.clone(),
             soap_action,
             body
@@ -234,7 +234,7 @@ impl Renderer {
             .set("Content-Type", "text/xml; charset=\"utf-8\"")
             .send_string(body);
         let xml = resp.into_string().unwrap();
-        DEBUG!(eprintln!("resp: {}", xml));
+        DEBUG!(eprintln!("<=SOAP response: {}\r\n", xml));
 
         Some(xml)
     }
@@ -294,9 +294,22 @@ impl Renderer {
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url.clone());
         let mut didl_data = htmlescape::encode_minimal(&DIDL_TEMPLATE);
-        didl_data = strfmt(&didl_data, &vars).unwrap();
+        match strfmt(&didl_data, &vars) {
+            Ok(s) => didl_data = s,
+            Err(e) => {
+                didl_data = format!("oh_play: error {} formatting didl_data xml", e);
+                log(didl_data.clone());
+            }
+        }
         vars.insert("didl_data".to_string(), didl_data);
-        let xmlbody = strfmt(&INSERT_PL_TEMPLATE, &vars).unwrap();
+        let mut xmlbody: String;
+        match strfmt(INSERT_PL_TEMPLATE, &vars) {
+            Ok(s) => xmlbody = s,
+            Err(e) => { 
+                xmlbody = format!("oh_play: error {} formatting oh playlist xml", e);
+                log(xmlbody.clone());
+            }
+        }
         let resp = self
             .oh_soap_request(
                 &url,
@@ -314,7 +327,13 @@ impl Renderer {
         DEBUG!(eprintln!("SeekId: {}", seek_id.clone()));
         // send seek_id
         vars.insert("seek_id".to_string(), seek_id);
-        let xmlbody = strfmt(&SEEKID_PL_TEMPLATE, &vars).unwrap();
+        match strfmt(SEEKID_PL_TEMPLATE, &vars) {
+            Ok(s) => xmlbody = s,
+            Err(e) => {
+                xmlbody = format!("oh_play: error {} formatting seekid xml", e);
+                log(xmlbody.clone());
+            }
+        }
         let _resp = self
             .oh_soap_request(
                 &url,
@@ -343,7 +362,7 @@ impl Renderer {
         server_port: u16,
         log: &dyn Fn(String),
     ) -> Result<(), ureq::Error> {
-        // to prevent error 705 (transport locked) on some devices 
+        // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(log);
         // now send AVTransportURI with metadate(DIDL-Lite) and play requests
@@ -361,10 +380,23 @@ impl Renderer {
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url.clone());
         let mut didl_data = htmlescape::encode_minimal(&DIDL_TEMPLATE);
-        didl_data = strfmt(&didl_data, &vars).unwrap();
+        match strfmt(&didl_data, &vars) {
+            Ok(s) => didl_data = s,
+            Err(e) => { 
+                didl_data = format!("av_play: error {} formatting didl_data", e);
+                log(didl_data.clone());
+            }
+        }
         vars.insert("didl_data".to_string(), didl_data);
-        let xmlbody = strfmt(&_AV_SET_TRANSPORT_URI_TEMPLATE, &vars).unwrap();
-        let _ = self
+        let xmlbody: String;
+        match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, &vars) {
+            Ok(s) => xmlbody = s,
+            Err(e) => { 
+                xmlbody = format!("av_play: error {} formatting set transport uri", e);
+                log(xmlbody.clone());
+            }
+        }
+        let _resp = self
             .oh_soap_request(
                 &url,
                 &"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI".to_string(),
@@ -372,11 +404,11 @@ impl Renderer {
             )
             .unwrap();
         // send play command
-        let _ = self
+        let _resp = self
             .oh_soap_request(
                 &url,
                 &"urn:schemas-upnp-org:service:AVTransport:1#Play".to_string(),
-                &_AV_PLAY_TEMPLATE.to_string(),
+                &AV_PLAY_TEMPLATE.to_string(),
             )
             .unwrap();
         Ok(())
@@ -436,7 +468,7 @@ impl Renderer {
             .oh_soap_request(
                 &url,
                 &"urn:schemas-upnp-org:service:AVTransport:1#Stop".to_string(),
-                &_AV_STOP_PLAY_TEMPLATE.to_string(),
+                &AV_STOP_PLAY_TEMPLATE.to_string(),
             )
             .unwrap();
     }

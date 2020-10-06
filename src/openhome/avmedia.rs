@@ -299,6 +299,7 @@ impl Renderer {
             Err(e) => {
                 didl_data = format!("oh_play: error {} formatting didl_data xml", e);
                 log(didl_data.clone());
+                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
@@ -308,6 +309,7 @@ impl Renderer {
             Err(e) => { 
                 xmlbody = format!("oh_play: error {} formatting oh playlist xml", e);
                 log(xmlbody.clone());
+                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
             }
         }
         let resp = self
@@ -332,6 +334,7 @@ impl Renderer {
             Err(e) => {
                 xmlbody = format!("oh_play: error {} formatting seekid xml", e);
                 log(xmlbody.clone());
+                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
             }
         }
         let _resp = self
@@ -385,6 +388,7 @@ impl Renderer {
             Err(e) => { 
                 didl_data = format!("av_play: error {} formatting didl_data", e);
                 log(didl_data.clone());
+                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
@@ -394,6 +398,7 @@ impl Renderer {
             Err(e) => { 
                 xmlbody = format!("av_play: error {} formatting set transport uri", e);
                 log(xmlbody.clone());
+                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
             }
         }
         let _resp = self

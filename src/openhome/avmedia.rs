@@ -197,7 +197,6 @@ impl Renderer {
             dev_url: String::new(),
             dev_model: String::new(),
             dev_type: String::new(),
-            //vol_control_url: String::new(),
             av_control_url: String::new(),
             oh_control_url: String::new(),
             supported_protocols: SupportedProtocols::NONE,

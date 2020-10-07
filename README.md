@@ -4,7 +4,7 @@ Stream What You Hear written in Rust
 
 swyh-rs is a very basic SWYH clone ( see <https://www.streamwhatyouhear.com/>, source repo <https://github.com/StreamWhatYouHear/SWYH>), entirely written in rust.
 
-I has only been tested with Volumio (<https://volumio.org/>) streamers at this moment, but will probably support any streamer that supports the OpenHome or AVTransport protocol.
+It has only been tested with Volumio (<https://volumio.org/>) and Harman Kardon (thanks @MX10-AC2N!) streamers at this moment, but will probably support any streamer that supports the OpenHome or AVTransport protocol.
 
 I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 

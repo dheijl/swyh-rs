@@ -47,6 +47,14 @@ macro_rules! DEBUG {
     };
 }
 
+// some audio config info
+#[derive(Debug, Clone, Copy)]
+pub struct WavData {
+    pub sample_format: cpal::SampleFormat,
+    pub sample_rate: cpal::SampleRate,
+    pub channels: u16,
+}
+
 /// An UPNP/DLNA service desciption
 #[derive(Debug, Clone)]
 pub struct AvService {
@@ -98,8 +106,8 @@ static DIDL_TEMPLATE: &str = "\
 <dc:title>swyh-rs</dc:title>\
 <res bitsPerSample=\"16\" \
 nrAudioChannels=\"2\" \
-protocolInfo=\"http-get:*:audio/wav:*\" \
-sampleFrequency=\"44100\">{server_uri}</res>\
+protocolInfo=\"http-get:*:audio/l16;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM\" \
+sampleFrequency=\"{sample_rate}\">{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
 </item>\
 </DIDL-Lite>";
@@ -219,14 +227,14 @@ impl Renderer {
     }
 
     /// oh_soap_request - send an OpenHome SOAP message to a renderer
-    fn oh_soap_request(&self, url: &String, soap_action: &String, body: &String) -> Option<String> {
+    fn oh_soap_request(&self, url: &str, soap_action: &str, body: &str) -> Option<String> {
         DEBUG!(eprintln!(
             "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
-            url.clone(),
+            url.to_string(),
             soap_action,
             body
         ));
-        let resp = ureq::post(url.as_str())
+        let resp = ureq::post(url)
             .set("Connection", "close")
             .set("User-Agent", "swyh-rs-Rust/0.x")
             .set("Accept", "*/*")
@@ -244,20 +252,21 @@ impl Renderer {
         &self,
         local_addr: &IpAddr,
         server_port: u16,
+        wd: &WavData,
         log: &dyn Fn(String),
     ) -> Result<(), ureq::Error> {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            return self.oh_play(local_addr, server_port, log);
+            return self.oh_play(local_addr, server_port, wd, log);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            return self.av_play(local_addr, server_port, log);
+            return self.av_play(local_addr, server_port, wd, log);
         } else {
-            log(format!("ERROR: play: no supported renderer protocol found"));
+            log("ERROR: play: no supported renderer protocol found".to_string());
         }
         Ok(())
     }
@@ -270,6 +279,7 @@ impl Renderer {
         &self,
         local_addr: &IpAddr,
         server_port: u16,
+        wd: &WavData,
         log: &dyn Fn(String),
     ) -> Result<(), ureq::Error> {
         let url = self.dev_url.clone();
@@ -281,7 +291,7 @@ impl Renderer {
         let url = format!("http://{}:{}{}", host, port, self.oh_control_url);
         let addr = format!("{}:{}", local_addr, server_port);
         let local_url = format!("http://{}/stream/swyh.wav", addr);
-        DEBUG!(eprintln!("OHPlaylist server URL: {}", local_url.clone()));
+        DEBUG!(eprintln!("OHPlaylist server URL: {}", local_url));
         // delete current playlist
         let _resp = self
             .oh_soap_request(
@@ -292,14 +302,15 @@ impl Renderer {
             .unwrap();
         // create new playlist
         let mut vars = HashMap::new();
-        vars.insert("server_uri".to_string(), local_url.clone());
+        vars.insert("server_uri".to_string(), local_url);
+        vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
             Err(e) => {
                 didl_data = format!("oh_play: error {} formatting didl_data xml", e);
                 log(didl_data.clone());
-                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
+                return Err(ureq::Error::BadUrl("bad xml".to_string()));
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
@@ -308,8 +319,8 @@ impl Renderer {
             Ok(s) => xmlbody = s,
             Err(e) => {
                 xmlbody = format!("oh_play: error {} formatting oh playlist xml", e);
-                log(xmlbody.clone());
-                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
+                log(xmlbody);
+                return Err(ureq::Error::BadUrl("bad xml".to_string()));
             }
         }
         let resp = self
@@ -326,15 +337,15 @@ impl Renderer {
             let e = resp.find("</NewId>").unwrap();
             seek_id = resp.as_str()[s + 7..e].to_string();
         }
-        DEBUG!(eprintln!("SeekId: {}", seek_id.clone()));
+        DEBUG!(eprintln!("SeekId: {}", seek_id));
         // send seek_id
         vars.insert("seek_id".to_string(), seek_id);
         match strfmt(SEEKID_PL_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
             Err(e) => {
                 xmlbody = format!("oh_play: error {} formatting seekid xml", e);
-                log(xmlbody.clone());
-                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
+                log(xmlbody);
+                return Err(ureq::Error::BadUrl("bad xml".to_string()));
             }
         }
         let _resp = self
@@ -363,6 +374,7 @@ impl Renderer {
         &self,
         local_addr: &IpAddr,
         server_port: u16,
+        wd: &WavData,
         log: &dyn Fn(String),
     ) -> Result<(), ureq::Error> {
         // to prevent error 705 (transport locked) on some devices
@@ -378,17 +390,18 @@ impl Renderer {
         let url = format!("http://{}:{}{}", host, port, self.av_control_url);
         let addr = format!("{}:{}", local_addr, server_port);
         let local_url = format!("http://{}/stream/swyh.wav", addr);
-        DEBUG!(eprintln!("AvTransport server URL: {}", local_url.clone()));
+        DEBUG!(eprintln!("AvTransport server URL: {}", local_url));
         // set AVTransportURI
         let mut vars = HashMap::new();
-        vars.insert("server_uri".to_string(), local_url.clone());
+        vars.insert("server_uri".to_string(), local_url);
+        vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
             Err(e) => {
                 didl_data = format!("av_play: error {} formatting didl_data", e);
                 log(didl_data.clone());
-                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
+                return Err(ureq::Error::BadUrl("bad xml".to_string()));
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
@@ -397,8 +410,8 @@ impl Renderer {
             Ok(s) => xmlbody = s,
             Err(e) => {
                 xmlbody = format!("av_play: error {} formatting set transport uri", e);
-                log(xmlbody.clone());
-                return Err(ureq::Error::BadUrl("bad xml".to_string()).into());
+                log(xmlbody);
+                return Err(ureq::Error::BadUrl("bad xml".to_string()));
             }
         }
         let _resp = self
@@ -425,16 +438,14 @@ impl Renderer {
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            return self.oh_stop_play(log);
+            self.oh_stop_play(log)
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            return self.av_stop_play(log);
+            self.av_stop_play(log)
         } else {
-            log(format!(
-                "ERROR: stop_play: no supported renderer protocol found"
-            ));
+            log("ERROR: stop_play: no supported renderer protocol found".to_string());
         }
     }
 
@@ -487,7 +498,7 @@ ST: urn:schemas-upnp-org:service:RenderingControl:1\r\n\
 MX: 3\r\n\r\n";
 
 pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
-    logger(format!("SSDP discovery started"));
+    logger("SSDP discovery started".to_string());
 
     // get the address of the internet connected interface
     let any: SocketAddr = ([0, 0, 0, 0], 0).into();
@@ -532,7 +543,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
                     resp
                 ));
                 let response: Vec<&str> = resp.split("\r\n").collect();
-                if response.len() > 0 {
+                if !response.is_empty() {
                     let status_code = response[0]
                         .trim_start_matches("HTTP/1.1 ")
                         .chars()
@@ -573,38 +584,31 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
         }
     }
 
-    logger(format!("Getting renderer descriptions"));
+    logger("Getting renderer descriptions".to_string());
     let mut renderers: Vec<Renderer> = Vec::new();
 
     for (dev, from) in devices {
-        match get_service_description(&dev) {
-            Some(xml) => match get_renderer(&xml) {
-                Some(mut rend) => {
-                    let mut s = from.to_string();
-                    match s.find(':') {
-                        Some(i) => {
-                            s.truncate(i);
-                        }
-                        None => {}
-                    }
-                    rend.remote_addr = s;
-                    // check for an absent URLBase in the description
-                    if rend.dev_url.is_empty() {
-                        let mut url_base = dev;
-                        if url_base.contains("http://") {
-                            url_base = url_base["http://".to_string().len()..].to_string();
-                            let pos = url_base.find('/').unwrap_or_default();
-                            if pos > 0 {
-                                url_base = url_base[0..pos].to_string();
-                            }
-                        }
-                        rend.dev_url = format!("http://{}/", url_base);
-                    }
-                    renderers.push(rend);
+        if let Some(xml) = get_service_description(&dev) {
+            if let Some(mut rend) = get_renderer(&xml) {
+                let mut s = from.to_string();
+                if let Some(i) = s.find(':') {
+                    s.truncate(i);
                 }
-                None => {}
-            },
-            None => {}
+                rend.remote_addr = s;
+                // check for an absent URLBase in the description
+                if rend.dev_url.is_empty() {
+                    let mut url_base = dev;
+                    if url_base.contains("http://") {
+                        url_base = url_base["http://".to_string().len()..].to_string();
+                        let pos = url_base.find('/').unwrap_or_default();
+                        if pos > 0 {
+                            url_base = url_base[0..pos].to_string();
+                        }
+                    }
+                    rend.dev_url = format!("http://{}/", url_base);
+                }
+                renderers.push(rend);
+            }
         }
     }
 
@@ -628,14 +632,17 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
             ));
         }
     }
-    logger(format!("SSDP discovery complete"));
+    logger("SSDP discovery complete".to_string());
     Some(renderers)
 }
 
 /// get_service_description - get the upnp service description xml for a media renderer
-fn get_service_description(dev_url: &String) -> Option<String> {
-    DEBUG!(eprintln!("Get service description for {}", dev_url.clone()));
-    let url = dev_url.clone();
+fn get_service_description(dev_url: &str) -> Option<String> {
+    DEBUG!(eprintln!(
+        "Get service description for {}",
+        dev_url.to_string()
+    ));
+    let url = dev_url.to_string();
     let resp = ureq::get(url.as_str())
         .set("User-Agent", "swyh-rs-Rust")
         .set("Content-Type", "text/xml")
@@ -653,7 +660,7 @@ fn get_service_description(dev_url: &String) -> Option<String> {
 }
 
 /// build a renderer struct by parsing the GetDescription.xml
-fn get_renderer(xml: &String) -> Option<Renderer> {
+fn get_renderer(xml: &str) -> Option<Renderer> {
     let xmlstream = StringReader::new(&xml);
     let parser = EventReader::new(xmlstream);
     let mut cur_elem = String::new();
@@ -686,7 +693,7 @@ fn get_renderer(xml: &String) -> Option<Renderer> {
                 } else if cur_elem.contains("controlURL") {
                     service.control_url = value;
                     // sometimes the control url is not prefixed with a '/'
-                    if service.control_url.len() > 0 {
+                    if !service.control_url.is_empty() {
                         let vchars: Vec<char> = service.control_url.chars().collect();
                         if vchars[0] != '/' {
                             service.control_url.insert(0, '/');

@@ -66,7 +66,7 @@ impl Read for ChannelStream {
                 Some(sample) => {
                     buf[i] = ((sample >> 8) & 0xff) as u8;
                     buf[i + 1] = (sample & 0xff) as u8;
-                    i = i + 2;
+                    i += 2;
                 }
                 None => match self.r.recv() {
                     Ok(chunk) => {

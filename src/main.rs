@@ -62,12 +62,12 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 mod openhome;
 mod utils;
-use openhome::avmedia::{discover, Renderer};
+use openhome::avmedia::{discover, Renderer, WavData};
 use tiny_http::*;
 use utils::rwstream::ChannelStream;
 
 /// app version
-const APP_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
@@ -76,13 +76,6 @@ pub const SERVER_PORT: u16 = 5901;
 pub enum Message {
     Increment,
     Decrement,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct WavData {
-    sample_format: cpal::SampleFormat,
-    sample_rate: cpal::SampleRate,
-    channels: u16,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -161,7 +154,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left);
     tb.set_buffer(Some(buf));
     // setup the he textbox logger thread
-    let tb = tb.clone();
     let _ = std::thread::spawn(move || tb_logger(tb));
     update_ui();
 
@@ -202,8 +194,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bx = ((wind.width() - 30) / 2) - (bwidth / 2); // button x offset
     let mut by = frame.y() + frame.height() + 10; // button y offset
                                                   // create the buttons
-    let mut bi = 0; // button index
-    for renderer in renderers.iter() {
+                                                  // we need to pass some audio config data to the play function
+    let wd = WavData {
+        sample_format: audio_cfg.sample_format(),
+        sample_rate: audio_cfg.sample_rate(),
+        channels: audio_cfg.channels(),
+    };
+    // loop over the renderers with the associated button index
+    for (bi, renderer) in renderers.iter().enumerate() {
         let mut but = LightButton::default() // create the button
             .with_size(bwidth, bheight)
             .with_pos(bx, by)
@@ -224,7 +222,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if but_cc.is_on() { "ON" } else { "OFF" }
                     ));
                     if but_cc.is_on() {
-                        let _ = renderer.play(&local_addr, SERVER_PORT, &log);
+                        let _ = renderer.play(&local_addr, SERVER_PORT, &wd, &log);
                     } else {
                         let _ = renderer.stop_play(&log);
                     }
@@ -235,7 +233,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }));
         wind.add(&but); // add the button to the window
         buttons.insert(renderer.remote_addr.clone(), but.clone()); // and keep a reference to it
-        bi += 1; // bump the button index
         by += bheight + 10; // and the button y offset
     }
     frame.set_label("Rendering Devices");
@@ -248,11 +245,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     stream.play().expect("Could not play audio capture stream");
 
     // start webserver
-    let wd = WavData {
-        sample_format: audio_cfg.sample_format(),
-        sample_rate: audio_cfg.sample_rate(),
-        channels: audio_cfg.channels(),
-    };
     let (feedback_tx, feedback_rx): (
         OtherSender<StreamerFeedBack>,
         OtherReceiver<StreamerFeedBack>,
@@ -270,9 +262,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         // check if the webserver has closed a connection not caused by pushing the renderer button
         // in that case we turn the button off as a visual feedback
-        match feedback_rx.try_recv() {
-            Ok(streamer_feedback) => match buttons.get_mut(&streamer_feedback.remote_ip) {
-                Some(button) => match streamer_feedback.streaming_state {
+        if let Ok(streamer_feedback) = feedback_rx.try_recv() {
+            if let Some(button) = buttons.get_mut(&streamer_feedback.remote_ip) {
+                match streamer_feedback.streaming_state {
                     StreamingState::Started => {
                         if !button.is_on() {
                             button.turn_on(true);
@@ -283,10 +275,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             button.turn_on(false);
                         }
                     }
-                },
-                None => {}
-            },
-            Err(_) => {}
+                }
+            }
         }
     }
     Ok(())
@@ -311,7 +301,9 @@ fn tb_logger(mut tb: TextDisplay) {
         logreader = ch.1.clone();
     }
     loop {
-        let msg = logreader.recv().unwrap_or("*E*E*TB LOGGER".to_string());
+        let msg = logreader
+            .recv()
+            .unwrap_or_else(|_| "*E*E*TB LOGGER".to_string());
         //DEBUG!(eprintln!("**Textbox data** {}", msg));
         //let _ = app::lock();
         tb.buffer().unwrap().append(&msg);
@@ -327,7 +319,7 @@ fn tb_logger(mut tb: TextDisplay) {
 
 /// log - send a logmessage on the LOGCHANNEL sender
 fn log(s: String) {
-    DEBUG!(eprintln!("log: {}", s.clone()));
+    DEBUG!(eprintln!("log: {}", s));
     let logger: OtherSender<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();
@@ -342,7 +334,7 @@ fn log(s: String) {
 /// the samples are read from a crossbeam channel fed by the wave_reader
 /// a ChannelStream is created for this purpose, and inserted in the array of active
 /// "clients" for the wave_reader
-fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<StreamerFeedBack>) -> () {
+fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<StreamerFeedBack>) {
     let addr = format!("{}:{}", local_addr, SERVER_PORT);
     let logmsg = format!(
         "The streaming server is listening on http://{}/stream/swyh.wav",
@@ -370,11 +362,8 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                 ));
                 let remote_addr = format!("{}", rq.remote_addr());
                 let mut remote_ip = remote_addr.clone();
-                match remote_ip.find(':') {
-                    Some(i) => {
-                        remote_ip.truncate(i);
-                    }
-                    None => {}
+                if let Some(i) = remote_ip.find(':') {
+                    remote_ip.truncate(i);
                 }
                 let (tx, rx): (OtherSender<Vec<i16>>, OtherReceiver<Vec<i16>>) = unbounded();
                 {
@@ -418,7 +407,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                 // so that we can update the corresponding button state
                 feedback_tx_c
                     .send(StreamerFeedBack {
-                        remote_ip: remote_ip,
+                        remote_ip,
                         streaming_state: StreamingState::Ended,
                     })
                     .unwrap();
@@ -447,39 +436,29 @@ fn capture_output_audio() -> cpal::Stream {
         .default_output_config()
         .expect("No default output config found");
     log(format!("Default config {:?}", audio_cfg));
-    let stream = match audio_cfg.sample_format() {
-        cpal::SampleFormat::F32 => {
-            let s = audio_output_device
-                .build_input_stream(
-                    &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<f32>(data),
-                    capture_err_fn,
-                )
-                .expect("Could not capture f32 stream format");
-            s
-        }
-        cpal::SampleFormat::I16 => {
-            let s = audio_output_device
-                .build_input_stream(
-                    &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<i16>(data),
-                    capture_err_fn,
-                )
-                .expect("Could not capture i16 stream format");
-            s
-        }
-        cpal::SampleFormat::U16 => {
-            let s = audio_output_device
-                .build_input_stream(
-                    &audio_cfg.config(),
-                    move |data, _: &_| wave_reader::<u16>(data),
-                    capture_err_fn,
-                )
-                .expect("Could not capture u16 stream format");
-            s
-        }
-    };
-    stream
+    match audio_cfg.sample_format() {
+        cpal::SampleFormat::F32 => audio_output_device
+            .build_input_stream(
+                &audio_cfg.config(),
+                move |data, _: &_| wave_reader::<f32>(data),
+                capture_err_fn,
+            )
+            .expect("Could not capture f32 stream format"),
+        cpal::SampleFormat::I16 => audio_output_device
+            .build_input_stream(
+                &audio_cfg.config(),
+                move |data, _: &_| wave_reader::<i16>(data),
+                capture_err_fn,
+            )
+            .expect("Could not capture i16 stream format"),
+        cpal::SampleFormat::U16 => audio_output_device
+            .build_input_stream(
+                &audio_cfg.config(),
+                move |data, _: &_| wave_reader::<u16>(data),
+                capture_err_fn,
+            )
+            .expect("Could not capture u16 stream format"),
+    }
 }
 
 /// capture_err_fn - called whan it's impossible to build an audio input stream
@@ -498,12 +477,12 @@ where
     static mut ONETIME_SW: bool = false;
     unsafe {
         if !ONETIME_SW {
-            log(format!("The wave_reader is receiving samples"));
+            log("The wave_reader is receiving samples".to_string());
             ONETIME_SW = true;
         }
     }
 
-    let i16_samples: Vec<i16> = samples.into_iter().map(|x| x.to_i16()).collect();
+    let i16_samples: Vec<i16> = samples.iter().map(|x| x.to_i16()).collect();
     let clients = CLIENTS.lock().unwrap();
     for (_, v) in clients.iter() {
         v.write(&i16_samples);
@@ -512,7 +491,7 @@ where
 
 /// _indent - indent the xml parser debug output
 fn _indent(size: usize) -> String {
-    const INDENT: &'static str = "    ";
+    const INDENT: &str = "    ";
     (0..size)
         .map(|_| INDENT)
         .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
@@ -523,10 +502,9 @@ fn get_audio_device() -> cpal::Device {
     // audio hosts
     let _available_hosts = cpal::available_hosts();
     let default_host = cpal::default_host();
-    let default_device = default_host
+    default_host
         .default_output_device()
-        .expect("Failed to get the default audio output device");
-    default_device
+        .expect("Failed to get the default audio output device")
 }
 
 use std::net::{IpAddr, UdpSocket};
@@ -545,7 +523,7 @@ fn get_local_addr() -> Option<IpAddr> {
     };
     // now we can return the IP address of this interface
     match socket.local_addr() {
-        Ok(addr) => return Some(addr.ip()),
-        Err(_) => return None,
-    };
+        Ok(addr) => Some(addr.ip()),
+        Err(_) => None,
+    }
 }

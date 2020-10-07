@@ -206,10 +206,10 @@ impl Renderer {
         }
     }
 
-    fn parse_url(&self, dev_url: String, log: &dyn Fn(String)) -> (String, u16) {
+    fn parse_url(&self, dev_url: &str, log: &dyn Fn(String)) -> (String, u16) {
         let host: String;
         let port: u16;
-        match Url::parse(&dev_url) {
+        match Url::parse(dev_url) {
             Ok(url) => {
                 host = url.host_str().unwrap().to_string();
                 port = url.port_or_known_default().unwrap();
@@ -282,8 +282,7 @@ impl Renderer {
         wd: &WavData,
         log: &dyn Fn(String),
     ) -> Result<(), ureq::Error> {
-        let url = self.dev_url.clone();
-        let (host, port) = self.parse_url(url, log);
+        let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
             "OH Start playing on {} host={} port={} from {} using OpenHome Playlist",
             self.dev_name, host, port, local_addr
@@ -381,8 +380,7 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(log);
         // now send AVTransportURI with metadate(DIDL-Lite) and play requests
-        let url = self.dev_url.clone();
-        let (host, port) = self.parse_url(url, log);
+        let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
             "AV Start playing on {} host={} port={} from {} using AvTransport Play",
             self.dev_name, host, port, local_addr
@@ -451,8 +449,7 @@ impl Renderer {
 
     /// oh_stop_play - delete the playlist on the OpenHome renderer, so that it stops playing
     fn oh_stop_play(&self, log: &dyn Fn(String)) {
-        let url = self.dev_url.clone();
-        let (host, port) = self.parse_url(url, log);
+        let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
             "OH Stop playing on {} host={} port={}",
             self.dev_name, host, port
@@ -471,8 +468,7 @@ impl Renderer {
 
     /// av_stop_play - stop playing on the AV renderer
     fn av_stop_play(&self, log: &dyn Fn(String)) {
-        let url = self.dev_url.clone();
-        let (host, port) = self.parse_url(url, log);
+        let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
             "AV Stop playing on {} host={} port={}",
             self.dev_name, host, port
@@ -729,10 +725,10 @@ mod tests {
     #[test]
     fn renderer() {
         let renderer = Renderer::new();
-        let (host, port) = renderer.parse_url("http://192.168.1.26:80/".to_string(), &log);
+        let (host, port) = renderer.parse_url("http://192.168.1.26:80/", &log);
         assert_eq!(host, "192.168.1.26");
         assert_eq!(port, 80); // default port
-        let (host, port) = renderer.parse_url("http://192.168.1.26:12345/".to_string(), &log);
+        let (host, port) = renderer.parse_url("http://192.168.1.26:12345/", &log);
         assert_eq!(host, "192.168.1.26");
         assert_eq!(port, 12345); // other port
     }

@@ -154,7 +154,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left);
     tb.set_buffer(Some(buf));
     // setup the he textbox logger thread
-    let _ = std::thread::spawn(move || tb_logger(tb));
+    let _ = std::thread::Builder::new()
+        .name("textdisplay_updater".into())
+        .stack_size(4 * 1024 * 1024)
+        .spawn(move || tb_logger(tb))
+        .unwrap();
     update_ui();
 
     let local_addr = get_local_addr().expect("Could not obtain local address.");
@@ -167,10 +171,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.show();
     update_ui();
 
-    // get the av media renderers in this network
+    // get the av media renderers in this network in  the discover thread
     let renderers: Vec<Renderer>;
-    let discover_handle: JoinHandle<Vec<Renderer>> =
-        std::thread::spawn(|| discover(&log).unwrap_or_default());
+    let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
+        .name("ssdp_discover".into())
+        .stack_size(4 * 1024 * 1024)
+        .spawn(|| discover(&log).unwrap_or_default())
+        .unwrap();
     // wait for discovery to complete (max 3.1 secs)
     let start = Instant::now();
     loop {
@@ -249,7 +256,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         OtherSender<StreamerFeedBack>,
         OtherReceiver<StreamerFeedBack>,
     ) = unbounded();
-    let _ = std::thread::spawn(move || run_server(&local_addr, wd, feedback_tx.clone()));
+    let _ = std::thread::Builder::new()
+        .name("swyh_rs_webserver".into())
+        .stack_size(4 * 102 * 1024)
+        .spawn(move || run_server(&local_addr, wd, feedback_tx.clone()))
+        .unwrap();
     std::thread::yield_now();
 
     // run GUI, _app.wait() and _app.run() somehow block the logger channel

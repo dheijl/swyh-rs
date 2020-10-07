@@ -647,7 +647,8 @@ fn get_service_description(dev_url: &str) -> Option<String> {
         return None;
     }
     let descr_xml = resp.into_string().unwrap_or_default();
-    DEBUG!(eprintln!("Service description: \r\n{}", descr_xml));
+    DEBUG!(eprintln!("Service description:"));
+    DEBUG!(eprintln!("{}", descr_xml));
     if !descr_xml.is_empty() {
         Some(descr_xml)
     } else {

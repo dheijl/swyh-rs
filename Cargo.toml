@@ -1,6 +1,6 @@
 [package]
 name = "swyh-rs"
-version = "0.7.6"
+version = "0.7.7"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2018"
 

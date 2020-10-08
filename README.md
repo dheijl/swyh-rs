@@ -8,7 +8,7 @@ It has only been tested with Volumio (<https://volumio.org/>) and Harman Kardon 
 
 I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 
-For the moment all music is streamed in wav-format (PCM audio/l16) with the sample rate of the music source (the default audio device, I personally use VBAudio HiFi Cable Input).
+For the moment all music is streamed in uncompressed LPCM format (audio/l16) with the sample rate of the music source (the default audio output device, I personally use VBAudio HiFi Cable Input).
 
 I had to fork cpal (<https://github.com/RustAudio/cpal>) to add missing functionality (Windows WasApi loopback capture). I'm waiting for a cpal pull request to be merged.
 

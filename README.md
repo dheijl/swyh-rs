@@ -36,4 +36,4 @@ How does it work?
 
 Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/94679970-461c5c80-0321-11eb-8b70-ac34679f9cb3.PNG)
+![alt_tag](https://user-images.githubusercontent.com/2384545/95372710-392cd980-08dc-11eb-8974-fb2217827243.PNG)

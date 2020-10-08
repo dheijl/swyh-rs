@@ -125,7 +125,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("No default output config found");
 
     let _app = app::App::default().with_scheme(app::Scheme::Gleam);
-    //let _ = app::lock();
     let (sw, sh) = app::screen_size();
     let mut wind = Window::default()
         .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
@@ -183,11 +182,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         let duration = start.elapsed();
         // keep capturing responses for more then 3 seconds (M_SEARCH MX time)
-        if duration > Duration::from_millis(4_000) {
+        if duration > Duration::from_millis(3_200) {
             break;
         }
         update_ui();
-        std::thread::sleep(std::time::Duration::new(0, 250_000_000));
+        std::thread::sleep(std::time::Duration::new(0, 100_000_000));
     }
     // collect the discovery result
     renderers = discover_handle.join().unwrap_or_default();
@@ -214,24 +213,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .with_pos(bx, by)
             .with_align(Align::Center)
             .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-        let rs_c = renderers.clone();
+        // prepare for closure
+        let renderer_c = renderer.clone();
         let but_c = but.clone();
         but.handle(Box::new(move |ev| {
             let but_cc = but_c.clone();
-            let renderer = &rs_c[bi as usize];
             match ev {
                 Event::Push => {
                     DEBUG!(eprintln!(
                         "Pushed renderer #{} {} {}, state = {}",
                         bi,
-                        renderer.dev_model,
-                        renderer.dev_name,
-                        if but_cc.is_on() { "ON" } else { "OFF" }
+                        renderer_c.dev_model,
+                        renderer_c.dev_name,
+                        if but_cc.is_set() { "ON" } else { "OFF" }
                     ));
-                    if but_cc.is_on() {
-                        let _ = renderer.play(&local_addr, SERVER_PORT, &wd, &log);
+                    if but_cc.is_set() {
+                        let _ = renderer_c.play(&local_addr, SERVER_PORT, &wd, &log);
                     } else {
-                        let _ = renderer.stop_play(&log);
+                        let _ = renderer_c.stop_play(&log);
                     }
                     true
                 }
@@ -239,7 +238,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }));
         wind.add(&but); // add the button to the window
-        buttons.insert(renderer.remote_addr.clone(), but.clone()); // and keep a reference to it
+        buttons.insert(renderer.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
         by += bheight + 10; // and the button y offset
     }
     frame.set_label("Rendering Devices");
@@ -267,7 +266,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // from receiving messages
     loop {
         app::wait_for(0.0)?;
-        std::thread::sleep(std::time::Duration::new(0, 1_000_000));
+        std::thread::sleep(std::time::Duration::new(0, 10_000_000));
         if app::should_program_quit() {
             break;
         }
@@ -277,13 +276,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(button) = buttons.get_mut(&streamer_feedback.remote_ip) {
                 match streamer_feedback.streaming_state {
                     StreamingState::Started => {
-                        if !button.is_on() {
-                            button.turn_on(true);
+                        if !button.is_set() {
+                            button.set(true);
                         }
                     }
                     StreamingState::Ended => {
-                        if button.is_on() {
-                            button.turn_on(false);
+                        if button.is_set() {
+                            button.set(false);
                         }
                     }
                 }
@@ -302,6 +301,7 @@ fn update_ui() {
         std::thread::sleep(std::time::Duration::new(0, 1_000_000));
     }
 }
+
 /// tb_logger - the TextBox logger thread
 /// this function reads log messages from the LOGCHANNEL receiver
 /// and adds them to an fltk TextBox (using a mutex)
@@ -315,15 +315,12 @@ fn tb_logger(mut tb: TextDisplay) {
         let msg = logreader
             .recv()
             .unwrap_or_else(|_| "*E*E*TB LOGGER".to_string());
-        //DEBUG!(eprintln!("**Textbox data** {}", msg));
-        //let _ = app::lock();
         tb.buffer().unwrap().append(&msg);
         tb.buffer().unwrap().append("\n");
         let buflen = tb.buffer().unwrap().length();
         tb.set_insert_position(buflen);
         let buflines = tb.count_lines(0, buflen, true);
         tb.scroll(buflines, 0);
-        //let _ = app::unlock();
         std::thread::yield_now();
     }
 }

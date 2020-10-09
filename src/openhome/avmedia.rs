@@ -107,7 +107,8 @@ static DIDL_TEMPLATE: &str = "\
 <res bitsPerSample=\"16\" \
 nrAudioChannels=\"2\" \
 protocolInfo=\"http-get:*:audio/l16;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM\" \
-sampleFrequency=\"{sample_rate}\">{server_uri}</res>\
+sampleFrequency=\"{sample_rate}\" \
+duration=\"{duration}\" >{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
 </item>\
 </DIDL-Lite>";
@@ -302,6 +303,7 @@ impl Renderer {
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
+        vars.insert("duration".to_string(), "72:59:59".to_string());
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,

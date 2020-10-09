@@ -1,4 +1,4 @@
-//#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
+#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
 ///
 /// swyh-rs
 ///

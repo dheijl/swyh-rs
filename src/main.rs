@@ -392,10 +392,29 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                     field: "Content-Type".parse().unwrap(),
                     value: AsciiString::from_ascii(ct_text).unwrap(),
                 };
+                let tm_hdr = tiny_http::Header {
+                    field: "TransferMode.DLNA.ORG".parse().unwrap(),
+                    value: AsciiString::from_ascii("Streaming").unwrap(),
+                };
+                let srvr_hdr = tiny_http::Header {
+                    field: "Server".parse().unwrap(),
+                    value: AsciiString::from_ascii("UPnP/1.0 DLNADOC/1.50 LAB/1.0").unwrap(),
+                };
+                let nm_hdr = tiny_http::Header {
+                    field: "icy-name".parse().unwrap(),
+                    value: AsciiString::from_ascii("swyh-rs").unwrap(),
+                };
+                let cc_hdr = tiny_http::Header {
+                    field: "Connection".parse().unwrap(),
+                    value: AsciiString::from_ascii("close").unwrap(),
+                };
                 let response = Response::empty(200)
+                    .with_data(channel_stream, Some(0x7FFFFFFF))
+                    .with_header(cc_hdr)
                     .with_header(ct_hdr)
-                    .with_chunked_threshold(16384)
-                    .with_data(channel_stream, None);
+                    .with_header(tm_hdr)
+                    .with_header(srvr_hdr)
+                    .with_header(nm_hdr);
                 match rq.respond(response) {
                     Ok(_) => {}
                     Err(e) => {

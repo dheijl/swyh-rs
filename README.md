@@ -20,11 +20,16 @@ You can get the latest Windows binary from the Release page (<https://github.com
 
 If it doesn't work for you, please run the debug exe from the zip file (swyh-rs-deb.exe), this will give you a console window with loads of debug information.  Please open a new issue and include all this debug information. I will try to provide a fix ASAP.
 
-Todo:
+### Todo:
 
-- ... ?
+- let the user select the sound source and remeber the selection in a settings file
+- add an option to automatically resume playing when the player closes the connection (see below)
 
-How does it work?
+### Known problems:
+
+Renderers that use AVTransport (no OpenHome support present) can stop playing by closing the streaming connection after a song if they detect a certain amount of absolute silence between songs. This seems to occur only when using a digital sound output on the PC, like VBAudio HiFi Cable. The silence detection does not happen when using an analog sound output, like speakers or headphones.
+
+### How does it work?
 
 - first all media renderers are discoverded on the local network, this takes four seconds to complete
 - then a button is shown for every renderer found
@@ -34,6 +39,6 @@ How does it work?
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 
-Screenshot:
+### Screenshot:
 
 ![alt_tag](https://user-images.githubusercontent.com/2384545/95372710-392cd980-08dc-11eb-8974-fb2217827243.PNG)

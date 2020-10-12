@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
+//#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
 ///
 /// swyh-rs
 ///
@@ -65,6 +65,7 @@ mod utils;
 use openhome::avmedia::{discover, Renderer, WavData};
 use tiny_http::*;
 use utils::rwstream::ChannelStream;
+use utils::configuration::Configuration;
 
 /// app version
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -72,12 +73,7 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
 
-#[derive(Debug, Clone, Copy)]
-pub enum Message {
-    Increment,
-    Decrement,
-}
-
+/// streaming state
 #[derive(Debug, Clone, Copy)]
 enum StreamingState {
     Started,
@@ -90,6 +86,7 @@ impl PartialEq for StreamingState {
     }
 }
 
+/// streaming state feedback for a client
 #[derive(Debug, Clone, PartialEq)]
 struct StreamerFeedBack {
     remote_ip: String,
@@ -123,6 +120,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let audio_cfg = &audio_output_device
         .default_output_config()
         .expect("No default output config found");
+
+    // read config
+    let config = Configuration::new().read_config();
 
     let _app = app::App::default().with_scheme(app::Scheme::Gleam);
     let (sw, sh) = app::screen_size();
@@ -262,8 +262,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     std::thread::yield_now();
 
+    // show auto_resume option checkbox
+    let mut auto_resume = CheckButton::new(20, by + 10, 150, 25, "Autoresume play");
+    if config.auto_resume {
+        auto_resume.set(true);
+    }
+    let auto_resume_c = auto_resume.clone();
+    let mut config_c = config.clone();
+    auto_resume.handle(Box::new(move |ev| {
+        let ar_cc = auto_resume_c.clone();
+        match ev {
+            Event::Released => {
+                if ar_cc.is_set() {
+                    config_c.auto_resume = true;
+                } else {
+                    config_c.auto_resume = false;
+                }
+                let _ = config_c.update_config();
+                true
+            }
+            _ => true,
+        }
+    }));
+    wind.add(&auto_resume);
+    wind.redraw();
+    update_ui();
+
+
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
+    let auto_resume_c = auto_resume.clone();
     loop {
         app::wait_for(0.0)?;
         std::thread::sleep(std::time::Duration::new(0, 10_000_000));
@@ -281,6 +309,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     StreamingState::Ended => {
+                        if auto_resume_c.is_set() {
+                            for r in renderers.iter() {
+                                if streamer_feedback.remote_ip == r.remote_addr {
+                                    let _ = r.play(&local_addr, SERVER_PORT, &wd, &dummy_log);
+                                }
+                            }
+                        }
                         if button.is_set() {
                             button.set(false);
                         }
@@ -334,6 +369,11 @@ fn log(s: String) {
         logger = ch.0.clone();
     }
     logger.send(s).unwrap();
+}
+
+/// dummy_log
+fn dummy_log(s: String) {
+    DEBUG!(eprintln!("Autoresume: {}", s));
 }
 
 /// run_server - run a webserver to serve requests from OpenHome media renderers

@@ -64,8 +64,8 @@ mod openhome;
 mod utils;
 use openhome::avmedia::{discover, Renderer, WavData};
 use tiny_http::*;
-use utils::rwstream::ChannelStream;
 use utils::configuration::Configuration;
+use utils::rwstream::ChannelStream;
 
 /// app version
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -288,7 +288,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.redraw();
     update_ui();
 
-
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
     let auto_resume_c = auto_resume.clone();
@@ -309,15 +308,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     StreamingState::Ended => {
-                        if auto_resume_c.is_set() {
+                        if auto_resume_c.is_set() && button.is_set() {
                             for r in renderers.iter() {
                                 if streamer_feedback.remote_ip == r.remote_addr {
                                     let _ = r.play(&local_addr, SERVER_PORT, &wd, &dummy_log);
+                                    break;
                                 }
                             }
-                        }
-                        if button.is_set() {
-                            button.set(false);
+                        } else {
+                            if button.is_set() {
+                                button.set(false);
+                            }
                         }
                     }
                 }

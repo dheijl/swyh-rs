@@ -57,7 +57,7 @@ mod utils;
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
-use fltk::{app, button::*, frame::*, text::*, window::*};
+use fltk::{app, button::*, frame::*, menu::*, text::*, window::*};
 use lazy_static::*;
 use openhome::avmedia::{discover, Renderer, WavData};
 use std::collections::HashMap;
@@ -119,7 +119,8 @@ lazy_static! {
 /// - run the GUI
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
-    let mut audio_output_device = get_default_audio_output_device().expect("No default audio device");
+    let mut audio_output_device =
+        get_default_audio_output_device().expect("No default audio device");
     let audio_cfg = &audio_output_device
         .default_output_config()
         .expect("No default output config found");
@@ -135,10 +136,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for adev in audio_devices {
         let devname = adev.name().unwrap();
-        if  devname == config.sound_source {
+        if devname == config.sound_source {
             audio_output_device = adev;
             DEBUG!(eprintln!("Selected audio source: {}", devname));
-        } 
+        }
     }
 
     let _app = app::App::default().with_scheme(app::Scheme::Gleam);
@@ -279,25 +280,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::yield_now();
 
     // show auto_resume option checkbox
-    let mut auto_resume = CheckButton::new(20, by + 10, 150, 25, "Autoresume play");
+    by += 10;
+    let mut auto_resume = CheckButton::new(20, by, 150, 25, "Autoresume play");
     if config.auto_resume {
         auto_resume.set(true);
     }
     let auto_resume_c = auto_resume.clone();
-    let mut config_c = config;
+    let mut config = Configuration::new().read_config();
     auto_resume.handle(Box::new(move |ev| match ev {
         Event::Released => {
             if auto_resume_c.is_set() {
-                config_c.auto_resume = true;
+                config.auto_resume = true;
             } else {
-                config_c.auto_resume = false;
+                config.auto_resume = false;
             }
-            let _ = config_c.update_config();
+            let _ = config.update_config();
             true
         }
         _ => true,
     }));
     wind.add(&auto_resume);
+    wind.redraw();
+    update_ui();
+
+    let mut choose_audio_source_but = MenuButton::new(bx, by, 300, 25, "Change Audio Source");
+    let devices = get_output_audio_devices().unwrap();
+    for dev in devices.iter() {
+        choose_audio_source_but.add_choice(&dev.name().unwrap());
+    }
+    let butas_cc = choose_audio_source_but.clone();
+    choose_audio_source_but.handle(Box::new(move |ev| {
+        //eprintln!("Event: {:?}", ev);
+        match ev {
+            Event::Push => {
+                let mut config = Configuration::new().read_config();
+                let i = butas_cc.value() as usize;
+                let name = devices[i as usize].name().unwrap();
+                DEBUG!(eprintln!(
+                    "Push index = {}, device {}",
+                    i,
+                    name
+                ));
+                log(format!("Audio source changed to {}, restart required!!", name)); // std::env::current_exe()
+                config.sound_source = name;
+                let _ = config.update_config();
+                true
+            }
+            _ => true,
+        }
+    }));
+    wind.add(&choose_audio_source_but);
     wind.redraw();
     update_ui();
 

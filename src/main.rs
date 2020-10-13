@@ -55,16 +55,18 @@ mod openhome;
 mod utils;
 
 use ascii::AsciiString;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
 use fltk::{app, button::*, frame::*, text::*, window::*};
 use lazy_static::*;
 use openhome::avmedia::{discover, Renderer, WavData};
 use std::collections::HashMap;
+use std::net::{IpAddr, UdpSocket};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use tiny_http::*;
+use utils::audiodevices::*;
 use utils::configuration::Configuration;
 use utils::rwstream::ChannelStream;
 
@@ -117,13 +119,27 @@ lazy_static! {
 /// - run the GUI
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
-    let audio_output_device = get_audio_device();
+    let mut audio_output_device = get_default_audio_output_device().expect("No default audio device");
     let audio_cfg = &audio_output_device
         .default_output_config()
         .expect("No default output config found");
+    let audio_devices = get_output_audio_devices().unwrap();
 
     // read config
-    let config = Configuration::new().read_config();
+    let mut config = Configuration::new().read_config();
+    if config.sound_source == "None" {
+        config.sound_source = audio_output_device.name().unwrap();
+        let _ = config.update_config();
+    }
+    DEBUG!(eprintln!("Current Configuration: {:?}", config));
+
+    for adev in audio_devices {
+        let devname = adev.name().unwrap();
+        if  devname == config.sound_source {
+            audio_output_device = adev;
+            DEBUG!(eprintln!("Selected audio source: {}", devname));
+        } 
+    }
 
     let _app = app::App::default().with_scheme(app::Scheme::Gleam);
     let (sw, sh) = app::screen_size();
@@ -248,10 +264,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // capture system audio
     DEBUG!(eprintln!("Try capturing system audio"));
-    match capture_output_audio() {
-        Some(stream) => stream.play().unwrap_or_default(),
-        None => (),
-    };
+    let stream = capture_output_audio(&audio_output_device).unwrap();
+    stream.play().unwrap();
     // start webserver
     let (feedback_tx, feedback_rx): (
         OtherSender<StreamerFeedBack>,
@@ -537,21 +551,19 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
 /// capture_audio_output - capture the audio stream from the default audio output device
 ///
 /// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16)
-fn capture_output_audio() -> Option<cpal::Stream> {
-    // first initialize cpal audio to prevent COM reinitialize panic on Windows
-    let audio_output_device = get_audio_device();
+fn capture_output_audio(device: &cpal::Device) -> Option<cpal::Stream> {
     log(format!(
-        "Default audio output device: {}",
-        audio_output_device
+        "Capturing audio from: {}",
+        device
             .name()
             .expect("Could not get default audio device name")
     ));
-    let audio_cfg = &audio_output_device
+    let audio_cfg = device
         .default_output_config()
         .expect("No default output config found");
-    log(format!("Default config {:?}", audio_cfg));
+    log(format!("Default audio {:?}", audio_cfg));
     match audio_cfg.sample_format() {
-        cpal::SampleFormat::F32 => match audio_output_device.build_input_stream(
+        cpal::SampleFormat::F32 => match device.build_input_stream(
             &audio_cfg.config(),
             move |data, _: &_| wave_reader::<f32>(data),
             capture_err_fn,
@@ -563,7 +575,7 @@ fn capture_output_audio() -> Option<cpal::Stream> {
             }
         },
         cpal::SampleFormat::I16 => {
-            match audio_output_device.build_input_stream(
+            match device.build_input_stream(
                 &audio_cfg.config(),
                 move |data, _: &_| wave_reader::<i16>(data),
                 capture_err_fn,
@@ -576,7 +588,7 @@ fn capture_output_audio() -> Option<cpal::Stream> {
             }
         }
         cpal::SampleFormat::U16 => {
-            match audio_output_device.build_input_stream(
+            match device.build_input_stream(
                 &audio_cfg.config(),
                 move |data, _: &_| wave_reader::<u16>(data),
                 capture_err_fn,
@@ -626,18 +638,6 @@ fn _indent(size: usize) -> String {
         .map(|_| INDENT)
         .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
 }
-
-/// get_audio_device - return the default output audio device
-fn get_audio_device() -> cpal::Device {
-    // audio hosts
-    let _available_hosts = cpal::available_hosts();
-    let default_host = cpal::default_host();
-    default_host
-        .default_output_device()
-        .expect("Failed to get the default audio output device")
-}
-
-use std::net::{IpAddr, UdpSocket};
 
 /// get_local_address - get the local ip address, return an `Option<String>`. when it fails, return `None`.
 fn get_local_addr() -> Option<IpAddr> {

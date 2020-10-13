@@ -51,18 +51,19 @@ SOFTWARE.
 #[macro_use]
 extern crate bitflags;
 
+mod openhome;
+mod utils;
+
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
 use fltk::{app, button::*, frame::*, text::*, window::*};
 use lazy_static::*;
+use openhome::avmedia::{discover, Renderer, WavData};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-mod openhome;
-mod utils;
-use openhome::avmedia::{discover, Renderer, WavData};
 use tiny_http::*;
 use utils::configuration::Configuration;
 use utils::rwstream::ChannelStream;
@@ -247,9 +248,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // capture system audio
     DEBUG!(eprintln!("Try capturing system audio"));
-    let stream = capture_output_audio();
-    stream.play().expect("Could not play audio capture stream");
-
+    match capture_output_audio() {
+        Some(stream) => stream.play().unwrap_or_default(),
+        None => (),
+    };
     // start webserver
     let (feedback_tx, feedback_rx): (
         OtherSender<StreamerFeedBack>,
@@ -535,7 +537,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
 /// capture_audio_output - capture the audio stream from the default audio output device
 ///
 /// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16)
-fn capture_output_audio() -> cpal::Stream {
+fn capture_output_audio() -> Option<cpal::Stream> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let audio_output_device = get_audio_device();
     log(format!(
@@ -549,27 +551,43 @@ fn capture_output_audio() -> cpal::Stream {
         .expect("No default output config found");
     log(format!("Default config {:?}", audio_cfg));
     match audio_cfg.sample_format() {
-        cpal::SampleFormat::F32 => audio_output_device
-            .build_input_stream(
-                &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<f32>(data),
-                capture_err_fn,
-            )
-            .expect("Could not capture f32 stream format"),
-        cpal::SampleFormat::I16 => audio_output_device
-            .build_input_stream(
+        cpal::SampleFormat::F32 => match audio_output_device.build_input_stream(
+            &audio_cfg.config(),
+            move |data, _: &_| wave_reader::<f32>(data),
+            capture_err_fn,
+        ) {
+            Ok(stream) => Some(stream),
+            Err(e) => {
+                log(format!("Error capturing f32 audio stream: {}", e));
+                None
+            }
+        },
+        cpal::SampleFormat::I16 => {
+            match audio_output_device.build_input_stream(
                 &audio_cfg.config(),
                 move |data, _: &_| wave_reader::<i16>(data),
                 capture_err_fn,
-            )
-            .expect("Could not capture i16 stream format"),
-        cpal::SampleFormat::U16 => audio_output_device
-            .build_input_stream(
+            ) {
+                Ok(stream) => Some(stream),
+                Err(e) => {
+                    log(format!("Error capturing i16 audio stream: {}", e));
+                    None
+                }
+            }
+        }
+        cpal::SampleFormat::U16 => {
+            match audio_output_device.build_input_stream(
                 &audio_cfg.config(),
                 move |data, _: &_| wave_reader::<u16>(data),
                 capture_err_fn,
-            )
-            .expect("Could not capture u16 stream format"),
+            ) {
+                Ok(stream) => Some(stream),
+                Err(e) => {
+                    log(format!("Error capturing u16 audio stream: {}", e));
+                    None
+                }
+            }
+        }
     }
 }
 

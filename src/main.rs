@@ -268,21 +268,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_resume.set(true);
     }
     let auto_resume_c = auto_resume.clone();
-    let mut config_c = config.clone();
-    auto_resume.handle(Box::new(move |ev| {
-        let ar_cc = auto_resume_c.clone();
-        match ev {
-            Event::Released => {
-                if ar_cc.is_set() {
-                    config_c.auto_resume = true;
-                } else {
-                    config_c.auto_resume = false;
-                }
-                let _ = config_c.update_config();
-                true
+    let mut config_c = config;
+    auto_resume.handle(Box::new(move |ev| match ev {
+        Event::Released => {
+            if auto_resume_c.is_set() {
+                config_c.auto_resume = true;
+            } else {
+                config_c.auto_resume = false;
             }
-            _ => true,
+            let _ = config_c.update_config();
+            true
         }
+        _ => true,
     }));
     wind.add(&auto_resume);
     wind.redraw();
@@ -315,10 +312,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     break;
                                 }
                             }
-                        } else {
-                            if button.is_set() {
-                                button.set(false);
-                            }
+                        } else if button.is_set() {
+                            button.set(false);
                         }
                     }
                 }
@@ -372,7 +367,7 @@ fn log(s: String) {
     logger.send(s).unwrap();
 }
 
-/// dummy_log
+/// dummy_log is used during AV transport autoresume
 fn dummy_log(s: String) {
     DEBUG!(eprintln!("Autoresume: {}", s));
 }
@@ -404,30 +399,25 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         rq.remote_addr()
                     ));
                 }
-                log(format!(
-                    "Received request {} from {}",
-                    rq.url(),
-                    rq.remote_addr()
-                ));
+                let head_request = match rq.method() {
+                    Method::Head => true,
+                    _ => false,
+                };
+                let post_request = match rq.method() {
+                    Method::Post => true,
+                    _ => false,
+                };
+                let get_request = match rq.method() {
+                    Method::Get => true,
+                    _ => false,
+                };
+                // get remote ip
                 let remote_addr = format!("{}", rq.remote_addr());
                 let mut remote_ip = remote_addr.clone();
                 if let Some(i) = remote_ip.find(':') {
                     remote_ip.truncate(i);
                 }
-                let (tx, rx): (OtherSender<Vec<i16>>, OtherReceiver<Vec<i16>>) = unbounded();
-                {
-                    let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
-                    let mut clients = CLIENTS.lock().unwrap();
-                    clients.insert(remote_ip.clone(), channel_stream);
-                }
-                feedback_tx_c
-                    .send(StreamerFeedBack {
-                        remote_ip: remote_ip.clone(),
-                        streaming_state: StreamingState::Started,
-                    })
-                    .unwrap();
-                std::thread::yield_now();
-                let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
+                // prpare headers
                 let ct_text = format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string());
                 let ct_hdr = tiny_http::Header {
                     field: "Content-Type".parse().unwrap(),
@@ -449,36 +439,90 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                     field: "Connection".parse().unwrap(),
                     value: AsciiString::from_ascii("close").unwrap(),
                 };
-                let response = Response::empty(200)
-                    .with_data(channel_stream, Some(0x7FFFFFFF))
-                    .with_header(cc_hdr)
-                    .with_header(ct_hdr)
-                    .with_header(tm_hdr)
-                    .with_header(srvr_hdr)
-                    .with_header(nm_hdr);
-                match rq.respond(response) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        log(format!(
-                            "=>Http connection with {} terminated [{}]",
-                            remote_addr, e
-                        ));
+                // handle response, streaming if GET, headers only otherwise
+                if get_request {
+                    log(format!(
+                        "Received request {} from {}",
+                        rq.url(),
+                        rq.remote_addr()
+                    ));
+                    let (tx, rx): (OtherSender<Vec<i16>>, OtherReceiver<Vec<i16>>) = unbounded();
+                    {
+                        let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
+                        let mut clients = CLIENTS.lock().unwrap();
+                        clients.insert(remote_ip.clone(), channel_stream);
+                    }
+                    feedback_tx_c
+                        .send(StreamerFeedBack {
+                            remote_ip: remote_ip.clone(),
+                            streaming_state: StreamingState::Started,
+                        })
+                        .unwrap();
+                    std::thread::yield_now();
+                    let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
+                    let response = Response::empty(200)
+                        .with_data(channel_stream, Some(0x7FFFFFFF))
+                        .with_header(cc_hdr)
+                        .with_header(ct_hdr)
+                        .with_header(tm_hdr)
+                        .with_header(srvr_hdr)
+                        .with_header(nm_hdr);
+                    match rq.respond(response) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            log(format!(
+                                "=>Http connection with {} terminated [{}]",
+                                remote_addr, e
+                            ));
+                        }
+                    }
+                    {
+                        let mut clients = CLIENTS.lock().unwrap();
+                        clients.remove(&remote_addr);
+                    }
+                    log(format!("Streaming to {} has ended", remote_addr));
+                    // inform the main thread that this renderer has finished receiving
+                    // necessary if the connection close was not caused by our own GUI
+                    // so that we can update the corresponding button state
+                    feedback_tx_c
+                        .send(StreamerFeedBack {
+                            remote_ip,
+                            streaming_state: StreamingState::Ended,
+                        })
+                        .unwrap();
+                } else if head_request {
+                    //log(format!("HEAD rq from {}", remote_addr));
+                    let response = Response::empty(200)
+                        .with_header(cc_hdr)
+                        .with_header(ct_hdr)
+                        .with_header(tm_hdr)
+                        .with_header(srvr_hdr)
+                        .with_header(nm_hdr);
+                    match rq.respond(response) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            log(format!(
+                                "=>Http HEAD connection with {} terminated [{}]",
+                                remote_addr, e
+                            ));
+                        }
+                    }
+                } else if post_request {
+                    //log(format!("POST rq from {}", remote_addr));
+                    let response = Response::empty(200)
+                        .with_header(cc_hdr)
+                        .with_header(srvr_hdr)
+                        .with_header(nm_hdr);
+                    match rq.respond(response) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            log(format!(
+                                "=>Http POST connection with {} terminated [{}]",
+                                remote_addr, e
+                            ));
+                        }
                     }
                 }
-                {
-                    let mut clients = CLIENTS.lock().unwrap();
-                    clients.remove(&remote_addr);
-                }
-                log(format!("Streaming to {} has ended", remote_addr));
-                // inform the main thread that this renderer has finished receiving
-                // necessary if the connection close was not caused by our own GUI
-                // so that we can update the corresponding button state
-                feedback_tx_c
-                    .send(StreamerFeedBack {
-                        remote_ip,
-                        streaming_state: StreamingState::Ended,
-                    })
-                    .unwrap();
             }
         }));
     }

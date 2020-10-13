@@ -16,9 +16,7 @@ impl Configuration {
         if !Path::new(&config_dir).exists() {
             fs::create_dir_all(&config_dir).unwrap();
         }
-        let configfile = Path::new(&config_dir).join("config.ini");
-
-        configfile
+        Path::new(&config_dir).join("config.ini")
     }
 
     pub fn new() -> Configuration {

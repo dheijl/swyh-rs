@@ -421,6 +421,8 @@ impl Renderer {
                 &xmlbody,
             )
             .unwrap();
+        // the renderer will now send a head request first, so wait a bit
+        std::thread::sleep(Duration::new(0, 100_000_000));
         // send play command
         let _resp = self
             .oh_soap_request(

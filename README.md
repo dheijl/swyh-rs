@@ -34,9 +34,11 @@ If it doesn't work for you, please run the debug exe from the zip file (swyh-rs-
 - a built-in web server is started on port 5901.
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source.
+- some AVTtransport renderers will stop when detecting a pause between songs, you can use the "autoresume" checkbox if you encounter this problem.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program runs at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering
 
 ### Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/95372710-392cd980-08dc-11eb-8974-fb2217827243.PNG)
+![alt_tag](https://user-images.githubusercontent.com/2384545/96004784-18183b80-0e3c-11eb-8229-8584f80569b2.PNG)
+

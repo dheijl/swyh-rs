@@ -25,5 +25,5 @@ rust-ini = "*"
 dirs = "*"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "std"] }
-[target.'cfg(linux)'.dependencies]
-libc = "*"
+[target.'cfg(unix)'.dependencies]
+libc = "^0.2"

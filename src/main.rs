@@ -327,8 +327,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Event::Push => {
                 let mut config = Configuration::new().read_config();
                 let i = butas_cc.value() as usize;
-                if i > devices.len() {
-                    log("*E*E*> Invalid sound source selection !".to_string());
+                if i >= devices.len() {
                     return true;
                 }
                 let name = devices[i as usize].name().unwrap();

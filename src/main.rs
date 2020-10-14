@@ -126,6 +126,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("No default output config found");
     let audio_devices = get_output_audio_devices().unwrap();
 
+    // raise process priority a bit to prevent stuttering under cpu load
+    raise_priority();
+
     // read config
     let mut config = Configuration::new().read_config();
     if config.sound_source == "None" {
@@ -303,25 +306,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.redraw();
     update_ui();
 
-    let mut choose_audio_source_but = MenuButton::new(bx, by, 300, 25, "Change Audio Source");
+    by += 35;
+    let mut choose_audio_source_but =
+        MenuButton::new(20, by, (wind.width() / 3) * 2, 25, "Change Audio Source");
     let devices = get_output_audio_devices().unwrap();
     for dev in devices.iter() {
         choose_audio_source_but.add_choice(&dev.name().unwrap());
     }
     let butas_cc = choose_audio_source_but.clone();
     choose_audio_source_but.handle(Box::new(move |ev| {
-        //eprintln!("Event: {:?}", ev);
         match ev {
             Event::Push => {
                 let mut config = Configuration::new().read_config();
                 let i = butas_cc.value() as usize;
+                if i > devices.len() {
+                    log("*E*E*> Invalid sound source selection !".to_string());
+                    return true;
+                }
                 let name = devices[i as usize].name().unwrap();
-                DEBUG!(eprintln!(
-                    "Push index = {}, device {}",
-                    i,
+                log(format!(
+                    "*W*W> Audio source changed to {}, restart required!!",
                     name
-                ));
-                log(format!("Audio source changed to {}, restart required!!", name)); // std::env::current_exe()
+                )); // std::env::current_exe()
                 config.sound_source = name;
                 let _ = config.update_config();
                 true
@@ -335,7 +341,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
-    let auto_resume_c = auto_resume.clone();
+    let auto_resume_c = &auto_resume;
     loop {
         app::wait_for(0.0)?;
         std::thread::sleep(std::time::Duration::new(0, 10_000_000));
@@ -371,6 +377,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
+fn raise_priority() {
+    use std::os::windows::raw::HANDLE;
+    use winapi::um::errhandlingapi::GetLastError;
+    use winapi::um::processthreadsapi::{GetCurrentProcess, GetCurrentProcessId, SetPriorityClass};
+    unsafe {
+        const ABOVE_NORMAL_PRIORITY_CLASS: u32 = 32768;
+        let id = GetCurrentProcess() as HANDLE;
+        if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS) == 0 {
+            let e = GetLastError();
+            DEBUG!(eprintln!(
+                "*E*E>Failed to set process priority id={}, error={}",
+                GetCurrentProcessId(),
+                e
+            ));
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn raise_priority() {
+    use libc::{getpriority, setpriority};
+    unsafe {}
+}
+
+#[cfg(target_os = "macos")]
+fn raise_priority() {}
+
 ///
 /// update_ui - let fltk update the UI that was changed by other threads
 ///
@@ -393,7 +427,7 @@ fn tb_logger(mut tb: TextDisplay) {
     loop {
         let msg = logreader
             .recv()
-            .unwrap_or_else(|_| "*E*E*TB LOGGER".to_string());
+            .unwrap_or_else(|_| "*E*E*> TB LOGGER channel receive error".to_string());
         tb.buffer().unwrap().append(&msg);
         tb.buffer().unwrap().append("\n");
         let buflen = tb.buffer().unwrap().length();
@@ -447,18 +481,6 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         rq.remote_addr()
                     ));
                 }
-                let head_request = match rq.method() {
-                    Method::Head => true,
-                    _ => false,
-                };
-                let post_request = match rq.method() {
-                    Method::Post => true,
-                    _ => false,
-                };
-                let get_request = match rq.method() {
-                    Method::Get => true,
-                    _ => false,
-                };
                 // get remote ip
                 let remote_addr = format!("{}", rq.remote_addr());
                 let mut remote_ip = remote_addr.clone();
@@ -488,7 +510,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                     value: AsciiString::from_ascii("close").unwrap(),
                 };
                 // handle response, streaming if GET, headers only otherwise
-                if get_request {
+                if matches!(rq.method(), Method::Get) {
                     log(format!(
                         "Received request {} from {}",
                         rq.url(),
@@ -538,7 +560,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                             streaming_state: StreamingState::Ended,
                         })
                         .unwrap();
-                } else if head_request {
+                } else if matches!(rq.method(), Method::Head) {
                     //log(format!("HEAD rq from {}", remote_addr));
                     let response = Response::empty(200)
                         .with_header(cc_hdr)
@@ -555,7 +577,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                             ));
                         }
                     }
-                } else if post_request {
+                } else if matches!(rq.method(), Method::Post) {
                     //log(format!("POST rq from {}", remote_addr));
                     let response = Response::empty(200)
                         .with_header(cc_hdr)

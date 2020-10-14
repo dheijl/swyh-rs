@@ -544,6 +544,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                         let mut clients = CLIENTS.lock().unwrap();
                         clients.insert(remote_ip.clone(), channel_stream);
+                        DEBUG!(eprintln!("Now have {} streaming clients", clients.len()));
                     }
                     feedback_tx_c
                         .send(StreamerFeedBack {
@@ -571,7 +572,8 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                     }
                     {
                         let mut clients = CLIENTS.lock().unwrap();
-                        clients.remove(&remote_addr);
+                        clients.remove(&remote_ip.clone());
+                        DEBUG!(eprintln!("Now have {} streaming clients left", clients.len()));
                     }
                     log(format!("Streaming to {} has ended", remote_addr));
                     // inform the main thread that this renderer has finished receiving

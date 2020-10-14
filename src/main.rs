@@ -268,8 +268,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // capture system audio
     DEBUG!(eprintln!("Try capturing system audio"));
-    let stream = capture_output_audio(&audio_output_device).unwrap();
-    stream.play().unwrap();
+    let stream: cpal::Stream;
+    match capture_output_audio(&audio_output_device) {
+        Some(s) => {
+            stream = s;
+            stream.play().unwrap();
+        },
+        None => {
+            log("*E*E> Could not capture audio ...Please check configuration.".to_string());
+        },
+    }
     // start webserver
     let (feedback_tx, feedback_rx): (
         OtherSender<StreamerFeedBack>,

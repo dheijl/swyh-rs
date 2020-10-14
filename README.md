@@ -22,22 +22,20 @@ If it doesn't work for you, please run the debug exe from the zip file (swyh-rs-
 
 ### Todo:
 
-- let the user select the sound source and remeber the selection in a settings file
-- add an option to automatically resume playing when the player closes the connection (see below)
+- implement file logging in the release build, similar to the console log in the debug build
+- probably some GUI tweaks, but I hate GUI programming
 
-### Known problems:
-
-Renderers that use AVTransport (no OpenHome support present) can stop playing by closing the streaming connection after a song if they detect a certain amount of absolute silence between songs. This seems to occur only when using a digital sound output on the PC, like VBAudio HiFi Cable. The silence detection does not happen when using an analog sound output, like speakers or headphones.
 
 ### How does it work?
 
 - first all media renderers are discoverded on the local network, this takes four seconds to complete
 - then a button is shown for every renderer found
-- audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac)
+- audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac), but you can choose any audio source you want. Changing the sound source needs a restart of the app to take effect.
 - a built-in web server is started on port 5901.
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
+- the program runs at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering
 
 ### Screenshot:
 

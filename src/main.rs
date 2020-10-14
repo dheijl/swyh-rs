@@ -405,8 +405,19 @@ fn raise_priority() {
 
 #[cfg(target_os = "linux")]
 fn raise_priority() {
-    use libc::{getpriority, setpriority};
-    unsafe {}
+    // the following only works when you're root on Linux
+    use libc::{getpriority, setpriority, PRIO_PROCESS};
+    unsafe {
+        let pri = getpriority(PRIO_PROCESS, 0);
+        let newpri = pri - 5;
+        let rc = setpriority(PRIO_PROCESS, 0, newpri);
+        if rc != 0 {
+            log("Sorry, but you don't have permissions to raise priority...".to_string());
+        } else {
+            log(format!("Now running at nice value {}", newpri));
+        }
+    }
+
 }
 
 #[cfg(target_os = "macos")]

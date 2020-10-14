@@ -351,6 +351,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auto_resume_c = &auto_resume;
     loop {
         app::wait_for(0.0)?;
+        if wind.width() < (sw / 3.0) as i32 || wind.height() < (sh / 3.0) as i32 {
+            wind.resize(wind.x(), wind.y(), (sw / 3.0) as i32, (sh / 3.0) as i32);
+            wind.redraw();
+        }
         std::thread::sleep(std::time::Duration::new(0, 10_000_000));
         if app::should_program_quit() {
             break;
@@ -406,6 +410,7 @@ fn raise_priority() {
 #[cfg(target_os = "linux")]
 fn raise_priority() {
     // the following only works when you're root on Linux
+    // or if you give the program CAP_SYS_NICE (cf. setcap)
     use libc::{getpriority, setpriority, PRIO_PROCESS};
     unsafe {
         let pri = getpriority(PRIO_PROCESS, 0);

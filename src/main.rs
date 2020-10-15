@@ -273,10 +273,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(s) => {
             stream = s;
             stream.play().unwrap();
-        },
+        }
         None => {
-            log("*E*E> Could not capture audio ...Please check configuration.".to_string());
-        },
+            log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
+        }
     }
     // start webserver
     let (feedback_tx, feedback_rx): (
@@ -322,7 +322,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         choose_audio_source_but.add_choice(&dev.name().unwrap());
     }
     let butas_cc = choose_audio_source_but.clone();
+    let lock = Mutex::new(0);
     choose_audio_source_but.handle(Box::new(move |ev| {
+        let mut recursion = lock.lock().unwrap();
+        if *recursion > 0 {
+            return false;
+        }
+        *recursion += 1;
+        //DEBUG!(eprintln!("Audio source dropdown event: {:?}", ev));
         match ev {
             Event::Push => {
                 let mut config = Configuration::new().read_config();
@@ -330,16 +337,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if i >= devices.len() {
                     return true;
                 }
-                let name = devices[i as usize].name().unwrap();
+                let name = devices[i].name().unwrap();
                 log(format!(
-                    "*W*W> Audio source changed to {}, restart required!!",
+                    "*W*W*> Audio source changed to {}, restart required!!",
                     name
                 )); // std::env::current_exe()
                 config.sound_source = name;
                 let _ = config.update_config();
+                *recursion -= 1;
                 true
             }
-            _ => true,
+            _ => {
+                *recursion -= 1;
+                true
+            }
         }
     }));
     wind.add(&choose_audio_source_but);
@@ -399,7 +410,7 @@ fn raise_priority() {
         if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS) == 0 {
             let e = GetLastError();
             DEBUG!(eprintln!(
-                "*E*E>Failed to set process priority id={}, error={}",
+                "*E*E*>Failed to set process priority id={}, error={}",
                 GetCurrentProcessId(),
                 e
             ));
@@ -422,7 +433,6 @@ fn raise_priority() {
             log(format!("Now running at nice value {}", newpri));
         }
     }
-
 }
 
 #[cfg(target_os = "macos")]
@@ -573,7 +583,10 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                     {
                         let mut clients = CLIENTS.lock().unwrap();
                         clients.remove(&remote_ip.clone());
-                        DEBUG!(eprintln!("Now have {} streaming clients left", clients.len()));
+                        DEBUG!(eprintln!(
+                            "Now have {} streaming clients left",
+                            clients.len()
+                        ));
                     }
                     log(format!("Streaming to {} has ended", remote_addr));
                     // inform the main thread that this renderer has finished receiving

@@ -68,6 +68,7 @@ use std::time::{Duration, Instant};
 use tiny_http::*;
 use utils::audiodevices::*;
 use utils::configuration::Configuration;
+use utils::escape::{FwSlashEscape, FwSlashUnescape};
 use utils::rwstream::ChannelStream;
 
 /// app version
@@ -319,9 +320,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         MenuButton::new(20, by, (wind.width() / 3) * 2, 25, "Change Audio Source");
     let devices = get_output_audio_devices().unwrap();
     for dev in devices.iter() {
-        choose_audio_source_but.add_choice(&dev.name().unwrap());
+        choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_escape());
     }
     let butas_cc = choose_audio_source_but.clone();
+    // apparently this event can recurse on very fast machines
+    // probably because it takes some time doing the file I/O, hence recursion lock
     let lock = Mutex::new(0);
     choose_audio_source_but.handle(Box::new(move |ev| {
         let mut recursion = lock.lock().unwrap();
@@ -329,15 +332,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return false;
         }
         *recursion += 1;
-        //DEBUG!(eprintln!("Audio source dropdown event: {:?}", ev));
         match ev {
             Event::Push => {
                 let mut config = Configuration::new().read_config();
-                let i = butas_cc.value() as usize;
-                if i >= devices.len() {
-                    return true;
+                let i = butas_cc.value();
+                if i < 0 {
+                    return false;
                 }
-                let name = devices[i].name().unwrap();
+                let name = devices[i as usize].name().unwrap().fw_slash_unescape();
                 log(format!(
                     "*W*W*> Audio source changed to {}, restart required!!",
                     name
@@ -349,7 +351,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             _ => {
                 *recursion -= 1;
-                true
+                false
             }
         }
     }));

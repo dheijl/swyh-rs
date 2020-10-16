@@ -25,6 +25,11 @@ If it doesn't work for you, please run the debug exe from the zip file (swyh-rs-
 - implement file logging in the release build, similar to the console log in the debug build
 - probably some GUI tweaks, but I hate GUI programming
 
+### Known problems:
+
+- if your sound card has a forward slash (/) in the name, the "/" is replaced by "´´" in the sound source selection dropdown. The reason is purely technical: the FLTK MenuButton widget uses forward slashes in the text as a submenu indicator, so they have to be escaped to prevent this. 
+  From the FLTK reference: _The text is split at '/' characters to automatically produce submenus (actually a totally unnecessary feature as you can now add submenu titles directly by setting FL_SUBMENU in the flags)._ Thanks go to @MoAlyousef who pointed this out to me.
+
 
 ### How does it work?
 

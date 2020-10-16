@@ -8,21 +8,22 @@ pub trait FwSlashUnescape {
 
 impl FwSlashEscape for String {
     fn fw_slash_escape(&self) -> String {
-        let mut result = self.to_string();
         if self.contains('/') {
-            result = self.replace("/", "´´");
+            self.replace("/", "´´")
+        } else {
+            self.to_string()
         }
-        result
+
     }
 }
 
 impl FwSlashUnescape for String {
     fn fw_slash_unescape(&self) -> String {
-        let mut result = self.to_string();
         if self.contains("´´") {
-            result = self.replace("´´", "/");
+            self.replace("´´", "/")
+        } else {
+            self.to_string()
         }
-        result
     }
 }
 

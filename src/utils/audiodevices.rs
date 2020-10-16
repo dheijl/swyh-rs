@@ -1,14 +1,7 @@
 extern crate cpal;
 
+use crate::DEBUG;
 use cpal::traits::{DeviceTrait, HostTrait};
-
-macro_rules! DEBUG {
-    ($x:stmt) => {
-        if cfg!(debug_assertions) {
-            $x
-        }
-    };
-}
 
 pub fn get_output_audio_devices() -> Option<Vec<cpal::Device>> {
     let mut result: Vec<cpal::Device> = Vec::new();

@@ -1,3 +1,4 @@
+use crate::DEBUG;
 use ini::Ini;
 use std::fs;
 use std::io;
@@ -30,7 +31,7 @@ impl Configuration {
         let configfile = self.get_config();
 
         if !Path::new(&configfile).exists() {
-            eprintln!("Creating empty config {}", configfile.display());
+            DEBUG!(eprintln!("Creating empty config {}", configfile.display()));
             let mut conf = Ini::new();
             conf.with_section(Some("Configuration"))
                 .set("AutoResume", "false")

@@ -29,6 +29,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+use crate::DEBUG;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::net::SocketAddr;
@@ -38,14 +39,6 @@ use strfmt::strfmt;
 use stringreader::StringReader;
 use url::Url;
 use xml::reader::{EventReader, XmlEvent};
-
-macro_rules! DEBUG {
-    ($x:stmt) => {
-        if cfg!(debug_assertions) {
-            $x
-        }
-    };
-}
 
 // some audio config info
 #[derive(Debug, Clone, Copy)]

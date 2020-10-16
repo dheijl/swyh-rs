@@ -13,7 +13,6 @@ impl FwSlashEscape for String {
         } else {
             self.to_string()
         }
-
     }
 }
 

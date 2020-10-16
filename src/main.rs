@@ -54,25 +54,35 @@ extern crate bitflags;
 mod openhome;
 mod utils;
 
+use crate::openhome::avmedia::{discover, Renderer, WavData};
+use crate::utils::audiodevices::*;
+use crate::utils::configuration::Configuration;
+use crate::utils::escape::{FwSlashEscape, FwSlashUnescape};
+use crate::utils::priority::raise_priority;
+use crate::utils::rwstream::ChannelStream;
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
 use fltk::{app, button::*, frame::*, menu::*, text::*, window::*};
 use lazy_static::*;
-use openhome::avmedia::{discover, Renderer, WavData};
 use std::collections::HashMap;
 use std::net::{IpAddr, UdpSocket};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use tiny_http::*;
-use utils::audiodevices::*;
-use utils::configuration::Configuration;
-use utils::escape::{FwSlashEscape, FwSlashUnescape};
-use utils::rwstream::ChannelStream;
 
 /// app version
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[macro_export]
+macro_rules! DEBUG {
+    ($x:stmt) => {
+        if cfg!(debug_assertions) {
+            $x
+        }
+    };
+}
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
@@ -95,14 +105,6 @@ impl PartialEq for StreamingState {
 struct StreamerFeedBack {
     remote_ip: String,
     streaming_state: StreamingState,
-}
-
-macro_rules! DEBUG {
-    ($x:stmt) => {
-        if cfg!(debug_assertions) {
-            $x
-        }
-    };
 }
 
 lazy_static! {
@@ -401,45 +403,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[cfg(target_os = "windows")]
-fn raise_priority() {
-    use std::os::windows::raw::HANDLE;
-    use winapi::um::errhandlingapi::GetLastError;
-    use winapi::um::processthreadsapi::{GetCurrentProcess, GetCurrentProcessId, SetPriorityClass};
-    unsafe {
-        const ABOVE_NORMAL_PRIORITY_CLASS: u32 = 32768;
-        let id = GetCurrentProcess() as HANDLE;
-        if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS) == 0 {
-            let e = GetLastError();
-            DEBUG!(eprintln!(
-                "*E*E*>Failed to set process priority id={}, error={}",
-                GetCurrentProcessId(),
-                e
-            ));
-        }
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn raise_priority() {
-    // the following only works when you're root on Linux
-    // or if you give the program CAP_SYS_NICE (cf. setcap)
-    use libc::{getpriority, setpriority, PRIO_PROCESS};
-    unsafe {
-        let pri = getpriority(PRIO_PROCESS, 0);
-        let newpri = pri - 5;
-        let rc = setpriority(PRIO_PROCESS, 0, newpri);
-        if rc != 0 {
-            log("Sorry, but you don't have permissions to raise priority...".to_string());
-        } else {
-            log(format!("Now running at nice value {}", newpri));
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn raise_priority() {}
-
 ///
 /// update_ui - let fltk update the UI that was changed by other threads
 ///
@@ -723,14 +686,6 @@ where
     for (_, v) in clients.iter() {
         v.write(&i16_samples);
     }
-}
-
-/// _indent - indent the xml parser debug output
-fn _indent(size: usize) -> String {
-    const INDENT: &str = "    ";
-    (0..size)
-        .map(|_| INDENT)
-        .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
 }
 
 /// get_local_address - get the local ip address, return an `Option<String>`. when it fails, return `None`.

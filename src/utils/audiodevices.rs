@@ -1,55 +1,48 @@
 extern crate cpal;
 
-use crate::DEBUG;
 use cpal::traits::{DeviceTrait, HostTrait};
+use log::*;
 
 pub fn get_output_audio_devices() -> Option<Vec<cpal::Device>> {
     let mut result: Vec<cpal::Device> = Vec::new();
-    DEBUG!(eprintln!("Supported hosts:\n  {:?}", cpal::ALL_HOSTS));
+    debug!("Supported hosts:\n  {:?}", cpal::ALL_HOSTS);
     let available_hosts = cpal::available_hosts();
-    DEBUG!(eprintln!("Available hosts:\n  {:?}", available_hosts));
+    debug!("Available hosts:\n  {:?}", available_hosts);
 
     for host_id in available_hosts {
-        DEBUG!(eprintln!("{}", host_id.name()));
+        debug!("{}", host_id.name());
         let host = cpal::host_from_id(host_id).unwrap();
 
         let default_out = host.default_output_device().map(|e| e.name().unwrap());
-        DEBUG!(eprintln!("  Default Output Device:\n    {:?}", default_out));
+        debug!("  Default Output Device:\n    {:?}", default_out);
 
         let devices = host.devices().unwrap();
-        DEBUG!(eprintln!("  Devices: "));
+        debug!("  Devices: ");
         for (device_index, device) in devices.enumerate() {
-            DEBUG!(eprintln!(
-                "  {}. \"{}\"",
-                device_index + 1,
-                device.name().unwrap()
-            ));
+            debug!("  {}. \"{}\"", device_index + 1, device.name().unwrap());
 
             // Output configs
             let mut output_configs = match device.supported_output_configs() {
                 Ok(f) => f.peekable(),
                 Err(e) => {
-                    DEBUG!(eprintln!("Error: {:?}", e));
+                    debug!("Error: {:?}", e);
                     continue;
                 }
             };
             if output_configs.peek().is_some() {
-                DEBUG!(eprintln!("    All supported output stream configs:"));
+                debug!("    All supported output stream configs:");
                 for (config_index, config) in output_configs.enumerate() {
-                    DEBUG!(eprintln!(
+                    debug!(
                         "      {}.{}. {:?}",
                         device_index + 1,
                         config_index + 1,
                         config
-                    ));
+                    );
                 }
             }
             // use only device with default config
             if let Ok(conf) = device.default_output_config() {
-                DEBUG!(eprintln!(
-                    "    Default output stream config:\n      {:?}",
-                    conf
-                ));
+                debug!("    Default output stream config:\n      {:?}", conf);
                 result.push(device);
             }
         }

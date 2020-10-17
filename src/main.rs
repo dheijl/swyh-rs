@@ -54,12 +54,6 @@ extern crate bitflags;
 mod openhome;
 mod utils;
 
-use std::path::Path;
-use std::fs::File;
-use simplelog::Config;
-use simplelog::WriteLogger;
-use simplelog::TermLogger;
-use simplelog::CombinedLogger;
 use crate::openhome::avmedia::{discover, Renderer, WavData};
 use crate::utils::audiodevices::*;
 use crate::utils::configuration::Configuration;
@@ -73,8 +67,11 @@ use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSen
 use fltk::{app, button::*, frame::*, menu::*, text::*, window::*};
 use lazy_static::*;
 use log::*;
+use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::collections::HashMap;
+use std::fs::File;
 use std::net::IpAddr;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -82,15 +79,6 @@ use tiny_http::*;
 
 /// app version
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[macro_export]
-macro_rules! DEBUG {
-    ($x:stmt) => {
-        if cfg!(debug_assertions) {
-            $x
-        }
-    };
-}
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
@@ -142,17 +130,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.sound_source = audio_output_device.name().unwrap();
         let _ = config.update_config();
     }
-    DEBUG!(eprintln!("{:?}", config));
+    debug!("{:?}", config);
 
     // configure simplelogger
     let loglevel = config.log_level;
     let logfile = Path::new(&config.config_dir()).join("log.txt");
-    let _ = CombinedLogger::init(
-        vec![
-            TermLogger::new(loglevel, Config::default(), simplelog::TerminalMode::Stderr),
-            WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap())
-        ]
-    );
+    let _ = CombinedLogger::init(vec![
+        TermLogger::new(loglevel, Config::default(), simplelog::TerminalMode::Stderr),
+        WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
+    ]);
     info!("swyh-rs Logging started.");
 
     // set the output device
@@ -161,7 +147,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let devname = adev.name().unwrap();
         if devname == config.sound_source {
             audio_output_device = adev;
-            DEBUG!(eprintln!("Selected audio source: {}", devname));
+            debug!("Selected audio source: {}", devname);
         }
     }
 
@@ -231,7 +217,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     // collect the discovery result
     renderers = discover_handle.join().unwrap_or_default();
-    DEBUG!(eprintln!("Got {} renderers", renderers.len()));
+    debug!("Got {} renderers", renderers.len());
 
     // now create a button for each discovered renderer
     let mut buttons: HashMap<String, LightButton> = HashMap::new();
@@ -261,13 +247,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let but_cc = but_c.clone();
             match ev {
                 Event::Push => {
-                    DEBUG!(eprintln!(
+                    debug!(
                         "Pushed renderer #{} {} {}, state = {}",
                         bi,
                         renderer_c.dev_model,
                         renderer_c.dev_name,
                         if but_cc.is_set() { "ON" } else { "OFF" }
-                    ));
+                    );
                     if but_cc.is_set() {
                         let _ = renderer_c.play(&local_addr, SERVER_PORT, &wd, &log);
                     } else {
@@ -290,7 +276,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     raise_priority();
 
     // capture system audio
-    DEBUG!(eprintln!("Try capturing system audio"));
+    debug!("Try capturing system audio");
     let stream: cpal::Stream;
     match capture_output_audio(&audio_output_device) {
         Some(s) => {
@@ -456,9 +442,9 @@ fn tb_logger(mut tb: TextDisplay) {
     }
 }
 
-/// log - send a logmessage on the LOGCHANNEL sender
+/// log - send a logmessage to the textbox on the LOGCHANNEL sender
 fn log(s: String) {
-    DEBUG!(eprintln!("log: {}", s));
+    info!("log: {}", s);
     let logger: OtherSender<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();
@@ -469,7 +455,7 @@ fn log(s: String) {
 
 /// dummy_log is used during AV transport autoresume
 fn dummy_log(s: String) {
-    DEBUG!(eprintln!("Autoresume: {}", s));
+    debug!("Autoresume: {}", s);
 }
 
 /// run_server - run a webserver to serve requests from OpenHome media renderers
@@ -539,7 +525,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                         let mut clients = CLIENTS.lock().unwrap();
                         clients.insert(remote_ip.clone(), channel_stream);
-                        DEBUG!(eprintln!("Now have {} streaming clients", clients.len()));
+                        debug!("Now have {} streaming clients", clients.len());
                     }
                     feedback_tx_c
                         .send(StreamerFeedBack {
@@ -568,10 +554,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                     {
                         let mut clients = CLIENTS.lock().unwrap();
                         clients.remove(&remote_ip.clone());
-                        DEBUG!(eprintln!(
-                            "Now have {} streaming clients left",
-                            clients.len()
-                        ));
+                        debug!("Now have {} streaming clients left", clients.len());
                     }
                     log(format!("Streaming to {} has ended", remote_addr));
                     // inform the main thread that this renderer has finished receiving
@@ -584,7 +567,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         })
                         .unwrap();
                 } else if matches!(rq.method(), Method::Head) {
-                    DEBUG!(eprintln!("HEAD rq from {}", remote_addr));
+                    debug!("HEAD rq from {}", remote_addr);
                     let response = Response::empty(200)
                         .with_header(cc_hdr)
                         .with_header(ct_hdr)
@@ -601,7 +584,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         }
                     }
                 } else if matches!(rq.method(), Method::Post) {
-                    DEBUG!(eprintln!("POST rq from {}", remote_addr));
+                    debug!("POST rq from {}", remote_addr);
                     let response = Response::empty(200)
                         .with_header(cc_hdr)
                         .with_header(srvr_hdr)

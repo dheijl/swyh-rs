@@ -1,6 +1,5 @@
-use crate::DEBUG;
 use ini::Ini;
-use log::LevelFilter;
+use log::*;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -36,10 +35,7 @@ impl Configuration {
     pub fn read_config() -> Configuration {
         let configfile = Self::get_config_path();
         if !Path::new(&configfile).exists() {
-            DEBUG!(eprintln!(
-                "Creating a new default config {}",
-                configfile.display()
-            ));
+            debug!("Creating a new default config {}", configfile.display());
             let mut conf = Ini::new();
             conf.with_section(Some("Configuration"))
                 .set("AutoResume", "false")

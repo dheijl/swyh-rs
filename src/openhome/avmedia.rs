@@ -30,7 +30,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 use crate::get_local_addr;
-use crate::DEBUG;
+use log::*;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::net::SocketAddr;
@@ -222,12 +222,12 @@ impl Renderer {
 
     /// oh_soap_request - send an OpenHome SOAP message to a renderer
     fn oh_soap_request(&self, url: &str, soap_action: &str, body: &str) -> Option<String> {
-        DEBUG!(eprintln!(
+        debug!(
             "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
             url.to_string(),
             soap_action,
             body
-        ));
+        );
         let resp = ureq::post(url)
             .set("Connection", "close")
             .set("User-Agent", "swyh-rs-Rust/0.x")
@@ -236,7 +236,7 @@ impl Renderer {
             .set("Content-Type", "text/xml; charset=\"utf-8\"")
             .send_string(body);
         let xml = resp.into_string().unwrap();
-        DEBUG!(eprintln!("<=SOAP response: {}\r\n", xml));
+        debug!("<=SOAP response: {}\r\n", xml);
 
         Some(xml)
     }
@@ -284,7 +284,7 @@ impl Renderer {
         let url = format!("http://{}:{}{}", host, port, self.oh_control_url);
         let addr = format!("{}:{}", local_addr, server_port);
         let local_url = format!("http://{}/stream/swyh.wav", addr);
-        DEBUG!(eprintln!("OHPlaylist server URL: {}", local_url));
+        debug!("OHPlaylist server URL: {}", local_url);
         // delete current playlist
         let _resp = self
             .oh_soap_request(
@@ -331,7 +331,7 @@ impl Renderer {
             let e = resp.find("</NewId>").unwrap();
             seek_id = resp.as_str()[s + 7..e].to_string();
         }
-        DEBUG!(eprintln!("SeekId: {}", seek_id));
+        debug!("SeekId: {}", seek_id);
         // send seek_id
         vars.insert("seek_id".to_string(), seek_id);
         match strfmt(SEEKID_PL_TEMPLATE, &vars) {
@@ -383,7 +383,7 @@ impl Renderer {
         let url = format!("http://{}:{}{}", host, port, self.av_control_url);
         let addr = format!("{}:{}", local_addr, server_port);
         let local_url = format!("http://{}/stream/swyh.wav", addr);
-        DEBUG!(eprintln!("AvTransport server URL: {}", local_url));
+        debug!("AvTransport server URL: {}", local_url);
         // set AVTransportURI
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
@@ -525,12 +525,12 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
         match socket.recv_from(&mut buf) {
             Ok((received, from)) => {
                 resp = std::str::from_utf8(&buf[0..received]).unwrap().to_string();
-                DEBUG!(eprintln!(
+                debug!(
                     "UDP response at {} from {}: \r\n{}",
                     start.elapsed().as_millis(),
                     from,
                     resp
-                ));
+                );
                 let response: Vec<&str> = resp.split("\r\n").collect();
                 if !response.is_empty() {
                     let status_code = response[0]
@@ -615,10 +615,10 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
             r.oh_control_url, r.av_control_url
         ));
         for s in r.services.iter() {
-            DEBUG!(eprintln!(
+            debug!(
                 ".. {} {} {}",
                 s.service_type, s.service_id, s.control_url
-            ));
+            );
         }
     }
     logger("SSDP discovery complete".to_string());
@@ -627,10 +627,10 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
 
 /// get_service_description - get the upnp service description xml for a media renderer
 fn get_service_description(dev_url: &str) -> Option<String> {
-    DEBUG!(eprintln!(
+    debug!(
         "Get service description for {}",
         dev_url.to_string()
-    ));
+    );
     let url = dev_url.to_string();
     let resp = ureq::get(url.as_str())
         .set("User-Agent", "swyh-rs-Rust")
@@ -640,8 +640,8 @@ fn get_service_description(dev_url: &str) -> Option<String> {
         return None;
     }
     let descr_xml = resp.into_string().unwrap_or_default();
-    DEBUG!(eprintln!("Service description:"));
-    DEBUG!(eprintln!("{}", descr_xml));
+    debug!("Service description:");
+    debug!("{}", descr_xml);
     if !descr_xml.is_empty() {
         Some(descr_xml)
     } else {
@@ -700,7 +700,7 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                 }
             }
             Err(e) => {
-                DEBUG!(eprintln!("Error: {}", e));
+                debug!("Error: {}", e);
                 return None;
             }
             _ => {}

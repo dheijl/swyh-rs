@@ -1,5 +1,4 @@
 use crate::log;
-use crate::DEBUG;
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
@@ -11,7 +10,7 @@ pub fn raise_priority() {
         let id = GetCurrentProcess() as HANDLE;
         if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS) == 0 {
             let e = GetLastError();
-            DEBUG!(eprintln!(
+            log(format!(
                 "*E*E*>Failed to set process priority id={}, error={}",
                 GetCurrentProcessId(),
                 e

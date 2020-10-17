@@ -1,4 +1,4 @@
-//#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
+#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
 ///
 /// swyh-rs
 ///
@@ -375,7 +375,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     by += 35;
     let mut log_level_choice = MenuButton::new(20, by, (wind.width() / 8) * 2, 25, "Log level");
-    let log_levels = vec!["Info", "Warning", "Debug"];
+    let log_levels = vec!["Info", "Warn", "Debug"];
     for ll in log_levels.iter() {
         log_level_choice.add_choice(ll);
     }

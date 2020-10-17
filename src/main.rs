@@ -54,6 +54,12 @@ extern crate bitflags;
 mod openhome;
 mod utils;
 
+use std::path::Path;
+use std::fs::File;
+use simplelog::Config;
+use simplelog::WriteLogger;
+use simplelog::TermLogger;
+use simplelog::CombinedLogger;
 use crate::openhome::avmedia::{discover, Renderer, WavData};
 use crate::utils::audiodevices::*;
 use crate::utils::configuration::Configuration;
@@ -66,6 +72,7 @@ use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
 use fltk::{app, button::*, frame::*, menu::*, text::*, window::*};
 use lazy_static::*;
+use log::*;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
@@ -128,10 +135,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let audio_cfg = &audio_output_device
         .default_output_config()
         .expect("No default output config found");
-    let audio_devices = get_output_audio_devices().unwrap();
-
-    // raise process priority a bit to prevent stuttering under cpu load
-    raise_priority();
 
     // read config
     let mut config = Configuration::read_config();
@@ -141,6 +144,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     DEBUG!(eprintln!("{:?}", config));
 
+    // configure simplelogger
+    let loglevel = config.log_level;
+    let logfile = Path::new(&config.config_dir()).join("log.txt");
+    let _ = CombinedLogger::init(
+        vec![
+            TermLogger::new(loglevel, Config::default(), simplelog::TerminalMode::Stderr),
+            WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap())
+        ]
+    );
+    info!("swyh-rs Logging started.");
+
+    // set the output device
+    let audio_devices = get_output_audio_devices().unwrap();
     for adev in audio_devices {
         let devname = adev.name().unwrap();
         if devname == config.sound_source {
@@ -270,6 +286,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.redraw();
     update_ui();
 
+    // raise process priority a bit to prevent audio stuttering under cpu load
+    raise_priority();
+
     // capture system audio
     DEBUG!(eprintln!("Try capturing system audio"));
     let stream: cpal::Stream;
@@ -301,9 +320,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_resume.set(true);
     }
     let auto_resume_c = auto_resume.clone();
-    let mut config = Configuration::read_config();
     auto_resume.handle(Box::new(move |ev| match ev {
         Event::Released => {
+            let mut config = Configuration::read_config();
             if auto_resume_c.is_set() {
                 config.auto_resume = true;
             } else {

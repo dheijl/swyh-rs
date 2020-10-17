@@ -1,6 +1,6 @@
 use crate::DEBUG;
 use ini::Ini;
-use log::Level;
+use log::LevelFilter;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 pub struct Configuration {
     pub auto_resume: bool,
     pub sound_source: String,
-    pub log_level: Level,
+    pub log_level: LevelFilter,
     config_dir: PathBuf,
 }
 
@@ -19,7 +19,7 @@ impl Configuration {
             auto_resume: false,
             sound_source: "None".to_string(),
             config_dir: Self::get_config_dir(),
-            log_level: Level::Info,
+            log_level: LevelFilter::Info,
         }
     }
 
@@ -44,7 +44,7 @@ impl Configuration {
             conf.with_section(Some("Configuration"))
                 .set("AutoResume", "false")
                 .set("SoundCard", "None")
-                .set("LogLevel", Level::Info.to_string())
+                .set("LogLevel", LevelFilter::Info.to_string())
                 .set("ConfigDir", &Self::get_config_dir().display().to_string());
             conf.write_to_file(&configfile).unwrap();
         }
@@ -67,8 +67,12 @@ impl Configuration {
             .parse()
             .unwrap();
         let config_dir = conf
-        .get_from_or(Some("Configuration"), "ConfigDir", &configfile.display().to_string())
-        .to_string();
+            .get_from_or(
+                Some("Configuration"),
+                "ConfigDir",
+                &configfile.display().to_string(),
+            )
+            .to_string();
         config.config_dir = PathBuf::from(config_dir);
 
         config

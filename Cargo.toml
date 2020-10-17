@@ -1,6 +1,6 @@
 [package]
 name = "swyh-rs"
-version = "0.8.9"
+version = "0.9.0"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2018"
 
@@ -23,6 +23,7 @@ chrono = "*"
 bitflags = "*"
 rust-ini = "*"
 dirs = "*"
+log = "*"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "std"] }
 [target.'cfg(unix)'.dependencies]

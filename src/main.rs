@@ -58,6 +58,7 @@ use crate::openhome::avmedia::{discover, Renderer, WavData};
 use crate::utils::audiodevices::*;
 use crate::utils::configuration::Configuration;
 use crate::utils::escape::{FwSlashEscape, FwSlashUnescape};
+use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
 use ascii::AsciiString;
@@ -66,7 +67,7 @@ use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSen
 use fltk::{app, button::*, frame::*, menu::*, text::*, window::*};
 use lazy_static::*;
 use std::collections::HashMap;
-use std::net::{IpAddr, UdpSocket};
+use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -133,12 +134,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     raise_priority();
 
     // read config
-    let mut config = Configuration::new().read_config();
+    let mut config = Configuration::read_config();
     if config.sound_source == "None" {
         config.sound_source = audio_output_device.name().unwrap();
         let _ = config.update_config();
     }
-    DEBUG!(eprintln!("Current Configuration: {:?}", config));
+    DEBUG!(eprintln!("{:?}", config));
 
     for adev in audio_devices {
         let devname = adev.name().unwrap();
@@ -300,7 +301,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_resume.set(true);
     }
     let auto_resume_c = auto_resume.clone();
-    let mut config = Configuration::new().read_config();
+    let mut config = Configuration::read_config();
     auto_resume.handle(Box::new(move |ev| match ev {
         Event::Released => {
             if auto_resume_c.is_set() {
@@ -336,7 +337,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         *recursion += 1;
         match ev {
             Event::Push => {
-                let mut config = Configuration::new().read_config();
+                let mut config = Configuration::read_config();
                 let i = butas_cc.value();
                 if i < 0 {
                     return false;
@@ -564,7 +565,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         })
                         .unwrap();
                 } else if matches!(rq.method(), Method::Head) {
-                    //log(format!("HEAD rq from {}", remote_addr));
+                    DEBUG!(eprintln!("HEAD rq from {}", remote_addr));
                     let response = Response::empty(200)
                         .with_header(cc_hdr)
                         .with_header(ct_hdr)
@@ -581,7 +582,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         }
                     }
                 } else if matches!(rq.method(), Method::Post) {
-                    //log(format!("POST rq from {}", remote_addr));
+                    DEBUG!(eprintln!("POST rq from {}", remote_addr));
                     let response = Response::empty(200)
                         .with_header(cc_hdr)
                         .with_header(srvr_hdr)
@@ -685,24 +686,5 @@ where
     let clients = CLIENTS.lock().unwrap();
     for (_, v) in clients.iter() {
         v.write(&i16_samples);
-    }
-}
-
-/// get_local_address - get the local ip address, return an `Option<String>`. when it fails, return `None`.
-fn get_local_addr() -> Option<IpAddr> {
-    // bind to IN_ADDR_ANY, can be multiple interfaces/addresses
-    let socket = match UdpSocket::bind("0.0.0.0:0") {
-        Ok(s) => s,
-        Err(_) => return None,
-    };
-    // try to connect to Google DNS so that we bind to an interface connected to the internet
-    match socket.connect("8.8.8.8:80") {
-        Ok(()) => (),
-        Err(_) => return None,
-    };
-    // now we can return the IP address of this interface
-    match socket.local_addr() {
-        Ok(addr) => Some(addr.ip()),
-        Err(_) => None,
     }
 }

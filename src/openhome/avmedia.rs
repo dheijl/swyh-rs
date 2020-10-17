@@ -29,6 +29,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+use crate::get_local_addr;
 use crate::DEBUG;
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -494,14 +495,9 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     logger("SSDP discovery started".to_string());
 
     // get the address of the internet connected interface
-    let any: SocketAddr = ([0, 0, 0, 0], 0).into();
-    let socket = UdpSocket::bind(any).expect("Could not bind the UDP socket to INADDR_ANY");
-    let googledns: SocketAddr = ([8, 8, 8, 8], 80).into();
-    socket.connect(googledns).expect("No network connectivity");
-    let bind_addr = socket
-        .local_addr()
-        .expect("Could not obtain local ip address for udp broadcast socket");
-    let bind_addr = SocketAddr::new(bind_addr.ip(), 0);
+    let local_addr =
+        get_local_addr().expect("Could not obtain local ip address for udp broadcast socket");
+    let bind_addr = SocketAddr::new(local_addr, 0);
     let socket = UdpSocket::bind(&bind_addr).unwrap();
     let _ = socket
         .set_read_timeout(Some(Duration::from_millis(250)))

@@ -17,12 +17,12 @@ I use fltk-rs (<https://github.com/MoAlyousef/fltk-rs>) for the GUI, as it's eas
 Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/HifI Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
 
 You can get the latest Windows binary from the Release page (<https://github.com/dheijl/swyh-rs/releases>).
+There is a debug build and a release build in the zip file. You will only need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the swyh-rs folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
 
-If it doesn't work for you, please run the debug exe from the zip file (swyh-rs-deb.exe), this will give you a console window with loads of debug information.  Please open a new issue and include all this debug information. I will try to provide a fix ASAP.
+If it doesn't work for you, please open a new issue and include all the debug log level information. I will try to provide a fix ASAP.
 
 ### Todo:
 
-- implement file logging in the release build, similar to the console log in the debug build
 - probably some GUI tweaks, but I hate GUI programming
 
 ### Known problems:

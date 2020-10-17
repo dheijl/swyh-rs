@@ -615,10 +615,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
             r.oh_control_url, r.av_control_url
         ));
         for s in r.services.iter() {
-            debug!(
-                ".. {} {} {}",
-                s.service_type, s.service_id, s.control_url
-            );
+            debug!(".. {} {} {}", s.service_type, s.service_id, s.control_url);
         }
     }
     logger("SSDP discovery complete".to_string());
@@ -627,10 +624,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
 
 /// get_service_description - get the upnp service description xml for a media renderer
 fn get_service_description(dev_url: &str) -> Option<String> {
-    debug!(
-        "Get service description for {}",
-        dev_url.to_string()
-    );
+    debug!("Get service description for {}", dev_url.to_string());
     let url = dev_url.to_string();
     let resp = ureq::get(url.as_str())
         .set("User-Agent", "swyh-rs-Rust")

@@ -131,6 +131,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = config.update_config();
     }
     debug!("{:?}", config);
+    log(format!("Current log level {}", config.log_level));
+    if cfg!(debug_assertions) {
+        config.log_level = LevelFilter::Debug;
+    }
 
     // configure simplelogger
     let loglevel = config.log_level;
@@ -140,6 +144,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
     ]);
     info!("swyh-rs Logging started.");
+    if cfg!(debug_assertions) {
+        log("*W*W*>Running DEBUG build => log level forced to DEBUG!".to_string());
+    }
+
 
     // set the output device
     let audio_devices = get_output_audio_devices().unwrap();
@@ -364,6 +372,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }));
     wind.add(&choose_audio_source_but);
+
+    by += 35;
+    let mut log_level_choice = MenuButton::new(20, by, (wind.width() / 8) * 2, 25, "Log level");
+    let log_levels = vec!["Info", "Warning", "Debug"];
+    for ll in log_levels.iter() {
+        log_level_choice.add_choice(ll);
+    }
+    let rlock = Mutex::new(0);
+    let log_lc_c = log_level_choice.clone();
+    log_level_choice.handle(Box::new(move |ev| {
+        let mut recursion = rlock.lock().unwrap();
+        if *recursion > 0 {
+            return false;
+        }
+        *recursion += 1;
+        match ev {
+            Event::Push => {
+                let mut config = Configuration::read_config();
+                let i = log_lc_c.value();
+                if i < 0 {
+                    return false;
+                }
+                let level = log_levels[i as usize];
+                log(format!(
+                    "*W*W*> Log level changed to {}, restart required!!",
+                    level
+                )); // std::env::current_exe()
+                config.log_level = level.parse().unwrap_or(LevelFilter::Info);
+                let _ = config.update_config();
+                *recursion -= 1;
+                true
+            }
+            _ => {
+                *recursion -= 1;
+                false
+            }
+        }
+    }));
+
+    wind.add(&log_level_choice);
+
     wind.redraw();
     update_ui();
 
@@ -444,7 +493,12 @@ fn tb_logger(mut tb: TextDisplay) {
 
 /// log - send a logmessage to the textbox on the LOGCHANNEL sender
 fn log(s: String) {
-    info!("log: {}", s);
+    let cat: &str = &s[..2];
+    match cat {
+        "*W" => warn!("tb_log: {}", s),
+        "*E" => error!("tb_log: {}", s),
+        _ => info!("tb_log: {}", s),
+    }; 
     let logger: OtherSender<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();

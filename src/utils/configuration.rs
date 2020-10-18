@@ -66,7 +66,7 @@ impl Configuration {
             .get_from_or(
                 Some("Configuration"),
                 "ConfigDir",
-                &configfile.display().to_string(),
+                &Self::get_config_dir().display().to_string(),
             )
             .to_string();
         config.config_dir = PathBuf::from(config_dir);

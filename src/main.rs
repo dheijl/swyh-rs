@@ -63,7 +63,7 @@ use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, StreamTrait};
-use crossbeam_channel::{unbounded, Receiver as OtherReceiver, Sender as OtherSender};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{app, button::*, frame::*, menu::*, text::*, window::*};
 use lazy_static::*;
 use log::*;
@@ -105,7 +105,7 @@ struct StreamerFeedBack {
 
 lazy_static! {
     static ref CLIENTS: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
-    static ref LOGCHANNEL: Mutex<(OtherSender<String>, OtherReceiver<String>)> =
+    static ref LOGCHANNEL: Mutex<(Sender<String>, Receiver<String>)> =
         Mutex::new(unbounded());
 }
 
@@ -297,8 +297,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     // start webserver
     let (feedback_tx, feedback_rx): (
-        OtherSender<StreamerFeedBack>,
-        OtherReceiver<StreamerFeedBack>,
+        Sender<StreamerFeedBack>,
+        Receiver<StreamerFeedBack>,
     ) = unbounded();
     let _ = std::thread::Builder::new()
         .name("swyh_rs_webserver".into())
@@ -472,7 +472,7 @@ fn update_ui() {
 /// this function reads log messages from the LOGCHANNEL receiver
 /// and adds them to an fltk TextBox (using a mutex)
 fn tb_logger(mut tb: TextDisplay) {
-    let logreader: OtherReceiver<String>;
+    let logreader: Receiver<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();
         logreader = ch.1.clone();
@@ -499,7 +499,7 @@ fn log(s: String) {
         "*E" => error!("tb_log: {}", s),
         _ => info!("tb_log: {}", s),
     }; 
-    let logger: OtherSender<String>;
+    let logger: Sender<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();
         logger = ch.0.clone();
@@ -518,7 +518,7 @@ fn dummy_log(s: String) {
 /// the samples are read from a crossbeam channel fed by the wave_reader
 /// a ChannelStream is created for this purpose, and inserted in the array of active
 /// "clients" for the wave_reader
-fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<StreamerFeedBack>) {
+fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeedBack>) {
     let addr = format!("{}:{}", local_addr, SERVER_PORT);
     let logmsg = format!(
         "The streaming server is listening on http://{}/stream/swyh.wav",
@@ -574,7 +574,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: OtherSender<Streame
                         rq.url(),
                         rq.remote_addr()
                     ));
-                    let (tx, rx): (OtherSender<Vec<i16>>, OtherReceiver<Vec<i16>>) = unbounded();
+                    let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
                     {
                         let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                         let mut clients = CLIENTS.lock().unwrap();

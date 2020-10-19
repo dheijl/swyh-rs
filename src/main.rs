@@ -157,7 +157,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .stack_size(4 * 1024 * 1024)
         .spawn(move || tb_logger(tb))
         .unwrap();
-    wind.make_resizable(true);
     wind.end();
     wind.show();
     update_ui();
@@ -345,7 +344,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // now create a button for each discovered renderer
     let mut buttons: HashMap<String, LightButton> = HashMap::new();
     // button dimensions and starting position
-    let bwidth = frame.width() / 2; // button width
+    let bwidth = frame.width(); // button width
     let bheight = frame.height(); // button height
                                   // create the buttons
                                   // we need to pass some audio config data to the play function
@@ -423,9 +422,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auto_resume_c = &auto_resume;
     loop {
         app::wait_for(0.0)?;
-        if wind.width() < (sw / 3.0) as i32 || wind.height() < (sh / 3.0) as i32 {
-            wind.resize(wind.x(), wind.y(), (sw / 3.0) as i32, (sh / 3.0) as i32);
+        if wind.width() < (sw / 3.0) as i32 {
+            wind.resize(wind.x(), wind.y(), (sw / 3.0) as i32, wind.height());           
             wind.redraw();
+        }
+        if wind.height() < (sh / 3.0) as i32 {
+            wind.resize(wind.x(), wind.y(), wind.width(), (sh / 3.0) as i32);
+            wind.redraw();
+            app::wait_for(0.0)?;
         }
         std::thread::sleep(std::time::Duration::new(0, 10_000_000));
         if app::should_program_quit() {

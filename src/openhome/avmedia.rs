@@ -569,7 +569,12 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
                     continue;
                 }
             }
-            Err(_e) => {}
+            Err(e) => {
+                // ignore socket read timeout
+                if !e.to_string().contains("10060)") {
+                    logger(format!("*E*E>Error reading SSDP M-SEARCH response: {}", e));
+                }
+            }
         }
     }
 
@@ -694,7 +699,7 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                 }
             }
             Err(e) => {
-                debug!("Error: {}", e);
+                error!("SSDP Get Renderer Description Error: {}", e);
                 return None;
             }
             _ => {}

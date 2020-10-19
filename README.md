@@ -45,5 +45,5 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 ### Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/96004784-18183b80-0e3c-11eb-8229-8584f80569b2.PNG)
+![alt_tag](https://user-images.githubusercontent.com/2384545/96385992-d4089c00-1197-11eb-9e73-7753d7429070.PNG)
 

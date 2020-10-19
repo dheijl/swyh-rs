@@ -4,9 +4,6 @@
 ///
 /// Basic SWYH (https://www.streamwhatyouhear.com/, source repo https://github.com/StreamWhatYouHear/SWYH) clone entirely written in rust.
 ///
-/// Has only been tested with Volumio (https://volumio.org/) streamers, but will probably support any streamer that supports the OpenHome
-/// protocol (not the original DLNA).
-///
 /// I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 ///
 /// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
@@ -17,11 +14,6 @@
 /// I use fltk-rs (https://github.com/MoAlyousef/fltk-rs) for the GUI, as it's easy to use and works well.
 ///
 /// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio devices. Don't have access to a Mac, so I don't know if this would work.
-///
-/// Todo:
-///
-/// - make everything more robust (error handling)
-/// - clean-up and comments
 ///
 ///
 /*
@@ -105,8 +97,7 @@ struct StreamerFeedBack {
 
 lazy_static! {
     static ref CLIENTS: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
-    static ref LOGCHANNEL: Mutex<(Sender<String>, Receiver<String>)> =
-        Mutex::new(unbounded());
+    static ref LOGCHANNEL: Mutex<(Sender<String>, Receiver<String>)> = Mutex::new(unbounded());
 }
 
 /// swyh-rs
@@ -123,6 +114,53 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let audio_cfg = &audio_output_device
         .default_output_config()
         .expect("No default output config found");
+
+    let _app = app::App::default().with_scheme(app::Scheme::Gleam);
+    let (sw, sh) = app::screen_size();
+    let mut wind = Window::default()
+        .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
+        .with_label(&format!(
+            "swyh-rs UPNP/DLNA Media Renderers V{}",
+            APP_VERSION
+        ));
+    wind.handle(Box::new(move |_ev| {
+        //eprintln!("{:?}", app::event());
+        let ev = app::event();
+        match ev {
+            Event::Close => {
+                _app.quit();
+                std::process::exit(0);
+            }
+            _ => false,
+        }
+    }));
+
+    wind.make_resizable(true);
+
+    let fw = (sw as i32) / 3;
+    let xpos = ((wind.width() - 30) / 2) - (fw / 2);
+    let mut ypos = 5;
+
+    let mut opt_frame = Frame::new(xpos, ypos, fw, 25, "").with_align(Align::Center);
+    opt_frame.set_frame(FrameType::BorderBox);
+    opt_frame.set_label("Options");
+    ypos += 35;
+
+    // setup feedback textbox at the bottom
+    let buf = TextBuffer::default();
+    let mut tb =
+        TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left);
+    tb.set_buffer(Some(buf));
+    // setup the feedback textbox logger thread
+    let _ = std::thread::Builder::new()
+        .name("textdisplay_updater".into())
+        .stack_size(4 * 1024 * 1024)
+        .spawn(move || tb_logger(tb))
+        .unwrap();
+    wind.make_resizable(true);
+    wind.end();
+    wind.show();
+    update_ui();
 
     // read config
     let mut config = Configuration::read_config();
@@ -148,168 +186,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         log("*W*W*>Running DEBUG build => log level forced to DEBUG!".to_string());
     }
 
-
-    // set the output device
-    let audio_devices = get_output_audio_devices().unwrap();
-    for adev in audio_devices {
-        let devname = adev.name().unwrap();
-        if devname == config.sound_source {
-            audio_output_device = adev;
-            debug!("Selected audio source: {}", devname);
-        }
-    }
-
-    let _app = app::App::default().with_scheme(app::Scheme::Gleam);
-    let (sw, sh) = app::screen_size();
-    let mut wind = Window::default()
-        .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
-        .with_label(&format!(
-            "swyh-rs UPNP/DLNA Media Renderers V{}",
-            APP_VERSION
-        ));
-    wind.handle(Box::new(move |_ev| {
-        //eprintln!("{:?}", app::event());
-        let ev = app::event();
-        match ev {
-            Event::Close => {
-                _app.quit();
-                std::process::exit(0);
-            }
-            _ => false,
-        }
-    }));
-
-    let fw = (sw as i32) / 3;
-    let fx = ((wind.width() - 30) / 2) - (fw / 2);
-    let mut frame = Frame::new(fx, 5, fw, 25, "").with_align(Align::Center);
-    frame.set_frame(FrameType::BorderBox);
-    let buf = TextBuffer::default();
-    let mut tb =
-        TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left);
-    tb.set_buffer(Some(buf));
-    // setup the he textbox logger thread
-    let _ = std::thread::Builder::new()
-        .name("textdisplay_updater".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(move || tb_logger(tb))
-        .unwrap();
-    update_ui();
-
-    let local_addr = get_local_addr().expect("Could not obtain local address.");
-    frame.set_label(&format!(
-        "Scanning {} for UPNP rendering devices",
-        local_addr
-    ));
-    wind.make_resizable(true);
-    wind.end();
-    wind.show();
-    update_ui();
-
-    // get the av media renderers in this network in  the discover thread
-    let renderers: Vec<Renderer>;
-    let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
-        .name("ssdp_discover".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(|| discover(&log).unwrap_or_default())
-        .unwrap();
-    // wait for discovery to complete (max 3.1 secs)
-    let start = Instant::now();
-    loop {
-        let duration = start.elapsed();
-        // keep capturing responses for more then 3 seconds (M_SEARCH MX time)
-        if duration > Duration::from_millis(3_200) {
-            break;
-        }
-        update_ui();
-        std::thread::sleep(std::time::Duration::new(0, 100_000_000));
-    }
-    // collect the discovery result
-    renderers = discover_handle.join().unwrap_or_default();
-    debug!("Got {} renderers", renderers.len());
-
-    // now create a button for each discovered renderer
-    let mut buttons: HashMap<String, LightButton> = HashMap::new();
-    // button dimensions and starting position
-    let bwidth = frame.width() / 2; // button width
-    let bheight = frame.height(); // button height
-    let bx = ((wind.width() - 30) / 2) - (bwidth / 2); // button x offset
-    let mut by = frame.y() + frame.height() + 10; // button y offset
-                                                  // create the buttons
-                                                  // we need to pass some audio config data to the play function
-    let wd = WavData {
-        sample_format: audio_cfg.sample_format(),
-        sample_rate: audio_cfg.sample_rate(),
-        channels: audio_cfg.channels(),
-    };
-    // loop over the renderers with the associated button index
-    for (bi, renderer) in renderers.iter().enumerate() {
-        let mut but = LightButton::default() // create the button
-            .with_size(bwidth, bheight)
-            .with_pos(bx, by)
-            .with_align(Align::Center)
-            .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-        // prepare for closure
-        let renderer_c = renderer.clone();
-        let but_c = but.clone();
-        but.handle(Box::new(move |ev| {
-            let but_cc = but_c.clone();
-            match ev {
-                Event::Push => {
-                    debug!(
-                        "Pushed renderer #{} {} {}, state = {}",
-                        bi,
-                        renderer_c.dev_model,
-                        renderer_c.dev_name,
-                        if but_cc.is_set() { "ON" } else { "OFF" }
-                    );
-                    if but_cc.is_set() {
-                        let _ = renderer_c.play(&local_addr, SERVER_PORT, &wd, &log);
-                    } else {
-                        let _ = renderer_c.stop_play(&log);
-                    }
-                    true
-                }
-                _ => true,
-            }
-        }));
-        wind.add(&but); // add the button to the window
-        buttons.insert(renderer.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
-        by += bheight + 10; // and the button y offset
-    }
-    frame.set_label("Rendering Devices");
-    wind.redraw();
-    update_ui();
-
-    // raise process priority a bit to prevent audio stuttering under cpu load
-    raise_priority();
-
-    // capture system audio
-    debug!("Try capturing system audio");
-    let stream: cpal::Stream;
-    match capture_output_audio(&audio_output_device) {
-        Some(s) => {
-            stream = s;
-            stream.play().unwrap();
-        }
-        None => {
-            log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
-        }
-    }
-    // start webserver
-    let (feedback_tx, feedback_rx): (
-        Sender<StreamerFeedBack>,
-        Receiver<StreamerFeedBack>,
-    ) = unbounded();
-    let _ = std::thread::Builder::new()
-        .name("swyh_rs_webserver".into())
-        .stack_size(4 * 102 * 1024)
-        .spawn(move || run_server(&local_addr, wd, feedback_tx.clone()))
-        .unwrap();
-    std::thread::yield_now();
-
     // show auto_resume option checkbox
-    by += 10;
-    let mut auto_resume = CheckButton::new(20, by, 150, 25, "Autoresume play");
+    let mut auto_resume = CheckButton::new(xpos, ypos, 150, 25, "Autoresume play");
     if config.auto_resume {
         auto_resume.set(true);
     }
@@ -330,10 +208,64 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.add(&auto_resume);
     wind.redraw();
     update_ui();
+    ypos += 35;
 
-    by += 35;
+    // set the output device
+    let audio_devices = get_output_audio_devices().unwrap();
+    for adev in audio_devices {
+        let devname = adev.name().unwrap();
+        if devname == config.sound_source {
+            audio_output_device = adev;
+            debug!("Selected audio source: {}", devname);
+        }
+    }
+
+    // show log level choice
+    let mut log_level_choice = MenuButton::new(xpos, ypos, (wind.width() / 8) * 2, 25, "Log level");
+    let log_levels = vec!["Info", "Warn", "Debug"];
+    for ll in log_levels.iter() {
+        log_level_choice.add_choice(ll);
+    }
+    let rlock = Mutex::new(0);
+    let log_lc_c = log_level_choice.clone();
+    log_level_choice.handle(Box::new(move |ev| {
+        let mut recursion = rlock.lock().unwrap();
+        if *recursion > 0 {
+            return false;
+        }
+        *recursion += 1;
+        match ev {
+            Event::Push => {
+                let mut config = Configuration::read_config();
+                let i = log_lc_c.value();
+                if i < 0 {
+                    return false;
+                }
+                let level = log_levels[i as usize];
+                log(format!(
+                    "*W*W*> Log level changed to {}, restart required!!",
+                    level
+                )); // std::env::current_exe()
+                config.log_level = level.parse().unwrap_or(LevelFilter::Info);
+                let _ = config.update_config();
+                *recursion -= 1;
+                true
+            }
+            _ => {
+                *recursion -= 1;
+                false
+            }
+        }
+    }));
+    ypos += 35;
+    wind.add(&log_level_choice);
+
+    wind.redraw();
+    update_ui();
+
+    // setup audio source
     let mut choose_audio_source_but =
-        MenuButton::new(20, by, (wind.width() / 3) * 2, 25, "Change Audio Source");
+        MenuButton::new(xpos, ypos, (wind.width() / 3) * 2, 25, "Change Audio Source");
     let devices = get_output_audio_devices().unwrap();
     for dev in devices.iter() {
         choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_escape());
@@ -372,49 +304,119 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }));
     wind.add(&choose_audio_source_but);
-
-    by += 35;
-    let mut log_level_choice = MenuButton::new(20, by, (wind.width() / 8) * 2, 25, "Log level");
-    let log_levels = vec!["Info", "Warn", "Debug"];
-    for ll in log_levels.iter() {
-        log_level_choice.add_choice(ll);
-    }
-    let rlock = Mutex::new(0);
-    let log_lc_c = log_level_choice.clone();
-    log_level_choice.handle(Box::new(move |ev| {
-        let mut recursion = rlock.lock().unwrap();
-        if *recursion > 0 {
-            return false;
-        }
-        *recursion += 1;
-        match ev {
-            Event::Push => {
-                let mut config = Configuration::read_config();
-                let i = log_lc_c.value();
-                if i < 0 {
-                    return false;
-                }
-                let level = log_levels[i as usize];
-                log(format!(
-                    "*W*W*> Log level changed to {}, restart required!!",
-                    level
-                )); // std::env::current_exe()
-                config.log_level = level.parse().unwrap_or(LevelFilter::Info);
-                let _ = config.update_config();
-                *recursion -= 1;
-                true
-            }
-            _ => {
-                *recursion -= 1;
-                false
-            }
-        }
-    }));
-
-    wind.add(&log_level_choice);
-
     wind.redraw();
     update_ui();
+    ypos += 35;
+
+    let mut frame = Frame::new(xpos, ypos, fw, 25, "").with_align(Align::Center);
+    frame.set_frame(FrameType::BorderBox);
+    let local_addr = get_local_addr().expect("Could not obtain local address.");
+    frame.set_label(&format!(
+        "Scanning {} for UPNP rendering devices",
+        local_addr
+    ));
+    wind.add(&frame);
+    ypos += 35;
+    wind.redraw();
+    update_ui();
+
+    // get the av media renderers in this network in  the discover thread
+    let renderers: Vec<Renderer>;
+    let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
+        .name("ssdp_discover".into())
+        .stack_size(4 * 1024 * 1024)
+        .spawn(|| discover(&log).unwrap_or_default())
+        .unwrap();
+    // wait for discovery to complete (max 3.1 secs)
+    let start = Instant::now();
+    loop {
+        let duration = start.elapsed();
+        // keep capturing responses for more then 3 seconds (M_SEARCH MX time)
+        if duration > Duration::from_millis(3_200) {
+            break;
+        }
+        update_ui();
+        std::thread::sleep(std::time::Duration::new(0, 100_000_000));
+    }
+    // collect the discovery result
+    renderers = discover_handle.join().unwrap_or_default();
+    debug!("Got {} renderers", renderers.len());
+
+    // now create a button for each discovered renderer
+    let mut buttons: HashMap<String, LightButton> = HashMap::new();
+    // button dimensions and starting position
+    let bwidth = frame.width() / 2; // button width
+    let bheight = frame.height(); // button height
+                                  // create the buttons
+                                  // we need to pass some audio config data to the play function
+    let wd = WavData {
+        sample_format: audio_cfg.sample_format(),
+        sample_rate: audio_cfg.sample_rate(),
+        channels: audio_cfg.channels(),
+    };
+    // loop over the renderers with the associated button index
+    for (bi, renderer) in renderers.iter().enumerate() {
+        let mut but = LightButton::default() // create the button
+            .with_size(bwidth, bheight)
+            .with_pos(xpos, ypos)
+            .with_align(Align::Center)
+            .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
+        // prepare for closure
+        let renderer_c = renderer.clone();
+        let but_c = but.clone();
+        but.handle(Box::new(move |ev| {
+            let but_cc = but_c.clone();
+            match ev {
+                Event::Push => {
+                    debug!(
+                        "Pushed renderer #{} {} {}, state = {}",
+                        bi,
+                        renderer_c.dev_model,
+                        renderer_c.dev_name,
+                        if but_cc.is_set() { "ON" } else { "OFF" }
+                    );
+                    if but_cc.is_set() {
+                        let _ = renderer_c.play(&local_addr, SERVER_PORT, &wd, &log);
+                    } else {
+                        let _ = renderer_c.stop_play(&log);
+                    }
+                    true
+                }
+                _ => true,
+            }
+        }));
+        wind.add(&but); // add the button to the window
+        buttons.insert(renderer.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
+        ypos += bheight + 10; // and the button y offset
+    }
+    frame.set_label("Rendering Devices");
+    wind.redraw();
+    update_ui();
+
+    // raise process priority a bit to prevent audio stuttering under cpu load
+    raise_priority();
+
+    // capture system audio
+    debug!("Try capturing system audio");
+    let stream: cpal::Stream;
+    match capture_output_audio(&audio_output_device) {
+        Some(s) => {
+            stream = s;
+            stream.play().unwrap();
+        }
+        None => {
+            log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
+        }
+    }
+    // start webserver
+    let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
+        unbounded();
+    let _ = std::thread::Builder::new()
+        .name("swyh_rs_webserver".into())
+        .stack_size(4 * 102 * 1024)
+        .spawn(move || run_server(&local_addr, wd, feedback_tx.clone()))
+        .unwrap();
+    std::thread::yield_now();
 
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
@@ -498,7 +500,7 @@ fn log(s: String) {
         "*W" => warn!("tb_log: {}", s),
         "*E" => error!("tb_log: {}", s),
         _ => info!("tb_log: {}", s),
-    }; 
+    };
     let logger: Sender<String>;
     {
         let ch = &LOGCHANNEL.lock().unwrap();

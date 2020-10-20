@@ -42,7 +42,14 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - some AVTtransport renderers will stop when detecting a pause between songs, you can use the "autoresume" checkbox if you encounter this problem.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program runs at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering
-- the SSDP discovery process is rerun every minute in the background, newly discovered renderers will be automatically added to the GUI
+- the SSDP discovery process is rerun every minute in the background, any newly discovered renderers will be automatically added to the GUI. Existing renderers that "disappear" during discovery are not deleted from the GUI, as SSDP discovery is not guaranteed to be failsafe (it uses UDP packets).
+
+### Audio quality and Windows WasApi Loopback capture
+
+If you want maximum audio quality on Windows, there are a number of concerns:
+
+- you should avoid resampling, because it affects audio quality. The sampling rate from the original audio source should be used to preserve quality. This means that you should make sure that the sampling frequency in the entire audio chain is the same (Use "Control Panel Sound" to check/change the sampling frequency). Bit depth does not really affect sound quality, 16 bit *is* enough except if you are recording for mastering purposes in an audio lab. Deezer HiFi and Spotify Premium use 16 bit 44100 Hz.
+- on Windows, WasApi is used to capture audio. WasApi tries to capture directly from the hardware (soundcard) loopback if available, otherwise it uses the soundsource directly. In practice, this means that the soundcard loopback audio quality can be vastly inferior to the original soundsource (Realtek, Conexant, especially in laptops). Make sure all "effects" are disabled. The freeware/donationware VBAudio HiFi Cable driver (https://shop.vb-audio.com/en/win-apps/19-hifi-cable-asio-bridge.html?SubmitCurrency=1&id_currency=2) is an excellent solution to prevent this problem. Just make sure you configure it with the same sampling frequency as the default Windows audio source. You can then select HiFi Cable as the sound source in swyh-rs, and use the Windows Sound Mixer to route different apps to other sound drivers for Windows as needed (system sound etc). HiFi cable is a bit perfect pipe from the audio source to the renderer, except for the bit depth at this moment, because swyh-rs uses audio/l16 to stream to the network players, but this does not affect sound quality, it only limits the dynamic range to 96 dB which is fine for HiFi.
 
 ### Screenshot:
 

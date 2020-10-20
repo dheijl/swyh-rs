@@ -1,4 +1,4 @@
-//#![windows_subsystem = "windows"]  // to suppress console with debug output for release builds
+//#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
 ///
 /// swyh-rs
 ///
@@ -262,6 +262,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     update_ui();
 
     // setup audio source
+    log("Setup audio sources".to_string());
     let mut choose_audio_source_but = MenuButton::new(
         xpos,
         ypos,
@@ -311,6 +312,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     update_ui();
     ypos += 35;
 
+    log("Running SSDP discovery".to_string());
     let mut frame = Frame::new(xpos, ypos, fw, 25, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
     let local_addr = get_local_addr().expect("Could not obtain local address.");
@@ -323,26 +325,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.redraw();
     update_ui();
 
-    // get the av media renderers in this network in  the discover thread
-    let renderers: Vec<Renderer>;
-    let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
-        .name("ssdp_discover".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(|| discover(&log).unwrap_or_default())
-        .unwrap();
-    // wait for discovery to complete (max 3.1 secs)
-    let start = Instant::now();
-    loop {
-        let duration = start.elapsed();
-        // keep capturing responses for more then 3 seconds (M_SEARCH MX time)
-        if duration > Duration::from_millis(3_200) {
-            break;
-        }
-        update_ui();
-        std::thread::sleep(std::time::Duration::new(0, 100_000_000));
-    }
-    // collect the discovery result
-    renderers = discover_handle.join().unwrap_or_default();
+    // get the av media renderers in this network in a seperate discover thread
+    let renderers = get_renderers(true);
     debug!("Got {} renderers", renderers.len());
 
     // now create a button for each discovered renderer
@@ -421,6 +405,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     std::thread::yield_now();
 
+    // start SSDP discovery update thread
+    let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
+    let mut rmap: HashMap<String, Renderer> = HashMap::new();
+    for r in renderers.iter() {
+        rmap.insert(r.remote_addr.clone(), r.clone());
+    }
+    let _ = std::thread::Builder::new()
+        .name("ssdp_updater".into())
+        .stack_size(4 * 102 * 1024)
+        .spawn(move || run_ssdp_updater(rmap, ssdp_tx))
+        .unwrap();
+
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
     let auto_resume_c = &auto_resume;
@@ -464,6 +460,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
+        }
+        // check if the ssdp discovery thread has found a new renderer
+        // if yes: add a new button below the last one
+        if let Ok(newr) = ssdp_rx.try_recv() {
+            let mut but = LightButton::default() // create the button
+                .with_size(bwidth, bheight)
+                .with_pos(xpos, ypos)
+                .with_align(Align::Center)
+                .with_label(&format!("{} {}", newr.dev_model, newr.dev_name));
+            // prepare for closure
+            let newr_c = newr.clone();
+            let but_c = but.clone();
+            let bi = buttons.len();
+            but.handle(Box::new(move |ev| {
+                let but_cc = but_c.clone();
+                match ev {
+                    Event::Push => {
+                        debug!(
+                            "Pushed renderer #{} {} {}, state = {}",
+                            bi,
+                            newr_c.dev_model,
+                            newr_c.dev_name,
+                            if but_cc.is_set() { "ON" } else { "OFF" }
+                        );
+                        if but_cc.is_set() {
+                            let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
+                        } else {
+                            let _ = newr_c.stop_play(&log);
+                        }
+                        true
+                    }
+                    _ => true,
+                }
+            }));
+            wind.add(&but); // add the button to the window
+            wind.redraw();
+            buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
+            ypos += bheight + 10; // and the button y offset
         }
     }
     Ok(())
@@ -670,6 +704,54 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
 
     for h in handles {
         h.join().unwrap();
+    }
+}
+
+fn get_renderers(do_update_ui: bool) -> Vec<Renderer> {
+    let renderers: Vec<Renderer>;
+    let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
+        .name("ssdp_discover".into())
+        .stack_size(4 * 1024 * 1024)
+        .spawn(|| discover(&log).unwrap_or_default())
+        .unwrap();
+    // wait for discovery to complete (max 3.1 secs)
+    let start = Instant::now();
+    loop {
+        let duration = start.elapsed();
+        // keep capturing responses for more then 3 seconds (M_SEARCH MX time)
+        if duration > Duration::from_millis(3_200) {
+            break;
+        }
+        if do_update_ui {
+            update_ui();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    // collect the discovery result
+    renderers = discover_handle.join().unwrap_or_default();
+    renderers
+}
+
+fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Renderer>) {
+    let ssdp_interval = Duration::new(60, 0); // every minute
+    let mut ssdp_last_run = Instant::now();
+    loop {
+        if ssdp_last_run.elapsed() > ssdp_interval {
+            ssdp_last_run = Instant::now();
+            let renderers = get_renderers(false);
+            for r in renderers.iter() {
+                if !rmap.contains_key(&r.remote_addr) {
+                    let _ = ssdp_tx.send(r.clone());
+                    info!(
+                        "Found new renderer {} {}  at {}",
+                        r.dev_name, r.dev_model, r.remote_addr
+                    );
+                    rmap.insert(r.remote_addr.clone(), r.clone());
+                }
+            }
+        } else {
+            std::thread::sleep(Duration::from_millis(100));
+        }
     }
 }
 

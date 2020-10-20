@@ -492,7 +492,7 @@ ST: urn:schemas-upnp-org:service:RenderingControl:1\r\n\
 MX: 3\r\n\r\n";
 
 pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
-    logger("SSDP discovery started".to_string());
+    debug!("SSDP discovery started");
 
     // get the address of the internet connected interface
     let local_addr =
@@ -562,7 +562,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
                         }
                     }
                     if is_renderer {
-                        logger(format!("Renderer at : {}", dev_url.clone()));
+                        info!("Renderer at : {}", dev_url.clone());
                         devices.push((dev_url, from));
                     }
                 } else {
@@ -578,7 +578,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
         }
     }
 
-    logger("Getting renderer descriptions".to_string());
+    debug!("Getting renderer descriptions");
     let mut renderers: Vec<Renderer> = Vec::new();
 
     for (dev, from) in devices {
@@ -607,23 +607,23 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     }
 
     for r in renderers.iter() {
-        logger(format!(
+        debug!(
             "Renderer {} {} ip {} at urlbase {} has {} services",
             r.dev_name,
             r.dev_model,
             r.remote_addr,
             r.dev_url,
             r.services.len()
-        ));
-        logger(format!(
+        );
+        debug!(
             "  => OpenHome Playlist control url: '{}', AvTransport url: '{}'",
             r.oh_control_url, r.av_control_url
-        ));
+        );
         for s in r.services.iter() {
             debug!(".. {} {} {}", s.service_type, s.service_id, s.control_url);
         }
     }
-    logger("SSDP discovery complete".to_string());
+    debug!("SSDP discovery complete");
     Some(renderers)
 }
 

@@ -571,7 +571,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
             }
             Err(e) => {
                 // ignore socket read timeout
-                if !e.to_string().contains("10060)") {
+                if !e.to_string().contains("10060") {
                     logger(format!("*E*E>Error reading SSDP M-SEARCH response: {}", e));
                 }
             }

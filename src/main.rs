@@ -167,12 +167,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.sound_source = audio_output_device.name().unwrap();
         let _ = config.update_config();
     }
-    debug!("{:?}", config);
-    log(format!("Current log level {}", config.log_level));
+    log(format!("{:?}", config));
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
     }
-
     // configure simplelogger
     let loglevel = config.log_level;
     let logfile = Path::new(&config.config_dir()).join("log.txt");
@@ -182,7 +180,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ]);
     info!("swyh-rs Logging started.");
     if cfg!(debug_assertions) {
-        log("*W*W*>Running DEBUG build => log level forced to DEBUG!".to_string());
+        log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
     }
 
     // show auto_resume option checkbox
@@ -220,8 +218,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // show log level choice
-    let mut log_level_choice = MenuButton::new(xpos, ypos, (wind.width() / 8) * 2, 25, "Log level");
-    let log_levels = vec!["Info", "Warn", "Debug"];
+    let mut log_level_choice =
+        MenuButton::new(xpos, ypos, (wind.width() / 8) * 2, 25, "Log level detail");
+    let log_levels = vec!["Info", "Debug"];
     for ll in log_levels.iter() {
         log_level_choice.add_choice(ll);
     }
@@ -263,8 +262,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     update_ui();
 
     // setup audio source
-    let mut choose_audio_source_but =
-        MenuButton::new(xpos, ypos, (wind.width() / 3) * 2, 25, "Change Audio Source");
+    let mut choose_audio_source_but = MenuButton::new(
+        xpos,
+        ypos,
+        (wind.width() / 3) * 2,
+        25,
+        "Change Audio Source",
+    );
     let devices = get_output_audio_devices().unwrap();
     for dev in devices.iter() {
         choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_escape());
@@ -423,8 +427,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         app::wait_for(0.0)?;
         if wind.width() < (sw / 3.0) as i32 {
-            wind.resize(wind.x(), wind.y(), (sw / 3.0) as i32, wind.height());           
+            wind.resize(wind.x(), wind.y(), (sw / 3.0) as i32, wind.height());
             wind.redraw();
+            app::wait_for(0.0)?;
         }
         if wind.height() < (sh / 3.0) as i32 {
             wind.resize(wind.x(), wind.y(), wind.width(), (sh / 3.0) as i32);

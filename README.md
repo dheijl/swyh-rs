@@ -42,6 +42,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - some AVTtransport renderers will stop when detecting a pause between songs, you can use the "autoresume" checkbox if you encounter this problem.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program runs at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering
+- the SSDP discovery process is rerun every minute in the background, newly discovered renderers will be automatically added to the GUI
 
 ### Screenshot:
 

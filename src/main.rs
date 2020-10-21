@@ -322,7 +322,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     update_ui();
 
     // get the av media renderers in this network in a seperate discover thread
-    let mut renderers = get_renderers(true);
+    // starting with an empty map of renderers
+    let empty_rmap: HashMap<String, Renderer> = HashMap::new();
+    let mut renderers = get_renderers(empty_rmap, true);
     debug!("Got {} renderers", renderers.len());
 
     // now create a button for each discovered renderer
@@ -403,6 +405,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // start SSDP discovery update thread
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
+    // add in the already discovered renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     for r in renderers.iter() {
         rmap.insert(r.remote_addr.clone(), r.clone());
@@ -704,12 +707,12 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
     }
 }
 
-fn get_renderers(do_update_ui: bool) -> Vec<Renderer> {
+fn get_renderers(rmap: HashMap<String, Renderer>, do_update_ui: bool) -> Vec<Renderer> {
     let renderers: Vec<Renderer>;
     let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
         .name("ssdp_discover".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(|| discover(&log).unwrap_or_default())
+        .spawn(|| discover(rmap, &log).unwrap_or_default())
         .unwrap();
     // wait for discovery to complete (max 3.1 secs)
     let start = Instant::now();
@@ -735,7 +738,7 @@ fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Rendere
     loop {
         if ssdp_last_run.elapsed() > ssdp_interval {
             ssdp_last_run = Instant::now();
-            let renderers = get_renderers(false);
+            let renderers = get_renderers(rmap.clone(), false);
             for r in renderers.iter() {
                 if !rmap.contains_key(&r.remote_addr) {
                     let _ = ssdp_tx.send(r.clone());

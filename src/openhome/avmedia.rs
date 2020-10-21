@@ -491,7 +491,7 @@ Man: \"ssdp:discover\"\r\n\
 ST: urn:schemas-upnp-org:service:RenderingControl:1\r\n\
 MX: 3\r\n\r\n";
 
-pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
+pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     debug!("SSDP discovery started");
 
     // get the address of the internet connected interface
@@ -511,7 +511,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
         .send_to(SSDP_DISCOVER_MSG.as_bytes(), &broadcast_address)
         .unwrap();
 
-    // collect the responses and remeber all renderers
+    // collect the responses and remeber all new renderers
     let mut devices: Vec<(String, SocketAddr)> = Vec::new();
     let start = Instant::now();
     loop {
@@ -562,8 +562,19 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
                         }
                     }
                     if is_renderer {
-                        info!("Renderer at : {}", dev_url.clone());
-                        devices.push((dev_url, from));
+                        let mut existing = false;
+                        for r in rmap.values() {
+                            if dev_url.contains(&r.dev_url) {
+                                existing = true;
+                                continue;
+                            }
+                        }
+                        if ! existing {
+                            info!("SSDP discovery: new Renderer found at : {}", dev_url.clone());
+                            devices.push((dev_url, from));
+                        } else {
+                            debug!("SSDP discovery: skipping existing Renderer at {}", dev_url);
+                        }
                     }
                 } else {
                     continue;
@@ -578,7 +589,7 @@ pub fn discover(logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
         }
     }
 
-    debug!("Getting renderer descriptions");
+    debug!("Getting new renderer descriptions");
     let mut renderers: Vec<Renderer> = Vec::new();
 
     for (dev, from) in devices {

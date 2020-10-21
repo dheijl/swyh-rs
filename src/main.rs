@@ -8,12 +8,8 @@
 ///
 /// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
 ///
-/// I had to fork cpal (https://github.com/RustAudio/cpal), so if you want to build swyh-rs yourself you have to clone dheijl/cpal
-/// and change the cargo.toml file accordingly.
-///
-/// I use fltk-rs (https://github.com/MoAlyousef/fltk-rs) for the GUI, as it's easy to use and works well.
-///
-/// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio devices. Don't have access to a Mac, so I don't know if this would work.
+/// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio DLNA renderers and with a Harman-Kardon AVR DLNA device. 
+/// I don't have access to a Mac, so I don't know if this would also work.
 ///
 ///
 /*
@@ -326,7 +322,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     update_ui();
 
     // get the av media renderers in this network in a seperate discover thread
-    let renderers = get_renderers(true);
+    let mut renderers = get_renderers(true);
     debug!("Got {} renderers", renderers.len());
 
     // now create a button for each discovered renderer
@@ -469,7 +465,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_pos(xpos, ypos)
                 .with_align(Align::Center)
                 .with_label(&format!("{} {}", newr.dev_model, newr.dev_name));
-            // prepare for closure
+            renderers.push(newr.clone());
+            // prepare for event handler closure
             let newr_c = newr.clone();
             let but_c = but.clone();
             let bi = buttons.len();

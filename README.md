@@ -23,7 +23,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 ### Todo:
 
-- probably some GUI tweaks, but I hate GUI programming
+- I'm open to suggestions, but I definitely hate GUI programming...
 
 ### Known problems:
 

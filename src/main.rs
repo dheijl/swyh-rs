@@ -8,7 +8,7 @@
 ///
 /// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
 ///
-/// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio DLNA renderers and with a Harman-Kardon AVR DLNA device. 
+/// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio DLNA renderers and with a Harman-Kardon AVR DLNA device.
 /// I don't have access to a Mac, so I don't know if this would also work.
 ///
 ///
@@ -330,15 +330,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // now create a button for each discovered renderer
     let mut buttons: HashMap<String, LightButton> = HashMap::new();
     // button dimensions and starting position
-    let bwidth = frame.width(); // button width
-    let bheight = frame.height(); // button height
-                                  // create the buttons
-                                  // we need to pass some audio config data to the play function
+    let bwidth = frame.width();
+    let bheight = frame.height();
+    // we need to pass some audio config data to the play function
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
     };
+    // create the buttons
     // loop over the renderers with the associated button index
     for (bi, renderer) in renderers.iter().enumerate() {
         let mut but = LightButton::default() // create the button
@@ -393,7 +393,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
         }
     }
-    // start webserver
+    // start webserver, with a feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
     let _ = std::thread::Builder::new()
@@ -403,7 +403,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     std::thread::yield_now();
 
-    // start SSDP discovery update thread
+    // start SSDP discovery update thread with a channel for renderer updates
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     // add in the already discovered renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
@@ -431,7 +431,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             wind.redraw();
             app::wait_for(0.0)?;
         }
-        std::thread::sleep(std::time::Duration::new(0, 10_000_000));
+        std::thread::sleep(std::time::Duration::from_millis(10));
         if app::should_program_quit() {
             break;
         }
@@ -460,7 +460,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        // check if the ssdp discovery thread has found a new renderer
+        // check the ssdp discovery thread channel for a newly discovered renderer
         // if yes: add a new button below the last one
         if let Ok(newr) = ssdp_rx.try_recv() {
             let mut but = LightButton::default() // create the button
@@ -509,13 +509,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn update_ui() {
     for _ in 1..100 {
         let _ = app::wait_for(0.0).unwrap_or_default();
-        std::thread::sleep(std::time::Duration::new(0, 1_000_000));
+        std::thread::sleep(std::time::Duration::from_millis(1));
     }
 }
 
 /// tb_logger - the TextBox logger thread
 /// this function reads log messages from the LOGCHANNEL receiver
-/// and adds them to an fltk TextBox (using a mutex)
+/// and adds them to an fltk TextBox 
 fn tb_logger(mut tb: TextDisplay) {
     let logreader: Receiver<String>;
     {
@@ -536,7 +536,7 @@ fn tb_logger(mut tb: TextDisplay) {
     }
 }
 
-/// log - send a logmessage to the textbox on the LOGCHANNEL sender
+/// log - send a logmessage to the textbox on the LOGCHANNEL 
 fn log(s: String) {
     let cat: &str = &s[..2];
     match cat {
@@ -557,7 +557,7 @@ fn dummy_log(s: String) {
     debug!("Autoresume: {}", s);
 }
 
-/// run_server - run a webserver to serve requests from OpenHome media renderers
+/// run_server - run a webserver to serve requests from OpenHome/AV media renderers
 ///
 /// all music is sent in audio/l16 PCM format (i16) with the sample rate of the source
 /// the samples are read from a crossbeam channel fed by the wave_reader
@@ -707,6 +707,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
     }
 }
 
+/// get_renderers - get a list of all renderers using SSDP discovery in a seperate thread
 fn get_renderers(rmap: HashMap<String, Renderer>, do_update_ui: bool) -> Vec<Renderer> {
     let renderers: Vec<Renderer>;
     let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
@@ -732,6 +733,9 @@ fn get_renderers(rmap: HashMap<String, Renderer>, do_update_ui: bool) -> Vec<Ren
     renderers
 }
 
+/// run_ssdp_updater - thread that periodically run ssdp discovery 
+/// and detect new renderers
+/// send any new renderers to te main thread on the ssdp channel 
 fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Renderer>) {
     let ssdp_interval = Duration::new(60, 0); // every minute
     let mut ssdp_last_run = Instant::now();

@@ -569,8 +569,11 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
                                 continue;
                             }
                         }
-                        if ! existing {
-                            info!("SSDP discovery: new Renderer found at : {}", dev_url.clone());
+                        if !existing {
+                            info!(
+                                "SSDP discovery: new Renderer found at : {}",
+                                dev_url.clone()
+                            );
                             devices.push((dev_url, from));
                         } else {
                             debug!("SSDP discovery: skipping existing Renderer at {}", dev_url);

@@ -119,7 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "swyh-rs UPNP/DLNA Media Renderers V{}",
             APP_VERSION
         ));
-    wind.handle(Box::new(move |_ev| {
+    wind.handle(move |_ev| {
         //eprintln!("{:?}", app::event());
         let ev = app::event();
         match ev {
@@ -129,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             _ => false,
         }
-    }));
+    });
 
     wind.make_resizable(true);
 
@@ -185,7 +185,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_resume.set(true);
     }
     let auto_resume_c = auto_resume.clone();
-    auto_resume.handle(Box::new(move |ev| match ev {
+    auto_resume.handle(move |ev| match ev {
         Event::Released => {
             let mut config = Configuration::read_config();
             if auto_resume_c.is_set() {
@@ -197,7 +197,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             true
         }
         _ => true,
-    }));
+    });
     wind.add(&auto_resume);
     wind.redraw();
     update_ui();
@@ -222,7 +222,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let rlock = Mutex::new(0);
     let log_lc_c = log_level_choice.clone();
-    log_level_choice.handle(Box::new(move |ev| {
+    log_level_choice.handle(move |ev| {
         let mut recursion = rlock.lock().unwrap();
         if *recursion > 0 {
             return false;
@@ -250,7 +250,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 false
             }
         }
-    }));
+    });
     ypos += 35;
     wind.add(&log_level_choice);
 
@@ -274,7 +274,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // apparently this event can recurse on very fast machines
     // probably because it takes some time doing the file I/O, hence recursion lock
     let lock = Mutex::new(0);
-    choose_audio_source_but.handle(Box::new(move |ev| {
+    choose_audio_source_but.handle(move |ev| {
         let mut recursion = lock.lock().unwrap();
         if *recursion > 0 {
             return false;
@@ -302,7 +302,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 false
             }
         }
-    }));
+    });
     wind.add(&choose_audio_source_but);
     wind.redraw();
     update_ui();
@@ -349,7 +349,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // prepare for closure
         let renderer_c = renderer.clone();
         let but_c = but.clone();
-        but.handle(Box::new(move |ev| {
+        but.handle(move |ev| {
             let but_cc = but_c.clone();
             match ev {
                 Event::Push => {
@@ -369,7 +369,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 _ => true,
             }
-        }));
+        });
         wind.add(&but); // add the button to the window
         buttons.insert(renderer.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
         ypos += bheight + 10; // and the button y offset
@@ -473,7 +473,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let newr_c = newr.clone();
             let but_c = but.clone();
             let bi = buttons.len();
-            but.handle(Box::new(move |ev| {
+            but.handle(move |ev| {
                 let but_cc = but_c.clone();
                 match ev {
                     Event::Push => {
@@ -493,7 +493,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     _ => true,
                 }
-            }));
+            });
             wind.add(&but); // add the button to the window
             wind.redraw();
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
@@ -515,7 +515,7 @@ fn update_ui() {
 
 /// tb_logger - the TextBox logger thread
 /// this function reads log messages from the LOGCHANNEL receiver
-/// and adds them to an fltk TextBox 
+/// and adds them to an fltk TextBox
 fn tb_logger(mut tb: TextDisplay) {
     let logreader: Receiver<String>;
     {
@@ -536,7 +536,7 @@ fn tb_logger(mut tb: TextDisplay) {
     }
 }
 
-/// log - send a logmessage to the textbox on the LOGCHANNEL 
+/// log - send a logmessage to the textbox on the LOGCHANNEL
 fn log(s: String) {
     let cat: &str = &s[..2];
     match cat {
@@ -733,9 +733,9 @@ fn get_renderers(rmap: HashMap<String, Renderer>, do_update_ui: bool) -> Vec<Ren
     renderers
 }
 
-/// run_ssdp_updater - thread that periodically run ssdp discovery 
+/// run_ssdp_updater - thread that periodically run ssdp discovery
 /// and detect new renderers
-/// send any new renderers to te main thread on the ssdp channel 
+/// send any new renderers to te main thread on the ssdp channel
 fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Renderer>) {
     let ssdp_interval = Duration::new(60, 0); // every minute
     let mut ssdp_last_run = Instant::now();

@@ -13,7 +13,7 @@ chrono = "*"
 cpal = {git = "https://github.com/rustaudio/cpal"}
 crossbeam-channel = "*"
 dirs = "*"
-fltk = {git = "https://github.com/moalyousef/fltk-rs", features = ["fltk-bundled"]}
+fltk = "*" 
 htmlescape = "*"
 lazy_static = "*"
 log = {version = "*", features = ["max_level_trace", "release_max_level_debug"]}

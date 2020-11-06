@@ -92,17 +92,19 @@ struct StreamerFeedBack {
 }
 
 lazy_static! {
+    // streaming clients of the webserver
     static ref CLIENTS: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
+    // the global GUI logger textbox channel used by all threads
     static ref LOGCHANNEL: Mutex<(Sender<String>, Receiver<String>)> = Mutex::new(unbounded());
 }
 
 /// swyh-rs
 ///
 /// - set up the fltk GUI
-/// - discover ssdp media renderers and show them in the GUI as buttons (start/stop play)
 /// - setup and start audio capture
-/// - start the webserver
-/// - run the GUI
+/// - start the streaming webserver
+/// - start ssdp discovery of media renderers thread
+/// - run the GUI, and show any renderers found in the GUI as buttons (to start/stop playing)
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let mut audio_output_device =

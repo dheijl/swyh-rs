@@ -308,75 +308,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     update_ui();
     ypos += 35;
 
-    log("Running SSDP discovery".to_string());
-    let mut frame = Frame::new(xpos, ypos, fw, 25, "").with_align(Align::Center);
-    frame.set_frame(FrameType::BorderBox);
-    let local_addr = get_local_addr().expect("Could not obtain local address.");
-    frame.set_label(&format!(
-        "Scanning {} for UPNP rendering devices",
-        local_addr
-    ));
-    wind.add(&frame);
-    ypos += 35;
-    wind.redraw();
-    update_ui();
-
-    // get the av media renderers in this network in a seperate discover thread
-    // starting with an empty map of renderers
-    let empty_rmap: HashMap<String, Renderer> = HashMap::new();
-    let mut renderers = get_renderers(empty_rmap, true);
-    debug!("Got {} renderers", renderers.len());
-
-    // now create a button for each discovered renderer
-    let mut buttons: HashMap<String, LightButton> = HashMap::new();
-    // button dimensions and starting position
-    let bwidth = frame.width();
-    let bheight = frame.height();
     // we need to pass some audio config data to the play function
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
     };
-    // create the buttons
-    // loop over the renderers with the associated button index
-    for (bi, renderer) in renderers.iter().enumerate() {
-        let mut but = LightButton::default() // create the button
-            .with_size(bwidth, bheight)
-            .with_pos(xpos, ypos)
-            .with_align(Align::Center)
-            .with_label(&format!("{} {}", renderer.dev_model, renderer.dev_name));
-        // prepare for closure
-        let renderer_c = renderer.clone();
-        let but_c = but.clone();
-        but.handle(move |ev| {
-            let but_cc = but_c.clone();
-            match ev {
-                Event::Push => {
-                    debug!(
-                        "Pushed renderer #{} {} {}, state = {}",
-                        bi,
-                        renderer_c.dev_model,
-                        renderer_c.dev_name,
-                        if but_cc.is_set() { "ON" } else { "OFF" }
-                    );
-                    if but_cc.is_set() {
-                        let _ = renderer_c.play(&local_addr, SERVER_PORT, &wd, &log);
-                    } else {
-                        let _ = renderer_c.stop_play(&log);
-                    }
-                    true
-                }
-                _ => true,
-            }
-        });
-        wind.add(&but); // add the button to the window
-        buttons.insert(renderer.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
-        ypos += bheight + 10; // and the button y offset
-    }
-    frame.set_label("Rendering Devices");
-    wind.redraw();
-    update_ui();
 
     // raise process priority a bit to prevent audio stuttering under cpu load
     raise_priority();
@@ -393,7 +330,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
         }
     }
-    // start webserver, with a feedback channel for connection accept/drop
+    // start webserver on the local address, with a feedback channel for connection accept/drop
+    let local_addr = get_local_addr().expect("Could not obtain local address.");
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
     let _ = std::thread::Builder::new()
@@ -403,18 +341,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     std::thread::yield_now();
 
+    // show renderer buttons title
+    let mut frame = Frame::new(xpos, ypos, fw, 25, "").with_align(Align::Center);
+    frame.set_frame(FrameType::BorderBox);
+    frame.set_label(&format!("UPNP rendering devices on network {}", local_addr));
+    wind.add(&frame);
+    ypos += 35;
+    wind.redraw();
+    update_ui();
+
+    // create a hashmap for a button for each discovered renderer
+    let mut buttons: HashMap<String, LightButton> = HashMap::new();
     // start SSDP discovery update thread with a channel for renderer updates
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
-    // add in the already discovered renderers
-    let mut rmap: HashMap<String, Renderer> = HashMap::new();
-    for r in renderers.iter() {
-        rmap.insert(r.remote_addr.clone(), r.clone());
-    }
+    // the renderers discovered so far
+    let mut renderers: Vec<Renderer> = Vec::new();
+    // the hashmap used to detect new renderers
+    let rmap: HashMap<String, Renderer> = HashMap::new();
+    log("Running SSDP discovery".to_string());
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 102 * 1024)
         .spawn(move || run_ssdp_updater(rmap, ssdp_tx))
         .unwrap();
+
+    // button dimensions and starting position
+    let bwidth = frame.width();
+    let bheight = frame.height();
 
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
@@ -708,7 +661,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
 }
 
 /// get_renderers - get a list of all renderers using SSDP discovery in a seperate thread
-fn get_renderers(rmap: HashMap<String, Renderer>, do_update_ui: bool) -> Vec<Renderer> {
+fn get_renderers(rmap: HashMap<String, Renderer>) -> Vec<Renderer> {
     let renderers: Vec<Renderer>;
     let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
         .name("ssdp_discover".into())
@@ -723,9 +676,6 @@ fn get_renderers(rmap: HashMap<String, Renderer>, do_update_ui: bool) -> Vec<Ren
         if duration > Duration::from_millis(3_200) {
             break;
         }
-        if do_update_ui {
-            update_ui();
-        }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
     // collect the discovery result
@@ -737,26 +687,25 @@ fn get_renderers(rmap: HashMap<String, Renderer>, do_update_ui: bool) -> Vec<Ren
 /// and detect new renderers
 /// send any new renderers to te main thread on the ssdp channel
 fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Renderer>) {
-    let ssdp_interval = Duration::new(60, 0); // every minute
-    let mut ssdp_last_run = Instant::now();
-    std::thread::sleep(ssdp_interval);
+    //    let ssdp_interval = Duration::new(60, 0); // every minute
+    //    let mut ssdp_last_run = Instant::now();
     loop {
-        if ssdp_last_run.elapsed() > ssdp_interval {
-            ssdp_last_run = Instant::now();
-            let renderers = get_renderers(rmap.clone(), false);
-            for r in renderers.iter() {
-                if !rmap.contains_key(&r.remote_addr) {
-                    let _ = ssdp_tx.send(r.clone());
-                    info!(
-                        "Found new renderer {} {}  at {}",
-                        r.dev_name, r.dev_model, r.remote_addr
-                    );
-                    rmap.insert(r.remote_addr.clone(), r.clone());
-                }
+        //if ssdp_last_run.elapsed() > ssdp_interval {
+        //    ssdp_last_run = Instant::now();
+        let renderers = get_renderers(rmap.clone());
+        for r in renderers.iter() {
+            if !rmap.contains_key(&r.remote_addr) {
+                let _ = ssdp_tx.send(r.clone());
+                info!(
+                    "Found new renderer {} {}  at {}",
+                    r.dev_name, r.dev_model, r.remote_addr
+                );
+                rmap.insert(r.remote_addr.clone(), r.clone());
             }
-        } else {
-            std::thread::sleep(Duration::from_millis(100));
         }
+        //} else {
+        std::thread::sleep(Duration::from_millis(60 * 1000));
+        //}
     }
 }
 

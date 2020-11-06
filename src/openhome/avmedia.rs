@@ -499,9 +499,6 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
         get_local_addr().expect("Could not obtain local ip address for udp broadcast socket");
     let bind_addr = SocketAddr::new(local_addr, 0);
     let socket = UdpSocket::bind(&bind_addr).unwrap();
-    let _ = socket
-        .set_read_timeout(Some(Duration::from_millis(250)))
-        .unwrap();
     let _ = socket.set_broadcast(true).unwrap();
 
     // broadcast the M-SEARCH message (MX is 3 secs)
@@ -515,11 +512,15 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
     let mut devices: Vec<(String, SocketAddr)> = Vec::new();
     let start = Instant::now();
     loop {
-        let duration = start.elapsed();
+        let duration = start.elapsed().as_millis() as u64;
         // keep capturing responses for 3.1 seconds
-        if duration > Duration::from_millis(3100) {
+        if duration >= 3100 {
             break;
         }
+        let max_wait_time = 3100 - duration;
+        let _ = socket
+        .set_read_timeout(Some(Duration::from_millis(max_wait_time)))
+        .unwrap();
         let mut buf: [u8; 2048] = [0; 2048];
         let resp: String;
         match socket.recv_from(&mut buf) {

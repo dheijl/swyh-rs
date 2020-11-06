@@ -739,6 +739,7 @@ fn get_renderers(rmap: HashMap<String, Renderer>, do_update_ui: bool) -> Vec<Ren
 fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Renderer>) {
     let ssdp_interval = Duration::new(60, 0); // every minute
     let mut ssdp_last_run = Instant::now();
+    std::thread::sleep(ssdp_interval);
     loop {
         if ssdp_last_run.elapsed() > ssdp_interval {
             ssdp_last_run = Instant::now();

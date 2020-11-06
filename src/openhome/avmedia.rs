@@ -519,8 +519,8 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
         }
         let max_wait_time = 3100 - duration;
         let _ = socket
-        .set_read_timeout(Some(Duration::from_millis(max_wait_time)))
-        .unwrap();
+            .set_read_timeout(Some(Duration::from_millis(max_wait_time)))
+            .unwrap();
         let mut buf: [u8; 2048] = [0; 2048];
         let resp: String;
         match socket.recv_from(&mut buf) {

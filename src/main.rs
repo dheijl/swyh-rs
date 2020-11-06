@@ -687,11 +687,7 @@ fn get_renderers(rmap: HashMap<String, Renderer>) -> Vec<Renderer> {
 /// and detect new renderers
 /// send any new renderers to te main thread on the ssdp channel
 fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Renderer>) {
-    //    let ssdp_interval = Duration::new(60, 0); // every minute
-    //    let mut ssdp_last_run = Instant::now();
     loop {
-        //if ssdp_last_run.elapsed() > ssdp_interval {
-        //    ssdp_last_run = Instant::now();
         let renderers = get_renderers(rmap.clone());
         for r in renderers.iter() {
             if !rmap.contains_key(&r.remote_addr) {
@@ -703,9 +699,7 @@ fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Rendere
                 rmap.insert(r.remote_addr.clone(), r.clone());
             }
         }
-        //} else {
         std::thread::sleep(Duration::from_millis(60 * 1000));
-        //}
     }
 }
 

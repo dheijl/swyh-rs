@@ -10,7 +10,7 @@ version = "0.9.5"
 ascii = "*"
 bitflags = "*"
 chrono = "*"
-cpal = {git = "https://github.com/rustaudio/cpal"}
+cpal = "*"
 crossbeam-channel = "*"
 dirs = "*"
 fltk = "*" 

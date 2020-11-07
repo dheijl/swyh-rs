@@ -585,8 +585,8 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
                 }
             }
             Err(e) => {
-                // ignore socket read timeout
-                if !e.to_string().contains("10060") {
+                // ignore socket read timeout on Windows or EAGAIN on Linux
+                if !(e.to_string().contains("10060") || e.to_string().contains("os error 11")) {
                     logger(format!("*E*E>Error reading SSDP M-SEARCH response: {}", e));
                 }
             }

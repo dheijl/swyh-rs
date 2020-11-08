@@ -9,6 +9,7 @@ pub struct Configuration {
     pub auto_resume: bool,
     pub sound_source: String,
     pub log_level: LevelFilter,
+    pub ssdp_interval_mins: f64,
     config_dir: PathBuf,
 }
 
@@ -17,8 +18,9 @@ impl Configuration {
         Configuration {
             auto_resume: false,
             sound_source: "None".to_string(),
-            config_dir: Self::get_config_dir(),
             log_level: LevelFilter::Info,
+            ssdp_interval_mins: 1.0,
+            config_dir: Self::get_config_dir(),
         }
     }
 
@@ -41,6 +43,7 @@ impl Configuration {
                 .set("AutoResume", "false")
                 .set("SoundCard", "None")
                 .set("LogLevel", LevelFilter::Info.to_string())
+                .set("SSDPIntervalMins", "1")
                 .set("ConfigDir", &Self::get_config_dir().display().to_string());
             conf.write_to_file(&configfile).unwrap();
         }
@@ -61,6 +64,10 @@ impl Configuration {
             .get_from_or(Some("Configuration"), "LogLevel", "Info")
             .to_string()
             .parse()
+            .unwrap();
+        config.ssdp_interval_mins = conf
+            .get_from_or(Some("Configuration"), "SSDPIntervalMins", "1")
+            .parse::<f64>()
             .unwrap();
         let config_dir = conf
             .get_from_or(
@@ -87,6 +94,7 @@ impl Configuration {
             )
             .set("SoundCard", &self.sound_source)
             .set("LogLevel", self.log_level.to_string())
+            .set("SSDPIntervalMins", self.ssdp_interval_mins.to_string())
             .set("ConfigDir", &self.config_dir.display().to_string());
         conf.write_to_file(&configfile)
     }

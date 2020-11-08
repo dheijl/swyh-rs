@@ -52,7 +52,7 @@ use crate::utils::rwstream::ChannelStream;
 use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use fltk::{app, button::*, frame::*, menu::*, text::*, window::*};
+use fltk::{app, button::*, frame::*, menu::*, text::*, valuator::Counter, window::*};
 use lazy_static::*;
 use log::*;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
@@ -201,23 +201,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => true,
     });
     wind.add(&auto_resume);
+    // show ssdp interval counter
+    let mut ssdp_interval = Counter::new(
+        auto_resume.x() + auto_resume.width() + 25,
+        ypos,
+        150,
+        25,
+        "SSDP Interval (in minutes)",
+    );
+    ssdp_interval.set_value(config.ssdp_interval_mins.into());
+    let mut ssdp_interval_c = ssdp_interval.clone();
+    ssdp_interval.handle(move |ev| match ev {
+        Event::Leave => {
+            let mut config = Configuration::read_config();
+            if ssdp_interval_c.value() < 0.5 {
+                ssdp_interval_c.set_value(0.5);
+            } else {
+                config.ssdp_interval_mins = ssdp_interval_c.value();
+                log(format!(
+                    "*W*W*> ssdp interval changed to {} minutes, restart required!!",
+                    config.ssdp_interval_mins
+                ));
+            }
+            let _ = config.update_config();
+            true
+        }
+        _ => false,
+    });
+
+    wind.add(&ssdp_interval);
     wind.redraw();
     update_ui();
-    ypos += 35;
-
-    // set the output device
-    let audio_devices = get_output_audio_devices().unwrap();
-    for adev in audio_devices {
-        let devname = adev.name().unwrap();
-        if devname == config.sound_source {
-            audio_output_device = adev;
-            debug!("Selected audio source: {}", devname);
-        }
-    }
 
     // show log level choice
-    let mut log_level_choice =
-        MenuButton::new(xpos, ypos, (wind.width() / 8) * 2, 25, "Log level detail");
+    let mut log_level_choice = MenuButton::new(
+        ssdp_interval.x() + ssdp_interval.width() + 25,
+        ypos,
+        150,
+        25,
+        "Log level detail",
+    );
     let log_levels = vec!["Info", "Debug"];
     for ll in log_levels.iter() {
         log_level_choice.add_choice(ll);
@@ -253,26 +276,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
-    ypos += 35;
+    ypos += 55;
     wind.add(&log_level_choice);
 
     wind.redraw();
     update_ui();
 
-    // setup audio source
+    // set the output device
+    let audio_devices = get_output_audio_devices().unwrap();
+    for adev in audio_devices {
+        let devname = adev.name().unwrap();
+        if devname == config.sound_source {
+            audio_output_device = adev;
+            debug!("Selected audio source: {}", devname);
+        }
+    }
+
+    // setup audio source choice
+    let cur_audio_src = format!("Source: {}", config.sound_source);
     log("Setup audio sources".to_string());
-    let mut choose_audio_source_but = MenuButton::new(
-        xpos,
-        ypos,
-        (wind.width() / 3) * 2,
-        25,
-        "Change Audio Source",
-    );
+    let mut choose_audio_source_but = MenuButton::new(xpos, ypos, fw, 25, &cur_audio_src);
     let devices = get_output_audio_devices().unwrap();
     for dev in devices.iter() {
         choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_escape());
     }
-    let butas_cc = choose_audio_source_but.clone();
+    let mut butas_cc = choose_audio_source_but.clone();
     // apparently this event can recurse on very fast machines
     // probably because it takes some time doing the file I/O, hence recursion lock
     let lock = Mutex::new(0);
@@ -296,6 +324,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )); // std::env::current_exe()
                 config.sound_source = name;
                 let _ = config.update_config();
+                butas_cc.set_label(&format!("New Source: {}", config.sound_source));
                 *recursion -= 1;
                 true
             }
@@ -358,13 +387,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     // the renderers discovered so far
     let mut renderers: Vec<Renderer> = Vec::new();
-    // the hashmap used to detect new renderers
-    let rmap: HashMap<String, Renderer> = HashMap::new();
     log("Running SSDP discovery".to_string());
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 102 * 1024)
-        .spawn(move || run_ssdp_updater(rmap, ssdp_tx))
+        .spawn(move || run_ssdp_updater(ssdp_tx, config.ssdp_interval_mins))
         .unwrap();
 
     // button dimensions and starting position
@@ -688,7 +715,9 @@ fn get_renderers(rmap: HashMap<String, Renderer>) -> Vec<Renderer> {
 /// run_ssdp_updater - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the ssdp channel
-fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Renderer>) {
+fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
+    // the hashmap used to detect new renderers
+    let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
         let renderers = get_renderers(rmap.clone());
         for r in renderers.iter() {
@@ -701,7 +730,7 @@ fn run_ssdp_updater(mut rmap: HashMap<String, Renderer>, ssdp_tx: Sender<Rendere
                 rmap.insert(r.remote_addr.clone(), r.clone());
             }
         }
-        std::thread::sleep(Duration::from_millis(60 * 1000));
+        std::thread::sleep(Duration::from_millis(ssdp_interval_mins as u64 * 60 * 1000));
     }
 }
 

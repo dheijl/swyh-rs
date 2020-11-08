@@ -491,7 +491,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// update_ui - let fltk update the UI that was changed by other threads
 ///
 fn update_ui() {
-    for _ in 1..100 {
+    const COUNT: i32 = if cfg!(windows) {
+        10
+    } else {
+         100
+    };
+    for _ in 1..COUNT {
         let _ = app::wait_for(0.0).unwrap_or_default();
         std::thread::sleep(std::time::Duration::new(0, 10_000));
     }

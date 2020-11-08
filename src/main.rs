@@ -491,9 +491,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// update_ui - let fltk update the UI that was changed by other threads
 ///
 fn update_ui() {
-    for _ in 1..10 {
+    for _ in 1..100 {
         let _ = app::wait_for(0.0).unwrap_or_default();
-        std::thread::sleep(std::time::Duration::new(0, 100_000));
+        std::thread::sleep(std::time::Duration::new(0, 10_000));
     }
 }
 

@@ -69,6 +69,9 @@ impl Configuration {
             .get_from_or(Some("Configuration"), "SSDPIntervalMins", "1")
             .parse::<f64>()
             .unwrap();
+        if config.ssdp_interval_mins < 0.5 {
+            config.ssdp_interval_mins = 0.5;
+        }
         let config_dir = conf
             .get_from_or(
                 Some("Configuration"),

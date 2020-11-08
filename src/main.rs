@@ -217,11 +217,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if ssdp_interval_c.value() < 0.5 {
                 ssdp_interval_c.set_value(0.5);
             } else {
-                config.ssdp_interval_mins = ssdp_interval_c.value();
-                log(format!(
-                    "*W*W*> ssdp interval changed to {} minutes, restart required!!",
-                    config.ssdp_interval_mins
-                ));
+                if config.ssdp_interval_mins != ssdp_interval_c.value() {
+                    config.ssdp_interval_mins = ssdp_interval_c.value();
+                    log(format!(
+                        "*W*W*> ssdp interval changed to {} minutes, restart required!!",
+                        config.ssdp_interval_mins
+                    ));
+                }
             }
             let _ = config.update_config();
             true
@@ -730,7 +732,9 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
                 rmap.insert(r.remote_addr.clone(), r.clone());
             }
         }
-        std::thread::sleep(Duration::from_millis(ssdp_interval_mins as u64 * 60 * 1000));
+        std::thread::sleep(Duration::from_millis(
+            (ssdp_interval_mins * 60.0 * 1000.0) as u64,
+        ));
     }
 }
 

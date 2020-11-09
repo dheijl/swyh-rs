@@ -41,6 +41,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program runs at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering. 
 - the SSDP discovery process is rerun every x minutes in the background, any newly discovered renderers will be automatically added to the GUI. Existing renderers that "disappear" during discovery are not deleted from the GUI, as SSDP discovery is not guaranteed to be failsafe (it uses UDP packets). The SSDP discovery interval is configurable, minimum value is 0.5 minutes, there is no maximum value.
+- after a configuration change that needs a program restart, you get a "restart" button in the top right of the window. Click to restart the app.
 
 ### Audio quality and Windows WasApi Loopback capture
 

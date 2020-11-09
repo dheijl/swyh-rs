@@ -211,21 +211,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         25,
         "SSDP Interval (in minutes)",
     );
-    ssdp_interval.set_value(config.ssdp_interval_mins.into());
+    ssdp_interval.set_value(config.ssdp_interval_mins);
     let mut ssdp_interval_c = ssdp_interval.clone();
     ssdp_interval.handle(move |ev| match ev {
         Event::Leave => {
             let mut config = Configuration::read_config();
             if ssdp_interval_c.value() < 0.5 {
                 ssdp_interval_c.set_value(0.5);
-            } else {
-                if config.ssdp_interval_mins != ssdp_interval_c.value() {
-                    config.ssdp_interval_mins = ssdp_interval_c.value();
-                    log(format!(
-                        "*W*W*> ssdp interval changed to {} minutes, restart required!!",
-                        config.ssdp_interval_mins
-                    ));
-                }
+            } else if (config.ssdp_interval_mins - ssdp_interval_c.value()).abs() > 0.09 {
+                config.ssdp_interval_mins = ssdp_interval_c.value();
+                log(format!(
+                    "*W*W*> ssdp interval changed to {} minutes, restart required!!",
+                    config.ssdp_interval_mins
+                ));
             }
             let _ = config.update_config();
             unsafe {
@@ -527,7 +525,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
 fn update_ui() {
     // FLTK Windows seems to handle all messages, but Linux apparently needs a loop ?
-    const COUNT: i32 = if cfg!(windows) { 1 } else { 100 };
+    const COUNT: i32 = if cfg!(windows) { 2 } else { 100 };
     for _ in 1..COUNT {
         let _ = app::wait_for(0.0).unwrap_or_default();
         std::thread::yield_now();

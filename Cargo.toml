@@ -2,12 +2,12 @@
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2018"
 name = "swyh-rs"
-version = "0.9.6"
+version = "0.9.7"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ascii = "*"
+ascii = "1.0"
 bitflags = "*"
 chrono = "*"
 cpal = "*"

@@ -49,7 +49,7 @@ use crate::utils::escape::{FwSlashEscape, FwSlashUnescape};
 use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
-use ascii::AsciiString;
+use ascii::*;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{app, button::*, frame::*, menu::*, text::*, valuator::Counter, window::*};
@@ -169,6 +169,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
     }
+    static mut CONFIG_CHANGED: bool = false;
+
     // configure simplelogger
     let loglevel = config.log_level;
     let logfile = Path::new(&config.config_dir()).join("log.txt");
@@ -226,6 +228,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             let _ = config.update_config();
+            unsafe {
+                CONFIG_CHANGED = true;
+            }
             true
         }
         _ => false,
@@ -236,19 +241,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     update_ui();
 
     // show log level choice
+    let ll = format!("Log Level: {}", config.log_level.to_string());
     let mut log_level_choice = MenuButton::new(
         ssdp_interval.x() + ssdp_interval.width() + 25,
         ypos,
         150,
         25,
-        "Log level detail",
+        &ll,
     );
     let log_levels = vec!["Info", "Debug"];
     for ll in log_levels.iter() {
         log_level_choice.add_choice(ll);
     }
     let rlock = Mutex::new(0);
-    let log_lc_c = log_level_choice.clone();
+    let mut log_lc_c = log_level_choice.clone();
     log_level_choice.handle(move |ev| {
         let mut recursion = rlock.lock().unwrap();
         if *recursion > 0 {
@@ -270,6 +276,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 config.log_level = level.parse().unwrap_or(LevelFilter::Info);
                 let _ = config.update_config();
                 *recursion -= 1;
+                unsafe {
+                    CONFIG_CHANGED = true;
+                }
+                let ll = format!("Log Level: {}", config.log_level.to_string());
+                log_lc_c.set_label(&ll);
                 true
             }
             _ => {
@@ -278,11 +289,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
-    ypos += 55;
-    wind.add(&log_level_choice);
 
+    // show restart button
+    let mut restart_but = Button::new(
+        log_level_choice.x() + log_level_choice.width() + 20,
+        ypos,
+        60,
+        25,
+        "Restart",
+    );
+    restart_but.set_callback(move || {
+        std::process::Command::new(std::env::current_exe().unwrap().into_os_string()).output().expect("Unable to spawn");
+        std::process::exit(0);
+    });
+    wind.add(&restart_but);
+    restart_but.hide();
+    wind.add(&log_level_choice);
     wind.redraw();
     update_ui();
+    ypos += 55;
 
     // set the output device
     let audio_devices = get_output_audio_devices().unwrap();
@@ -328,6 +353,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let _ = config.update_config();
                 butas_cc.set_label(&format!("New Source: {}", config.sound_source));
                 *recursion -= 1;
+                unsafe {
+                    CONFIG_CHANGED = true;
+                }
                 true
             }
             _ => {
@@ -415,6 +443,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             wind.redraw();
             app::wait_for(0.0)?;
         }
+        unsafe {
+            if CONFIG_CHANGED {
+                restart_but.show();
+            }
+        }
         std::thread::sleep(std::time::Duration::from_millis(10));
         if app::should_program_quit() {
             break;
@@ -495,7 +528,7 @@ fn update_ui() {
     const COUNT: i32 = if cfg!(windows) { 1 } else { 100 };
     for _ in 1..COUNT {
         let _ = app::wait_for(0.0).unwrap_or_default();
-        std::thread::yield_now(); 
+        std::thread::yield_now();
     }
 }
 

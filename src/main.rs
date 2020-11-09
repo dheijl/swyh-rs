@@ -495,7 +495,7 @@ fn update_ui() {
     const COUNT: i32 = if cfg!(windows) { 1 } else { 100 };
     for _ in 1..COUNT {
         let _ = app::wait_for(0.0).unwrap_or_default();
-        std::thread::yield_now(); // sleep(std::time::Duration::new(0, 10_000));
+        std::thread::yield_now(); 
     }
 }
 

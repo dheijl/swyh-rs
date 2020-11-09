@@ -299,7 +299,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Restart",
     );
     restart_but.set_callback(move || {
-        std::process::Command::new(std::env::current_exe().unwrap().into_os_string()).output().expect("Unable to spawn");
+        std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
+            .output()
+            .expect("Unable to spawn");
         std::process::exit(0);
     });
     wind.add(&restart_but);

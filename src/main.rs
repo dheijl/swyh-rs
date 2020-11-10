@@ -218,16 +218,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut config = Configuration::read_config();
             if ssdp_interval_c.value() < 0.5 {
                 ssdp_interval_c.set_value(0.5);
+                let _ = config.update_config();
             } else if (config.ssdp_interval_mins - ssdp_interval_c.value()).abs() > 0.09 {
                 config.ssdp_interval_mins = ssdp_interval_c.value();
                 log(format!(
                     "*W*W*> ssdp interval changed to {} minutes, restart required!!",
                     config.ssdp_interval_mins
                 ));
-            }
-            let _ = config.update_config();
-            unsafe {
-                CONFIG_CHANGED = true;
+                let _ = config.update_config();
+                unsafe {
+                    CONFIG_CHANGED = true;
+                }
             }
             true
         }
@@ -298,7 +299,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     restart_but.set_callback(move || {
         std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
-            .output()
+            .spawn()
             .expect("Unable to spawn");
         std::process::exit(0);
     });

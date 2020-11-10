@@ -52,7 +52,7 @@ use crate::utils::rwstream::ChannelStream;
 use ascii::*;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use fltk::{app, button::*, frame::*, menu::*, text::*, valuator::Counter, window::*};
+use fltk::{app, button::*, dialog, frame::*, menu::*, text::*, valuator::Counter, window::*};
 use lazy_static::*;
 use log::*;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
@@ -218,7 +218,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut config = Configuration::read_config();
             if ssdp_interval_c.value() < 0.5 {
                 ssdp_interval_c.set_value(0.5);
-            } 
+            }
             if (config.ssdp_interval_mins - ssdp_interval_c.value()).abs() > 0.09 {
                 config.ssdp_interval_mins = ssdp_interval_c.value();
                 log(format!(
@@ -289,22 +289,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // show restart button
-    let mut restart_but = Button::new(
-        log_level_choice.x() + log_level_choice.width() + 20,
-        ypos,
-        60,
-        25,
-        "Restart",
-    );
-    restart_but.set_callback(move || {
-        std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
-            .spawn()
-            .expect("Unable to spawn");
-        std::process::exit(0);
-    });
-    wind.add(&restart_but);
-    restart_but.hide();
     wind.add(&log_level_choice);
     wind.redraw();
     update_ui();
@@ -446,7 +430,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         unsafe {
             if CONFIG_CHANGED {
-                restart_but.show();
+                //restart_but.show();
+                let c = dialog::choice(
+                    wind.width() as i32 / 2 - 100,
+                    wind.height() as i32 / 2 - 50,
+                    "Configuration value changed!",
+                    "Restart",
+                    "Cancel",
+                    "",
+                );
+                if c == 0 {
+                    std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
+                        .spawn()
+                        .expect("Unable to spawn myself!");
+                    std::process::exit(0);
+                } else {
+                    CONFIG_CHANGED = false;
+                }
             }
         }
         std::thread::sleep(std::time::Duration::from_millis(10));

@@ -218,8 +218,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut config = Configuration::read_config();
             if ssdp_interval_c.value() < 0.5 {
                 ssdp_interval_c.set_value(0.5);
-                let _ = config.update_config();
-            } else if (config.ssdp_interval_mins - ssdp_interval_c.value()).abs() > 0.09 {
+            } 
+            if (config.ssdp_interval_mins - ssdp_interval_c.value()).abs() > 0.09 {
                 config.ssdp_interval_mins = ssdp_interval_c.value();
                 log(format!(
                     "*W*W*> ssdp interval changed to {} minutes, restart required!!",

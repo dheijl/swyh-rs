@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 0.9.8 (Nov 10 2020 dheijl)
+    better handling of ssdp discovery change and restart button
+
 - 0.9.7  (Nov 9 2020  dheijl) 
     show a restart button after a configuration change that needs an application restart
 

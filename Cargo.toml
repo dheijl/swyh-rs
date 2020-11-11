@@ -2,7 +2,7 @@
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2018"
 name = "swyh-rs"
-version = "0.9.9"
+version = "1.0.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

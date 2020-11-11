@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
+//#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
 ///
 /// swyh-rs
 ///
@@ -134,25 +134,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    wind.make_resizable(false);
+    wind.make_resizable(true);
     wind.end();
     wind.show();
 
     let gw = 600;
     let fw = 600;
     let xpos = 30;
-    let mut ypos = 5;
+    let ypos = 5;
+
+    let mut vpack = Pack::new(xpos, ypos, gw, wh, "");
+    vpack.resizable(&mut vpack.clone());
+    vpack.set_spacing(15);
+    vpack.set_type(PackType::Vertical);
+    vpack.end();
+    wind.add(&vpack);
 
     // title frame
-    let mut p1 = Pack::new(xpos, ypos, gw, 25, "");
+    let mut p1 = Pack::new(0, 0, gw, 0, "");
     p1.set_type(PackType::Vertical);
     p1.end();
     let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
     opt_frame.set_frame(FrameType::BorderBox);
     opt_frame.set_label("Options");
     p1.add(&opt_frame);
-    ypos += 35;
-    wind.add(&p1);
+    vpack.add(&p1);
 
     // setup feedback textbox at the bottom
     let mut p2 = Pack::new(2, wh - 160, ww - 4, 156, "");
@@ -163,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tb.set_buffer(Some(buf));
     p2.add(&tb);
     p2.resizable(&mut tb.clone());
-    wind.add(&p2);
+    vpack.add(&p2);
     wind.redraw();
     update_ui();
     // setup the feedback textbox logger thread
@@ -198,7 +204,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // show config option widgets
-    let mut p3 = Pack::new(xpos, ypos, gw, 25, "");
+    let mut p3 = Pack::new(0, 0, gw, 25, "");
+    p3.set_spacing(30);
     p3.set_type(PackType::Horizontal);
     p3.end();
     let mut auto_resume = CheckButton::new(0, 0, 150, 25, "Autoresume play");
@@ -206,8 +213,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_resume.set(true);
     }
     p3.add(&auto_resume);
-    let sp1 = Frame::new(0, 0, 10, 25, "");
-    p3.add(&sp1);
     let auto_resume_c = auto_resume.clone();
     auto_resume.handle(move |ev| match ev {
         Event::Released => {
@@ -223,7 +228,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => true,
     });
     // show ssdp interval counter
-    let mut ssdp_interval = Counter::new(0, 0, 150, 25, "SSDP Interval (in minutes)");
+    let mut ssdp_interval = Counter::new(0, 0, 150, 35, "SSDP Interval (in minutes)");
     ssdp_interval.set_value(config.ssdp_interval_mins);
     let mut ssdp_interval_c = ssdp_interval.clone();
     ssdp_interval.handle(move |ev| match ev {
@@ -249,8 +254,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     p3.add(&ssdp_interval);
-    let sp2 = Frame::new(0, 0, 10, 25, "");
-    p3.add(&sp2);
 
     // show log level choice
     let ll = format!("Log Level: {}", config.log_level.to_string());
@@ -297,10 +300,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     p3.add(&log_level_choice);
-    wind.add(&p3);
+    vpack.insert(&p3, 1);
     wind.redraw();
     update_ui();
-    ypos += 55;
 
     // set the output device
     let audio_devices = get_output_audio_devices().unwrap();
@@ -313,7 +315,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // setup audio source choice
-    let mut p4 = Pack::new(xpos, ypos, gw, 25, "");
+    let mut p4 = Pack::new(0, 0, gw, 0, "");
     p4.set_type(PackType::Vertical);
     p4.end();
     let cur_audio_src = format!("Source: {}", config.sound_source);
@@ -361,10 +363,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     p4.add(&choose_audio_source_but);
-    wind.add(&p4);
+    vpack.insert(&p4, 2);
     wind.redraw();
     update_ui();
-    ypos += 35;
 
     // we need to pass some audio config data to the play function
     let wd = WavData {
@@ -400,15 +401,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::yield_now();
 
     // show renderer buttons title
-    let mut p5 = Pack::new(xpos, ypos, gw, 25, "");
+    let mut p5 = Pack::new(0, 0, gw, 0, "");
     p5.set_type(PackType::Vertical);
     p5.end();
     let mut frame = Frame::new(0, 0, fw, 25, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
     frame.set_label(&format!("UPNP rendering devices on network {}", local_addr));
     p5.add(&frame);
-    wind.add(&p5);
-    ypos += 35;
+    vpack.insert(&p5, 3);
+    vpack.redraw();
     wind.redraw();
     update_ui();
 
@@ -428,6 +429,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // button dimensions and starting position
     let bwidth = frame.width();
     let bheight = frame.height();
+    let binsert: u32 = 4;
 
     // run GUI, _app.wait() and _app.run() somehow block the logger channel
     // from receiving messages
@@ -529,14 +531,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             });
             // the pack for the new button
-            let mut pbutton = Pack::new(xpos, ypos, bwidth, bheight, "");
+            let mut pbutton = Pack::new(0, 0, bwidth, bheight, "");
             pbutton.set_type(PackType::Vertical);
             pbutton.end();
             pbutton.add(&but); // add the button to the window
-            wind.add(&pbutton);
+            vpack.insert(&pbutton, binsert);
             wind.redraw();
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
-            ypos += bheight + 10; // and the button y offset
         }
     }
     Ok(())

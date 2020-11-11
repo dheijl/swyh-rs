@@ -1,4 +1,9 @@
 ## swyh-rs Changelog
+- 1.0.0 (Nov 11 2020 dheijl)
+    enable windows resizing again, but it does not really work in FLTK, even when using Pack groups...
+
+- 0.9.9  (Nov 11 2020 dheijl)
+    disable resizing
 
 - 0.9.8 (Nov 10 2020 dheijl)
     better handling of ssdp discovery change and restart button

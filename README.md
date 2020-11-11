@@ -27,7 +27,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 - if your sound card has a forward slash (/) in the name, the "/" is replaced by "´´" in the sound source selection dropdown. The reason is purely technical: the FLTK MenuButton widget uses forward slashes in the text as a submenu indicator, so they have to be escaped to prevent this. 
   From the FLTK reference: _The text is split at '/' characters to automatically produce submenus (actually a totally unnecessary feature as you can now add submenu titles directly by setting FL_SUBMENU in the flags)._ Thanks go to @MoAlyousef who pointed this out to me.
-- resizing a window in fltk 1.4 does not work dependably, so it's disabled for now (no widget anchors or layouts available).
+- resizing a window in fltk 1.4 does not work well, it's enabled but it does not really work.
 
 
 ### How does it work?

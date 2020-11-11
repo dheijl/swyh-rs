@@ -52,7 +52,9 @@ use crate::utils::rwstream::ChannelStream;
 use ascii::*;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use fltk::{app, button::*, dialog, frame::*, menu::*, text::*, valuator::Counter, window::*};
+use fltk::{
+    app, button::*, dialog, frame::*, group::*, menu::*, text::*, valuator::Counter, window::*,
+};
 use lazy_static::*;
 use log::*;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
@@ -114,13 +116,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("No default output config found");
 
     let _app = app::App::default().with_scheme(app::Scheme::Gleam);
-    let (sw, sh) = app::screen_size();
-    let mut wind = Window::default()
-        .with_size((sw / 2.5) as i32, (sh / 2.0) as i32)
-        .with_label(&format!(
-            "swyh-rs UPNP/DLNA Media Renderers V{}",
-            APP_VERSION
-        ));
+    let ww = 660;
+    let wh = 660;
+    let mut wind = Window::default().with_size(ww, wh).with_label(&format!(
+        "swyh-rs UPNP/DLNA Media Renderers V{}",
+        APP_VERSION
+    ));
     wind.handle(move |_ev| {
         //eprintln!("{:?}", app::event());
         let ev = app::event();
@@ -133,31 +134,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    wind.make_resizable(true);
+    wind.make_resizable(false);
+    wind.end();
+    wind.show();
 
-    let fw = (sw as i32) / 3;
-    let xpos = ((wind.width() - 30) / 2) - (fw / 2);
+    let gw = 600;
+    let fw = 600;
+    let xpos = 30;
     let mut ypos = 5;
 
-    let mut opt_frame = Frame::new(xpos, ypos, fw, 25, "").with_align(Align::Center);
+    // title frame
+    let mut p1 = Pack::new(xpos, ypos, gw, 25, "");
+    p1.set_type(PackType::Vertical);
+    p1.end();
+    let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
     opt_frame.set_frame(FrameType::BorderBox);
     opt_frame.set_label("Options");
+    p1.add(&opt_frame);
     ypos += 35;
+    wind.add(&p1);
 
     // setup feedback textbox at the bottom
+    let mut p2 = Pack::new(2, wh - 160, ww - 4, 156, "");
+    p2.set_type(PackType::Vertical);
+    p2.end();
     let buf = TextBuffer::default();
-    let mut tb =
-        TextDisplay::new(2, wind.height() - 154, wind.width() - 4, 150, "").with_align(Align::Left);
+    let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
     tb.set_buffer(Some(buf));
+    p2.add(&tb);
+    p2.resizable(&mut tb.clone());
+    wind.add(&p2);
+    wind.redraw();
+    update_ui();
     // setup the feedback textbox logger thread
     let _ = std::thread::Builder::new()
         .name("textdisplay_updater".into())
         .stack_size(4 * 1024 * 1024)
         .spawn(move || tb_logger(tb))
         .unwrap();
-    wind.end();
-    wind.show();
-    update_ui();
 
     // read config
     let mut config = Configuration::read_config();
@@ -183,11 +197,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
     }
 
-    // show auto_resume option checkbox
-    let mut auto_resume = CheckButton::new(xpos, ypos, 150, 25, "Autoresume play");
+    // show config option widgets
+    let mut p3 = Pack::new(xpos, ypos, gw, 25, "");
+    p3.set_type(PackType::Horizontal);
+    p3.end();
+    let mut auto_resume = CheckButton::new(0, 0, 150, 25, "Autoresume play");
     if config.auto_resume {
         auto_resume.set(true);
     }
+    p3.add(&auto_resume);
+    let sp1 = Frame::new(0, 0, 10, 25, "");
+    p3.add(&sp1);
     let auto_resume_c = auto_resume.clone();
     auto_resume.handle(move |ev| match ev {
         Event::Released => {
@@ -202,15 +222,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         _ => true,
     });
-    wind.add(&auto_resume);
     // show ssdp interval counter
-    let mut ssdp_interval = Counter::new(
-        auto_resume.x() + auto_resume.width() + 25,
-        ypos,
-        150,
-        25,
-        "SSDP Interval (in minutes)",
-    );
+    let mut ssdp_interval = Counter::new(0, 0, 150, 25, "SSDP Interval (in minutes)");
     ssdp_interval.set_value(config.ssdp_interval_mins);
     let mut ssdp_interval_c = ssdp_interval.clone();
     ssdp_interval.handle(move |ev| match ev {
@@ -235,19 +248,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => false,
     });
 
-    wind.add(&ssdp_interval);
-    wind.redraw();
-    update_ui();
+    p3.add(&ssdp_interval);
+    let sp2 = Frame::new(0, 0, 10, 25, "");
+    p3.add(&sp2);
 
     // show log level choice
     let ll = format!("Log Level: {}", config.log_level.to_string());
-    let mut log_level_choice = MenuButton::new(
-        ssdp_interval.x() + ssdp_interval.width() + 25,
-        ypos,
-        150,
-        25,
-        &ll,
-    );
+    let mut log_level_choice = MenuButton::new(0, 0, 150, 25, &ll);
     let log_levels = vec!["Info", "Debug"];
     for ll in log_levels.iter() {
         log_level_choice.add_choice(ll);
@@ -289,7 +296,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    wind.add(&log_level_choice);
+    p3.add(&log_level_choice);
+    wind.add(&p3);
     wind.redraw();
     update_ui();
     ypos += 55;
@@ -305,9 +313,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // setup audio source choice
+    let mut p4 = Pack::new(xpos, ypos, gw, 25, "");
+    p4.set_type(PackType::Vertical);
+    p4.end();
     let cur_audio_src = format!("Source: {}", config.sound_source);
     log("Setup audio sources".to_string());
-    let mut choose_audio_source_but = MenuButton::new(xpos, ypos, fw, 25, &cur_audio_src);
+    let mut choose_audio_source_but = MenuButton::new(0, 0, 0, 25, &cur_audio_src);
     let devices = get_output_audio_devices().unwrap();
     for dev in devices.iter() {
         choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_escape());
@@ -349,7 +360,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
-    wind.add(&choose_audio_source_but);
+    p4.add(&choose_audio_source_but);
+    wind.add(&p4);
     wind.redraw();
     update_ui();
     ypos += 35;
@@ -388,10 +400,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::yield_now();
 
     // show renderer buttons title
-    let mut frame = Frame::new(xpos, ypos, fw, 25, "").with_align(Align::Center);
+    let mut p5 = Pack::new(xpos, ypos, gw, 25, "");
+    p5.set_type(PackType::Vertical);
+    p5.end();
+    let mut frame = Frame::new(0, 0, fw, 25, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
     frame.set_label(&format!("UPNP rendering devices on network {}", local_addr));
-    wind.add(&frame);
+    p5.add(&frame);
+    wind.add(&p5);
     ypos += 35;
     wind.redraw();
     update_ui();
@@ -418,13 +434,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auto_resume_c = &auto_resume;
     loop {
         app::wait_for(0.0)?;
-        if wind.width() < (sw / 3.0) as i32 {
-            wind.resize(wind.x(), wind.y(), (sw / 3.0) as i32, wind.height());
+        if wind.width() < (ww / 2) {
+            wind.resize(wind.x(), wind.y(), ww, wh);
             wind.redraw();
             app::wait_for(0.0)?;
         }
-        if wind.height() < (sh / 3.0) as i32 {
-            wind.resize(wind.x(), wind.y(), wind.width(), (sh / 3.0) as i32);
+        if wind.height() < (wh / 2) {
+            wind.resize(wind.x(), wind.y(), ww, wh);
             wind.redraw();
             app::wait_for(0.0)?;
         }
@@ -483,7 +499,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Ok(newr) = ssdp_rx.try_recv() {
             let mut but = LightButton::default() // create the button
                 .with_size(bwidth, bheight)
-                .with_pos(xpos, ypos)
+                .with_pos(0, 0)
                 .with_align(Align::Center)
                 .with_label(&format!("{} {}", newr.dev_model, newr.dev_name));
             renderers.push(newr.clone());
@@ -512,7 +528,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     _ => true,
                 }
             });
-            wind.add(&but); // add the button to the window
+            // the pack for the new button
+            let mut pbutton = Pack::new(xpos, ypos, bwidth, bheight, "");
+            pbutton.set_type(PackType::Vertical);
+            pbutton.end();
+            pbutton.add(&but); // add the button to the window
+            wind.add(&pbutton);
             wind.redraw();
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
             ypos += bheight + 10; // and the button y offset

@@ -115,19 +115,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .default_output_config()
         .expect("No default output config found");
 
-    let _app = app::App::default().with_scheme(app::Scheme::Gleam);
+    let app = app::App::default().with_scheme(app::Scheme::Gleam);
     let ww = 660;
     let wh = 660;
-    let mut wind = Window::default().with_size(ww, wh).with_label(&format!(
-        "swyh-rs UPNP/DLNA Media Renderers V{}",
-        APP_VERSION
-    ));
+    let mut wind = DoubleWindow::default()
+        .with_size(ww, wh)
+        .with_label(&format!(
+            "swyh-rs UPNP/DLNA Media Renderers V{}",
+            APP_VERSION
+        ));
     wind.handle(move |_ev| {
         //eprintln!("{:?}", app::event());
         let ev = app::event();
         match ev {
             Event::Close => {
-                _app.quit();
+                app.quit();
                 std::process::exit(0);
             }
             _ => false,
@@ -143,41 +145,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let xpos = 30;
     let ypos = 5;
 
-    let mut vpack = Pack::new(xpos, ypos, gw, wh, "");
-    vpack.resizable(&mut vpack.clone());
+    let mut vpack = Pack::new(xpos, ypos, gw, wh - 10, "");
+    vpack.make_resizable(false);
     vpack.set_spacing(15);
-    vpack.set_type(PackType::Vertical);
     vpack.end();
     wind.add(&vpack);
 
     // title frame
-    let mut p1 = Pack::new(0, 0, gw, 0, "");
-    p1.set_type(PackType::Vertical);
+    let mut p1 = Pack::new(0, 0, gw, 25, "");
     p1.end();
     let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
     opt_frame.set_frame(FrameType::BorderBox);
     opt_frame.set_label("Options");
     p1.add(&opt_frame);
     vpack.add(&p1);
-
-    // setup feedback textbox at the bottom
-    let mut p2 = Pack::new(2, wh - 160, ww - 4, 156, "");
-    p2.set_type(PackType::Vertical);
-    p2.end();
-    let buf = TextBuffer::default();
-    let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
-    tb.set_buffer(Some(buf));
-    p2.add(&tb);
-    p2.resizable(&mut tb.clone());
-    vpack.add(&p2);
-    wind.redraw();
-    update_ui();
-    // setup the feedback textbox logger thread
-    let _ = std::thread::Builder::new()
-        .name("textdisplay_updater".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(move || tb_logger(tb))
-        .unwrap();
 
     // read config
     let mut config = Configuration::read_config();
@@ -204,20 +185,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // show config option widgets
-    let mut p3 = Pack::new(0, 0, gw, 25, "");
-    p3.set_spacing(30);
-    p3.set_type(PackType::Horizontal);
-    p3.end();
+    let mut p2 = Pack::new(0, 0, gw, 25, "");
+    p2.set_spacing(30);
+    p2.set_type(PackType::Horizontal);
+    p2.end();
     let mut auto_resume = CheckButton::new(0, 0, 150, 25, "Autoresume play");
     if config.auto_resume {
         auto_resume.set(true);
     }
-    p3.add(&auto_resume);
-    let auto_resume_c = auto_resume.clone();
-    auto_resume.handle(move |ev| match ev {
+    auto_resume.handle2(move |b, ev| match ev {
         Event::Released => {
             let mut config = Configuration::read_config();
-            if auto_resume_c.is_set() {
+            if b.is_set() {
                 config.auto_resume = true;
             } else {
                 config.auto_resume = false;
@@ -227,18 +206,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         _ => true,
     });
+    p2.add(&auto_resume);
+
     // show ssdp interval counter
     let mut ssdp_interval = Counter::new(0, 0, 150, 35, "SSDP Interval (in minutes)");
     ssdp_interval.set_value(config.ssdp_interval_mins);
-    let mut ssdp_interval_c = ssdp_interval.clone();
-    ssdp_interval.handle(move |ev| match ev {
+    ssdp_interval.handle2(move |b, ev| match ev {
         Event::Leave => {
             let mut config = Configuration::read_config();
-            if ssdp_interval_c.value() < 0.5 {
-                ssdp_interval_c.set_value(0.5);
+            if b.value() < 0.5 {
+                b.set_value(0.5);
             }
-            if (config.ssdp_interval_mins - ssdp_interval_c.value()).abs() > 0.09 {
-                config.ssdp_interval_mins = ssdp_interval_c.value();
+            if (config.ssdp_interval_mins - b.value()).abs() > 0.09 {
+                config.ssdp_interval_mins = b.value();
                 log(format!(
                     "*W*W*> ssdp interval changed to {} minutes, restart required!!",
                     config.ssdp_interval_mins
@@ -252,8 +232,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         _ => false,
     });
-
-    p3.add(&ssdp_interval);
+    p2.add(&ssdp_interval);
 
     // show log level choice
     let ll = format!("Log Level: {}", config.log_level.to_string());
@@ -263,8 +242,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         log_level_choice.add_choice(ll);
     }
     let rlock = Mutex::new(0);
-    let mut log_lc_c = log_level_choice.clone();
-    log_level_choice.handle(move |ev| {
+    log_level_choice.handle2(move |b, ev| {
         let mut recursion = rlock.lock().unwrap();
         if *recursion > 0 {
             return false;
@@ -273,7 +251,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match ev {
             Event::Push => {
                 let mut config = Configuration::read_config();
-                let i = log_lc_c.value();
+                let i = b.value();
                 if i < 0 {
                     return false;
                 }
@@ -289,7 +267,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     CONFIG_CHANGED = true;
                 }
                 let ll = format!("Log Level: {}", config.log_level.to_string());
-                log_lc_c.set_label(&ll);
+                b.set_label(&ll);
                 true
             }
             _ => {
@@ -298,11 +276,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
-
-    p3.add(&log_level_choice);
-    vpack.insert(&p3, 1);
-    wind.redraw();
-    update_ui();
+    p2.add(&log_level_choice);
+    vpack.add(&p2);
 
     // set the output device
     let audio_devices = get_output_audio_devices().unwrap();
@@ -315,9 +290,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // setup audio source choice
-    let mut p4 = Pack::new(0, 0, gw, 0, "");
-    p4.set_type(PackType::Vertical);
-    p4.end();
+    let mut p3 = Pack::new(0, 0, gw, 25, "");
+    p3.end();
     let cur_audio_src = format!("Source: {}", config.sound_source);
     log("Setup audio sources".to_string());
     let mut choose_audio_source_but = MenuButton::new(0, 0, 0, 25, &cur_audio_src);
@@ -325,11 +299,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for dev in devices.iter() {
         choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_escape());
     }
-    let mut butas_cc = choose_audio_source_but.clone();
     // apparently this event can recurse on very fast machines
     // probably because it takes some time doing the file I/O, hence recursion lock
     let lock = Mutex::new(0);
-    choose_audio_source_but.handle(move |ev| {
+    choose_audio_source_but.handle2(move |b, ev| {
         let mut recursion = lock.lock().unwrap();
         if *recursion > 0 {
             return false;
@@ -338,7 +311,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match ev {
             Event::Push => {
                 let mut config = Configuration::read_config();
-                let i = butas_cc.value();
+                let i = b.value();
                 if i < 0 {
                     return false;
                 }
@@ -349,7 +322,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )); // std::env::current_exe()
                 config.sound_source = name;
                 let _ = config.update_config();
-                butas_cc.set_label(&format!("New Source: {}", config.sound_source));
+                b.set_label(&format!("New Source: {}", config.sound_source));
                 *recursion -= 1;
                 unsafe {
                     CONFIG_CHANGED = true;
@@ -362,10 +335,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
-    p4.add(&choose_audio_source_but);
-    vpack.insert(&p4, 2);
-    wind.redraw();
-    update_ui();
+    p3.add(&choose_audio_source_but);
+    vpack.add(&p3);
 
     // we need to pass some audio config data to the play function
     let wd = WavData {
@@ -401,17 +372,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::yield_now();
 
     // show renderer buttons title
-    let mut p5 = Pack::new(0, 0, gw, 0, "");
-    p5.set_type(PackType::Vertical);
-    p5.end();
+    let mut p4 = Pack::new(0, 0, gw, 25, "");
+    p4.end();
     let mut frame = Frame::new(0, 0, fw, 25, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
     frame.set_label(&format!("UPNP rendering devices on network {}", local_addr));
-    p5.add(&frame);
-    vpack.insert(&p5, 3);
-    vpack.redraw();
-    wind.redraw();
-    update_ui();
+    p4.add(&frame);
+    vpack.add(&p4);
+
+    // setup feedback textbox at the bottom
+    let mut p5 = Pack::new(0, 0, gw, 156, "");
+    p5.end();
+    let buf = TextBuffer::default();
+    let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
+    tb.set_buffer(Some(buf));
+    p5.add(&tb);
+    p5.resizable(&mut tb.clone());
+    vpack.add(&p5);
+    vpack.resizable(&mut p5);
+
+    // setup the feedback textbox logger thread
+    let _ = std::thread::Builder::new()
+        .name("textdisplay_updater".into())
+        .stack_size(4 * 1024 * 1024)
+        .spawn(move || tb_logger(tb))
+        .unwrap();
 
     // create a hashmap for a button for each discovered renderer
     let mut buttons: HashMap<String, LightButton> = HashMap::new();
@@ -431,20 +416,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bheight = frame.height();
     let binsert: u32 = 4;
 
-    // run GUI, _app.wait() and _app.run() somehow block the logger channel
+    // run GUI, app.wait() and app.run() somehow block the logger channel
     // from receiving messages
-    let auto_resume_c = &auto_resume;
-    loop {
-        app::wait_for(0.0)?;
+    while app.wait() {
         if wind.width() < (ww / 2) {
             wind.resize(wind.x(), wind.y(), ww, wh);
-            wind.redraw();
-            app::wait_for(0.0)?;
+            app::redraw();
         }
         if wind.height() < (wh / 2) {
             wind.resize(wind.x(), wind.y(), ww, wh);
-            wind.redraw();
-            app::wait_for(0.0)?;
+            app::redraw();
         }
         unsafe {
             if CONFIG_CHANGED {
@@ -482,7 +463,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     StreamingState::Ended => {
-                        if auto_resume_c.is_set() && button.is_set() {
+                        if auto_resume.is_set() && button.is_set() {
                             for r in renderers.iter() {
                                 if streamer_feedback.remote_ip == r.remote_addr {
                                     let _ = r.play(&local_addr, SERVER_PORT, &wd, &dummy_log);
@@ -507,52 +488,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             renderers.push(newr.clone());
             // prepare for event handler closure
             let newr_c = newr.clone();
-            let but_c = but.clone();
             let bi = buttons.len();
-            but.handle(move |ev| {
-                let but_cc = but_c.clone();
-                match ev {
-                    Event::Push => {
-                        debug!(
-                            "Pushed renderer #{} {} {}, state = {}",
-                            bi,
-                            newr_c.dev_model,
-                            newr_c.dev_name,
-                            if but_cc.is_set() { "ON" } else { "OFF" }
-                        );
-                        if but_cc.is_set() {
-                            let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
-                        } else {
-                            let _ = newr_c.stop_play(&log);
-                        }
-                        true
+            but.handle2(move |b, ev| match ev {
+                Event::Push => {
+                    debug!(
+                        "Pushed renderer #{} {} {}, state = {}",
+                        bi,
+                        newr_c.dev_model,
+                        newr_c.dev_name,
+                        if b.is_set() { "ON" } else { "OFF" }
+                    );
+                    if b.is_set() {
+                        let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
+                    } else {
+                        let _ = newr_c.stop_play(&log);
                     }
-                    _ => true,
+                    true
                 }
+                _ => true,
             });
             // the pack for the new button
             let mut pbutton = Pack::new(0, 0, bwidth, bheight, "");
-            pbutton.set_type(PackType::Vertical);
             pbutton.end();
             pbutton.add(&but); // add the button to the window
             vpack.insert(&pbutton, binsert);
-            wind.redraw();
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
         }
     }
     Ok(())
-}
-
-///
-/// update_ui - let fltk update the UI that was changed by other threads
-///
-fn update_ui() {
-    // FLTK Windows seems to handle all messages, but Linux apparently needs a loop ?
-    const COUNT: i32 = if cfg!(windows) { 2 } else { 100 };
-    for _ in 1..COUNT {
-        let _ = app::wait_for(0.0).unwrap_or_default();
-        std::thread::yield_now();
-    }
 }
 
 /// tb_logger - the TextBox logger thread

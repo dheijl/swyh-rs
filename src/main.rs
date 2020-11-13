@@ -418,7 +418,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // run GUI, app.wait() and app.run() somehow block the logger channel
     // from receiving messages
-    while app.wait() {
+    loop {
+        app::wait_for(0.0)?;
         if wind.width() < (ww / 2) {
             wind.resize(wind.x(), wind.y(), ww, wh);
             app::redraw();
@@ -513,6 +514,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             pbutton.add(&but); // add the button to the window
             vpack.insert(&pbutton, binsert);
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
+            app::redraw();
         }
     }
     Ok(())

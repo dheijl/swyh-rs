@@ -9,7 +9,7 @@ pub trait FwSlashUnescape {
 impl FwSlashEscape for String {
     fn fw_slash_escape(&self) -> String {
         if self.contains('/') {
-            self.replace("/", "´´")
+            self.replace("/", "\\/")
         } else {
             self.to_string()
         }
@@ -18,8 +18,8 @@ impl FwSlashEscape for String {
 
 impl FwSlashUnescape for String {
     fn fw_slash_unescape(&self) -> String {
-        if self.contains("´´") {
-            self.replace("´´", "/")
+        if self.contains("\\/") {
+            self.replace("\\/", "/")
         } else {
             self.to_string()
         }
@@ -33,7 +33,7 @@ mod tests {
         use crate::utils::escape::*;
         let a = "a/b/c".to_string();
         let b = a.fw_slash_escape();
-        assert_eq!(b, "a´´b´´c".to_string());
+        assert_eq!(b, "a\\/b\\/c".to_string());
         let c = b.fw_slash_unescape();
         assert_eq!(a, c);
         let a = "a b c".to_string();

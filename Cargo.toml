@@ -13,7 +13,7 @@ chrono = "*"
 cpal = "*"
 crossbeam-channel = "*"
 dirs = "*"
-fltk = "*" 
+fltk = "0.10.8" 
 htmlescape = "*"
 lazy_static = "*"
 log = {version = "*", features = ["max_level_trace", "release_max_level_debug"]}

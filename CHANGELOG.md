@@ -1,4 +1,9 @@
 ## swyh-rs Changelog
+
+- 1.0.1 (Nov 16 2020 dheijl & MoAlyousef)
+    - resizing is now usable (except for the horizontal scrollbar at the bottom that may get lost)
+    - fix for '/' in the name of an output audio source
+
 - 1.0.0 (Nov 11 2020 dheijl)
     enable windows resizing again, but it does not really work in FLTK, even when using Pack groups...
 

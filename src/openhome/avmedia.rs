@@ -556,9 +556,9 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
                     let mut is_renderer = false;
                     let mut dev_url: String = String::new();
                     for (header, value) in iter {
-                        if header == "LOCATION" {
+                        if header.to_uppercase() == "LOCATION" {
                             dev_url = value.to_string();
-                        } else if header == "ST" && value.contains("RenderingControl") {
+                        } else if header.to_uppercase() == "ST" && value.contains("RenderingControl") {
                             is_renderer = true;
                         }
                     }

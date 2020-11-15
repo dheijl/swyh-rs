@@ -387,9 +387,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
     tb.set_buffer(Some(buf));
     p5.add(&tb);
-    p5.resizable(&mut tb.clone());
+    p5.resizable(&tb.clone());
     vpack.add(&p5);
-    vpack.resizable(&mut p5);
+    vpack.resizable(&p5);
 
     // setup the feedback textbox logger thread
     let _ = std::thread::Builder::new()

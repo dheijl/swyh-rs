@@ -1,6 +1,9 @@
 ## swyh-rs Changelog
 
-- 1.0.1 (Nov 16 2020 dheijl & MoAlyousef)
+- 1.02  (Nov 15 2020 dheijl)
+    - support for Chromecast as DLNA device defined in Bubble UPNP Server, thanks BubbleSoft for the assistance!
+
+- 1.0.1 (Nov 14 2020 dheijl & MoAlyousef)
     - resizing is now usable (except for the horizontal scrollbar at the bottom that may get lost)
     - fix for '/' in the name of an output audio source
 

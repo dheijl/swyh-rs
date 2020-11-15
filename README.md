@@ -4,7 +4,13 @@ Stream What You Hear written in Rust
 
 swyh-rs is a very basic SWYH clone ( see <https://www.streamwhatyouhear.com/>, source repo <https://github.com/StreamWhatYouHear/SWYH>), entirely written in rust.
 
-It has only been tested with Volumio (<https://volumio.org/>) and Harman Kardon (thanks @MX10-AC2N!) streamers at this moment, but will probably support any streamer that supports the OpenHome or AVTransport protocol.
+It has only been tested with:
+- Volumio devices (<https://volumio.org/>)
+- Harman Kardon AV network streamers (thanks @MX10-AC2N!)
+- Sony AV streamers
+- Chromecast devices defined as a DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)   
+  
+at this moment, but will probably support any streamer that supports the OpenHome or AVTransport protocol.
 
 I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 
@@ -25,8 +31,6 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 ### Known problems:
 
-- if your sound card has a forward slash (/) in the name, the "/" is replaced by "´´" in the sound source selection dropdown. The reason is purely technical: the FLTK MenuButton widget uses forward slashes in the text as a submenu indicator, so they have to be escaped to prevent this. 
-  From the FLTK reference: _The text is split at '/' characters to automatically produce submenus (actually a totally unnecessary feature as you can now add submenu titles directly by setting FL_SUBMENU in the flags)._ Thanks go to @MoAlyousef who pointed this out to me.
 - resizing a window in fltk 1.4 is not ideal, but thanks to @MoAlyousef it is now usable in swyh-rs. But if you resize vertically to a very small window you risk losing the horizontal scrollbar in the textbox at the bottom. 
 
 

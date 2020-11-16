@@ -45,7 +45,7 @@ mod utils;
 use crate::openhome::avmedia::{discover, Renderer, WavData};
 use crate::utils::audiodevices::*;
 use crate::utils::configuration::Configuration;
-use crate::utils::escape::{FwSlashEscape, FwSlashUnescape};
+use crate::utils::escape::{FwSlashPipeEscape, FwSlashPipeUnescape};
 use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
@@ -285,7 +285,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let devname = adev.name().unwrap();
         if devname == config.sound_source {
             audio_output_device = adev;
-            debug!("Selected audio source: {}", devname);
+            info!("Selected audio source: {}", devname);
         }
     }
 
@@ -297,7 +297,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut choose_audio_source_but = MenuButton::new(0, 0, 0, 25, &cur_audio_src);
     let devices = get_output_audio_devices().unwrap();
     for dev in devices.iter() {
-        choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_escape());
+        choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_pipe_escape());
     }
     // apparently this event can recurse on very fast machines
     // probably because it takes some time doing the file I/O, hence recursion lock
@@ -318,7 +318,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if i as usize >= devices.len() {
                     i = (devices.len() - 1) as i32;
                 }
-                let name = devices[i as usize].name().unwrap().fw_slash_unescape();
+                let name = devices[i as usize].name().unwrap().fw_slash_pipe_unescape();
                 log(format!(
                     "*W*W*> Audio source changed to {}, restart required!!",
                     name

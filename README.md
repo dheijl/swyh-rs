@@ -8,9 +8,10 @@ It has only been tested with:
 - Volumio devices (<https://volumio.org/>)
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
 - Sony AV streamers
-- Chromecast devices defined as a DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)   
+- Chromecast devices defined as an OpenHome or DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)   
   
-at this moment, but will probably support any streamer that supports the OpenHome or AVTransport protocol.
+at this moment, but will probably support any streamer that supports the OpenHome or AVTransport (DLNA) protocol.
+If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and the DLNA AVTransport endpoint is ignored.
 
 I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 

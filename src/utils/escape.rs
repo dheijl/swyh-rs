@@ -1,28 +1,34 @@
-pub trait FwSlashEscape {
-    fn fw_slash_escape(&self) -> String;
+pub trait FwSlashPipeEscape {
+    fn fw_slash_pipe_escape(&self) -> String;
 }
 
-pub trait FwSlashUnescape {
-    fn fw_slash_unescape(&self) -> String;
+pub trait FwSlashPipeUnescape {
+    fn fw_slash_pipe_unescape(&self) -> String;
 }
 
-impl FwSlashEscape for String {
-    fn fw_slash_escape(&self) -> String {
-        if self.contains('/') {
-            self.replace("/", "\\/")
-        } else {
-            self.to_string()
+impl FwSlashPipeEscape for String {
+    fn fw_slash_pipe_escape(&self) -> String {
+        let mut result: String = self.to_string();
+        if result.contains('/') {
+            result = result.replace("/", "\\/");
+        } 
+        if result.contains("|") {
+            result = result.replace("|", "``");
         }
+        result
     }
 }
 
-impl FwSlashUnescape for String {
-    fn fw_slash_unescape(&self) -> String {
-        if self.contains("\\/") {
-            self.replace("\\/", "/")
-        } else {
-            self.to_string()
+impl FwSlashPipeUnescape for String {
+    fn fw_slash_pipe_unescape(&self) -> String {
+        let mut result: String = self.to_string();
+        if result.contains("\\/") {
+            result = result.replace("\\/", "/");
         }
+        if result.contains("``") {
+            result = result.replace("``", "|");
+        }
+        result
     }
 }
 
@@ -31,15 +37,15 @@ mod tests {
     #[test]
     fn test_escape() {
         use crate::utils::escape::*;
-        let a = "a/b/c".to_string();
-        let b = a.fw_slash_escape();
-        assert_eq!(b, "a\\/b\\/c".to_string());
-        let c = b.fw_slash_unescape();
+        let a = "a/b/c|d".to_string();
+        let b = a.fw_slash_pipe_escape();
+        assert_eq!(b, "a\\/b\\/c``d".to_string());
+        let c = b.fw_slash_pipe_unescape();
         assert_eq!(a, c);
         let a = "a b c".to_string();
-        let b = a.fw_slash_escape();
+        let b = a.fw_slash_pipe_escape();
         assert_eq!(b, "a b c".to_string());
-        let c = b.fw_slash_unescape();
+        let c = b.fw_slash_pipe_unescape();
         assert_eq!(a, c);
     }
 }

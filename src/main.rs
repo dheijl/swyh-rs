@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
+//#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
 ///
 /// swyh-rs
 ///
@@ -111,9 +111,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let mut audio_output_device =
         get_default_audio_output_device().expect("No default audio device");
-    let audio_cfg = &audio_output_device
-        .default_output_config()
-        .expect("No default output config found");
 
     let app = app::App::default().with_scheme(app::Scheme::Gleam);
     let ww = 660;
@@ -288,6 +285,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             info!("Selected audio source: {}", devname);
         }
     }
+    // we need to pass some audio config data to the play function
+    let audio_cfg = &audio_output_device
+        .default_output_config()
+        .expect("No default output config found");
+    let wd = WavData {
+        sample_format: audio_cfg.sample_format(),
+        sample_rate: audio_cfg.sample_rate(),
+        channels: audio_cfg.channels(),
+    };
 
     // setup audio source choice
     let mut p3 = Pack::new(0, 0, gw, 25, "");
@@ -340,13 +346,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     p3.add(&choose_audio_source_but);
     vpack.add(&p3);
-
-    // we need to pass some audio config data to the play function
-    let wd = WavData {
-        sample_format: audio_cfg.sample_format(),
-        sample_rate: audio_cfg.sample_rate(),
-        channels: audio_cfg.channels(),
-    };
 
     // raise process priority a bit to prevent audio stuttering under cpu load
     raise_priority();
@@ -581,7 +580,12 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
     let addr = format!("{}:{}", local_addr, SERVER_PORT);
     let logmsg = format!(
         "The streaming server is listening on http://{}/stream/swyh.wav",
-        addr
+        addr,
+    );
+    log(logmsg);
+    let logmsg = format!(
+        "Sample rate: {}, sample format: audio/l16 (PCM)",
+        wd.sample_rate.0.to_string(),
     );
     log(logmsg);
     let server = Arc::new(Server::http(addr).unwrap());

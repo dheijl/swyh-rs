@@ -11,7 +11,7 @@ impl FwSlashPipeEscape for String {
         let mut result: String = self.to_string();
         if result.contains('/') {
             result = result.replace("/", "\\/");
-        } 
+        }
         if result.contains("|") {
             result = result.replace("|", "``");
         }

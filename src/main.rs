@@ -1,4 +1,4 @@
-//#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
+#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
 ///
 /// swyh-rs
 ///
@@ -422,14 +422,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // run GUI, app.wait() and app.run() somehow block the logger channel
     // from receiving messages
     loop {
+        if app::should_program_quit() {
+            break;
+        }
         app::wait_for(0.0)?;
         if wind.width() < (ww / 2) {
             wind.resize(wind.x(), wind.y(), ww, wh);
             app::redraw();
+            app::wait_for(0.0)?;
         }
         if wind.height() < (wh / 2) {
             wind.resize(wind.x(), wind.y(), ww, wh);
             app::redraw();
+            app::wait_for(0.0)?;
         }
         unsafe {
             if CONFIG_CHANGED {
@@ -451,10 +456,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     CONFIG_CHANGED = false;
                 }
             }
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-        if app::should_program_quit() {
-            break;
         }
         // check if the webserver has closed a connection not caused by pushing the renderer button
         // in that case we turn the button off as a visual feedback
@@ -481,6 +482,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+        app::wait_for(0.0)?;
         // check the ssdp discovery thread channel for a newly discovered renderer
         // if yes: add a new button below the last one
         if let Ok(newr) = ssdp_rx.try_recv() {
@@ -519,6 +521,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
             app::redraw();
         }
+        app::wait_for(0.0)?;
+        std::thread::sleep(std::time::Duration::from_millis(10));
     }
     Ok(())
 }

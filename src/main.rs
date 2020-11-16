@@ -311,9 +311,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match ev {
             Event::Push => {
                 let mut config = Configuration::read_config();
-                let i = b.value();
+                let mut i = b.value();
                 if i < 0 {
                     return false;
+                }
+                if i as usize >= devices.len() {
+                    i = (devices.len() - 1) as i32;
                 }
                 let name = devices[i as usize].name().unwrap().fw_slash_unescape();
                 log(format!(
@@ -387,7 +390,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
     tb.set_buffer(Some(buf));
     p5.add(&tb);
-    p5.resizable(&tb.clone());
+    p5.resizable(&tb);
     vpack.add(&p5);
     vpack.resizable(&p5);
 

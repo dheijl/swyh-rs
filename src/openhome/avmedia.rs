@@ -488,11 +488,14 @@ impl Renderer {
 static SSDP_DISCOVER_MSG: &str = "M-SEARCH * HTTP/1.1\r\n\
 Host: 239.255.255.250:1900\r\n\
 Man: \"ssdp:discover\"\r\n\
-ST: urn:schemas-upnp-org:service:RenderingControl:1\r\n\
+ST: {device_type}\r\n\
 MX: 3\r\n\r\n";
 
 pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
     debug!("SSDP discovery started");
+
+    const OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
+    const AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
 
     // get the address of the internet connected interface
     let local_addr =
@@ -501,15 +504,17 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
     let socket = UdpSocket::bind(&bind_addr).unwrap();
     let _ = socket.set_broadcast(true).unwrap();
 
-    // broadcast the M-SEARCH message (MX is 3 secs)
+    // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
+    let mut oh_devices: Vec<(String, SocketAddr)> = Vec::new();
+    let mut av_devices: Vec<(String, SocketAddr)> = Vec::new();
+    let mut devices: Vec<(String, SocketAddr)> = Vec::new();
     //  SSDP UDP broadcast address
     let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
-    socket
-        .send_to(SSDP_DISCOVER_MSG.as_bytes(), &broadcast_address)
-        .unwrap();
-
+    let msg = SSDP_DISCOVER_MSG.replace("{device_type}", OH_DEVICE);
+    socket.send_to(msg.as_bytes(), &broadcast_address).unwrap();
+    let msg = SSDP_DISCOVER_MSG.replace("{device_type}", AV_DEVICE);
+    socket.send_to(msg.as_bytes(), &broadcast_address).unwrap();
     // collect the responses and remeber all new renderers
-    let mut devices: Vec<(String, SocketAddr)> = Vec::new();
     let start = Instant::now();
     loop {
         let duration = start.elapsed().as_millis() as u64;
@@ -553,35 +558,28 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
                             _ => None,
                         }
                     });
-                    let mut is_renderer = false;
                     let mut dev_url: String = String::new();
+                    let mut oh_device = false;
+                    let mut av_device = false;
                     for (header, value) in iter {
-                        if header.to_uppercase() == "LOCATION" {
+                        if header.to_ascii_uppercase() == "LOCATION" {
                             dev_url = value.to_string();
-                        } else if header.to_uppercase() == "ST" && value.contains("RenderingControl") {
-                            is_renderer = true;
-                        }
-                    }
-                    if is_renderer {
-                        let mut existing = false;
-                        for r in rmap.values() {
-                            if dev_url.contains(&r.dev_url) {
-                                existing = true;
-                                continue;
+                        } else if header.to_ascii_uppercase() == "ST" {
+                            if value.contains("urn:schemas-upnp-org:service:RenderingControl:1") {
+                                av_device = true;
+                            } else if value.contains("urn:av-openhome-org:service:Product:1") {
+                                oh_device = true;
                             }
                         }
-                        if !existing {
-                            info!(
-                                "SSDP discovery: new Renderer found at : {}",
-                                dev_url.clone()
-                            );
-                            devices.push((dev_url, from));
-                        } else {
-                            debug!("SSDP discovery: skipping existing Renderer at {}", dev_url);
-                        }
                     }
-                } else {
-                    continue;
+                    if oh_device {
+                        oh_devices.push((dev_url.clone(), from));
+                        debug!("SSDP Discovery: OH renderer: {}", dev_url);
+                    }
+                    if av_device {
+                        av_devices.push((dev_url.clone(), from));
+                        debug!("SSDP Discovery: AV renderer: {}", dev_url);
+                    }
                 }
             }
             Err(e) => {
@@ -593,6 +591,32 @@ pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Opt
         }
     }
 
+    // only keep OH devices and AV devices that are not OH capable
+    let mut usable_devices: Vec<(String, SocketAddr)> = Vec::new();
+    for (oh_url, sa) in oh_devices.iter() {
+        usable_devices.push((oh_url.to_string(), *sa));
+    }
+    for (av_url, sa) in av_devices.iter() {
+        if !usable_devices.iter().any(|d| d.0 == *av_url) {
+            usable_devices.push((av_url.to_string(), *sa));
+        } else {
+            debug!(
+                "SSDP Discovery: skipping AV renderer {} as it is also OH",
+                av_url
+            );
+        }
+    }
+    // now filter out devices we already know about
+    for (url, sa) in usable_devices.iter() {
+        if !rmap.iter().any(|m| url.contains(&m.1.dev_url)) {
+            info!("SSDP discovery: new Renderer found at : {}", url);
+            devices.push((url.to_string(), *sa));
+        } else {
+            info!("SSDP discovery: Skipping known Renderer at {}", url);
+        }
+    }
+
+    // now get the new renderers description xml
     debug!("Getting new renderer descriptions");
     let mut renderers: Vec<Renderer> = Vec::new();
 

@@ -1,10 +1,13 @@
 ## swyh-rs Changelog
 
-- 1.03 (Nov 16 2020 dheijl)
+- 1.0.4 (Nov 16 2020 dheijl)
+  - bugfix for sample rate from default audio output device being advertised while sample rate of actual audio output device was used
+
+- 1.0.3 (Nov 16 2020 dheijl)
     - SSDP now detects all OpenHome and DLNA renderers, but only uses the OpenHome device for devices that are capable of both
     - prevent panic in audio source chooser caused by vertical bar ("|") in audio source name, it too must be escaped for FLTK Menu_Item...
 
-- 1.02  (Nov 15 2020 dheijl)
+- 1.0.2 (Nov 15 2020 dheijl)
     - support for Chromecast as DLNA device defined in Bubble UPNP Server, thanks BubbleSoft for the assistance!
 
 - 1.0.1 (Nov 14 2020 dheijl & MoAlyousef)

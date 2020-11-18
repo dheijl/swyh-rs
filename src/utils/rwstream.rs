@@ -51,9 +51,7 @@ impl ChannelStream {
         }
     }
     pub fn write(&self, samples: &[i16]) {
-        let mut chunk: Vec<i16> = Vec::new();
-        chunk.resize(samples.len(), 0);
-        chunk.copy_from_slice(samples);
+        let chunk = samples.to_vec();
         self.s.send(chunk).unwrap();
     }
 }
@@ -70,9 +68,7 @@ impl Read for ChannelStream {
                 }
                 None => match self.r.recv() {
                     Ok(chunk) => {
-                        let mut new_samples: VecDeque<i16> = VecDeque::from(chunk);
-                        self.fifo.append(&mut new_samples);
-                        continue;
+                        self.fifo.extend(chunk);
                     }
                     Err(_) => {
                         break;

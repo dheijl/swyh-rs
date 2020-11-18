@@ -12,7 +12,7 @@ impl FwSlashPipeEscape for String {
         if result.contains('/') {
             result = result.replace("/", "\\/");
         }
-        if result.contains("|") {
+        if result.contains('|') {
             result = result.replace("|", "``");
         }
         result

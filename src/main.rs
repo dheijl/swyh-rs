@@ -45,7 +45,7 @@ mod utils;
 use crate::openhome::avmedia::{discover, Renderer, WavData};
 use crate::utils::audiodevices::*;
 use crate::utils::configuration::Configuration;
-use crate::utils::escape::{FwSlashPipeEscape, FwSlashPipeUnescape};
+use crate::utils::escape::FwSlashPipeEscape;
 use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
@@ -57,11 +57,13 @@ use fltk::{
 };
 use lazy_static::*;
 use log::*;
+use once_cell::sync::OnceCell;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::collections::HashMap;
 use std::fs::File;
 use std::net::IpAddr;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -167,7 +169,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
     }
-    static mut CONFIG_CHANGED: bool = false;
+
+    let config_changed: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
     // configure simplelogger
     let loglevel = config.log_level;
@@ -208,6 +211,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // show ssdp interval counter
     let mut ssdp_interval = Counter::new(0, 0, 150, 35, "SSDP Interval (in minutes)");
     ssdp_interval.set_value(config.ssdp_interval_mins);
+    let config_ch_flag = config_changed.clone();
     ssdp_interval.handle2(move |b, ev| match ev {
         Event::Leave => {
             let mut config = Configuration::read_config();
@@ -221,9 +225,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     config.ssdp_interval_mins
                 ));
                 let _ = config.update_config();
-                unsafe {
-                    CONFIG_CHANGED = true;
-                }
+                config_ch_flag.store(true, Ordering::Relaxed);
             }
             true
         }
@@ -239,6 +241,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         log_level_choice.add_choice(ll);
     }
     let rlock = Mutex::new(0);
+    let config_ch_flag = config_changed.clone();
     log_level_choice.handle2(move |b, ev| {
         let mut recursion = rlock.lock().unwrap();
         if *recursion > 0 {
@@ -260,9 +263,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 config.log_level = level.parse().unwrap_or(LevelFilter::Info);
                 let _ = config.update_config();
                 *recursion -= 1;
-                unsafe {
-                    CONFIG_CHANGED = true;
-                }
+                config_ch_flag.store(true, Ordering::Relaxed);
                 let ll = format!("Log Level: {}", config.log_level.to_string());
                 b.set_label(&ll);
                 true
@@ -276,14 +277,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p2.add(&log_level_choice);
     vpack.add(&p2);
 
-    // set the output device
+    // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices().unwrap();
+    let mut source_names: Vec<String> = Vec::new();
     for adev in audio_devices {
         let devname = adev.name().unwrap();
         if devname == config.sound_source {
             audio_output_device = adev;
             info!("Selected audio source: {}", devname);
         }
+        source_names.push(devname);
     }
     // we need to pass some audio config data to the play function
     let audio_cfg = &audio_output_device
@@ -301,13 +304,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cur_audio_src = format!("Source: {}", config.sound_source);
     log("Setup audio sources".to_string());
     let mut choose_audio_source_but = MenuButton::new(0, 0, 0, 25, &cur_audio_src);
-    let devices = get_output_audio_devices().unwrap();
-    for dev in devices.iter() {
-        choose_audio_source_but.add_choice(&dev.name().unwrap().fw_slash_pipe_escape());
+    for name in source_names.iter() {
+        choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
     }
     // apparently this event can recurse on very fast machines
     // probably because it takes some time doing the file I/O, hence recursion lock
     let lock = Mutex::new(0);
+    let config_ch_flag = config_changed.clone();
     choose_audio_source_but.handle2(move |b, ev| {
         let mut recursion = lock.lock().unwrap();
         if *recursion > 0 {
@@ -321,10 +324,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if i < 0 {
                     return false;
                 }
-                if i as usize >= devices.len() {
-                    i = (devices.len() - 1) as i32;
+                if i as usize >= source_names.len() {
+                    i = (source_names.len() - 1) as i32;
                 }
-                let name = devices[i as usize].name().unwrap().fw_slash_pipe_unescape();
+                let name = source_names[i as usize].clone();
                 log(format!(
                     "*W*W*> Audio source changed to {}, restart required!!",
                     name
@@ -333,9 +336,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let _ = config.update_config();
                 b.set_label(&format!("New Source: {}", config.sound_source));
                 *recursion -= 1;
-                unsafe {
-                    CONFIG_CHANGED = true;
-                }
+                config_ch_flag.store(true, Ordering::Relaxed);
                 true
             }
             _ => {
@@ -435,25 +436,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             app::redraw();
             app::wait_for(0.0)?;
         }
-        unsafe {
-            if CONFIG_CHANGED {
-                //restart_but.show();
-                let c = dialog::choice(
-                    wind.width() as i32 / 2 - 100,
-                    wind.height() as i32 / 2 - 50,
-                    "Configuration value changed!",
-                    "Restart",
-                    "Cancel",
-                    "",
-                );
-                if c == 0 {
-                    std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
-                        .spawn()
-                        .expect("Unable to spawn myself!");
-                    std::process::exit(0);
-                } else {
-                    CONFIG_CHANGED = false;
-                }
+        if config_changed.load(Ordering::Relaxed) {
+            //restart_but.show();
+            let c = dialog::choice(
+                wind.width() as i32 / 2 - 100,
+                wind.height() as i32 / 2 - 50,
+                "Configuration value changed!",
+                "Restart",
+                "Cancel",
+                "",
+            );
+            if c == 0 {
+                std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
+                    .spawn()
+                    .expect("Unable to spawn myself!");
+                std::process::exit(0);
+            } else {
+                config_changed.store(true, Ordering::Relaxed);
             }
         }
         // check if the webserver has closed a connection not caused by pushing the renderer button
@@ -840,13 +839,10 @@ fn wave_reader<T>(samples: &[T])
 where
     T: cpal::Sample,
 {
-    static mut ONETIME_SW: bool = false;
-    unsafe {
-        if !ONETIME_SW {
-            log("The wave_reader is receiving samples".to_string());
-            ONETIME_SW = true;
-        }
-    }
+    static ONETIME_SW: OnceCell<()> = OnceCell::new();
+    ONETIME_SW.get_or_init(|| {
+        log("The wave_reader is receiving samples".to_string());
+    });
 
     let i16_samples: Vec<i16> = samples.iter().map(|x| x.to_i16()).collect();
     let clients = CLIENTS.lock().unwrap();

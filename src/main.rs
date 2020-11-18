@@ -57,7 +57,6 @@ use fltk::{
 };
 use lazy_static::*;
 use log::*;
-use once_cell::sync::OnceCell;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -545,6 +544,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
             app::redraw();
             app::wait_for(0.0)?;
+            // check if autoreconnect is set for this renderer
             if auto_reconnect.is_set() && but.label() == *last_renderer {
                 but.turn_on(true);
                 but.do_callback();
@@ -870,10 +870,13 @@ fn wave_reader<T>(samples: &[T])
 where
     T: cpal::Sample,
 {
-    static ONETIME_SW: OnceCell<()> = OnceCell::new();
-    ONETIME_SW.get_or_init(|| {
-        log("The wave_reader is receiving samples".to_string());
-    });
+    static mut ONETIME_SW: bool = false;
+    unsafe {
+        if !ONETIME_SW {
+            log("The wave_reader is receiving samples".to_string());
+            ONETIME_SW = true;
+        }
+    }
 
     let i16_samples: Vec<i16> = samples.iter().map(|x| x.to_i16()).collect();
     let clients = CLIENTS.lock().unwrap();

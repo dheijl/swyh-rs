@@ -17,7 +17,6 @@ fltk = "*"
 htmlescape = "*"
 lazy_static = "*"
 log = {version = "*", features = ["max_level_trace", "release_max_level_debug"]}
-once_cell = "*"
 rust-ini = "*"
 simplelog = "*"
 strfmt = "*"

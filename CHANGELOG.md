@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 1.0.5 (Nov 17 2020 dheijl)
+  - various code improvements offered by @Boscop (https://github.com/dheijl/swyh-rs/issues/22)
+
 - 1.0.4 (Nov 16 2020 dheijl)
   - bugfix for sample rate from default audio output device being advertised while sample rate of actual audio output device was used
 

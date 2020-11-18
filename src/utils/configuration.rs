@@ -10,6 +10,8 @@ pub struct Configuration {
     pub sound_source: String,
     pub log_level: LevelFilter,
     pub ssdp_interval_mins: f64,
+    pub auto_reconnect: bool,
+    pub last_renderer: String,
     config_dir: PathBuf,
 }
 
@@ -20,6 +22,8 @@ impl Configuration {
             sound_source: "None".to_string(),
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 1.0,
+            auto_reconnect: false,
+            last_renderer: "None".to_string(),
             config_dir: Self::get_config_dir(),
         }
     }
@@ -44,6 +48,8 @@ impl Configuration {
                 .set("SoundCard", "None")
                 .set("LogLevel", LevelFilter::Info.to_string())
                 .set("SSDPIntervalMins", "1")
+                .set("AutoReconnect", "false")
+                .set("LastRenderer", "None")
                 .set("ConfigDir", &Self::get_config_dir().display().to_string());
             conf.write_to_file(&configfile).unwrap();
         }
@@ -72,6 +78,15 @@ impl Configuration {
         if config.ssdp_interval_mins < 0.5 {
             config.ssdp_interval_mins = 0.5;
         }
+        match conf.get_from_or(Some("Configuration"), "AutoReconnect", "false") {
+            "true" | "True" | "TRUE" | "1" | "T" | "t" => config.auto_reconnect = true,
+            _ => config.auto_reconnect = false,
+        }
+        config.last_renderer = conf
+            .get_from_or(Some("Configuration"), "LastRenderer", "None")
+            .to_string()
+            .parse()
+            .unwrap();
         let config_dir = conf
             .get_from_or(
                 Some("Configuration"),
@@ -98,9 +113,15 @@ impl Configuration {
             .set("SoundCard", &self.sound_source)
             .set("LogLevel", self.log_level.to_string())
             .set("SSDPIntervalMins", self.ssdp_interval_mins.to_string())
+            .set(
+                "AutoReconnect",
+                if self.auto_reconnect { "true" } else { "false" },
+            )
+            .set("LastRenderer", self.last_renderer.to_string())
             .set("ConfigDir", &self.config_dir.display().to_string());
         conf.write_to_file(&configfile)
     }
+
     fn get_config_dir() -> PathBuf {
         let hd = dirs::home_dir().unwrap_or_default();
         let config_dir = Path::new(&hd).join("swyh-rs");

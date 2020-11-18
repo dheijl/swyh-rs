@@ -186,9 +186,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // show config option widgets
     let mut p2 = Pack::new(0, 0, gw, 25, "");
-    p2.set_spacing(30);
+    p2.set_spacing(10);
     p2.set_type(PackType::Horizontal);
     p2.end();
+
+    // auto_resume button for AVTransport autoresume play
     let mut auto_resume = CheckButton::new(0, 0, 150, 25, "Autoresume play");
     if config.auto_resume {
         auto_resume.set(true);
@@ -208,7 +210,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     p2.add(&auto_resume);
 
-    // show ssdp interval counter
+    // AutoReconnect to last renderer on startup button
+    let mut auto_reconnect = CheckButton::new(0, 0, 150, 25, "Autoreconnect");
+    if config.auto_reconnect {
+        auto_reconnect.set(true);
+    }
+    auto_reconnect.handle2(move |b, ev| match ev {
+        Event::Released => {
+            let mut config = Configuration::read_config();
+            if b.is_set() {
+                config.auto_reconnect = true;
+            } else {
+                config.auto_reconnect = false;
+            }
+            let _ = config.update_config();
+            true
+        }
+        _ => true,
+    });
+    p2.add(&auto_reconnect);
+
+    // SSDP interval counter
     let mut ssdp_interval = Counter::new(0, 0, 150, 35, "SSDP Interval (in minutes)");
     ssdp_interval.set_value(config.ssdp_interval_mins);
     let config_ch_flag = config_changed.clone();
@@ -275,7 +297,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     p2.add(&log_level_choice);
-    p2.make_resizable(true);
+    p2.make_resizable(false);
     p2.auto_layout();
     vpack.add(&p2);
 
@@ -410,17 +432,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the renderers discovered so far
     let mut renderers: Vec<Renderer> = Vec::new();
     log("Running SSDP discovery".to_string());
+    let conf = config.clone();
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 102 * 1024)
-        .spawn(move || run_ssdp_updater(ssdp_tx, config.ssdp_interval_mins))
+        .spawn(move || run_ssdp_updater(ssdp_tx, conf.ssdp_interval_mins))
         .unwrap();
 
     // button dimensions and starting position
     let bwidth = frame.width();
     let bheight = frame.height();
     let binsert: u32 = 4;
-
+    // set last renderer used
+    let last_renderer = config.last_renderer;
     // run GUI, app.wait() and app.run() somehow block the logger channel
     // from receiving messages
     loop {
@@ -454,7 +478,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .expect("Unable to spawn myself!");
                 std::process::exit(0);
             } else {
-                config_changed.store(true, Ordering::Relaxed);
+                config_changed.store(false, Ordering::Relaxed);
             }
         }
         // check if the webserver has closed a connection not caused by pushing the renderer button
@@ -495,23 +519,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // prepare for event handler closure
             let newr_c = newr.clone();
             let bi = buttons.len();
-            but.handle2(move |b, ev| match ev {
-                Event::Push => {
-                    debug!(
-                        "Pushed renderer #{} {} {}, state = {}",
-                        bi,
-                        newr_c.dev_model,
-                        newr_c.dev_name,
-                        if b.is_set() { "ON" } else { "OFF" }
-                    );
-                    if b.is_set() {
-                        let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
-                    } else {
-                        let _ = newr_c.stop_play(&log);
-                    }
-                    true
+            but.set_callback2(move |b| {
+                debug!(
+                    "Pushed renderer #{} {} {}, state = {}",
+                    bi,
+                    newr_c.dev_model,
+                    newr_c.dev_name,
+                    if b.is_set() { "ON" } else { "OFF" }
+                );
+                if b.is_set() {
+                    let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
+                    let mut config = Configuration::read_config();
+                    config.last_renderer = b.label();
+                    let _ = config.update_config();
+                } else {
+                    let _ = newr_c.stop_play(&log);
                 }
-                _ => true,
             });
             // the pack for the new button
             let mut pbutton = Pack::new(0, 0, bwidth, bheight, "");
@@ -520,6 +543,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             vpack.insert(&pbutton, binsert);
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
             app::redraw();
+            app::wait_for(0.0)?;
+            if auto_reconnect.is_set() && but.label() == *last_renderer {
+                but.turn_on(true);
+                but.do_callback();
+            }
         }
         app::wait_for(0.0)?;
         std::thread::sleep(std::time::Duration::from_millis(10));

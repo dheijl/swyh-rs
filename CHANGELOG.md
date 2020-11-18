@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 1.0.6 (Nov 17 2020 dheijl)
+  - implement autoconnect to the last used renderer on startup (https://github.com/dheijl/swyh-rs/issues/19)
+
 - 1.0.5 (Nov 17 2020 dheijl)
   - various code improvements offered by @Boscop (https://github.com/dheijl/swyh-rs/issues/22)
 

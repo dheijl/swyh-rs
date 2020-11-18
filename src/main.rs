@@ -275,6 +275,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     p2.add(&log_level_choice);
+    p2.make_resizable(true);
+    p2.auto_layout();
     vpack.add(&p2);
 
     // get the output device from the config and get all available audio source names

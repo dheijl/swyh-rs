@@ -59,11 +59,12 @@ use lazy_static::*;
 use log::*;
 use once_cell::sync::OnceCell;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::net::IpAddr;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -170,7 +171,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.log_level = LevelFilter::Debug;
     }
 
-    let config_changed: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let config_changed: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
     // configure simplelogger
     let loglevel = config.log_level;
@@ -247,7 +248,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     config.ssdp_interval_mins
                 ));
                 let _ = config.update_config();
-                config_ch_flag.store(true, Ordering::Relaxed);
+                config_ch_flag.set(true);
             }
             true
         }
@@ -285,7 +286,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 config.log_level = level.parse().unwrap_or(LevelFilter::Info);
                 let _ = config.update_config();
                 *recursion -= 1;
-                config_ch_flag.store(true, Ordering::Relaxed);
+                config_ch_flag.set(true);
                 let ll = format!("Log Level: {}", config.log_level.to_string());
                 b.set_label(&ll);
                 true
@@ -360,7 +361,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let _ = config.update_config();
                 b.set_label(&format!("New Source: {}", config.sound_source));
                 *recursion -= 1;
-                config_ch_flag.store(true, Ordering::Relaxed);
+                config_ch_flag.set(true);
                 true
             }
             _ => {
@@ -462,7 +463,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             app::redraw();
             app::wait_for(0.0)?;
         }
-        if config_changed.load(Ordering::Relaxed) {
+        if config_changed.get() {
             //restart_but.show();
             let c = dialog::choice(
                 wind.width() as i32 / 2 - 100,
@@ -478,7 +479,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .expect("Unable to spawn myself!");
                 std::process::exit(0);
             } else {
-                config_changed.store(false, Ordering::Relaxed);
+                config_changed.set(false);
             }
         }
         // check if the webserver has closed a connection not caused by pushing the renderer button

@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 1.0.7 (Nov 19 2020 dheijl)
+  - upgrade to rustc 1.48, fltk-rs 0.10.11, and some small code improvements 
+
 - 1.0.6 (Nov 17 2020 dheijl)
   - implement autoconnect to the last used renderer on startup (https://github.com/dheijl/swyh-rs/issues/19)
 

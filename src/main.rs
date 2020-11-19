@@ -57,6 +57,7 @@ use fltk::{
 };
 use lazy_static::*;
 use log::*;
+use once_cell::sync::OnceCell;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -870,13 +871,10 @@ fn wave_reader<T>(samples: &[T])
 where
     T: cpal::Sample,
 {
-    static mut ONETIME_SW: bool = false;
-    unsafe {
-        if !ONETIME_SW {
-            log("The wave_reader is receiving samples".to_string());
-            ONETIME_SW = true;
-        }
-    }
+    static ONETIME_SW: OnceCell<()> = OnceCell::new();
+    ONETIME_SW.get_or_init(|| {
+        log("The wave_reader is receiving samples".to_string());
+    });
 
     let i16_samples: Vec<i16> = samples.iter().map(|x| x.to_i16()).collect();
     let clients = CLIENTS.lock().unwrap();

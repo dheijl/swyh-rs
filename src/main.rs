@@ -817,10 +817,11 @@ fn capture_output_audio(device: &cpal::Device) -> Option<cpal::Stream> {
         .default_output_config()
         .expect("No default output config found");
     log(format!("Default audio {:?}", audio_cfg));
+    let mut i16_samples: Vec<i16> = Vec::with_capacity(16384);
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             &audio_cfg.config(),
-            move |data, _: &_| wave_reader::<f32>(data),
+            move |data, _: &_| wave_reader::<f32>(data, &mut i16_samples),
             capture_err_fn,
         ) {
             Ok(stream) => Some(stream),
@@ -832,7 +833,7 @@ fn capture_output_audio(device: &cpal::Device) -> Option<cpal::Stream> {
         cpal::SampleFormat::I16 => {
             match device.build_input_stream(
                 &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<i16>(data),
+                move |data, _: &_| wave_reader::<i16>(data, &mut i16_samples),
                 capture_err_fn,
             ) {
                 Ok(stream) => Some(stream),
@@ -845,7 +846,7 @@ fn capture_output_audio(device: &cpal::Device) -> Option<cpal::Stream> {
         cpal::SampleFormat::U16 => {
             match device.build_input_stream(
                 &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<u16>(data),
+                move |data, _: &_| wave_reader::<u16>(data, &mut i16_samples),
                 capture_err_fn,
             ) {
                 Ok(stream) => Some(stream),
@@ -867,7 +868,7 @@ fn capture_err_fn(err: cpal::StreamError) {
 ///
 /// writes the captured samples to all registered clients in the
 /// CLIENTS ChannnelStream hashmap
-fn wave_reader<T>(samples: &[T])
+fn wave_reader<T>(samples: &[T], i16_samples: &mut Vec<i16>)
 where
     T: cpal::Sample,
 {
@@ -875,8 +876,8 @@ where
     ONETIME_SW.get_or_init(|| {
         log("The wave_reader is receiving samples".to_string());
     });
-
-    let i16_samples: Vec<i16> = samples.iter().map(|x| x.to_i16()).collect();
+    i16_samples.clear();
+    i16_samples.extend(samples.iter().map(|x| x.to_i16()));
     let clients = CLIENTS.lock().unwrap();
     for (_, v) in clients.iter() {
         v.write(&i16_samples);

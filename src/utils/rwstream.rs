@@ -51,8 +51,7 @@ impl ChannelStream {
         }
     }
     pub fn write(&self, samples: &[i16]) {
-        let chunk = samples.to_vec();
-        self.s.send(chunk).unwrap();
+        self.s.send(samples.to_vec()).unwrap();
     }
 }
 

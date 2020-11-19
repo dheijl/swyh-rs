@@ -880,6 +880,6 @@ where
     i16_samples.extend(samples.iter().map(|x| x.to_i16()));
     let clients = CLIENTS.lock().unwrap();
     for (_, v) in clients.iter() {
-        v.write(&i16_samples);
+        v.write(i16_samples);
     }
 }

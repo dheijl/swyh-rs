@@ -192,7 +192,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p2.end();
 
     // auto_resume button for AVTransport autoresume play
-    let mut auto_resume = CheckButton::new(0, 0, 150, 25, "Autoresume play");
+    let mut auto_resume = CheckButton::new(0, 0, 0, 0, "Autoresume play");
     if config.auto_resume {
         auto_resume.set(true);
     }
@@ -212,7 +212,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p2.add(&auto_resume);
 
     // AutoReconnect to last renderer on startup button
-    let mut auto_reconnect = CheckButton::new(0, 0, 150, 25, "Autoreconnect");
+    let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, "Autoreconnect");
     if config.auto_reconnect {
         auto_reconnect.set(true);
     }
@@ -232,7 +232,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p2.add(&auto_reconnect);
 
     // SSDP interval counter
-    let mut ssdp_interval = Counter::new(0, 0, 150, 35, "SSDP Interval (in minutes)");
+    let mut ssdp_interval = Counter::new(0, 0, 0, 0, "SSDP Interval (in minutes)");
     ssdp_interval.set_value(config.ssdp_interval_mins);
     let config_ch_flag = config_changed.clone();
     ssdp_interval.handle2(move |b, ev| match ev {
@@ -258,7 +258,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // show log level choice
     let ll = format!("Log Level: {}", config.log_level.to_string());
-    let mut log_level_choice = MenuButton::new(0, 0, 150, 25, &ll);
+    let mut log_level_choice = MenuButton::new(0, 0, 0, 0, &ll);
     let log_levels = vec!["Info", "Debug"];
     for ll in log_levels.iter() {
         log_level_choice.add_choice(ll);
@@ -298,8 +298,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     p2.add(&log_level_choice);
-    p2.make_resizable(false);
     p2.auto_layout();
+    p2.make_resizable(false);
     vpack.add(&p2);
 
     // get the output device from the config and get all available audio source names

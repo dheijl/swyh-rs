@@ -684,7 +684,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     std::thread::yield_now();
                     let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                     let response = Response::empty(200)
-                        .with_data(channel_stream, Some(0x7FFFFFFF))
+                        .with_data(channel_stream, None)
                         .with_header(cc_hdr)
                         .with_header(ct_hdr)
                         .with_header(tm_hdr)

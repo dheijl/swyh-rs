@@ -15,11 +15,11 @@ If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and 
 
 I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 
-For the moment all music is streamed in uncompressed LPCM format (audio/l16) with the sample rate of the music source (the default audio output device, I personally use VBAudio HiFi Cable Input). Audio is captured using the excellent cpal (<https://github.com/RustAudio/cpal>) library.
+For the moment all music is streamed in uncompressed LPCM format (audio/l16) with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input). Audio is captured using the excellent cpal (<https://github.com/RustAudio/cpal>) library.
 
 I use fltk-rs (<https://github.com/MoAlyousef/fltk-rs>) for the GUI, as it's easy to use, is cross-platform, is fast and works well. 
 
-Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/HifI Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
+Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/HifI-Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
 
 You can get the latest Windows binary from the Release page (<https://github.com/dheijl/swyh-rs/releases>).
 There is a debug build and a release build in the zip file. You will only need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the swyh-rs folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".

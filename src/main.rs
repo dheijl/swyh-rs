@@ -197,18 +197,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if config.auto_resume {
         auto_resume.set(true);
     }
-    auto_resume.handle2(move |b, ev| match ev {
-        Event::Released => {
-            let mut config = Configuration::read_config();
-            if b.is_set() {
-                config.auto_resume = true;
-            } else {
-                config.auto_resume = false;
-            }
-            let _ = config.update_config();
-            true
+    auto_resume.set_callback2(move |b| {
+        let mut config = Configuration::read_config();
+        if b.is_set() {
+            config.auto_resume = true;
+        } else {
+            config.auto_resume = false;
         }
-        _ => true,
+        let _ = config.update_config();
     });
     p2.add(&auto_resume);
 
@@ -217,18 +213,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if config.auto_reconnect {
         auto_reconnect.set(true);
     }
-    auto_reconnect.handle2(move |b, ev| match ev {
-        Event::Released => {
-            let mut config = Configuration::read_config();
-            if b.is_set() {
-                config.auto_reconnect = true;
-            } else {
-                config.auto_reconnect = false;
-            }
-            let _ = config.update_config();
-            true
+    auto_reconnect.set_callback2(move |b| {
+        let mut config = Configuration::read_config();
+        if b.is_set() {
+            config.auto_reconnect = true;
+        } else {
+            config.auto_reconnect = false;
         }
-        _ => true,
+        let _ = config.update_config();
     });
     p2.add(&auto_reconnect);
 
@@ -266,37 +258,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let rlock = Mutex::new(0);
     let config_ch_flag = config_changed.clone();
-    log_level_choice.handle2(move |b, ev| {
+    log_level_choice.set_callback2(move |b| {
         let mut recursion = rlock.lock();
         if *recursion > 0 {
-            return false;
+            return
         }
         *recursion += 1;
-        match ev {
-            Event::Push => {
-                let mut config = Configuration::read_config();
-                let i = b.value();
-                if i < 0 {
-                    return false;
-                }
-                let level = log_levels[i as usize];
-                log(format!(
-                    "*W*W*> Log level changed to {}, restart required!!",
-                    level
-                )); // std::env::current_exe()
-                config.log_level = level.parse().unwrap_or(LevelFilter::Info);
-                let _ = config.update_config();
-                *recursion -= 1;
-                config_ch_flag.set(true);
-                let ll = format!("Log Level: {}", config.log_level.to_string());
-                b.set_label(&ll);
-                true
-            }
-            _ => {
-                *recursion -= 1;
-                false
-            }
+        let mut config = Configuration::read_config();
+        let i = b.value();
+        if i < 0 {
+            return 
         }
+        let level = log_levels[i as usize];
+        log(format!(
+            "*W*W*> Log level changed to {}, restart required!!",
+            level
+        )); // std::env::current_exe()
+        config.log_level = level.parse().unwrap_or(LevelFilter::Info);
+        let _ = config.update_config();
+        *recursion -= 1;
+        config_ch_flag.set(true);
+        let ll = format!("Log Level: {}", config.log_level.to_string());
+        b.set_label(&ll);
     });
     p2.add(&log_level_choice);
     p2.auto_layout();

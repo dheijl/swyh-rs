@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 1.0.8 (unreleased)
+  - switch to parking_lot Mutex, and use Ninja-Build for fltk to speed up CMake in the fltk build
+  
 - 1.0.7 (Nov 19 2020 dheijl)
   - upgrade to rustc 1.48, fltk-rs 0.10.11, and some small code improvements 
 

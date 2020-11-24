@@ -18,6 +18,7 @@ htmlescape = "*"
 lazy_static = "*"
 log = {version = "*", features = ["max_level_trace", "release_max_level_debug"]}
 once_cell = "*"
+parking_lot = "*"
 rust-ini = "*"
 simplelog = "*"
 strfmt = "*"

@@ -1,4 +1,4 @@
-//#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
+#![windows_subsystem = "windows"] // to suppress console with debug output for release builds
 ///
 /// swyh-rs
 ///
@@ -58,6 +58,7 @@ use fltk::{
 use lazy_static::*;
 use log::*;
 use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -65,7 +66,7 @@ use std::fs::File;
 use std::net::IpAddr;
 use std::path::Path;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use tiny_http::*;
@@ -266,7 +267,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rlock = Mutex::new(0);
     let config_ch_flag = config_changed.clone();
     log_level_choice.handle2(move |b, ev| {
-        let mut recursion = rlock.lock().unwrap();
+        let mut recursion = rlock.lock();
         if *recursion > 0 {
             return false;
         }
@@ -337,7 +338,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lock = Mutex::new(0);
     let config_ch_flag = config_changed.clone();
     choose_audio_source_but.handle2(move |b, ev| {
-        let mut recursion = lock.lock().unwrap();
+        let mut recursion = lock.lock();
         if *recursion > 0 {
             return false;
         }
@@ -563,7 +564,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn tb_logger(mut tb: TextDisplay) {
     let logreader: Receiver<String>;
     {
-        let ch = &LOGCHANNEL.lock().unwrap();
+        let ch = &LOGCHANNEL.lock();
         logreader = ch.1.clone();
     }
     loop {
@@ -590,7 +591,7 @@ fn log(s: String) {
     };
     let logger: Sender<String>;
     {
-        let ch = &LOGCHANNEL.lock().unwrap();
+        let ch = &LOGCHANNEL.lock();
         logger = ch.0.clone();
     }
     logger.send(s).unwrap();
@@ -671,7 +672,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
                     {
                         let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
-                        let mut clients = CLIENTS.lock().unwrap();
+                        let mut clients = CLIENTS.lock();
                         clients.insert(remote_ip.clone(), channel_stream);
                         debug!("Now have {} streaming clients", clients.len());
                     }
@@ -700,7 +701,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         }
                     }
                     {
-                        let mut clients = CLIENTS.lock().unwrap();
+                        let mut clients = CLIENTS.lock();
                         clients.remove(&remote_ip.clone());
                         debug!("Now have {} streaming clients left", clients.len());
                     }
@@ -878,7 +879,7 @@ where
     });
     i16_samples.clear();
     i16_samples.extend(samples.iter().map(|x| x.to_i16()));
-    let clients = CLIENTS.lock().unwrap();
+    let clients = CLIENTS.lock();
     for (_, v) in clients.iter() {
         v.write(i16_samples);
     }

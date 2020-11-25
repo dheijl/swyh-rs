@@ -491,7 +491,10 @@ Man: \"ssdp:discover\"\r\n\
 ST: {device_type}\r\n\
 MX: 3\r\n\r\n";
 
-pub fn discover(rmap: HashMap<String, Renderer>, logger: &dyn Fn(String)) -> Option<Vec<Renderer>> {
+pub fn discover(
+    rmap: &HashMap<String, Renderer>,
+    logger: &dyn Fn(String),
+) -> Option<Vec<Renderer>> {
     debug!("SSDP discovery started");
 
     const OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";

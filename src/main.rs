@@ -261,13 +261,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     log_level_choice.set_callback2(move |b| {
         let mut recursion = rlock.lock();
         if *recursion > 0 {
-            return
+            return;
         }
         *recursion += 1;
         let mut config = Configuration::read_config();
         let i = b.value();
         if i < 0 {
-            return 
+            return;
         }
         let level = log_levels[i as usize];
         log(format!(
@@ -416,7 +416,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     // the renderers discovered so far
     let mut renderers: Vec<Renderer> = Vec::new();
-    log("Running SSDP discovery".to_string());
+    log("Starting SSDP discovery".to_string());
     let conf = config.clone();
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
@@ -746,7 +746,7 @@ fn get_renderers(rmap: HashMap<String, Renderer>) -> Vec<Renderer> {
     let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
         .name("ssdp_discover".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(|| discover(rmap, &log).unwrap_or_default())
+        .spawn(move || discover(&rmap, &log).unwrap_or_default())
         .unwrap();
     // wait for discovery to complete (max 3.1 secs)
     let start = Instant::now();

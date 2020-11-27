@@ -57,8 +57,7 @@ use fltk::{
 };
 use lazy_static::*;
 use log::*;
-use once_cell::sync::OnceCell;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, Once};
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -372,18 +371,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
         }
     }
-    // start webserver on the local address, with a feedback channel for connection accept/drop
-    let local_addr = get_local_addr().expect("Could not obtain local address.");
-    let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
-        unbounded();
-    let _ = std::thread::Builder::new()
-        .name("swyh_rs_webserver".into())
-        .stack_size(4 * 102 * 1024)
-        .spawn(move || run_server(&local_addr, wd, feedback_tx.clone()))
-        .unwrap();
-    std::thread::yield_now();
 
-    // show renderer buttons title
+    // show renderer buttons title with our local ip address
+    let local_addr = get_local_addr().expect("Could not obtain local address.");
     let mut p4 = Pack::new(0, 0, gw, 25, "");
     p4.end();
     let mut frame = Frame::new(0, 0, fw, 25, "").with_align(Align::Center);
@@ -412,7 +402,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // create a hashmap for a button for each discovered renderer
     let mut buttons: HashMap<String, LightButton> = HashMap::new();
-    // start SSDP discovery update thread with a channel for renderer updates
+    // and start the SSDP discovery update thread with a channel for renderer updates
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     // the renderers discovered so far
     let mut renderers: Vec<Renderer> = Vec::new();
@@ -423,6 +413,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .stack_size(4 * 102 * 1024)
         .spawn(move || run_ssdp_updater(ssdp_tx, conf.ssdp_interval_mins))
         .unwrap();
+
+    // start a webserver on the local address, with a feedback channel for connection accept/drop
+    let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
+        unbounded();
+    let _ = std::thread::Builder::new()
+        .name("swyh_rs_webserver".into())
+        .stack_size(4 * 102 * 1024)
+        .spawn(move || run_server(&local_addr, wd, feedback_tx.clone()))
+        .unwrap();
+    std::thread::yield_now();
 
     // button dimensions and starting position
     let bwidth = frame.width();
@@ -856,9 +856,9 @@ fn wave_reader<T>(samples: &[T], i16_samples: &mut Vec<i16>)
 where
     T: cpal::Sample,
 {
-    static ONETIME_SW: OnceCell<()> = OnceCell::new();
-    ONETIME_SW.get_or_init(|| {
-        log("The wave_reader is receiving samples".to_string());
+    static INITIALIZER: Once = Once::new();
+    INITIALIZER.call_once(|| {
+        log("The wave_reader is now receiving samples".to_string());
     });
     i16_samples.clear();
     i16_samples.extend(samples.iter().map(|x| x.to_i16()));

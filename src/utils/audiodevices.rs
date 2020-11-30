@@ -1,5 +1,3 @@
-extern crate cpal;
-
 use cpal::traits::{DeviceTrait, HostTrait};
 use log::*;
 

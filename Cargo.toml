@@ -8,26 +8,26 @@ version = "1.0.9"
 
 [dependencies]
 ascii = "1.0"
-bitflags = "*"
-chrono = "*"
-cpal = "*"
-crossbeam-channel = "*"
-dirs = "*"
-fltk = {version = "*", features = ["use-ninja"]}
-htmlescape = "*"
-lazy_static = "*"
-log = {version = "*", features = ["max_level_trace", "release_max_level_debug"]}
-once_cell = "*"
-parking_lot = "*"
-rust-ini = "*"
-simplelog = "*"
-strfmt = "*"
-stringreader = "*"
-tiny_http = "*"
-ureq = {version = "*", features = ["charset"]}
-url = "*"
-xml-rs = "*"
+bitflags = "^1"
+chrono = "^0"
+cpal = "^0"
+crossbeam-channel = "^0"
+dirs = "^3"
+fltk = {version = "^0", features = ["use-ninja"]}
+htmlescape = "^0"
+lazy_static = "^1"
+log = {version = "^0", features = ["max_level_trace", "release_max_level_debug"]}
+once_cell = "^1"
+parking_lot = "^0"
+rust-ini = "^0"
+simplelog = "^0"
+strfmt = "^0"
+stringreader = "^0"
+tiny_http = "^0"
+ureq = {version = "^1", features = ["charset"]}
+url = "^2"
+xml-rs = "^0"
 [target.'cfg(windows)'.dependencies]
-winapi = {version = "0.3", features = ["winuser", "std"]}
+winapi = {version = "^0.3", features = ["winuser", "std"]}
 [target.'cfg(unix)'.dependencies]
 libc = "^0.2"

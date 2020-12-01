@@ -3,6 +3,11 @@ authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2018"
 name = "swyh-rs"
 version = "1.0.9"
+description = "Stream What You Hear written in Rust"
+license = "MIT"
+license-file = "LICENSE"
+repository = "https://github.com/dheijl/swyh-rs/"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

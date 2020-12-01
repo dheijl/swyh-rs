@@ -1,6 +1,7 @@
 ## swyh-rs Changelog
 
 - 1.0.9 Unreleased
+  - use good practice for Cargo.toml and Cargo.lock (thanks @Boscop)
 
 - 1.0.8 (Nov 27 2020 dheijl)
   - switch to parking_lot Mutex and Once, and use Ninja-Build for fltk to speed up CMake in the fltk build

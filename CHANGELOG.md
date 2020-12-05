@@ -1,7 +1,8 @@
 ## swyh-rs Changelog
 
-- 1.0.9 Unreleased
+- 1.0.9 Experimental
   - use good practice for Cargo.toml and Cargo.lock (thanks @Boscop)
+  - option to disable chunked transfer encoding in cases where the renderer has problems with it
 
 - 1.0.8 (Nov 27 2020 dheijl)
   - switch to parking_lot Mutex and Once, and use Ninja-Build for fltk to speed up CMake in the fltk build

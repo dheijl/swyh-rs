@@ -285,6 +285,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p2.make_resizable(false);
     vpack.add(&p2);
 
+    let mut p2b = Pack::new(0, 0, gw, 25, "");
+    p2b.set_spacing(10);
+    p2b.set_type(PackType::Horizontal);
+    p2b.end();
+
+    // auto_resume button for AVTransport autoresume play
+    let mut disable_chunked = CheckButton::new(0, 0, 0, 0, "Disable Chunked TransferEncoding");
+    if config.disable_chunked {
+        disable_chunked.set(true);
+    }
+    disable_chunked.set_callback2(move |b| {
+        let mut config = Configuration::read_config();
+        if b.is_set() {
+            config.disable_chunked = true;
+        } else {
+            config.disable_chunked = false;
+        }
+        let _ = config.update_config();
+    });
+    p2b.add(&disable_chunked);
+    p2b.auto_layout();
+    p2b.make_resizable(false);
+    vpack.add(&p2b);
+
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices().unwrap();
     let mut source_names: Vec<String> = Vec::new();
@@ -610,29 +634,13 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
         let feedback_tx_c = feedback_tx.clone();
         handles.push(std::thread::spawn(move || {
             for rq in server.incoming_requests() {
-                if rq.url() != "/stream/swyh.wav" {
-                    log(format!(
-                        "Unrecognized request '{}' from {}'",
-                        rq.url(),
-                        rq.remote_addr()
-                    ));
-                }
                 // get remote ip
                 let remote_addr = format!("{}", rq.remote_addr());
                 let mut remote_ip = remote_addr.clone();
                 if let Some(i) = remote_ip.find(':') {
                     remote_ip.truncate(i);
                 }
-                // prpare headers
-                let ct_text = format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string());
-                let ct_hdr = tiny_http::Header {
-                    field: "Content-Type".parse().unwrap(),
-                    value: AsciiString::from_ascii(ct_text).unwrap(),
-                };
-                let tm_hdr = tiny_http::Header {
-                    field: "TransferMode.DLNA.ORG".parse().unwrap(),
-                    value: AsciiString::from_ascii("Streaming").unwrap(),
-                };
+                // default headers
                 let srvr_hdr = tiny_http::Header {
                     field: "Server".parse().unwrap(),
                     value: AsciiString::from_ascii("UPnP/1.0 DLNADOC/1.50 LAB/1.0").unwrap(),
@@ -645,6 +653,53 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     field: "Connection".parse().unwrap(),
                     value: AsciiString::from_ascii("close").unwrap(),
                 };
+                // check url
+                if rq.url() != "/stream/swyh.wav" {
+                    log(format!(
+                        "Unrecognized request '{}' from {}'",
+                        rq.url(),
+                        rq.remote_addr()
+                    ));
+                    let response = Response::empty(404)
+                        .with_header(cc_hdr)
+                        .with_header(srvr_hdr)
+                        .with_header(nm_hdr);
+                    match rq.respond(response) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            log(format!(
+                                "=>Http POST connection with {} terminated [{}]",
+                                remote_addr, e
+                            ));
+                        }
+                    }
+                    continue;
+                }
+                // get remote ip
+                let remote_addr = format!("{}", rq.remote_addr());
+                let mut remote_ip = remote_addr.clone();
+                if let Some(i) = remote_ip.find(':') {
+                    remote_ip.truncate(i);
+                }
+                // prpare streaming headers
+                let ct_text = format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string());
+                let ct_hdr = tiny_http::Header {
+                    field: "Content-Type".parse().unwrap(),
+                    value: AsciiString::from_ascii(ct_text).unwrap(),
+                };
+                let tm_hdr = tiny_http::Header {
+                    field: "TransferMode.DLNA.ORG".parse().unwrap(),
+                    value: AsciiString::from_ascii("Streaming").unwrap(),
+                };
+                // get chunked transfer encoding disabled flag
+                let conf = Configuration::read_config();
+                //and set transfer parameters accordingly
+                let mut streamsize: Option<usize> = None;
+                let mut chunked_threshold: usize = 8192;
+                if conf.disable_chunked {
+                    streamsize = Some(usize::MAX - 1);
+                    chunked_threshold = usize::MAX;
+                }
                 // handle response, streaming if GET, headers only otherwise
                 if matches!(rq.method(), Method::Get) {
                     log(format!(
@@ -668,7 +723,8 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     std::thread::yield_now();
                     let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                     let response = Response::empty(200)
-                        .with_data(channel_stream, None)
+                        .with_data(channel_stream, streamsize)
+                        .with_chunked_threshold(chunked_threshold)
                         .with_header(cc_hdr)
                         .with_header(ct_hdr)
                         .with_header(tm_hdr)

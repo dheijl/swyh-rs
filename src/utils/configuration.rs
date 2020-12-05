@@ -11,6 +11,7 @@ pub struct Configuration {
     pub log_level: LevelFilter,
     pub ssdp_interval_mins: f64,
     pub auto_reconnect: bool,
+    pub disable_chunked: bool,
     pub last_renderer: String,
     config_dir: PathBuf,
 }
@@ -23,6 +24,7 @@ impl Configuration {
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 1.0,
             auto_reconnect: false,
+            disable_chunked: false,
             last_renderer: "None".to_string(),
             config_dir: Self::get_config_dir(),
         }
@@ -49,6 +51,7 @@ impl Configuration {
                 .set("LogLevel", LevelFilter::Info.to_string())
                 .set("SSDPIntervalMins", "1")
                 .set("AutoReconnect", "false")
+                .set("DisableChunked", "false")
                 .set("LastRenderer", "None")
                 .set("ConfigDir", &Self::get_config_dir().display().to_string());
             conf.write_to_file(&configfile).unwrap();
@@ -80,6 +83,10 @@ impl Configuration {
         }
         match conf.get_from_or(Some("Configuration"), "AutoReconnect", "false") {
             "true" | "True" | "TRUE" | "1" | "T" | "t" => config.auto_reconnect = true,
+            _ => config.auto_reconnect = false,
+        }
+        match conf.get_from_or(Some("Configuration"), "DisableChunked", "false") {
+            "true" | "True" | "TRUE" | "1" | "T" | "t" => config.disable_chunked = true,
             _ => config.auto_reconnect = false,
         }
         config.last_renderer = conf
@@ -116,6 +123,14 @@ impl Configuration {
             .set(
                 "AutoReconnect",
                 if self.auto_reconnect { "true" } else { "false" },
+            )
+            .set(
+                "DisableChunked",
+                if self.disable_chunked {
+                    "true"
+                } else {
+                    "false"
+                },
             )
             .set("LastRenderer", self.last_renderer.to_string())
             .set("ConfigDir", &self.config_dir.display().to_string());

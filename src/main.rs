@@ -451,7 +451,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // button dimensions and starting position
     let bwidth = frame.width();
     let bheight = frame.height();
-    let binsert: u32 = 4;
+    let binsert: u32 = 5;
     // set last renderer used
     let last_renderer = config.last_renderer;
     // run GUI, app.wait() and app.run() somehow block the logger channel

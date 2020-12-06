@@ -1,8 +1,9 @@
 ## swyh-rs Changelog
 
-- 1.0.9 Experimental
-  - use good practice for Cargo.toml and Cargo.lock (thanks @Boscop)
-  - option to disable chunked transfer encoding in cases where the renderer has problems with it
+- 1.0.9 (Dec 6 2020 dheijl)
+  - use good practice for Cargo.toml and Cargo.lock files (thanks @Boscop)
+  - option to disable chunked transfer encoding in cases where the renderer has problems with it (probably only AVTransport)
+  (*__Note__: I had to use a patched fork of tiny_http to let this work, as per [this pull request](https://github.com/tiny-http/tiny-http/pull/183)*)
 
 - 1.0.8 (Nov 27 2020 dheijl)
   - switch to parking_lot Mutex and Once, and use Ninja-Build for fltk to speed up CMake in the fltk build

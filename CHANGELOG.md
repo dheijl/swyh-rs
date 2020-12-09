@@ -1,8 +1,11 @@
 ## swyh-rs Changelog
 
-- 1.0.9 (Dec 6 2020 dheijl)
+- 1.1.1 (Dec 7 2020 dheijl)
+  - fix renderer button insert position
+
+- 1.1.0 (Dec 7 2020 dheijl)
   - use good practice for Cargo.toml and Cargo.lock files (thanks @Boscop)
-  - option to disable chunked transfer encoding in cases where the renderer has problems with it (probably only AVTransport)
+  - option to disable chunked transfer encoding in cases where the (AVTransport) renderer has problems with it 
   (*__Note__: I had to use a patched fork of tiny_http to let this work, as per [this pull request](https://github.com/tiny-http/tiny-http/pull/183)*)
 
 - 1.0.8 (Nov 27 2020 dheijl)

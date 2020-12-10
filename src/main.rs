@@ -428,7 +428,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let conf = config.clone();
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
-        .stack_size(4 * 102 * 1024)
+        .stack_size(4 * 1024 * 1024)
         .spawn(move || run_ssdp_updater(ssdp_tx, conf.ssdp_interval_mins))
         .unwrap();
 
@@ -437,7 +437,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         unbounded();
     let _ = std::thread::Builder::new()
         .name("swyh_rs_webserver".into())
-        .stack_size(4 * 102 * 1024)
+        .stack_size(4 * 1024 * 1024)
         .spawn(move || run_server(&local_addr, wd, feedback_tx.clone()))
         .unwrap();
     std::thread::yield_now();

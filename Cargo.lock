@@ -272,9 +272,9 @@ dependencies = [
 
 [[package]]
 name = "const_fn"
-version = "0.4.3"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c478836e029dcef17fb47c89023448c64f781a046e0300e257ad8225ae59afab"
+checksum = "cd51eab21ab4fd6a3bf889e2d0958c0a6e3a61ad04260325e919e652a2a62826"
 
 [[package]]
 name = "constant_time_eq"
@@ -585,9 +585,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.11.4"
+version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3d20bca7b9e3733750717ce86a08f3b336dde7ab98033cbfc2093ff68dba8c9"
+checksum = "d5a26fd0f8c042a42ce4d97ad9b3b20c4fdb0b5fe71589860796bbe5bb1521f4"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -597,9 +597,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.11.4"
+version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4257b8d940f478d26b325687795db2e999f921c05504bca3e425dd85a9e41e3"
+checksum = "dd017dd49e339e4390de3645df3638ffc14dcddfc2e36d9594a8d3fc46261a0d"
 dependencies = [
  "quote",
  "syn",
@@ -607,9 +607,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.11.4"
+version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8ff11e863736f9d84f7751faa9eb07d989095a663182ae3deedb92934aed656"
+checksum = "4d3c2231431630f6ac959904966aab8a6a95ea28ebc847a110708b8fabe6a39b"
 dependencies = [
  "cmake",
  "libc",

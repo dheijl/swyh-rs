@@ -115,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut audio_output_device =
         get_default_audio_output_device().expect("No default audio device");
 
-    let app = app::App::default().with_scheme(app::Scheme::Gleam);
+    let app = app::App::default().with_scheme(app::Scheme::Gtk);
     app::set_color(247, 247, 247);
     let ww = 660;
     let wh = 660;
@@ -158,6 +158,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
     opt_frame.set_frame(FrameType::BorderBox);
     opt_frame.set_label("Options");
+    opt_frame.set_color(Color::Light2);
     p1.add(&opt_frame);
     vpack.add(&p1);
 
@@ -256,6 +257,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for ll in log_levels.iter() {
         log_level_choice.add_choice(ll);
     }
+    // apparently this event can recurse on very fast machines
+    // probably because it takes some time doing the file I/O, hence recursion lock
     let rlock = Mutex::new(0);
     let config_ch_flag = config_changed.clone();
     log_level_choice.set_callback2(move |b| {
@@ -276,10 +279,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )); // std::env::current_exe()
         config.log_level = level.parse().unwrap_or(LevelFilter::Info);
         let _ = config.update_config();
-        *recursion -= 1;
         config_ch_flag.set(true);
         let ll = format!("Log Level: {}", config.log_level.to_string());
         b.set_label(&ll);
+        *recursion -= 1;
     });
     p2.add(&log_level_choice);
     p2.auto_layout();
@@ -340,43 +343,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for name in source_names.iter() {
         choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
     }
-    // apparently this event can recurse on very fast machines
-    // probably because it takes some time doing the file I/O, hence recursion lock
-    let lock = Mutex::new(0);
+    let rlock = Mutex::new(0);
     let config_ch_flag = config_changed.clone();
-    choose_audio_source_but.handle2(move |b, ev| {
-        let mut recursion = lock.lock();
+    choose_audio_source_but.set_callback2(move |b| {
+        let mut recursion = rlock.lock();
         if *recursion > 0 {
-            return false;
+            return;
         }
         *recursion += 1;
-        match ev {
-            Event::Push => {
-                let mut config = Configuration::read_config();
-                let mut i = b.value();
-                if i < 0 {
-                    return false;
-                }
-                if i as usize >= source_names.len() {
-                    i = (source_names.len() - 1) as i32;
-                }
-                let name = source_names[i as usize].clone();
-                log(format!(
-                    "*W*W*> Audio source changed to {}, restart required!!",
-                    name
-                )); // std::env::current_exe()
-                config.sound_source = name;
-                let _ = config.update_config();
-                b.set_label(&format!("New Source: {}", config.sound_source));
-                *recursion -= 1;
-                config_ch_flag.set(true);
-                true
-            }
-            _ => {
-                *recursion -= 1;
-                false
-            }
+        let mut config = Configuration::read_config();
+        let mut i = b.value();
+        if i < 0 {
+            return;
         }
+        if i as usize >= source_names.len() {
+            i = (source_names.len() - 1) as i32;
+        }
+        let name = source_names[i as usize].clone();
+        log(format!(
+            "*W*W*> Audio source changed to {}, restart required!!",
+            name
+        ));
+        config.sound_source = name;
+        let _ = config.update_config();
+        b.set_label(&format!("New Source: {}", config.sound_source));
+        config_ch_flag.set(true);
+        *recursion -= 1;
     });
     p3.add(&choose_audio_source_but);
     vpack.add(&p3);
@@ -404,6 +396,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut frame = Frame::new(0, 0, fw, 25, "").with_align(Align::Center);
     frame.set_frame(FrameType::BorderBox);
     frame.set_label(&format!("UPNP rendering devices on network {}", local_addr));
+    frame.set_color(Color::Light2);
     p4.add(&frame);
     vpack.add(&p4);
 

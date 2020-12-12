@@ -66,8 +66,7 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 use tiny_http::*;
 
 /// app version
@@ -790,29 +789,6 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
     }
 }
 
-/// get_renderers - get a list of all renderers using SSDP discovery in a seperate thread
-fn get_renderers(rmap: HashMap<String, Renderer>) -> Vec<Renderer> {
-    let renderers: Vec<Renderer>;
-    let discover_handle: JoinHandle<Vec<Renderer>> = std::thread::Builder::new()
-        .name("ssdp_discover".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(move || discover(&rmap, &log).unwrap_or_default())
-        .unwrap();
-    // wait for discovery to complete (max 3.1 secs)
-    let start = Instant::now();
-    loop {
-        let duration = start.elapsed();
-        // keep capturing responses for more then 3 seconds (M_SEARCH MX time)
-        if duration > Duration::from_millis(3_200) {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    // collect the discovery result
-    renderers = discover_handle.join().unwrap_or_default();
-    renderers
-}
-
 /// run_ssdp_updater - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the ssdp channel
@@ -820,7 +796,7 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
-        let renderers = get_renderers(rmap.clone());
+        let renderers = discover(&rmap, &log).unwrap_or_default();
         for r in renderers.iter() {
             if !rmap.contains_key(&r.remote_addr) {
                 let _ = ssdp_tx.send(r.clone());

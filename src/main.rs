@@ -66,7 +66,7 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::{Duration};
+use std::time::Duration;
 use tiny_http::*;
 
 /// app version
@@ -293,7 +293,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p2b.set_type(PackType::Horizontal);
     p2b.end();
 
-    // auto_resume button for AVTransport autoresume play
+    // disable chunked transfer (for AVTransport renderers that can't handle chunkeed transfer)
     let mut disable_chunked = CheckButton::new(0, 0, 0, 0, "Disable Chunked TransferEncoding");
     if config.disable_chunked {
         disable_chunked.set(true);
@@ -657,14 +657,11 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .with_header(cc_hdr)
                         .with_header(srvr_hdr)
                         .with_header(nm_hdr);
-                    match rq.respond(response) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            log(format!(
-                                "=>Http POST connection with {} terminated [{}]",
-                                remote_addr, e
-                            ));
-                        }
+                    if let Err(e) = rq.respond(response) {
+                        log(format!(
+                            "=>Http POST connection with {} terminated [{}]",
+                            remote_addr, e
+                        ));
                     }
                     continue;
                 }
@@ -684,15 +681,6 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     field: "TransferMode.DLNA.ORG".parse().unwrap(),
                     value: AsciiString::from_ascii("Streaming").unwrap(),
                 };
-                // get chunked transfer encoding disabled flag
-                let conf = Configuration::read_config();
-                //and set transfer parameters accordingly
-                let mut streamsize: Option<usize> = None;
-                let mut chunked_threshold: usize = 8192;
-                if conf.disable_chunked {
-                    streamsize = Some(usize::MAX - 1);
-                    chunked_threshold = usize::MAX;
-                }
                 // handle response, streaming if GET, headers only otherwise
                 if matches!(rq.method(), Method::Get) {
                     log(format!(
@@ -700,6 +688,14 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         rq.url(),
                         rq.remote_addr()
                     ));
+                    // set transfer encoding chunked unless disabled
+                    let (streamsize, chunked_threshold) = {
+                        if Configuration::read_config().disable_chunked {
+                            (Some(usize::MAX - 1), usize::MAX)
+                        } else {
+                            (None, 8192)
+                        }
+                    };
                     let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
                     {
                         let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
@@ -723,14 +719,11 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .with_header(tm_hdr)
                         .with_header(srvr_hdr)
                         .with_header(nm_hdr);
-                    match rq.respond(response) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            log(format!(
-                                "=>Http connection with {} terminated [{}]",
-                                remote_addr, e
-                            ));
-                        }
+                    if let Err(e) = rq.respond(response) {
+                        log(format!(
+                            "=>Http connection with {} terminated [{}]",
+                            remote_addr, e
+                        ));
                     }
                     {
                         let mut clients = CLIENTS.lock();
@@ -755,14 +748,11 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .with_header(tm_hdr)
                         .with_header(srvr_hdr)
                         .with_header(nm_hdr);
-                    match rq.respond(response) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            log(format!(
-                                "=>Http HEAD connection with {} terminated [{}]",
-                                remote_addr, e
-                            ));
-                        }
+                    if let Err(e) = rq.respond(response) {
+                        log(format!(
+                            "=>Http HEAD connection with {} terminated [{}]",
+                            remote_addr, e
+                        ));
                     }
                 } else if matches!(rq.method(), Method::Post) {
                     debug!("POST rq from {}", remote_addr);
@@ -770,14 +760,11 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .with_header(cc_hdr)
                         .with_header(srvr_hdr)
                         .with_header(nm_hdr);
-                    match rq.respond(response) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            log(format!(
-                                "=>Http POST connection with {} terminated [{}]",
-                                remote_addr, e
-                            ));
-                        }
+                    if let Err(e) = rq.respond(response) {
+                        log(format!(
+                            "=>Http POST connection with {} terminated [{}]",
+                            remote_addr, e
+                        ));
                     }
                 }
             }

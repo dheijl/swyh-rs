@@ -1,5 +1,7 @@
 ## swyh-rs Changelog
 
+- 1.2.1 (unreleased)
+
 - 1.2.0 (Dec 14 2020 dheijl)
   - slight GUI changes (BG color)
   - replace a couple of fltk handle2() events by callback2() events 

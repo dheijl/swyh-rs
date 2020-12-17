@@ -1,6 +1,7 @@
 ## swyh-rs Changelog
 
-- 1.2.1 (unreleased)
+- 1.2.1 (Dec 17 2020 dheijl)
+  - fix copy-and-paste bug when reading configuration file
 
 - 1.2.0 (Dec 14 2020 dheijl)
   - slight GUI changes (BG color)

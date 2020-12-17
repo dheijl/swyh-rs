@@ -87,7 +87,7 @@ impl Configuration {
         }
         match conf.get_from_or(Some("Configuration"), "DisableChunked", "false") {
             "true" | "True" | "TRUE" | "1" | "T" | "t" => config.disable_chunked = true,
-            _ => config.auto_reconnect = false,
+            _ => config.disable_chunked = false,
         }
         config.last_renderer = conf
             .get_from_or(Some("Configuration"), "LastRenderer", "None")

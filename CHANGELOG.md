@@ -1,4 +1,5 @@
 ## swyh-rs Changelog
+- 1.2.2 (unreleased)
 
 - 1.2.1 (Dec 17 2020 dheijl)
   - fix copy-and-paste bug when reading configuration file

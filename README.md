@@ -1,28 +1,38 @@
 # swyh-rs
 
-Stream What You Hear written in Rust
+### What is it
 
-swyh-rs is a very basic SWYH clone ( see <https://www.streamwhatyouhear.com/>, source repo <https://github.com/StreamWhatYouHear/SWYH>), entirely written in rust.
+A "Stream-What-You-Hear" implementation written in Rust.
 
-It has only been tested with:
+**swyh-rs** implements the idea behind the original SWYH (see <https://www.streamwhatyouhear.com/>, source repo <https://github.com/StreamWhatYouHear/SWYH>) in Rust.
+It allows you to stream the music you're currently playing on your PC (Windows and Linux supported) to an UPNP/DLNA/OPenHome compatible music player (a "Renderer").
+
+It has been tested with
 - Volumio devices (<https://volumio.org/>)
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
 - Sony AV streamers
 - Chromecast devices defined as an OpenHome or DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)   
   
-at this moment, but will probably support any streamer that supports the OpenHome or AVTransport (DLNA) protocol.
+but will probably support any streamer that supports the OpenHome or AVTransport (DLNA) protocol.
 If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and the DLNA AVTransport endpoint is ignored.
 
-I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
+I wrote this because I a) wanted to learn Rust and b) SWYH does not work on Linux, does not work well with Volumio (push streaming does not work), and has a substantial memory leak in the ancient Intel .Net UPNP/DLNA library it uses.
 
-For the moment all music is streamed in uncompressed LPCM format (audio/l16) with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input). Audio is captured using the excellent cpal (<https://github.com/RustAudio/cpal>) library.
+Music is streamed in uncompressed LPCM format (audio/l16) with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input). 
+Audio is captured using the excellent Rust cpal (<https://github.com/RustAudio/cpal>) library.
+Fltk-rs (<https://github.com/MoAlyousef/fltk-rs>) is used for the GUI, as it's easy to use, is small, is cross-platform, is fast and works well. 
 
-I use fltk-rs (<https://github.com/MoAlyousef/fltk-rs>) for the GUI, as it's easy to use, is cross-platform, is fast and works well. 
+Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/Hifi-Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
 
-Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/HifI-Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
+Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 3 MB).
+
+### Where to get it and how to install
 
 You can get the latest Windows binary from the Release page (<https://github.com/dheijl/swyh-rs/releases>).
-There is a debug build and a release build in the zip file. You will only need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the swyh-rs folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
+No install needed, no runtime, no dependencies. Just unzip the binary in a convenient place and run it.
+
+There is a debug build and a release build in the zip file. 
+You will only need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the swyh-rs folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
 
 If it doesn't work for you, please open a new issue and include all the debug log level information. I will try to provide a fix ASAP.
 

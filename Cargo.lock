@@ -1435,7 +1435,7 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "swyh-rs"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "ascii 1.0.0",
  "bitflags",

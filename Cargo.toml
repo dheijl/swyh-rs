@@ -23,7 +23,7 @@ lazy_static = "1.4.0"
 log = { version = "0.4.11", features = ["max_level_trace", "release_max_level_debug"] }
 parking_lot = "0.11.1"
 rust-ini = "0.16.0"
-simplelog = "0.8.0"
+simplelog = "0.9.0"
 strfmt = "0.1.6"
 stringreader = "0.1.1"
 tiny_http = "0.7.0"

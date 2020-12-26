@@ -34,6 +34,8 @@ No install needed, no runtime, no dependencies. Just unzip the binary in a conve
 There is a debug build and a release build in the zip file. 
 You will only need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the swyh-rs folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
 
+If you want to build swyh-rs yourself, you can find some information in the [wiki](https://github.com/dheijl/swyh-rs/wiki).
+
 If it doesn't work for you, please open a new issue and include all the debug log level information. I will try to provide a fix ASAP.
 
 ### Todo:

@@ -41,9 +41,9 @@ dependencies = [
 
 [[package]]
 name = "alsa-sys"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5a0559bcd3f7a482690d98be41c08a43e92f669b179433e95ddf5e8b8fd36a3"
+checksum = "db8fee663d06c4e303404ef5f40488a53e062f89ba8bfed81f42325aafad1527"
 dependencies = [
  "libc",
  "pkg-config",
@@ -155,9 +155,9 @@ checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
 
 [[package]]
 name = "bytes"
-version = "0.5.6"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"
+checksum = "ad1f8e949d755f9d79112b5bb46938e0ef9d3804a0b16dfab13aafcaa5f0fa72"
 
 [[package]]
 name = "cc"
@@ -246,13 +246,12 @@ dependencies = [
 
 [[package]]
 name = "combine"
-version = "4.4.0"
+version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9417a0c314565e2abffaece67e95a8cb51f9238cd39f3764d9dfdf09e72b20c"
+checksum = "385a3f4b0910409ff56ff221bd2a6f7591f7f537bba447c5010c47e898040d98"
 dependencies = [
  "bytes",
  "memchr",
- "pin-project-lite",
 ]
 
 [[package]]
@@ -560,9 +559,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.11.6"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faf0a5ace4d04151baf420ef475e605022504e2972d66a3befc0f7a5ce1b1687"
+checksum = "76f6b02a5eedaf3a8e77133a4e598f4af981d637de847e5ebea2821559a02cae"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -572,9 +571,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.11.5"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd017dd49e339e4390de3645df3638ffc14dcddfc2e36d9594a8d3fc46261a0d"
+checksum = "0e6019a40bbd1af76667d3c60b91620334732454f72e3bc1b0b64559e42fd022"
 dependencies = [
  "quote",
  "syn",
@@ -582,9 +581,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.11.5"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d3c2231431630f6ac959904966aab8a6a95ea28ebc847a110708b8fabe6a39b"
+checksum = "986b05d04928df95d39a8c4983185b48421e08f274f615ed815248f4c28d8527"
 dependencies = [
  "cmake",
  "libc",
@@ -697,7 +696,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36bcc950632e48b86da402c5c077590583da5ac0d480103611d5374e7c967a3c"
 dependencies = [
  "cesu8",
- "combine 4.4.0",
+ "combine 4.5.0",
  "error-chain",
  "jni-sys",
  "log",
@@ -1015,12 +1014,6 @@ name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
-
-[[package]]
-name = "pin-project-lite"
-version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c917123afa01924fc84bb20c4c03f004d9c38e5127e3c039bbf7f4b9c76a2f6b"
 
 [[package]]
 name = "pkg-config"

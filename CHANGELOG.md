@@ -1,5 +1,6 @@
 ## swyh-rs Changelog
-- 1.2.2 (unreleased)
+- 1.2.2 beta (Dec 27 2020 dheijl)
+  - send 1 second of near-silence every 15 seconds if no sound is currently captured
 
 - 1.2.1 (Dec 17 2020 dheijl)
   - fix copy-and-paste bug when reading configuration file

@@ -697,8 +697,8 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         }
                     };
                     let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
+                    let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                     {
-                        let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
                         let mut clients = CLIENTS.lock();
                         clients.insert(remote_ip.clone(), channel_stream);
                         debug!("Now have {} streaming clients", clients.len());
@@ -710,7 +710,8 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         })
                         .unwrap();
                     std::thread::yield_now();
-                    let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
+                    let mut channel_stream = ChannelStream::new(tx.clone(), rx.clone());
+                    channel_stream.create_near_silence(wd.sample_rate.0);
                     let response = Response::empty(200)
                         .with_data(channel_stream, streamsize)
                         .with_chunked_threshold(chunked_threshold)

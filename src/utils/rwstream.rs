@@ -1,14 +1,16 @@
-use crossbeam_channel::{Receiver, Sender};
-use std::collections::VecDeque;
+/*
 ///
 /// rwstream.rs
 ///
 /// ChannelStream: the write method sends the received samples on the CrssBeam channel
 /// for the Read trait to read them back
 ///
-/// the Read trait implementation is used by the HTTP response to send the response wav stream
+/// the Read trait implementation is used by the HTTP response to send the response PCM/L16 stream
 /// to the media Renderer
 ///
+*/
+use crossbeam_channel::{Receiver, Sender};
+use std::collections::VecDeque;
 use std::io::Read;
 use std::io::Result as IoResult;
 use std::time::Duration;

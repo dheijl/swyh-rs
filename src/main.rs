@@ -711,7 +711,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .unwrap();
                     std::thread::yield_now();
                     let mut channel_stream = ChannelStream::new(tx.clone(), rx.clone());
-                    channel_stream.create_near_silence(wd.sample_rate.0);
+                    channel_stream.create_silence(wd.sample_rate.0);
                     let response = Response::empty(200)
                         .with_data(channel_stream, streamsize)
                         .with_chunked_threshold(chunked_threshold)

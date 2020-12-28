@@ -9,7 +9,6 @@ use std::collections::VecDeque;
 /// the Read trait implementation is used by the HTTP response to send the response wav stream
 /// to the media Renderer
 ///
-use std::f64::consts::PI;
 use std::io::Read;
 use std::io::Result as IoResult;
 use std::time::Duration;
@@ -21,6 +20,8 @@ pub struct ChannelStream {
     fifo: VecDeque<i16>,
     silence: Vec<i16>,
     read_timeout: Duration,
+    silence_period: Duration,
+    sending_silence: bool,
 }
 
 impl ChannelStream {
@@ -30,12 +31,20 @@ impl ChannelStream {
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             silence: Vec::new(),
-            read_timeout: Duration::new(10, 0),
+            read_timeout: Duration::new(30, 0),
+            silence_period: Duration::new(1, 0),
+            sending_silence: false,
         }
     }
 
     // create a 1-second near-silent 440 Hz tone (attenuation 32)
-    pub fn create_near_silence(&mut self, sample_rate: u32) {
+    pub fn create_silence(&mut self, sample_rate: u32) {
+        let size = (sample_rate * 2) as usize;
+        self.silence = Vec::with_capacity(size);
+        self.silence.resize(size, 0i16);
+        /*
+        // near-silent 440 Hz tone (attenuation 32)
+        use std::f64::consts::PI;
         self.silence = Vec::with_capacity((sample_rate * 2) as usize);
         let incr = (2.0 * PI) / (sample_rate as f64 / 440.0);
         let min_value: f64 = 0.0;
@@ -54,6 +63,7 @@ impl ChannelStream {
                 }
             }
         }
+        */
     }
 
     pub fn write(&self, samples: &[i16]) {
@@ -63,6 +73,11 @@ impl ChannelStream {
 
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        let mut time_out = if self.sending_silence {
+            self.silence_period
+        } else {
+            self.read_timeout
+        };
         let mut i = 0;
         while i < buf.len() - 2 {
             match self.fifo.pop_front() {
@@ -71,12 +86,16 @@ impl Read for ChannelStream {
                     buf[i + 1] = (sample & 0xff) as u8;
                     i += 2;
                 }
-                None => match self.r.recv_timeout(self.read_timeout) {
+                None => match self.r.recv_timeout(time_out) {
                     Ok(chunk) => {
                         self.fifo.extend(chunk);
+                        self.sending_silence = false;
+                        time_out = self.read_timeout;
                     }
                     Err(_) => {
                         self.fifo.extend(self.silence.clone());
+                        self.sending_silence = true;
+                        time_out = self.silence_period;
                     }
                 },
             }
@@ -94,7 +113,7 @@ mod tests {
     fn test_silence() {
         let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
         let mut cs = ChannelStream::new(tx, rx);
-        cs.create_near_silence(44100);
+        cs.create_silence(44100);
         assert_eq!(cs.silence.len(), 44100 * 2);
         let mut i = 0;
         for sample in cs.silence {

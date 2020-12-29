@@ -21,7 +21,7 @@ pub struct ChannelStream {
     pub r: Receiver<Vec<i16>>,
     fifo: VecDeque<i16>,
     silence: Vec<i16>,
-    read_timeout: Duration,
+    capture_timeout: Duration,
     silence_period: Duration,
     sending_silence: bool,
 }
@@ -33,15 +33,15 @@ impl ChannelStream {
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             silence: Vec::new(),
-            read_timeout: Duration::new(30, 0),
-            silence_period: Duration::new(1, 0),
+            capture_timeout: Duration::new(30, 0),  // silence kicks in after 30 seconds
+            silence_period: Duration::from_millis(250), // send 250 msec of silence every 250 msec
             sending_silence: false,
         }
     }
 
-    // create a 1-second near-silent 440 Hz tone (attenuation 32)
+    // create a 250 msec silence
     pub fn create_silence(&mut self, sample_rate: u32) {
-        let size = (sample_rate * 2) as usize;
+        let size = ((sample_rate * 2) / 4) as usize;
         self.silence = Vec::with_capacity(size);
         self.silence.resize(size, 0i16);
         /*
@@ -78,7 +78,7 @@ impl Read for ChannelStream {
         let mut time_out = if self.sending_silence {
             self.silence_period
         } else {
-            self.read_timeout
+            self.capture_timeout
         };
         let mut i = 0;
         while i < buf.len() - 2 {
@@ -92,7 +92,7 @@ impl Read for ChannelStream {
                     Ok(chunk) => {
                         self.fifo.extend(chunk);
                         self.sending_silence = false;
-                        time_out = self.read_timeout;
+                        time_out = self.capture_timeout;
                     }
                     Err(_) => {
                         self.fifo.extend(self.silence.clone());

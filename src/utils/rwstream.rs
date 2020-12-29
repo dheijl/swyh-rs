@@ -33,7 +33,7 @@ impl ChannelStream {
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             silence: Vec::new(),
-            capture_timeout: Duration::new(30, 0),  // silence kicks in after 30 seconds
+            capture_timeout: Duration::new(30, 0), // silence kicks in after 30 seconds
             silence_period: Duration::from_millis(250), // send 250 msec of silence every 250 msec
             sending_silence: false,
         }

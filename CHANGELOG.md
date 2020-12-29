@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
-- 1.2.2 beta2 (Dec 28 2020 dheijl)
+
+- 1.2.3 (unreleased)
+
+- 1.2.2 (Dec 29 2020 dheijl)
   - send continuous silence if no sound has been captured for 30 seconds to prevent connected renderers disconnecting
   - use official github tiny-http repo now that Equality_Reader is removed from Identity transfer 
 

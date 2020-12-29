@@ -36,4 +36,4 @@ winapi = { version = "0.3.9", features = ["winuser", "std"] }
 libc = "0.2.81"
 
 [patch.crates-io]
-tiny_http = { git = "https://github.com/dheijl/tiny-http" }
+tiny_http = { git = "https://github.com/tiny-http/tiny-http" }

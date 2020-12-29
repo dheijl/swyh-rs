@@ -1300,9 +1300,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.60"
+version = "1.0.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1500e84d27fe482ed1dc791a56eddc2f230046a040fa908c08bda1d9fb615779"
+checksum = "4fceb2595057b6891a4ee808f70054bd2d12f0e97f1cbb78689b59f676df325a"
 dependencies = [
  "itoa",
  "ryu",
@@ -1557,7 +1557,7 @@ dependencies = [
 [[package]]
 name = "tiny_http"
 version = "0.7.0"
-source = "git+https://github.com/dheijl/tiny-http#84c4e1676eafce24f1bb2f733cf9baf3306b22b9"
+source = "git+https://github.com/tiny-http/tiny-http#5ada7c14017816e01904cbbb326a7c8a902012ac"
 dependencies = [
  "ascii 1.0.0",
  "chrono",

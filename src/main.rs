@@ -115,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         get_default_audio_output_device().expect("No default audio device");
 
     let app = app::App::default().with_scheme(app::Scheme::Gtk);
-    app::set_color(247, 247, 247);
+    app::background(247, 247, 247);
     let ww = 660;
     let wh = 660;
     let mut wind = DoubleWindow::default()

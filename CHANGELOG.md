@@ -1,6 +1,7 @@
 ## swyh-rs Changelog
 
 - 1.2.3 (unreleased)
+  - Removed the "SeekId" action from OpenHome control, as it is not needed and interferes with AutoResume on some renderers (Bubble) 
 
 - 1.2.2 (Dec 29 2020 dheijl)
   - send continuous silence if no sound has been captured for 30 seconds to prevent connected renderers disconnecting

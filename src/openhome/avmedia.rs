@@ -68,7 +68,7 @@ impl AvService {
 }
 
 /// OH insert playlist template
-static INSERT_PL_TEMPLATE: &str = "\
+static OH_INSERT_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <s:Body>\
@@ -106,21 +106,9 @@ duration=\"{duration}\" >{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
 </item>\
 </DIDL-Lite>";
-/*
-/// OH seek id templete
-static SEEKID_PL_TEMPLATE: &str = "\
-<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
-xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
-<s:Body>\
-<u:SeekId xmlns:u=\"urn:av-openhome-org:service:Playlist:1\">\
-<Value>{seek_id}</Value>\
-</u:SeekId>\
-</s:Body>\
-</s:Envelope>";
-*/
+
 /// OH play playlist template
-static PLAY_PL_TEMPLATE: &str = "\
+static OH_PLAY_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
 xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
@@ -142,7 +130,7 @@ static AV_PLAY_TEMPLATE: &str = "\
 </s:Envelope>";
 
 /// OH delete playlist template
-static DELETE_PL_TEMPLATE: &str = "\
+static OH_DELETE_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
 xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
@@ -290,7 +278,7 @@ impl Renderer {
             .oh_soap_request(
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
-                &DELETE_PL_TEMPLATE.to_string(),
+                &OH_DELETE_PL_TEMPLATE.to_string(),
             )
             .unwrap();
         // create new playlist
@@ -309,7 +297,7 @@ impl Renderer {
         }
         vars.insert("didl_data".to_string(), didl_data);
         let xmlbody: String;
-        match strfmt(INSERT_PL_TEMPLATE, &vars) {
+        match strfmt(OH_INSERT_PL_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
             Err(e) => {
                 xmlbody = format!("oh_play: error {} formatting oh playlist xml", e);
@@ -324,39 +312,12 @@ impl Renderer {
                 &xmlbody,
             )
             .unwrap();
-        /*
-        // extract new seek id
-        let mut seek_id = String::new();
-        if resp.contains("NewId") {
-            let s = resp.find("<NewId>").unwrap();
-            let e = resp.find("</NewId>").unwrap();
-            seek_id = resp.as_str()[s + 7..e].to_string();
-        }
-        debug!("SeekId: {}", seek_id);
-        // send seek_id
-        vars.insert("seek_id".to_string(), seek_id);
-        match strfmt(SEEKID_PL_TEMPLATE, &vars) {
-            Ok(s) => xmlbody = s,
-            Err(e) => {
-                xmlbody = format!("oh_play: error {} formatting seekid xml", e);
-                log(xmlbody);
-                return Err(ureq::Error::BadUrl("bad xml".to_string()));
-            }
-        }
-        let _resp = self
-            .oh_soap_request(
-                &url,
-                &"urn:av-openhome-org:service:Playlist:1#SeekId".to_string(),
-                &xmlbody,
-            )
-            .unwrap();
-        */
         // send play command
         let _resp = self
             .oh_soap_request(
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#Play".to_string(),
-                &PLAY_PL_TEMPLATE.to_string(),
+                &OH_PLAY_PL_TEMPLATE.to_string(),
             )
             .unwrap();
         Ok(())
@@ -461,7 +422,7 @@ impl Renderer {
             .oh_soap_request(
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
-                &DELETE_PL_TEMPLATE.to_string(),
+                &OH_DELETE_PL_TEMPLATE.to_string(),
             )
             .unwrap();
     }

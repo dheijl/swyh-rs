@@ -106,7 +106,7 @@ duration=\"{duration}\" >{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
 </item>\
 </DIDL-Lite>";
-
+/*
 /// OH seek id templete
 static SEEKID_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
@@ -118,7 +118,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </u:SeekId>\
 </s:Body>\
 </s:Envelope>";
-
+*/
 /// OH play playlist template
 static PLAY_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
@@ -308,7 +308,7 @@ impl Renderer {
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
-        let mut xmlbody: String;
+        let xmlbody: String;
         match strfmt(INSERT_PL_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
             Err(e) => {
@@ -317,13 +317,14 @@ impl Renderer {
                 return Err(ureq::Error::BadUrl("bad xml".to_string()));
             }
         }
-        let resp = self
+        let _resp = self
             .oh_soap_request(
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#Insert".to_string(),
                 &xmlbody,
             )
             .unwrap();
+        /*
         // extract new seek id
         let mut seek_id = String::new();
         if resp.contains("NewId") {
@@ -349,6 +350,7 @@ impl Renderer {
                 &xmlbody,
             )
             .unwrap();
+        */
         // send play command
         let _resp = self
             .oh_soap_request(

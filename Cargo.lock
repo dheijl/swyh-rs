@@ -1557,7 +1557,7 @@ dependencies = [
 [[package]]
 name = "tiny_http"
 version = "0.7.0"
-source = "git+https://github.com/tiny-http/tiny-http#5ada7c14017816e01904cbbb326a7c8a902012ac"
+source = "git+https://github.com/tiny-http/tiny-http#4770db9760c99775f23594bc21dd3420e0388ef0"
 dependencies = [
  "ascii 1.0.0",
  "chrono",

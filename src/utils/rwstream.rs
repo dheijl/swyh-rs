@@ -26,6 +26,9 @@ pub struct ChannelStream {
     sending_silence: bool,
 }
 
+const CAPTURE_TIMEOUT: u32 = 15; // seconds
+const SILENCE_PERIOD: u32 = 250; // milliseconds
+
 impl ChannelStream {
     pub fn new(tx: Sender<Vec<i16>>, rx: Receiver<Vec<i16>>) -> ChannelStream {
         ChannelStream {
@@ -33,39 +36,18 @@ impl ChannelStream {
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             silence: Vec::new(),
-            capture_timeout: Duration::new(30, 0), // silence kicks in after 30 seconds
-            silence_period: Duration::from_millis(250), // send 250 msec of silence every 250 msec
+            capture_timeout: Duration::new(CAPTURE_TIMEOUT as u64, 0), // silence kicks in after CAPTURE_TIMEOUT seconds
+            silence_period: Duration::from_millis(SILENCE_PERIOD as u64), // send SILENCE_PERIOD msec of silence every SILENCE_PERIOD msec
             sending_silence: false,
         }
     }
 
     // create a 250 msec silence
     pub fn create_silence(&mut self, sample_rate: u32) {
-        let size = ((sample_rate * 2) / 4) as usize;
+        const DIVISOR: u32 = 1000 / SILENCE_PERIOD;
+        let size = ((sample_rate * 2) / DIVISOR) as usize;
         self.silence = Vec::with_capacity(size);
         self.silence.resize(size, 0i16);
-        /*
-        // near-silent 440 Hz tone (attenuation 32)
-        use std::f64::consts::PI;
-        self.silence = Vec::with_capacity((sample_rate * 2) as usize);
-        let incr = (2.0 * PI) / (sample_rate as f64 / 440.0);
-        let min_value: f64 = 0.0;
-        let max_value: f64 = 2.0 * PI;
-        let mut i = 0;
-        loop {
-            let mut input_value = min_value;
-            while input_value <= max_value {
-                let sample = (32.0 * input_value.sin()) as i16;
-                self.silence.push(sample); // left channel
-                self.silence.push(sample); // right channel
-                input_value += incr;
-                i += 1;
-                if i == sample_rate {
-                    return;
-                }
-            }
-        }
-        */
     }
 
     pub fn write(&self, samples: &[i16]) {
@@ -128,4 +110,27 @@ mod tests {
             }
         }
     }
+
+    /*
+    // near-silent 440 Hz tone (attenuation 32)
+    use std::f64::consts::PI;
+    self.silence = Vec::with_capacity((sample_rate * 2) as usize);
+    let incr = (2.0 * PI) / (sample_rate as f64 / 440.0);
+    let min_value: f64 = 0.0;
+    let max_value: f64 = 2.0 * PI;
+    let mut i = 0;
+    loop {
+        let mut input_value = min_value;
+        while input_value <= max_value {
+            let sample = (32.0 * input_value.sin()) as i16;
+            self.silence.push(sample); // left channel
+            self.silence.push(sample); // right channel
+            input_value += incr;
+            i += 1;
+            if i == sample_rate {
+                return;
+            }
+        }
+    }
+    */
 }

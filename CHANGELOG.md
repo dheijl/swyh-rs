@@ -1,7 +1,10 @@
 ## swyh-rs Changelog
 
-- 1.2.3 (unreleased)
+- 1.3.0 (Jan 4 2021 dheijl)
   - Removed the "SeekId" action from OpenHome control, as it is not needed and interferes with AutoResume on some renderers (Bubble) 
+  - adjusted the capture time-out to be smaller (15 sec) than the "no sound" time-out (30 sec) of BubbleUPNP Server
+  - with the above changes Autoresume should now work reliably with OpenHome and Bubble UPNP Server
+  - upgrade ureq to 2.0 (comes with breaking changes)
 
 - 1.2.2 (Dec 29 2020 dheijl)
   - send continuous silence if no sound has been captured for 30 seconds to prevent connected renderers disconnecting

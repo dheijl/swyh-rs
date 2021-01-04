@@ -410,9 +410,9 @@ dependencies = [
 
 [[package]]
 name = "derivative"
-version = "2.1.1"
+version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb582b60359da160a9477ee80f15c8d784c477e69c217ef2cdd4169c24ea380f"
+checksum = "eaed5874effa6cde088c644ddcdcb4ffd1511391c5be4fdd7a5ccd02c7e4a183"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -461,68 +461,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
-name = "encoding"
-version = "0.2.33"
+name = "encoding_rs"
+version = "0.8.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b0d943856b990d12d3b55b359144ff341533e516d94098b1d3fc1ac666d36ec"
+checksum = "801bbab217d7f79c0062f4f7205b5d4427c6d1a7bd7aafdd1475f7c59d62b283"
 dependencies = [
- "encoding-index-japanese",
- "encoding-index-korean",
- "encoding-index-simpchinese",
- "encoding-index-singlebyte",
- "encoding-index-tradchinese",
+ "cfg-if 1.0.0",
 ]
-
-[[package]]
-name = "encoding-index-japanese"
-version = "1.20141219.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04e8b2ff42e9a05335dbf8b5c6f7567e5591d0d916ccef4e0b1710d32a0d0c91"
-dependencies = [
- "encoding_index_tests",
-]
-
-[[package]]
-name = "encoding-index-korean"
-version = "1.20141219.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dc33fb8e6bcba213fe2f14275f0963fd16f0a02c878e3095ecfdf5bee529d81"
-dependencies = [
- "encoding_index_tests",
-]
-
-[[package]]
-name = "encoding-index-simpchinese"
-version = "1.20141219.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d87a7194909b9118fc707194baa434a4e3b0fb6a5a757c73c3adb07aa25031f7"
-dependencies = [
- "encoding_index_tests",
-]
-
-[[package]]
-name = "encoding-index-singlebyte"
-version = "1.20141219.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3351d5acffb224af9ca265f435b859c7c01537c0849754d3db3fdf2bfe2ae84a"
-dependencies = [
- "encoding_index_tests",
-]
-
-[[package]]
-name = "encoding-index-tradchinese"
-version = "1.20141219.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd0e20d5688ce3cab59eb3ef3a2083a5c77bf496cb798dc6fcdb75f323890c18"
-dependencies = [
- "encoding_index_tests",
-]
-
-[[package]]
-name = "encoding_index_tests"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a246d82be1c9d791c5dfde9a2bd045fc3cbba3fa2b11ad558f27d01712f00569"
 
 [[package]]
 name = "error-chain"
@@ -542,7 +487,7 @@ checksum = "c8d44807d562d137f063cbfe209da1c3f9f2fa8375e11166ef495daab7b847f9"
 dependencies = [
  "libflate",
  "tar",
- "ureq",
+ "ureq 1.5.4",
 ]
 
 [[package]]
@@ -559,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.12.5"
+version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "432661971f065a30d6f6c6c7a34a9f8861c20dcfc714fcc1f1e65233e89a6237"
+checksum = "19984baafe2a4191eb6de9164058cef15c0cc0852fd00782510392da9b3cbb0e"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -571,9 +516,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.12.5"
+version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f05032feb0ace16f4d2e47d0e937d3ef3406edf88cc5ffb33cd2ad1b30deaea"
+checksum = "05abe5dd980e09acbeac4a6b8058d4758b94cf69f5de33f1bf1ef2d4de10442d"
 dependencies = [
  "quote",
  "syn",
@@ -581,9 +526,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.12.2"
+version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "508622b5a94b9f0a1033f56854b52f881e45fe6f2f82f75658a3e21f75db8590"
+checksum = "a057418f12f5c0c105063bd926f461ca890875c85dc4c4063badbe03f51bcbfa"
 dependencies = [
  "cmake",
  "libc",
@@ -1428,7 +1373,7 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "swyh-rs"
-version = "1.2.3"
+version = "1.3.0"
 dependencies = [
  "ascii 1.0.0",
  "bitflags",
@@ -1447,7 +1392,7 @@ dependencies = [
  "strfmt",
  "stringreader",
  "tiny_http",
- "ureq",
+ "ureq 2.0.0",
  "url",
  "winapi",
  "xml-rs",
@@ -1557,7 +1502,7 @@ dependencies = [
 [[package]]
 name = "tiny_http"
 version = "0.7.0"
-source = "git+https://github.com/tiny-http/tiny-http#4770db9760c99775f23594bc21dd3420e0388ef0"
+source = "git+https://github.com/tiny-http/tiny-http#ffbde0d51e72d3c1056b886f43c707896dcc12c6"
 dependencies = [
  "ascii 1.0.0",
  "chrono",
@@ -1639,10 +1584,26 @@ dependencies = [
  "chunked_transfer",
  "cookie",
  "cookie_store",
- "encoding",
  "log",
  "once_cell",
  "qstring",
+ "rustls",
+ "url",
+ "webpki",
+ "webpki-roots",
+]
+
+[[package]]
+name = "ureq"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e562326b32e3766fee6a4890b62489b4b095e94ac07232cfea631668002c19d7"
+dependencies = [
+ "base64",
+ "chunked_transfer",
+ "encoding_rs",
+ "log",
+ "once_cell",
  "rustls",
  "url",
  "webpki",

@@ -209,24 +209,31 @@ impl Renderer {
     }
 
     /// oh_soap_request - send an OpenHome SOAP message to a renderer
-    fn oh_soap_request(&self, url: &str, soap_action: &str, body: &str) -> Option<String> {
+    fn soap_request(&self, url: &str, soap_action: &str, body: &str) -> Option<String> {
         debug!(
             "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
             url.to_string(),
             soap_action,
             body
         );
-        let resp = ureq::post(url)
+        match ureq::post(url)
             .set("Connection", "close")
             .set("User-Agent", "swyh-rs-Rust/0.x")
             .set("Accept", "*/*")
             .set("SOAPAction", &format!("\"{}\"", soap_action))
             .set("Content-Type", "text/xml; charset=\"utf-8\"")
-            .send_string(body);
-        let xml = resp.into_string().unwrap();
-        debug!("<=SOAP response: {}\r\n", xml);
-
-        Some(xml)
+            .send_string(body)
+        {
+            Ok(resp) => {
+                let xml = resp.into_string().unwrap();
+                debug!("<=SOAP response: {}\r\n", xml);
+                Some(xml)
+            }
+            Err(e) => {
+                error!("<= SOAP POST error: {}\r\n", e);
+                None
+            }
+        }
     }
 
     /// play - start play on this renderer, using Openhome if present, else AvTransport (if present)
@@ -236,7 +243,7 @@ impl Renderer {
         server_port: u16,
         wd: &WavData,
         log: &dyn Fn(String),
-    ) -> Result<(), ureq::Error> {
+    ) -> Result<(), &str> {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
@@ -263,7 +270,7 @@ impl Renderer {
         server_port: u16,
         wd: &WavData,
         log: &dyn Fn(String),
-    ) -> Result<(), ureq::Error> {
+    ) -> Result<(), &str> {
         let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
             "OH Start playing on {} host={} port={} from {} using OpenHome Playlist",
@@ -275,7 +282,7 @@ impl Renderer {
         debug!("OHPlaylist server URL: {}", local_url);
         // delete current playlist
         let _resp = self
-            .oh_soap_request(
+            .soap_request(
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
                 &OH_DELETE_PL_TEMPLATE.to_string(),
@@ -292,7 +299,7 @@ impl Renderer {
             Err(e) => {
                 didl_data = format!("oh_play: error {} formatting didl_data xml", e);
                 log(didl_data.clone());
-                return Err(ureq::Error::BadUrl("bad xml".to_string()));
+                return Err("bad xml");
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
@@ -302,11 +309,11 @@ impl Renderer {
             Err(e) => {
                 xmlbody = format!("oh_play: error {} formatting oh playlist xml", e);
                 log(xmlbody);
-                return Err(ureq::Error::BadUrl("bad xml".to_string()));
+                return Err("bad xml");
             }
         }
         let _resp = self
-            .oh_soap_request(
+            .soap_request(
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#Insert".to_string(),
                 &xmlbody,
@@ -314,7 +321,7 @@ impl Renderer {
             .unwrap();
         // send play command
         let _resp = self
-            .oh_soap_request(
+            .soap_request(
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#Play".to_string(),
                 &OH_PLAY_PL_TEMPLATE.to_string(),
@@ -333,7 +340,7 @@ impl Renderer {
         server_port: u16,
         wd: &WavData,
         log: &dyn Fn(String),
-    ) -> Result<(), ureq::Error> {
+    ) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(log);
@@ -358,7 +365,7 @@ impl Renderer {
             Err(e) => {
                 didl_data = format!("av_play: error {} formatting didl_data", e);
                 log(didl_data.clone());
-                return Err(ureq::Error::BadUrl("bad xml".to_string()));
+                return Err("bad xml");
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
@@ -368,11 +375,11 @@ impl Renderer {
             Err(e) => {
                 xmlbody = format!("av_play: error {} formatting set transport uri", e);
                 log(xmlbody);
-                return Err(ureq::Error::BadUrl("bad xml".to_string()));
+                return Err("bad xml");
             }
         }
         let _resp = self
-            .oh_soap_request(
+            .soap_request(
                 &url,
                 &"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI".to_string(),
                 &xmlbody,
@@ -382,7 +389,7 @@ impl Renderer {
         std::thread::sleep(Duration::from_millis(100));
         // send play command
         let _resp = self
-            .oh_soap_request(
+            .soap_request(
                 &url,
                 &"urn:schemas-upnp-org:service:AVTransport:1#Play".to_string(),
                 &AV_PLAY_TEMPLATE.to_string(),
@@ -419,7 +426,7 @@ impl Renderer {
 
         // delete current playlist
         let _resp = self
-            .oh_soap_request(
+            .soap_request(
                 &url,
                 &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
                 &OH_DELETE_PL_TEMPLATE.to_string(),
@@ -438,7 +445,7 @@ impl Renderer {
 
         // delete current playlist
         let _resp = self
-            .oh_soap_request(
+            .soap_request(
                 &url,
                 &"urn:schemas-upnp-org:service:AVTransport:1#Stop".to_string(),
                 &AV_STOP_PLAY_TEMPLATE.to_string(),
@@ -636,20 +643,25 @@ pub fn discover(
 fn get_service_description(dev_url: &str) -> Option<String> {
     debug!("Get service description for {}", dev_url.to_string());
     let url = dev_url.to_string();
-    let resp = ureq::get(url.as_str())
+    match ureq::get(url.as_str())
         .set("User-Agent", "swyh-rs-Rust")
         .set("Content-Type", "text/xml")
-        .send_string("");
-    if resp.error() {
-        return None;
-    }
-    let descr_xml = resp.into_string().unwrap_or_default();
-    debug!("Service description:");
-    debug!("{}", descr_xml);
-    if !descr_xml.is_empty() {
-        Some(descr_xml)
-    } else {
-        None
+        .send_string("")
+    {
+        Ok(resp) => {
+            let descr_xml = resp.into_string().unwrap_or_default();
+            debug!("Service description:");
+            debug!("{}", descr_xml);
+            if !descr_xml.is_empty() {
+                Some(descr_xml)
+            } else {
+                None
+            }
+        }
+        Err(e) => {
+            error!("Error {} getting service description for {}", e, url);
+            None
+        }
     }
 }
 

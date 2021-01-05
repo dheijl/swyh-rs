@@ -150,8 +150,12 @@ static AV_STOP_PLAY_TEMPLATE: &str ="\
 </s:Body>\
 </s:Envelope>";
 
+/// Bad XML template error
+static BAD_TEMPL: &str = "Bad xml template (strfmt)";
+
 bitflags! {
-    pub struct SupportedProtocols: u32 {
+/// supported UPNP/DLNA protocols
+pub struct SupportedProtocols: u32 {
         const NONE        = 0b0000;
         const OPENHOME    = 0b0001;
         const AVTRANSPORT = 0b0010;
@@ -299,7 +303,7 @@ impl Renderer {
             Err(e) => {
                 didl_data = format!("oh_play: error {} formatting didl_data xml", e);
                 log(didl_data.clone());
-                return Err("bad xml");
+                return Err(BAD_TEMPL);
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
@@ -309,7 +313,7 @@ impl Renderer {
             Err(e) => {
                 xmlbody = format!("oh_play: error {} formatting oh playlist xml", e);
                 log(xmlbody);
-                return Err("bad xml");
+                return Err(BAD_TEMPL);
             }
         }
         let _resp = self
@@ -365,7 +369,7 @@ impl Renderer {
             Err(e) => {
                 didl_data = format!("av_play: error {} formatting didl_data", e);
                 log(didl_data.clone());
-                return Err("bad xml");
+                return Err(BAD_TEMPL);
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
@@ -375,7 +379,7 @@ impl Renderer {
             Err(e) => {
                 xmlbody = format!("av_play: error {} formatting set transport uri", e);
                 log(xmlbody);
-                return Err("bad xml");
+                return Err(BAD_TEMPL);
             }
         }
         let _resp = self

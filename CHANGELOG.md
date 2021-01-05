@@ -1,5 +1,7 @@
 ## swyh-rs Changelog
 
+- 1.3.1 (unreleased)
+
 - 1.3.0 (Jan 4 2021 dheijl)
   - Removed the "SeekId" action from OpenHome control, as it is not needed and interferes with AutoResume on some renderers (Bubble) 
   - adjusted the capture time-out to be smaller (15 sec) than the "no sound" time-out (30 sec) of BubbleUPNP Server

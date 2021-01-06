@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 1.3.2 (unreleased)
+  - prevent panics caused by ureq 2.0 catching errors differently
+
 - 1.3.1 (Jan 6 2020 dheijl)
   - upgrade to rust 1.49
   - fix capture timeouts for Bubble with OpenHome Chromecast/Nest Audio 

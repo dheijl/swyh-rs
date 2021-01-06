@@ -26,7 +26,7 @@ pub struct ChannelStream {
     sending_silence: bool,
 }
 
-const CAPTURE_TIMEOUT: u32 = 15; // seconds
+const CAPTURE_TIMEOUT: u32 = 2; // seconds
 const SILENCE_PERIOD: u32 = 250; // milliseconds
 
 impl ChannelStream {
@@ -48,6 +48,8 @@ impl ChannelStream {
         let size = ((sample_rate * 2) / DIVISOR) as usize;
         self.silence = Vec::with_capacity(size);
         self.silence.resize(size, 0i16);
+        // Hack for Bubble with Chromecast/Nest
+        self.fifo.extend(self.silence.clone());
     }
 
     pub fn write(&self, samples: &[i16]) {

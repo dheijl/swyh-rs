@@ -1,6 +1,8 @@
 ## swyh-rs Changelog
 
-- 1.3.1 (unreleased)
+- 1.3.1 (Jan 6 2020 dheijl)
+  - upgrade to rust 1.49
+  - fix capture timeouts for Bubble with OpenHome Chromecast/Nest Audio 
 
 - 1.3.0 (Jan 4 2021 dheijl)
   - Removed the "SeekId" action from OpenHome control, as it is not needed and interferes with AutoResume on some renderers (Bubble) 

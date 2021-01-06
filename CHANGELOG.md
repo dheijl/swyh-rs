@@ -2,6 +2,7 @@
 
 - 1.3.2 (unreleased)
   - prevent panics caused by ureq 2.0 catching errors differently
+  - implement global configuration singleton so that we don't have to reread it every time
 
 - 1.3.1 (Jan 6 2020 dheijl)
   - upgrade to rust 1.49

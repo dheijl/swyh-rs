@@ -100,6 +100,8 @@ lazy_static! {
     static ref CLIENTS: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
     // the global GUI logger textbox channel used by all threads
     static ref LOGCHANNEL: Mutex<(Sender<String>, Receiver<String>)> = Mutex::new(unbounded());
+    // the global configuration state
+    static ref CONFIG: Mutex<Configuration> = Mutex::new(Configuration::read_config());
 }
 
 /// swyh-rs
@@ -161,11 +163,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p1.add(&opt_frame);
     vpack.add(&p1);
 
-    // read config
-    let mut config = Configuration::read_config();
-    if config.sound_source == "None" {
-        config.sound_source = audio_output_device.name().unwrap();
-        let _ = config.update_config();
+    // initialize config
+    let mut config: Configuration;
+    {
+        let mut conf = CONFIG.lock();
+        if conf.sound_source == "None" {
+            conf.sound_source = audio_output_device.name().unwrap();
+            let _ = conf.update_config();
+        }
+        config = conf.clone();
     }
     log(format!("{:?}", config));
     if cfg!(debug_assertions) {
@@ -198,13 +204,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_resume.set(true);
     }
     auto_resume.set_callback2(move |b| {
-        let mut config = Configuration::read_config();
+        let mut conf = CONFIG.lock();
         if b.is_set() {
-            config.auto_resume = true;
+            conf.auto_resume = true;
         } else {
-            config.auto_resume = false;
+            conf.auto_resume = false;
         }
-        let _ = config.update_config();
+        let _ = conf.update_config();
     });
     p2.add(&auto_resume);
 
@@ -214,13 +220,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_reconnect.set(true);
     }
     auto_reconnect.set_callback2(move |b| {
-        let mut config = Configuration::read_config();
+        let mut conf = CONFIG.lock();
         if b.is_set() {
-            config.auto_reconnect = true;
+            conf.auto_reconnect = true;
         } else {
-            config.auto_reconnect = false;
+            conf.auto_reconnect = false;
         }
-        let _ = config.update_config();
+        let _ = conf.update_config();
     });
     p2.add(&auto_reconnect);
 
@@ -230,17 +236,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_ch_flag = config_changed.clone();
     ssdp_interval.handle2(move |b, ev| match ev {
         Event::Leave => {
-            let mut config = Configuration::read_config();
+            let mut conf = CONFIG.lock();
             if b.value() < 0.5 {
                 b.set_value(0.5);
             }
-            if (config.ssdp_interval_mins - b.value()).abs() > 0.09 {
-                config.ssdp_interval_mins = b.value();
+            if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
+                conf.ssdp_interval_mins = b.value();
                 log(format!(
                     "*W*W*> ssdp interval changed to {} minutes, restart required!!",
-                    config.ssdp_interval_mins
+                    conf.ssdp_interval_mins
                 ));
-                let _ = config.update_config();
+                let _ = conf.update_config();
                 config_ch_flag.set(true);
             }
             true
@@ -266,7 +272,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return;
         }
         *recursion += 1;
-        let mut config = Configuration::read_config();
+        let mut conf = CONFIG.lock();
         let i = b.value();
         if i < 0 {
             return;
@@ -276,10 +282,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "*W*W*> Log level changed to {}, restart required!!",
             level
         )); // std::env::current_exe()
-        config.log_level = level.parse().unwrap_or(LevelFilter::Info);
-        let _ = config.update_config();
+        conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
+        let _ = conf.update_config();
         config_ch_flag.set(true);
-        let ll = format!("Log Level: {}", config.log_level.to_string());
+        let ll = format!("Log Level: {}", conf.log_level.to_string());
         b.set_label(&ll);
         *recursion -= 1;
     });
@@ -299,13 +305,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         disable_chunked.set(true);
     }
     disable_chunked.set_callback2(move |b| {
-        let mut config = Configuration::read_config();
+        let mut conf = CONFIG.lock();
         if b.is_set() {
-            config.disable_chunked = true;
+            conf.disable_chunked = true;
         } else {
-            config.disable_chunked = false;
+            conf.disable_chunked = false;
         }
-        let _ = config.update_config();
+        let _ = conf.update_config();
     });
     p2b.add(&disable_chunked);
     p2b.auto_layout();
@@ -350,7 +356,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return;
         }
         *recursion += 1;
-        let mut config = Configuration::read_config();
+        let mut conf = CONFIG.lock();
         let mut i = b.value();
         if i < 0 {
             return;
@@ -363,9 +369,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "*W*W*> Audio source changed to {}, restart required!!",
             name
         ));
-        config.sound_source = name;
-        let _ = config.update_config();
-        b.set_label(&format!("New Source: {}", config.sound_source));
+        conf.sound_source = name;
+        let _ = conf.update_config();
+        b.set_label(&format!("New Source: {}", conf.sound_source));
         config_ch_flag.set(true);
         *recursion -= 1;
     });
@@ -424,7 +430,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the renderers discovered so far
     let mut renderers: Vec<Renderer> = Vec::new();
     log("Starting SSDP discovery".to_string());
-    let conf = config.clone();
+    let conf = CONFIG.lock().clone();
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 1024 * 1024)
@@ -531,9 +537,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
                 if b.is_set() {
                     let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
-                    let mut config = Configuration::read_config();
-                    config.last_renderer = b.label();
-                    let _ = config.update_config();
+                    {
+                        let mut conf = CONFIG.lock();
+                        conf.last_renderer = b.label();
+                        let _ = conf.update_config();
+                    }
                 } else {
                     let _ = newr_c.stop_play(&log);
                 }
@@ -689,8 +697,9 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         rq.remote_addr()
                     ));
                     // set transfer encoding chunked unless disabled
+                    let conf = CONFIG.lock().clone();
                     let (streamsize, chunked_threshold) = {
-                        if Configuration::read_config().disable_chunked {
+                        if conf.disable_chunked {
                             (Some(usize::MAX - 1), usize::MAX)
                         } else {
                             (None, 8192)

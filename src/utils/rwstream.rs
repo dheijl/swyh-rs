@@ -19,6 +19,7 @@ use std::time::Duration;
 pub struct ChannelStream {
     pub s: Sender<Vec<i16>>,
     pub r: Receiver<Vec<i16>>,
+    pub remote_ip: String,
     fifo: VecDeque<i16>,
     silence: Vec<i16>,
     capture_timeout: Duration,
@@ -30,7 +31,11 @@ const CAPTURE_TIMEOUT: u32 = 2; // seconds
 const SILENCE_PERIOD: u32 = 250; // milliseconds
 
 impl ChannelStream {
-    pub fn new(tx: Sender<Vec<i16>>, rx: Receiver<Vec<i16>>) -> ChannelStream {
+    pub fn new(
+        tx: Sender<Vec<i16>>,
+        rx: Receiver<Vec<i16>>,
+        remote_ip_addr: String,
+    ) -> ChannelStream {
         ChannelStream {
             s: tx,
             r: rx,
@@ -39,6 +44,7 @@ impl ChannelStream {
             capture_timeout: Duration::new(CAPTURE_TIMEOUT as u64, 0), // silence kicks in after CAPTURE_TIMEOUT seconds
             silence_period: Duration::from_millis(SILENCE_PERIOD as u64), // send SILENCE_PERIOD msec of silence every SILENCE_PERIOD msec
             sending_silence: false,
+            remote_ip: remote_ip_addr,
         }
     }
 
@@ -98,7 +104,7 @@ mod tests {
 
     fn test_silence() {
         let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
-        let mut cs = ChannelStream::new(tx, rx);
+        let mut cs = ChannelStream::new(tx, rx, "192.168.0.254".to_string());
         cs.create_silence(44100);
         assert_eq!(cs.silence.len(), 44100 * 2);
         let mut i = 0;

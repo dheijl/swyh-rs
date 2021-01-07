@@ -246,9 +246,9 @@ dependencies = [
 
 [[package]]
 name = "combine"
-version = "4.5.1"
+version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01199925a18b00193570e3d70cfe57dcb647eb167c29851983e76fc39e2fee39"
+checksum = "cc4369b5e4c0cddf64ad8981c0111e7df4f7078f4d6ba98fb31f2e17c4c57b7e"
 dependencies = [
  "bytes",
  "memchr",
@@ -504,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.12.8"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02fcc73f8815bd8e1673dea1d113d65e12d43b29d5b09347dd3d5fbc6b7b5de5"
+checksum = "ff76368228ef47e6a1bd085586396a74e57df403d4e266462674d156f92664b3"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -516,9 +516,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.12.8"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "396d6c8de46a4dd45852f37f7ad53e4afa0e69164548891fe41e9af45f92c7ee"
+checksum = "78077fe57cec72cfb38d91b3b9cf3601555084d3376b05d5368ae2c6f47807d7"
 dependencies = [
  "quote",
  "syn",
@@ -526,9 +526,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.12.8"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84f3c653ce89382219cc009c3a938e966da59d9a3f04e41ed7d629ab39c0db57"
+checksum = "ba6a7ea2206d7172e857d980f5fe41e5834ef31a4d05c1e85db0b7c3f345d2d2"
 dependencies = [
  "cmake",
  "libc",
@@ -641,7 +641,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36bcc950632e48b86da402c5c077590583da5ac0d480103611d5374e7c967a3c"
 dependencies = [
  "cesu8",
- "combine 4.5.1",
+ "combine 4.5.2",
  "error-chain",
  "jni-sys",
  "log",

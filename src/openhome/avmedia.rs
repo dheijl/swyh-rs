@@ -291,7 +291,7 @@ impl Renderer {
                 &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
                 &OH_DELETE_PL_TEMPLATE.to_string(),
             )
-            .unwrap_or("".to_string());
+            .unwrap_or_else(|| "".to_string());
         // create new playlist
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
@@ -322,7 +322,7 @@ impl Renderer {
                 &"urn:av-openhome-org:service:Playlist:1#Insert".to_string(),
                 &xmlbody,
             )
-            .unwrap_or("".to_string());
+            .unwrap_or_else(|| "".to_string());
         // send play command
         let _resp = self
             .soap_request(
@@ -330,7 +330,7 @@ impl Renderer {
                 &"urn:av-openhome-org:service:Playlist:1#Play".to_string(),
                 &OH_PLAY_PL_TEMPLATE.to_string(),
             )
-            .unwrap_or("".to_string());
+            .unwrap_or_else(|| "".to_string());
         Ok(())
     }
 
@@ -388,7 +388,7 @@ impl Renderer {
                 &"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI".to_string(),
                 &xmlbody,
             )
-            .unwrap_or("".to_string());
+            .unwrap_or_else(|| "".to_string());
         // the renderer will now send a head request first, so wait a bit
         std::thread::sleep(Duration::from_millis(100));
         // send play command
@@ -398,7 +398,7 @@ impl Renderer {
                 &"urn:schemas-upnp-org:service:AVTransport:1#Play".to_string(),
                 &AV_PLAY_TEMPLATE.to_string(),
             )
-            .unwrap_or("".to_string());
+            .unwrap_or_else(|| "".to_string());
         Ok(())
     }
 
@@ -435,7 +435,7 @@ impl Renderer {
                 &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
                 &OH_DELETE_PL_TEMPLATE.to_string(),
             )
-            .unwrap_or("".to_string());
+            .unwrap_or_else(|| "".to_string());
     }
 
     /// av_stop_play - stop playing on the AV renderer
@@ -454,7 +454,7 @@ impl Renderer {
                 &"urn:schemas-upnp-org:service:AVTransport:1#Stop".to_string(),
                 &AV_STOP_PLAY_TEMPLATE.to_string(),
             )
-            .unwrap_or("".to_string());
+            .unwrap_or_else(|| "".to_string());
     }
 }
 

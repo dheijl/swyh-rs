@@ -1,8 +1,10 @@
 ## swyh-rs Changelog
 
-- 1.3.2 (unreleased)
+- 1.3.2 beta2 (unreleased)
   - prevent panics caused by ureq 2.0 catching errors differently
   - implement global configuration singleton so that we don't have to reread it every time
+  - cargo clippy
+  - allow for multiple streaming connections to be active for the same renderer. This should finally fix the problems with Buuble/Openhome/Nest Audio
 
 - 1.3.1 (Jan 6 2020 dheijl)
   - upgrade to rust 1.49

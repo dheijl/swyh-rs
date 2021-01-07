@@ -491,6 +491,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         // check if the webserver has closed a connection not caused by pushing the renderer button
         // in that case we turn the button off as a visual feedback
+        // but if auto_resume is set, restart playing instead
         if let Ok(streamer_feedback) = feedback_rx.try_recv() {
             if let Some(button) = buttons.get_mut(&streamer_feedback.remote_ip) {
                 match streamer_feedback.streaming_state {
@@ -500,15 +501,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     StreamingState::Ended => {
-                        if auto_resume.is_set() && button.is_set() {
-                            for r in renderers.iter() {
-                                if streamer_feedback.remote_ip == r.remote_addr {
-                                    let _ = r.play(&local_addr, SERVER_PORT, &wd, &dummy_log);
+                        // first check if the renderer has actually not started streaming again
+                        // as this can happen with Bubble/Nest Audio Openhome
+                        let mut still_streaming = false;
+                        {
+                            let clients = CLIENTS.lock();
+                            for (_, c) in clients.iter() {
+                                if c.remote_ip == streamer_feedback.remote_ip {
+                                    still_streaming = true;
                                     break;
                                 }
                             }
-                        } else if button.is_set() {
-                            button.set(false);
+                        }
+                        if !still_streaming {
+                            if auto_resume.is_set() && button.is_set() {
+                                for r in renderers.iter() {
+                                    if streamer_feedback.remote_ip == r.remote_addr {
+                                        let _ = r.play(&local_addr, SERVER_PORT, &wd, &dummy_log);
+                                        break;
+                                    }
+                                }
+                            } else if button.is_set() {
+                                button.set(false);
+                            }
                         }
                     }
                 }
@@ -706,10 +721,11 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         }
                     };
                     let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
-                    let channel_stream = ChannelStream::new(tx.clone(), rx.clone());
+                    let channel_stream =
+                        ChannelStream::new(tx.clone(), rx.clone(), remote_ip.clone());
                     {
                         let mut clients = CLIENTS.lock();
-                        clients.insert(remote_ip.clone(), channel_stream);
+                        clients.insert(remote_addr.clone(), channel_stream);
                         debug!("Now have {} streaming clients", clients.len());
                     }
                     feedback_tx_c
@@ -719,7 +735,8 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         })
                         .unwrap();
                     std::thread::yield_now();
-                    let mut channel_stream = ChannelStream::new(tx.clone(), rx.clone());
+                    let mut channel_stream =
+                        ChannelStream::new(tx.clone(), rx.clone(), remote_ip.clone());
                     channel_stream.create_silence(wd.sample_rate.0);
                     let response = Response::empty(200)
                         .with_data(channel_stream, streamsize)
@@ -737,7 +754,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     }
                     {
                         let mut clients = CLIENTS.lock();
-                        clients.remove(&remote_ip.clone());
+                        clients.remove(&remote_addr.clone());
                         debug!("Now have {} streaming clients left", clients.len());
                     }
                     log(format!("Streaming to {} has ended", remote_addr));

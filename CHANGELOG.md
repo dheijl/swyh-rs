@@ -1,10 +1,10 @@
 ## swyh-rs Changelog
 
-- 1.3.2 beta2 (unreleased)
-  - prevent panics caused by ureq 2.0 catching errors differently
-  - implement global configuration singleton so that we don't have to reread it every time
+- 1.3.2 (Jan 7 2020 dheijl)
+  - prevent panics caused by changed ureq 2.0 error handling
+  - implement a global configuration singleton (read once) so that we don't have to reread it every time
   - cargo clippy
-  - allow for multiple streaming connections to be active for the same renderer. This should finally fix the problems with Buuble/Openhome/Nest Audio
+  - allow for multiple streaming connections to exist for the same renderer. This should finally fix the problems with Autoresume getting into a play/stop play loop with some renderers.
 
 - 1.3.1 (Jan 6 2020 dheijl)
   - upgrade to rust 1.49

@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 1.3.3 (unreleased)
+  - remove redundant closures
+
 - 1.3.2 (Jan 7 2020 dheijl)
   - prevent panics caused by changed ureq 2.0 error handling
   - implement a global configuration singleton (read once) so that we don't have to reread it every time

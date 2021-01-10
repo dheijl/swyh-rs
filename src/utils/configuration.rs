@@ -40,6 +40,13 @@ impl Configuration {
         self.config_dir.clone()
     }
 
+    fn parse_bool(s: &str) -> bool {
+        match s {
+            "true" | "True" | "TRUE" | "1" | "T" | "t" => true,
+            _ => false,
+        }
+    }
+
     pub fn read_config() -> Configuration {
         let configfile = Self::get_config_path();
         if !Path::new(&configfile).exists() {
@@ -62,10 +69,11 @@ impl Configuration {
             Err(_) => Ini::new(),
         };
         let mut config = Configuration::new();
-        match conf.get_from_or(Some("Configuration"), "AutoResume", "false") {
-            "true" | "True" | "TRUE" | "1" | "T" | "t" => config.auto_resume = true,
-            _ => config.auto_resume = false,
-        }
+        config.auto_resume = Configuration::parse_bool(conf.get_from_or(
+            Some("Configuration"),
+            "AutoResume",
+            "false",
+        ));
         config.sound_source = conf
             .get_from_or(Some("Configuration"), "SoundCard", "None")
             .to_string();
@@ -81,14 +89,16 @@ impl Configuration {
         if config.ssdp_interval_mins < 0.5 {
             config.ssdp_interval_mins = 0.5;
         }
-        match conf.get_from_or(Some("Configuration"), "AutoReconnect", "false") {
-            "true" | "True" | "TRUE" | "1" | "T" | "t" => config.auto_reconnect = true,
-            _ => config.auto_reconnect = false,
-        }
-        match conf.get_from_or(Some("Configuration"), "DisableChunked", "false") {
-            "true" | "True" | "TRUE" | "1" | "T" | "t" => config.disable_chunked = true,
-            _ => config.disable_chunked = false,
-        }
+        config.auto_reconnect = Configuration::parse_bool(conf.get_from_or(
+            Some("Configuration"),
+            "AutoReconnect",
+            "false",
+        ));
+        config.disable_chunked = Configuration::parse_bool(conf.get_from_or(
+            Some("Configuration"),
+            "DisableChunked",
+            "false",
+        ));
         config.last_renderer = conf
             .get_from_or(Some("Configuration"), "LastRenderer", "None")
             .to_string()

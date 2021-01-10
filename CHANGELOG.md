@@ -5,7 +5,7 @@
 
 - 1.3.2 (Jan 7 2020 dheijl)
   - prevent panics caused by changed ureq 2.0 error handling
-  - implement a global configuration singleton (read once) so that we don't have to reread it every time
+  - implement a global configuration singleton (read once at startup) so that we don't have to reread it every time
   - cargo clippy
   - allow for multiple streaming connections to exist for the same renderer. This should finally fix the problems with Autoresume getting into a play/stop play loop with some renderers.
 

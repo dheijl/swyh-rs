@@ -53,8 +53,5 @@ pub fn get_default_audio_output_device() -> Option<cpal::Device> {
     // audio hosts
     let _available_hosts = cpal::available_hosts();
     let default_host = cpal::default_host();
-    match default_host.default_output_device() {
-        Some(device) => Some(device),
-        None => None,
-    }
+    default_host.default_output_device()
 }

@@ -41,10 +41,7 @@ impl Configuration {
     }
 
     fn parse_bool(s: &str) -> bool {
-        match s {
-            "true" | "True" | "TRUE" | "1" | "T" | "t" => true,
-            _ => false,
-        }
+        matches!(s, "true" | "True" | "TRUE" | "1" | "T" | "t")
     }
 
     pub fn read_config() -> Configuration {

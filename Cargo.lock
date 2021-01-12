@@ -155,9 +155,9 @@ checksum = "ae44d1a3d5a19df61dd0c8beb138458ac2a53a7ac09eba97d55592540004306b"
 
 [[package]]
 name = "bytes"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad1f8e949d755f9d79112b5bb46938e0ef9d3804a0b16dfab13aafcaa5f0fa72"
+checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
 
 [[package]]
 name = "cc"
@@ -504,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.13.1"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff76368228ef47e6a1bd085586396a74e57df403d4e266462674d156f92664b3"
+checksum = "18cd15918a5428970cd4f7c4ca0a39f81d19cf1f0b967684a34a6513a609e435"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -516,9 +516,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.13.1"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78077fe57cec72cfb38d91b3b9cf3601555084d3376b05d5368ae2c6f47807d7"
+checksum = "9223fa72f95065ef2e9ff3c411f9d3cd58dd26a2c81058a87898a944f58af845"
 dependencies = [
  "quote",
  "syn",
@@ -526,9 +526,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.13.1"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba6a7ea2206d7172e857d980f5fe41e5834ef31a4d05c1e85db0b7c3f345d2d2"
+checksum = "a9451366d944ec83a4d23ab34476e84a9e33ed3cd1d2f95f4c4925e99724ff51"
 dependencies = [
  "cmake",
  "libc",
@@ -720,9 +720,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.11"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fabed175da42fed1fa0746b0ea71f412aa9d35e76e95e59b192c64b9dc2bf8b"
+checksum = "fcf3805d4480bb5b86070dcfeb9e2cb2ebc148adb753c5cca5f884d1d65a42b2"
 dependencies = [
  "cfg-if 0.1.10",
 ]
@@ -1225,18 +1225,18 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.118"
+version = "1.0.119"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06c64263859d87aa2eb554587e2d23183398d617427327cf2b3d0ed8c69e4800"
+checksum = "9bdd36f49e35b61d49efd8aa7fc068fd295961fd2286d0b2ee9a4c7a14e99cc3"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.118"
+version = "1.0.119"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c84d3526699cd55261af4b941e4e725444df67aa4f9e6a3564f18030d12672df"
+checksum = "552954ce79a059ddd5fd68c271592374bd15cab2274970380c000118aeffe1cd"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1392,7 +1392,7 @@ dependencies = [
  "strfmt",
  "stringreader",
  "tiny_http",
- "ureq 2.0.0",
+ "ureq 2.0.1",
  "url",
  "winapi",
  "xml-rs",
@@ -1595,9 +1595,9 @@ dependencies = [
 
 [[package]]
 name = "ureq"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e562326b32e3766fee6a4890b62489b4b095e94ac07232cfea631668002c19d7"
+checksum = "96014ded8c85822677daee4f909d18acccca744810fd4f8ffc492c284f2324bc"
 dependencies = [
  "base64",
  "chunked_transfer",

@@ -273,7 +273,7 @@ impl Renderer {
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
-        vars.insert("duration".to_string(), "0".to_string());
+        vars.insert("duration".to_string(), "00:00:00".to_string());
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
@@ -339,7 +339,7 @@ impl Renderer {
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
-        vars.insert("duration".to_string(), "0".to_string());
+        vars.insert("duration".to_string(), "00:00:00".to_string());
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,

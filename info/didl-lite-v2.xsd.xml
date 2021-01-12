@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema targetNamespace="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:av="urn:schemas-upnp-org:av:av" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:didl-lite="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified" version="2-20060531">
+
+	<xsd:annotation>
+		<xsd:documentation xml:lang="en">
+			DIDL-Lite schema for UPnP A/V ContentDirectory services,
+			version 2.0.
+		</xsd:documentation>
+	</xsd:annotation>
+
+	<xsd:import namespace="urn:schemas-upnp-org:metadata-1-0/upnp/" schemaLocation="http://www.upnp.org/schemas/av/upnp.xsd"/>
+	<xsd:import namespace="urn:schemas-upnp-org:av:av" schemaLocation="http://www.upnp.org/schemas/av/av.xsd"/>
+	<xsd:import namespace="http://purl.org/dc/elements/1.1/" schemaLocation="http://dublincore.org/schemas/xmls/simpledc20021212.xsd"/>
+	<xsd:import namespace="http://www.w3.org/XML/1998/namespace" schemaLocation="http://www.w3.org/2005/08/xml.xsd"/>
+
+	<!--============================================================
+
+	This group defines the subset of Dublin Core elements that are
+	employed in DIDL-Lite.
+	
+		Included            Excluded
+		___________         ___________
+		title               subject
+		rights              type
+		description         format
+		date                identifier
+		language            source
+		creator             coverage
+		publisher
+		contributor
+		relation
+	============================================================-->
+	<xsd:group name="DublinCoreUsedExcluding-title">
+		<xsd:choice>
+			<xsd:element ref="dc:contributor"/>
+			<xsd:element ref="dc:creator"/>
+<!-- XXX - JGR
+			 Would like to use an extension of the dc:date element rather than an extension its data type ("dc:elementType").
+			As it is now, changes to the dc:date element are not propagated to the 'qualifedDate' data type.  Also, the
+			namespace of the <date> element is no longer "dc" but rather "didl-lite" which is not exactly what we want.
+			<dc:date didl-lite:daylightSaving="STANDARD">datevalue</dc:date>
+			<xsd:element ref="dc:date"/>
+			<xsd:element ref="didl-lite:qualifiedDCDate"/>
+			<xsd:element name="dcDate" type="didl-lite:qualifiedDCDate"/>
+-->
+			<xsd:element ref="dc:date"/>
+			<xsd:element ref="dc:description"/>
+			<xsd:element ref="dc:language"/>
+			<xsd:element ref="dc:publisher"/>
+			<xsd:element ref="dc:relation"/>
+			<xsd:element ref="dc:rights"/>
+		</xsd:choice>
+	</xsd:group>
+
+<!-- XXX - JGR
+ 	<xsd:complexType name="qualifiedDCDate">
+		<xsd:complexContent>
+			<xsd:element ref="dc:date">
+				<xsd:attributeGroup ref="upnp:dateTime.attr.group"/> 
+			</xsd:element>
+		</xsd:complexContent>
+	</xsd:complexType>
+-->
+ 	<xsd:complexType name="qualifiedDCDate">
+		<xsd:simpleContent>
+			<xsd:extension base="dc:elementType">
+				<xsd:attributeGroup ref="upnp:dateTime.attr.group"/> 
+			</xsd:extension>
+		</xsd:simpleContent>
+	</xsd:complexType>
+
+
+	<!--============================================================
+	'DIDL-Lite' is the root element of DIDL-Lite documents.
+
+	Attributes:
+		xml:lang: optional. The 'xml:lang' attribute may optionally be
+			used to specify the language of text in the DIDL-Lite document.
+	============================================================-->
+	<xsd:group name="allowed-under-DIDL-Lite">
+		<xsd:annotation>
+			<xsd:documentation>
+				This group defines the elements allowed under the
+				DIDL-Lite root
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:choice>
+			<xsd:element name="item" type="didl-lite:item.type"/>
+			<xsd:element name="container" type="didl-lite:container.type"/>
+			<xsd:element name="desc" type="didl-lite:desc.type"/>
+		</xsd:choice>
+	</xsd:group>
+	<xsd:element name="DIDL-Lite" type="didl-lite:root.type"/>
+	<xsd:complexType name="root.type">
+		<xsd:annotation>
+			<xsd:documentation>
+				DIDL-Lite is the root element 
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:group ref="didl-lite:allowed-under-DIDL-Lite" maxOccurs="unbounded"/>
+		<xsd:attribute ref="xml:lang"/>
+	</xsd:complexType>
+
+	
+	<!--============================================================
+		Parts shared by 'container' and 'item' objects.
+		============================================================-->
+	
+	<xsd:attributeGroup name="commonAttrs-item-container.group">
+		<xsd:attribute name="id" type="av:didl-lite_COLON_at_id.vd.type" use="required"/>
+		<xsd:attribute name="parentID" type="av:didl-lite_COLON_at_id.vd.type" use="required"/>
+		<xsd:attribute name="restricted" type="xsd:boolean" use="required"/>
+		<xsd:attribute name="neverPlayable" type="xsd:boolean"/>
+	</xsd:attributeGroup>
+	
+	<!--============================================================
+		A 'container' element may contain any number of
+		1. Dublin Core,
+		2. upnp,
+		3. res,
+		4. ref,
+		5. item,
+		6. container, and
+		7. desc elements.
+	
+		In all cases, the first element in container child element sequence
+		is required to be "dc:title".
+		The 'upnp:class' must also appear under container.
+		Each container is required to specify a value for the 'id' and
+		'parentID' attributes.
+		Each container is also required to specify a value for the
+		'restricted' attribute (true, false, 1, 0).
+		When restricted="true", the ability to change or delete the
+		Container is restricted.
+		Other optional container elements are:
+	
+		'parentID', 'childCount', and 'searchable'.
+		Other optional attributes are 'childCount' and 'searchable'.
+	
+		id:			type: string	use: required
+		parentID:	type: string	use: required
+		restricted:	type: string	use: required
+		searchable:	type: string	use: optional
+		childCount:	type: string	use: optional
+	
+		The equivalent MPEG21 DIDL element is 'CONTAINER'
+		============================================================-->
+	<xsd:group name="allowed-under-container">
+		<xsd:annotation>
+			<xsd:documentation>
+				This group defines the elements allowed under the
+				'container' element
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:choice>
+			<xsd:group ref="upnp:upnpForContainer"/>
+			<xsd:group ref="didl-lite:DublinCoreUsedExcluding-title"/>
+			<xsd:element name="desc" type="didl-lite:desc.type"/>
+			<xsd:element name="item" type="didl-lite:item.type"/>
+			<xsd:element name="container" type="didl-lite:container.type"/>
+			<xsd:element name="res" type="didl-lite:res.type"/>
+		</xsd:choice>
+	</xsd:group>
+	
+	<xsd:complexType name="container.type">
+		<xsd:annotation>
+			<xsd:documentation>
+				'container' element may contain any number of
+				1. Dublin Core,
+				2. upnp,
+				3. res,
+				4. ref,
+				5 item,
+				6. container and
+				7. desc elements.
+				In all cases, the first element in each container child
+				element sequence is required to be "dc:title".
+				A 'upnp:class' element must also appear under container.
+				container is required to specify a value for the 'id' and
+				'parentID' attributes.
+				container is also required to specify a value for the
+				'restricted' attribute (true, false, 1, 0).
+				When restricted="true", the ability to change or delete the
+				container is restricted.
+				Optional container element attributes are 'childCount', and 
+				'searchable'.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:sequence>
+			<xsd:element ref="dc:title"/>
+ 			<xsd:group ref="didl-lite:allowed-under-container" minOccurs="0" maxOccurs="unbounded"/> 
+			<xsd:group ref="upnp:class.group"/>
+			<xsd:group ref="didl-lite:allowed-under-container" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+		<xsd:attributeGroup ref="didl-lite:commonAttrs-item-container.group"/>
+		<xsd:attribute name="searchable" type="xsd:boolean"/>
+		<xsd:attribute name="childCount" type="xsd:unsignedInt"/>
+	</xsd:complexType>
+<!--============================================================
+	An 'item' element contains any number of
+	1. Dublin Core,
+	2. upnp,
+	3. res, and
+	4. desc elements.
+
+	In all cases, the first element in each item child element
+	sequence is required to be "dc:title".
+	The 'upnp:class' element must also appear under item.
+	Each item is additionally required to specify a value for the 'id'
+	attribute. If the item is actually a reference to another item, a
+	value for 'refID' is specified.
+	Each item is also required to specify a value for the 'parentID'
+	Attribute and the 'restricted' attribute (true, false, 1, 0).
+	When restricted="true", the ability to change or delete the item is 
+	restricted.
+
+	Attributes:
+	Id:			type: string	use: required
+	parentID:	type: string	use: required
+	refID:		type: string	use: optional
+	restricted:	type: boolean	use: required
+
+	The equivalent MPEG21 DIDL element is 'ITEM'.
+	============================================================-->
+	<xsd:group name="allowed-under-item">
+		<xsd:annotation>
+			<xsd:documentation>
+				This group defines the elements allowed under the 'item'
+				Element
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:choice>
+			<xsd:group ref="upnp:upnpForItem"/>
+			<xsd:group ref="didl-lite:DublinCoreUsedExcluding-title"/>
+			<xsd:element name="desc" type="didl-lite:desc.type"/>
+			<xsd:element name="res" type="didl-lite:res.type"/>
+		</xsd:choice>
+	</xsd:group>
+	
+	<xsd:complexType name="item.type">
+		<xsd:annotation>
+			<xsd:documentation>
+				'item' element contains any number of
+				1. Dublin Core,
+				2. upnp,
+				3. res, and
+				4. desc elements.
+				In all cases, the first element in each item child element
+				sequence is required to be "dc:title".
+				A 'upnp:class' element must also appear under item.
+				Item is additionally required to specify a value for the
+				'id' attribute.
+				If the item is actually a reference to another item,
+				a value for 'refID' must be specified.
+				Item is also required to specify a value for the 'parentID'
+				attribute, and the 'restricted' attribute
+				(true, false, 1, 0).
+				When restricted="true", the ability to change or delete the
+				item is restricted.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:sequence>
+			<xsd:element ref="dc:title"/>
+			<xsd:group ref="didl-lite:allowed-under-item" minOccurs="0" maxOccurs="unbounded"/>
+			<xsd:group ref="upnp:class.group"/>
+			<xsd:group ref="didl-lite:allowed-under-item" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+		<xsd:attributeGroup ref="didl-lite:commonAttrs-item-container.group"/>
+		<xsd:attribute name="refID" type="av:didl-lite_COLON_at_id.vd.type"/>
+	</xsd:complexType>
+<!--============================================================
+	A 'res' element indentifies a resource. A resource is typically
+	some type of asset, such as a photo, song, video, etc.
+	A 'res' element contains a URI that identifies the resource.	
+
+	Attributes:
+
+	'importUri'			type: anyURI			use: optional
+	The 'importUri' attribute is the optional uri locator for
+	resource updates.
+
+	'protocolInfo'		type: string			use: required
+	The 'protocolInfo' attribute is a string that identifies the
+	streaming or transport protocol for transmitting the resource.
+	If not present then the content has not yet been fully imported by
+	the ContentDirectory service and is not yet accessible for playback.
+
+	'size'				type: unsignedLong	use: optional
+	size, in bytes, of the resource.
+
+	'duration' 			type: string			use: optional
+	The 'duration' attribute identifies the duration of the playback of
+	the resource, at normal speed.
+
+	The format of the duration string is:
+	H+:MM:SS[.F+], or H+:MM:SS[.F0/F1]
+	Where:
+	+H		one or more digits to indicate elapsed hours,
+	MM		exactly 2 digits to indicate minutes (00 to 59),
+	SS		exactly 2 digits to indicate seconds (00 to 59),
+	F+		any number of digits (including no digits) to indicate fractions of seconds,
+	F0/F1	a fraction, with F0 and F1 at least one digit long,
+			and F0 < F1.
+	The string may be preceded by an optional + or - sign, and the
+	decimal point itself may be omitted if there are no fractional	seconds digits.
+
+	'bitrate'			type: unsignedInt		use: optional
+	The bitrate in bytes/second of the resource.
+
+	'sampleFrequency'	type: unsignedInt		use: optional
+	The sample frequency of the resource in Hz
+
+	'bitsPerSample'	type: unsignedInt		use: optional
+	The bits per sample of the resource.
+
+	'nrAudioChannels'	type: unsignedInt		use: optional
+	Number of audio channels of the resource, e.g. 1 for mono,
+	2 for stereo, 6 for Dolby surround, etc.
+
+	'resolution'		type: string			use: optional
+	X*Y resolution of the resource (image or video).
+	The string pattern is restricted to strings of the form:
+	[0-9]+x[0-9]+
+	(one or more digits,'x', followed by one or more digits).
+
+	'colorDepth'		type: unsignedInt		use: optional
+	The color depth in bits of the resource (image or video).
+
+	'protection'		type: string			use: optional
+	Some statement of the protection type of the resource
+	(not standardized).
+
+	The equivalent MPEG21 DIDL element is 'RESOURCE'.
+	============================================================-->
+	
+	<!--=============================-=============================-->
+	<!--       Resource Encoding Characteristics Properties        -->
+	<!--=============================-=============================-->
+	<xsd:complexType name="res.type" mixed="true">
+		<xsd:annotation>
+			<xsd:documentation>
+				A 'res' element indentifies a resource.
+				A resource is typically some type of binary asset,
+				such as a photo, song, video, etc.
+				A 'res' element contains a URI that identifies the resource
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleContent>
+			<xsd:extension base="xsd:anyURI">
+				<xsd:attribute name="importUri" type="xsd:anyURI"/>
+				<xsd:attribute name="protocolInfo" type="xsd:string" use="required"/>
+				<xsd:attribute name="size" type="xsd:unsignedLong"/>
+				<xsd:attribute name="duration" type="av:duration.cds1"/>
+				<xsd:attribute name="bitrate" type="xsd:unsignedInt"/>
+				<xsd:attribute name="sampleFrequency" type="xsd:unsignedInt"/>
+				<xsd:attribute name="bitsPerSample" type="xsd:unsignedInt"/>
+				<xsd:attribute name="nrAudioChannels" type="xsd:unsignedInt"/>
+				<xsd:attribute name="resolution">
+					<xsd:simpleType>
+						<xsd:restriction base="xsd:string">
+							<xsd:pattern value="[0-9]+x[0-9]+"/>
+						</xsd:restriction>
+					</xsd:simpleType>
+				</xsd:attribute>
+				<xsd:attribute name="colorDepth" type="xsd:unsignedInt"/>
+				<xsd:attribute name="tspec" type="av:string.len.0_256"/>
+				<xsd:attribute name="allowedUse" type="av:csv.1_.allowedUse"/>
+				<xsd:attribute name="validityStart" type="av:dateTime"/>
+				<xsd:attribute name="validityEnd" type="av:dateTime"/>
+				<xsd:attribute name="remainingTime" type="av:unsignedDuration"/>
+				<xsd:attribute name="updateCount" type="xsd:unsignedInt"/>
+				<xsd:attribute name="usageInfo" type="xsd:string"/>
+				<xsd:attribute name="rightsInfoURI" type="xsd:anyURI"/>
+				<xsd:attribute name="contentInfoURI" type="xsd:anyURI"/>
+				<xsd:attribute name="recordQuality" type="av:csv.1_.colonDelimPairs"/>
+				<xsd:attribute name="protection" type="xsd:string"/>
+				<xsd:attributeGroup ref="upnp:dateTime.attr.group"/>
+			</xsd:extension>
+		</xsd:simpleContent>
+	</xsd:complexType>
+<!--============================================================
+	A 'desc' element identifies a descriptor.
+	A descriptor is intended to contain a block of metadata.
+	The bio of a music artist is an example use of a 'desc' element.
+	A 'desc' element may possess child elements from any namespace
+	except the DIDL-Lite namespace.
+	Values for 'id' and 'nameSpace' are required.
+	An optional 'type' attribute allows designation of the metadata
+	type, e.g. 'ratings', 'rights', etc.
+
+	Attributes:
+
+	'id'            type: string    use: required
+	'type'          type: string    use: optional
+	'nameSpace'     type: uri       use: required
+	
+	The equivalent MPEG21 DIDL element is 'DESCRIPTOR'.
+	============================================================-->
+	<xsd:complexType name="desc.type">
+		<xsd:annotation>
+			<xsd:documentation>
+				A'desc' element identifies a descriptor.
+				A descriptor is intended to contain a block of metadata.
+				The bio of a music artist is an example use of 'desc'.
+				A 'desc' element may possess child elements from any
+				namespace except the DIDL-Lite namespace.
+				A value for 'id' is required.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:sequence>
+			<xsd:any namespace="##other"/>
+		</xsd:sequence>
+		<xsd:attribute name="id" type="xsd:string" use="required"/>
+		<xsd:attribute name="type" type="xsd:string"/>
+		<xsd:attribute name="nameSpace" type="xsd:anyURI" use="required"/>
+	</xsd:complexType>
+	
+	<!--===================================================================-->
+	<!--                                                                   -->
+	<!--                Vendor-Defined Component Datatypes                 -->
+	<!--                                                                   -->
+	<!--===================================================================-->
+	
+</xsd:schema>

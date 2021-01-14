@@ -504,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.13.3"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18cd15918a5428970cd4f7c4ca0a39f81d19cf1f0b967684a34a6513a609e435"
+checksum = "170e30c21587f6816a0115d9a3ce36821e8974df25b48da0c373cf45b91a5083"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -701,9 +701,9 @@ checksum = "3286f09f7d4926fc486334f28d8d2e6ebe4f7f9994494b6dab27ddfad2c9b11b"
 
 [[package]]
 name = "libloading"
-version = "0.6.6"
+version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9367bdfa836b7e3cf895867f7a570283444da90562980ec2263d6e1569b16bc"
+checksum = "351a32417a12d5f7e82c368a66781e307834dae04c6ce0cd4456d52989229883"
 dependencies = [
  "cfg-if 1.0.0",
  "winapi",

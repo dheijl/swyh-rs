@@ -17,12 +17,12 @@ chrono = "0.4.19"
 cpal = "0.13.1"
 crossbeam-channel = "0.5.0"
 dirs = "3.0.1"
-fltk = { version = "0.13.7", features = ["use-ninja"] }
+fltk = { version = "0.13.11", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 lazy_static = "1.4.0"
-log = { version = "0.4.13", features = ["max_level_trace", "release_max_level_debug"] }
+log = { version = "0.4.14", features = ["max_level_trace", "release_max_level_debug"] }
 parking_lot = "0.11.1"
-rust-ini = "0.16.0"
+rust-ini = "0.16.1"
 simplelog = "0.9.0"
 strfmt = "0.1.6"
 stringreader = "0.1.1"
@@ -33,7 +33,7 @@ xml-rs = "0.8.3"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.82"
+libc = "0.2.84"
 
 [patch.crates-io]
 tiny_http = { git = "https://github.com/tiny-http/tiny-http" }

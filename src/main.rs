@@ -139,6 +139,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     wind.make_resizable(true);
+    wind.size_range(ww, wh * 2/3, 0, 0);
     wind.end();
     wind.show();
 
@@ -460,16 +461,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
         app::wait_for(0.0)?;
-        if wind.width() < (ww / 2) {
-            wind.resize(wind.x(), wind.y(), ww, wh);
-            app::redraw();
-            app::wait_for(0.0)?;
-        }
-        if wind.height() < (wh / 2) {
-            wind.resize(wind.x(), wind.y(), ww, wh);
-            app::redraw();
-            app::wait_for(0.0)?;
-        }
         if config_changed.get() {
             //restart_but.show();
             let c = dialog::choice(

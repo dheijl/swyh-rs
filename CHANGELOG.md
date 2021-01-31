@@ -1,7 +1,12 @@
 ## swyh-rs Changelog
 
-- 1.3.3 (unreleased)
+- 1.3.4 (unreleased)
+  - 
+
+- 1.3.3 (Jan 31 2021 dheijl)
   - remove redundant closures
+  - better resizing with fltk thanks @Moalyousef
+  - use tiny-http crate instead of github repo (identity-encoding fix included)
 
 - 1.3.2 (Jan 7 2020 dheijl)
   - prevent panics caused by changed ureq 2.0 error handling

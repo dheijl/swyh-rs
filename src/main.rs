@@ -766,9 +766,9 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                             streaming_state: StreamingState::Ended,
                         })
                         .unwrap();
-                        fltk_app_awake(MSG_STOP_STREAMING);
-                        std::thread::yield_now();
-                    } else if matches!(rq.method(), Method::Head) {
+                    fltk_app_awake(MSG_STOP_STREAMING);
+                    std::thread::yield_now();
+                } else if matches!(rq.method(), Method::Head) {
                     debug!("HEAD rq from {}", remote_addr);
                     let response = Response::empty(200)
                         .with_header(cc_hdr)

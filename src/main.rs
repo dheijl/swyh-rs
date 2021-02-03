@@ -464,15 +464,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let binsert: u32 = 5;
     // set last renderer used
     let last_renderer = config.last_renderer;
-    // run GUI, app.wait() and app.run() somehow block the logger channel
-    // from receiving messages
+    // run GUI event loop
     while app::wait() {
         if app::should_program_quit() {
             break;
         }
         let _ = fltk_app_thread_msg();
         if config_changed.get() {
-            //restart_but.show();
             let c = dialog::choice(
                 wind.width() as i32 / 2 - 100,
                 wind.height() as i32 / 2 - 50,
@@ -574,8 +572,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 but.do_callback();
             }
         }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    } // while app::wait()
+
     Ok(())
 }
 
@@ -598,7 +596,6 @@ fn tb_logger(mut tb: TextDisplay) {
         tb.set_insert_position(buflen);
         let buflines = tb.count_lines(0, buflen, true);
         tb.scroll(buflines, 0);
-        std::thread::yield_now();
     }
 }
 

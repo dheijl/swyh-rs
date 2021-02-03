@@ -49,6 +49,7 @@ use crate::utils::escape::FwSlashPipeEscape;
 use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
+use crate::utils::unsafe_fn::*;
 use ascii::*;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
@@ -74,6 +75,12 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
+
+// app awake messages
+const MSG_START_STREAMING: i32 = 1;
+const MSG_STOP_STREAMING: i32 = 2;
+const MSG_NEW_RENDERER: i32 = 3;
+const MSG_CONFIG_CHANGED: i32 = 4;
 
 /// streaming state
 #[derive(Debug, Clone, Copy)]
@@ -139,7 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     wind.make_resizable(true);
-    wind.size_range(ww, wh * 2/3, 0, 0);
+    wind.size_range(ww, wh * 2 / 3, 0, 0);
     wind.end();
     wind.show();
 
@@ -249,6 +256,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ));
                 let _ = conf.update_config();
                 config_ch_flag.set(true);
+                fltk_app_awake(MSG_CONFIG_CHANGED);
             }
             true
         }
@@ -286,6 +294,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
         let _ = conf.update_config();
         config_ch_flag.set(true);
+        fltk_app_awake(MSG_CONFIG_CHANGED);
         let ll = format!("Log Level: {}", conf.log_level.to_string());
         b.set_label(&ll);
         *recursion -= 1;
@@ -374,6 +383,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = conf.update_config();
         b.set_label(&format!("New Source: {}", conf.sound_source));
         config_ch_flag.set(true);
+        fltk_app_awake(MSG_CONFIG_CHANGED);
         *recursion -= 1;
     });
     p3.add(&choose_audio_source_but);
@@ -456,11 +466,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let last_renderer = config.last_renderer;
     // run GUI, app.wait() and app.run() somehow block the logger channel
     // from receiving messages
-    loop {
+    while app::wait() {
         if app::should_program_quit() {
             break;
         }
-        app::wait_for(0.0)?;
+        let _ = fltk_app_thread_msg();
         if config_changed.get() {
             //restart_but.show();
             let c = dialog::choice(
@@ -520,7 +530,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        app::wait_for(0.0)?;
         // check the ssdp discovery thread channel for a newly discovered renderer
         // if yes: add a new button below the last one
         if let Ok(newr) = ssdp_rx.try_recv() {
@@ -559,14 +568,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             vpack.insert(&pbutton, binsert);
             buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
             app::redraw();
-            app::wait_for(0.0)?;
             // check if autoreconnect is set for this renderer
             if auto_reconnect.is_set() && but.label() == *last_renderer {
                 but.turn_on(true);
                 but.do_callback();
             }
         }
-        app::wait_for(0.0)?;
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     Ok(())
@@ -725,6 +732,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                             streaming_state: StreamingState::Started,
                         })
                         .unwrap();
+                    fltk_app_awake(MSG_START_STREAMING);
                     std::thread::yield_now();
                     let mut channel_stream =
                         ChannelStream::new(tx.clone(), rx.clone(), remote_ip.clone());
@@ -758,7 +766,9 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                             streaming_state: StreamingState::Ended,
                         })
                         .unwrap();
-                } else if matches!(rq.method(), Method::Head) {
+                        fltk_app_awake(MSG_STOP_STREAMING);
+                        std::thread::yield_now();
+                    } else if matches!(rq.method(), Method::Head) {
                     debug!("HEAD rq from {}", remote_addr);
                     let response = Response::empty(200)
                         .with_header(cc_hdr)
@@ -805,6 +815,8 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
         for r in renderers.iter() {
             if !rmap.contains_key(&r.remote_addr) {
                 let _ = ssdp_tx.send(r.clone());
+                fltk_app_awake(MSG_NEW_RENDERER);
+                std::thread::yield_now();
                 info!(
                     "Found new renderer {} {}  at {}",
                     r.dev_name, r.dev_model, r.remote_addr

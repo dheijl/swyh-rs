@@ -1,11 +1,13 @@
 ## swyh-rs Changelog
 
-- 1.3.4 (unreleased)
-  - 
+- 1.3.5 (unreleased)
+
+- 1.3.4 (Feb 03 2021 dheijl)
+  - optimize GUI event loop with new fltk-rs app messages, decreasing CPU usage even more
 
 - 1.3.3 (Jan 31 2021 dheijl)
   - remove redundant closures
-  - better resizing with fltk thanks @Moalyousef
+  - better resizing with fltk-rs thanks @Moalyousef
   - use tiny-http crate instead of github repo (identity-encoding fix included)
 
 - 1.3.2 (Jan 7 2020 dheijl)

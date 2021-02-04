@@ -77,10 +77,10 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const SERVER_PORT: u16 = 5901;
 
 // app awake messages
-const MSG_START_STREAMING: i32 = 1;
-const MSG_STOP_STREAMING: i32 = 2;
-const MSG_NEW_RENDERER: i32 = 3;
-const MSG_CONFIG_CHANGED: i32 = 4;
+const MSG_STREAMING_STATE: i32 = 1;
+const MSG_NEW_RENDERER: i32 = 2;
+const MSG_CONFIG_CHANGED: i32 = 3;
+const MSG_LOG: i32 = 4;
 
 /// streaming state
 #[derive(Debug, Clone, Copy)]
@@ -392,6 +392,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // raise process priority a bit to prevent audio stuttering under cpu load
     raise_priority();
 
+    // set the last renderer used (for autoreconnect)
+    let last_renderer = config.last_renderer;
+
     // capture system audio
     debug!("Try capturing system audio");
     let stream: cpal::Stream;
@@ -427,19 +430,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     vpack.add(&p5);
     vpack.resizable(&p5);
 
-    // setup the feedback textbox logger thread
-    let _ = std::thread::Builder::new()
-        .name("textdisplay_updater".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(move || tb_logger(tb))
-        .unwrap();
-
     // create a hashmap for a button for each discovered renderer
     let mut buttons: HashMap<String, LightButton> = HashMap::new();
-    // and start the SSDP discovery update thread with a channel for renderer updates
-    let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
-    // the renderers discovered so far
+    // the discovered renderers will be kept in this list
     let mut renderers: Vec<Renderer> = Vec::new();
+    // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
+    let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     log("Starting SSDP discovery".to_string());
     let conf = CONFIG.lock().clone();
     let _ = std::thread::Builder::new()
@@ -448,7 +444,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .spawn(move || run_ssdp_updater(ssdp_tx, conf.ssdp_interval_mins))
         .unwrap();
 
-    // start a webserver on the local address, with a feedback channel for connection accept/drop
+    // start a webserver on the local address,
+    // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
     let _ = std::thread::Builder::new()
@@ -458,18 +455,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     std::thread::yield_now();
 
-    // button dimensions and starting position
+    // (SSDP) new renderer button dimensions and starting position
     let bwidth = frame.width();
     let bheight = frame.height();
     let binsert: u32 = 5;
-    // set last renderer used
-    let last_renderer = config.last_renderer;
-    // run GUI event loop
+
+    // get the logreader channel
+    let logreader: Receiver<String>;
+    {
+        let ch = &LOGCHANNEL.lock();
+        logreader = ch.1.clone();
+    }
+
+    // now run the GUI event loop
     while app::wait() {
         if app::should_program_quit() {
             break;
         }
-        let _ = fltk_app_thread_msg();
+        let _ =  fltk_app_thread_msg();
         if config_changed.get() {
             let c = dialog::choice(
                 wind.width() as i32 / 2 - 100,
@@ -491,7 +494,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // check if the webserver has closed a connection not caused by pushing the renderer button
         // in that case we turn the button off as a visual feedback
         // but if auto_resume is set, restart playing instead
-        if let Ok(streamer_feedback) = feedback_rx.try_recv() {
+        while let Ok(streamer_feedback) = feedback_rx.try_recv() {
             if let Some(button) = buttons.get_mut(&streamer_feedback.remote_ip) {
                 match streamer_feedback.streaming_state {
                     StreamingState::Started => {
@@ -528,9 +531,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        // check the ssdp discovery thread channel for a newly discovered renderer
-        // if yes: add a new button below the last one
-        if let Ok(newr) = ssdp_rx.try_recv() {
+        // check the ssdp discovery thread channel for newly discovered renderers
+        // add a new button below the last one for each discovered renderer
+        while let Ok(newr) = ssdp_rx.try_recv() {
             let mut but = LightButton::default() // create the button
                 .with_size(bwidth, bheight)
                 .with_pos(0, 0)
@@ -572,31 +575,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 but.do_callback();
             }
         }
+        // check the logchannel for new log messages to be shown in the logger textbox
+        while let Ok(msg) = logreader.try_recv() {
+            tb.buffer().unwrap().append(&msg);
+            tb.buffer().unwrap().append("\n");
+            let buflen = tb.buffer().unwrap().length();
+            tb.set_insert_position(buflen);
+            let buflines = tb.count_lines(0, buflen, true);
+            tb.scroll(buflines, 0);
+        }
     } // while app::wait()
 
     Ok(())
-}
-
-/// tb_logger - the TextBox logger thread
-/// this function reads log messages from the LOGCHANNEL receiver
-/// and adds them to an fltk TextBox
-fn tb_logger(mut tb: TextDisplay) {
-    let logreader: Receiver<String>;
-    {
-        let ch = &LOGCHANNEL.lock();
-        logreader = ch.1.clone();
-    }
-    loop {
-        let msg = logreader
-            .recv()
-            .unwrap_or_else(|_| "*E*E*> TB LOGGER channel receive error".to_string());
-        tb.buffer().unwrap().append(&msg);
-        tb.buffer().unwrap().append("\n");
-        let buflen = tb.buffer().unwrap().length();
-        tb.set_insert_position(buflen);
-        let buflines = tb.count_lines(0, buflen, true);
-        tb.scroll(buflines, 0);
-    }
 }
 
 /// log - send a logmessage to the textbox on the LOGCHANNEL
@@ -613,6 +603,7 @@ fn log(s: String) {
         logger = ch.0.clone();
     }
     logger.send(s).unwrap();
+    fltk_app_awake(MSG_LOG);
 }
 
 /// dummy_log is used during AV transport autoresume
@@ -729,7 +720,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                             streaming_state: StreamingState::Started,
                         })
                         .unwrap();
-                    fltk_app_awake(MSG_START_STREAMING);
+                    fltk_app_awake(MSG_STREAMING_STATE);
                     std::thread::yield_now();
                     let mut channel_stream =
                         ChannelStream::new(tx.clone(), rx.clone(), remote_ip.clone());
@@ -763,7 +754,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                             streaming_state: StreamingState::Ended,
                         })
                         .unwrap();
-                    fltk_app_awake(MSG_STOP_STREAMING);
+                    fltk_app_awake(MSG_STREAMING_STATE);
                     std::thread::yield_now();
                 } else if matches!(rq.method(), Method::Head) {
                     debug!("HEAD rq from {}", remote_addr);

@@ -462,9 +462,9 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.26"
+version = "0.8.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "801bbab217d7f79c0062f4f7205b5d4427c6d1a7bd7aafdd1475f7c59d62b283"
+checksum = "b4dc76421b40af2cd5c644c55206e78a4961c693c8facdde2ae34c3bb8428efa"
 dependencies = [
  "cfg-if 1.0.0",
 ]
@@ -504,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.13.14"
+version = "0.13.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a79df4ad87b487d6145e6e935073783404eb4f750afa071f8ddf7721412face"
+checksum = "97bf7d8ebc1ac05810418e3732cdb30c20442da9b19d3dcc3718355a9720045c"
 dependencies = [
  "bitflags",
  "fltk-derive",

@@ -294,13 +294,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         log(format!(
             "*W*W*> Log level changed to {}, restart required!!",
             level
-        )); // std::env::current_exe()
+        )); 
         conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
         let _ = conf.update_config();
         config_ch_flag.set(true);
-        app::awake();
         let ll = format!("Log Level: {}", conf.log_level.to_string());
         b.set_label(&ll);
+        app::awake();
         *recursion -= 1;
     });
     p2.add(&log_level_choice);
@@ -471,11 +471,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         logreader = ch.1.clone();
     }
 
-    // now run the GUI event loop
+    // now run the GUI event loop, app::awake() is used by the various threads to 
+    // trigger updates when something has changed, some threads use Crossbeam channels
+    // to signal what has changed
     while app::wait() {
         if app::should_program_quit() {
             break;
         }
+        // a configuration change that needs an app restart to take effect
         if config_changed.get() {
             let c = dialog::choice(
                 wind.width() as i32 / 2 - 100,
@@ -494,9 +497,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 config_changed.set(false);
             }
         }
-        // check if the webserver has closed a connection not caused by pushing the renderer button
-        // in that case we turn the button off as a visual feedback
-        // but if auto_resume is set, restart playing instead
+        // check if the streaming webserver has closed a connection not caused by 
+        // pushing a renderer button
+        // in that case we turn the button off as a visual feedback for the user
+        // but if auto_resume is set, we restart playing instead
         while let Ok(streamer_feedback) = feedback_rx.try_recv() {
             if let Some(button) = buttons.get_mut(&streamer_feedback.remote_ip) {
                 match streamer_feedback.streaming_state {
@@ -578,7 +582,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 but.do_callback();
             }
         }
-        // check the logchannel for new log messages to be shown in the logger textbox
+        // check the logchannel for new log messages to show in the logger textbox
         while let Ok(msg) = logreader.try_recv() {
             tb.buffer().unwrap().append(&msg);
             tb.buffer().unwrap().append("\n");
@@ -592,7 +596,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// log - send a logmessage to the textbox on the LOGCHANNEL
+/// log - send a logmessage to the textbox on the Crossbeam LOGCHANNEL
 fn log(s: String) {
     let cat: &str = &s[..2];
     match cat {
@@ -609,12 +613,12 @@ fn log(s: String) {
     app::awake();
 }
 
-/// dummy_log is used during AV transport autoresume
+/// a dummy_log is used during AV transport autoresume
 fn dummy_log(s: String) {
     debug!("Autoresume: {}", s);
 }
 
-/// run_server - run a webserver to serve requests from OpenHome/AV media renderers
+/// run_server - run a tiny-http webserver to serve streaming requests from renderers
 ///
 /// all music is sent in audio/l16 PCM format (i16) with the sample rate of the source
 /// the samples are read from a crossbeam channel fed by the wave_reader
@@ -794,9 +798,9 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
     }
 }
 
-/// run_ssdp_updater - thread that periodically run ssdp discovery
+/// run the ssdp_updater - thread that periodically run ssdp discovery
 /// and detect new renderers
-/// send any new renderers to te main thread on the ssdp channel
+/// send any new renderers to te main thread on the Crossbeam ssdp channel
 fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();

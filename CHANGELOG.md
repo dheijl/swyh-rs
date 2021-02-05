@@ -1,7 +1,7 @@
 ## swyh-rs Changelog
 
 - 1.3.5 (unreleased)
-  - more code cleanup enabled by the new app::awake/app::thread_message in fltk-rs
+  - more code cleanup enabled by the new app::awake()/app::thread_message() in fltk-rs
 
 - 1.3.4 (Feb 03 2021 dheijl)
   - optimize GUI event loop with new fltk-rs app messages, decreasing CPU usage even more

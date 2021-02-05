@@ -43,21 +43,31 @@ mod openhome;
 mod utils;
 
 use crate::openhome::avmedia::{discover, Renderer, WavData};
-use crate::utils::audiodevices::*;
+use crate::utils::audiodevices::{get_default_audio_output_device, get_output_audio_devices};
 use crate::utils::configuration::Configuration;
 use crate::utils::escape::FwSlashPipeEscape;
 use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
-use crate::utils::unsafe_fn::*;
-use ascii::*;
+use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{
-    app, button::*, dialog, frame::*, group::*, menu::*, text::*, valuator::Counter, window::*,
+    app,
+    button::{
+        Align, ButtonExt, CheckButton, Color, DisplayExt, Event, FrameType, GroupExt, LightButton,
+        MenuExt, ValuatorExt, WidgetBase, WidgetExt, WindowExt,
+    },
+    dialog,
+    frame::Frame,
+    group::{Pack, PackType},
+    menu::MenuButton,
+    text::{TextBuffer, TextDisplay},
+    valuator::Counter,
+    window::DoubleWindow,
 };
-use lazy_static::*;
-use log::*;
+use lazy_static::lazy_static;
+use log::{debug, error, info, log, warn, LevelFilter};
 use parking_lot::{Mutex, Once};
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
@@ -68,19 +78,13 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
-use tiny_http::*;
+use tiny_http::{Method, Response, Server};
 
 /// app version
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
-
-// app awake messages
-const MSG_STREAMING_STATE: i32 = 1;
-const MSG_NEW_RENDERER: i32 = 2;
-const MSG_CONFIG_CHANGED: i32 = 3;
-const MSG_LOG: i32 = 4;
 
 /// streaming state
 #[derive(Debug, Clone, Copy)]
@@ -256,7 +260,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ));
                 let _ = conf.update_config();
                 config_ch_flag.set(true);
-                fltk_app_awake(MSG_CONFIG_CHANGED);
+                app::awake();
             }
             true
         }
@@ -294,7 +298,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
         let _ = conf.update_config();
         config_ch_flag.set(true);
-        fltk_app_awake(MSG_CONFIG_CHANGED);
+        app::awake();
         let ll = format!("Log Level: {}", conf.log_level.to_string());
         b.set_label(&ll);
         *recursion -= 1;
@@ -383,7 +387,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = conf.update_config();
         b.set_label(&format!("New Source: {}", conf.sound_source));
         config_ch_flag.set(true);
-        fltk_app_awake(MSG_CONFIG_CHANGED);
+        app::awake();
         *recursion -= 1;
     });
     p3.add(&choose_audio_source_but);
@@ -472,7 +476,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if app::should_program_quit() {
             break;
         }
-        let _ =  fltk_app_thread_msg();
         if config_changed.get() {
             let c = dialog::choice(
                 wind.width() as i32 / 2 - 100,
@@ -603,7 +606,7 @@ fn log(s: String) {
         logger = ch.0.clone();
     }
     logger.send(s).unwrap();
-    fltk_app_awake(MSG_LOG);
+    app::awake();
 }
 
 /// dummy_log is used during AV transport autoresume
@@ -720,7 +723,6 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                             streaming_state: StreamingState::Started,
                         })
                         .unwrap();
-                    fltk_app_awake(MSG_STREAMING_STATE);
                     std::thread::yield_now();
                     let mut channel_stream =
                         ChannelStream::new(tx.clone(), rx.clone(), remote_ip.clone());
@@ -754,7 +756,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                             streaming_state: StreamingState::Ended,
                         })
                         .unwrap();
-                    fltk_app_awake(MSG_STREAMING_STATE);
+                    app::awake();
                     std::thread::yield_now();
                 } else if matches!(rq.method(), Method::Head) {
                     debug!("HEAD rq from {}", remote_addr);
@@ -803,7 +805,7 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
         for r in renderers.iter() {
             if !rmap.contains_key(&r.remote_addr) {
                 let _ = ssdp_tx.send(r.clone());
-                fltk_app_awake(MSG_NEW_RENDERER);
+                app::awake();
                 std::thread::yield_now();
                 info!(
                     "Found new renderer {} {}  at {}",

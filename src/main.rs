@@ -294,7 +294,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         log(format!(
             "*W*W*> Log level changed to {}, restart required!!",
             level
-        )); 
+        ));
         conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
         let _ = conf.update_config();
         config_ch_flag.set(true);
@@ -471,7 +471,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         logreader = ch.1.clone();
     }
 
-    // now run the GUI event loop, app::awake() is used by the various threads to 
+    // now run the GUI event loop, app::awake() is used by the various threads to
     // trigger updates when something has changed, some threads use Crossbeam channels
     // to signal what has changed
     while app::wait() {
@@ -497,7 +497,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 config_changed.set(false);
             }
         }
-        // check if the streaming webserver has closed a connection not caused by 
+        // check if the streaming webserver has closed a connection not caused by
         // pushing a renderer button
         // in that case we turn the button off as a visual feedback for the user
         // but if auto_resume is set, we restart playing instead

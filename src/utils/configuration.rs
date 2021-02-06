@@ -1,5 +1,5 @@
 use ini::Ini;
-use log::*;
+use log::{debug, LevelFilter};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};

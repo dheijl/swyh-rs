@@ -7,7 +7,7 @@
 ///
 ///
 use crate::get_local_addr;
-use log::*;
+use log::{debug, error, info};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::net::SocketAddr;

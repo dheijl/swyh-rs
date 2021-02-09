@@ -49,7 +49,6 @@ use crate::utils::escape::FwSlashPipeEscape;
 use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
-use ascii::AsciiString;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{
@@ -78,7 +77,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
-use tiny_http::{Method, Response, Server};
+use tiny_http::{Header, Method, Response, Server};
 
 /// app version
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -650,18 +649,11 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     remote_ip.truncate(i);
                 }
                 // default headers
-                let srvr_hdr = tiny_http::Header {
-                    field: "Server".parse().unwrap(),
-                    value: AsciiString::from_ascii("UPnP/1.0 DLNADOC/1.50 LAB/1.0").unwrap(),
-                };
-                let nm_hdr = tiny_http::Header {
-                    field: "icy-name".parse().unwrap(),
-                    value: AsciiString::from_ascii("swyh-rs").unwrap(),
-                };
-                let cc_hdr = tiny_http::Header {
-                    field: "Connection".parse().unwrap(),
-                    value: AsciiString::from_ascii("close").unwrap(),
-                };
+                let srvr_hdr =
+                    Header::from_bytes(&b"Server"[..], &b"UPnP/1.0 DLNADOC/1.50 LAB/1.0"[..])
+                        .unwrap();
+                let nm_hdr = Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap();
+                let cc_hdr = Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap();
                 // check url
                 if rq.url() != "/stream/swyh.wav" {
                     log(format!(
@@ -689,14 +681,9 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                 }
                 // prpare streaming headers
                 let ct_text = format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string());
-                let ct_hdr = tiny_http::Header {
-                    field: "Content-Type".parse().unwrap(),
-                    value: AsciiString::from_ascii(ct_text).unwrap(),
-                };
-                let tm_hdr = tiny_http::Header {
-                    field: "TransferMode.DLNA.ORG".parse().unwrap(),
-                    value: AsciiString::from_ascii("Streaming").unwrap(),
-                };
+                let ct_hdr = Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
+                let tm_hdr =
+                    Header::from_bytes(&b"TransferMode.DLNA.ORG"[..], &b"Streaming"[..]).unwrap();
                 // handle response, streaming if GET, headers only otherwise
                 if matches!(rq.method(), Method::Get) {
                     log(format!(

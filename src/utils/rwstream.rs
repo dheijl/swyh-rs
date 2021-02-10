@@ -103,10 +103,14 @@ mod tests {
     #[test]
 
     fn test_silence() {
+        const SAMPLE_RATE: u32 = 44100;
         let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
         let mut cs = ChannelStream::new(tx, rx, "192.168.0.254".to_string());
-        cs.create_silence(44100);
-        assert_eq!(cs.silence.len(), 44100 * 2);
+        cs.create_silence(SAMPLE_RATE);
+        assert_eq!(
+            cs.silence.len(),
+            ((SAMPLE_RATE * 2) / (1000 / SILENCE_PERIOD)) as usize
+        );
         let mut i = 0;
         for sample in cs.silence {
             if i == 15 {

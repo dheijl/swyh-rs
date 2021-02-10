@@ -681,8 +681,7 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                     service.control_url = value;
                     // sometimes the control url is not prefixed with a '/'
                     if !service.control_url.is_empty() {
-                        let vchars: Vec<char> = service.control_url.chars().collect();
-                        if vchars[0] != '/' {
+                        if service.control_url.chars().next() != Some('/') {
                             service.control_url.insert(0, '/');
                         }
                     }
@@ -727,12 +726,32 @@ mod tests {
     #[test]
     fn control_url_harman_kardon() {
         let mut url = "Avcontrol.url".to_string();
-        if url.len() > 0 {
-            let vchars: Vec<char> = url.chars().collect();
-            if vchars[0] != '/' {
+        if !url.is_empty() {
+            if url.chars().next() != Some('/') {
                 url.insert(0, '/');
             }
         }
         assert_eq!(url, "/Avcontrol.url");
+        url = "/Avcontrol.url".to_string();
+        if !url.is_empty() {
+            if url.chars().next() != Some('/') {
+                url.insert(0, '/');
+            }
+        }
+        assert_eq!(url, "/Avcontrol.url");
+        url = "".to_string();
+        if !url.is_empty() {
+            if url.chars().next() != Some('/') {
+                url.insert(0, '/');
+            }
+        }
+        assert_eq!(url, "");
+        url = "A/.url".to_string();
+        if !url.is_empty() {
+            if url.chars().next() != Some('/') {
+                url.insert(0, '/');
+            }
+        }
+        assert_eq!(url, "/A/.url");
     }
 }

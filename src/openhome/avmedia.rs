@@ -442,6 +442,11 @@ Man: \"ssdp:discover\"\r\n\
 ST: {device_type}\r\n\
 MX: 3\r\n\r\n";
 
+//
+// SSDP UPNP service discovery
+//
+// returns a list of all AVTransport DLNA and Openhome rendering devices
+//
 pub fn discover(
     rmap: &HashMap<String, Renderer>,
     logger: &dyn Fn(String),
@@ -680,10 +685,8 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                 } else if cur_elem.contains("controlURL") {
                     service.control_url = value;
                     // sometimes the control url is not prefixed with a '/'
-                    if !service.control_url.is_empty() {
-                        if service.control_url.chars().next() != Some('/') {
-                            service.control_url.insert(0, '/');
-                        }
+                    if !service.control_url.is_empty() && !service.control_url.starts_with('/') {
+                        service.control_url.insert(0, '/');
                     }
                 } else if cur_elem.contains("modelName") {
                     renderer.dev_model = value;
@@ -726,31 +729,23 @@ mod tests {
     #[test]
     fn control_url_harman_kardon() {
         let mut url = "Avcontrol.url".to_string();
-        if !url.is_empty() {
-            if url.chars().next() != Some('/') {
-                url.insert(0, '/');
-            }
+        if !url.is_empty() && !url.starts_with('/') {
+            url.insert(0, '/');
         }
         assert_eq!(url, "/Avcontrol.url");
         url = "/Avcontrol.url".to_string();
-        if !url.is_empty() {
-            if url.chars().next() != Some('/') {
-                url.insert(0, '/');
-            }
+        if !url.is_empty() && !url.starts_with('/') {
+            url.insert(0, '/');
         }
         assert_eq!(url, "/Avcontrol.url");
         url = "".to_string();
-        if !url.is_empty() {
-            if url.chars().next() != Some('/') {
-                url.insert(0, '/');
-            }
+        if !url.is_empty() && !url.starts_with('/') {
+            url.insert(0, '/');
         }
         assert_eq!(url, "");
         url = "A/.url".to_string();
-        if !url.is_empty() {
-            if url.chars().next() != Some('/') {
-                url.insert(0, '/');
-            }
+        if !url.is_empty() && !url.starts_with('/') {
+            url.insert(0, '/');
         }
         assert_eq!(url, "/A/.url");
     }

@@ -327,6 +327,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = conf.update_config();
     });
     p2b.add(&disable_chunked);
+    let mut use_wma = CheckButton::new(0, 0, 0, 0, "Use WMA/WAV format");
+    if config.use_wave_format {
+        use_wma.set(true);
+    }
+    use_wma.set_callback2(move |b| {
+        let mut conf = CONFIG.lock();
+        if b.is_set() {
+            conf.use_wave_format = true;
+        } else {
+            conf.use_wave_format = false;
+        }
+        let _ = conf.update_config();
+    });
+    p2b.add(&use_wma);
     p2b.auto_layout();
     p2b.make_resizable(false);
     vpack.add(&p2b);

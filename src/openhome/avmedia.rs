@@ -7,6 +7,7 @@
 ///
 ///
 use crate::get_local_addr;
+use crate::CONFIG;
 use log::{debug, error, info};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -77,7 +78,7 @@ static DIDL_TEMPLATE: &str = "\
 <dc:title>swyh-rs</dc:title>\
 <res bitsPerSample=\"16\" \
 nrAudioChannels=\"2\" \
-protocolInfo=\"http-get:*:audio/l16;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM\" \
+protocolInfo=\"http-get:*:{audio_format};rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM\" \
 sampleFrequency=\"{sample_rate}\" \
 duration=\"{duration}\" >{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
@@ -272,6 +273,12 @@ impl Renderer {
         // create new playlist
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
+        let conf = CONFIG.lock().clone();
+        if conf.use_wave_format {
+            vars.insert("audio_format".to_string(), "audio/wma".to_string());
+        } else {
+            vars.insert("audio_format".to_string(), "audio/l16".to_string());
+        }
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         vars.insert("duration".to_string(), "00:00:00".to_string());
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
@@ -338,6 +345,12 @@ impl Renderer {
         // set AVTransportURI
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
+        let conf = CONFIG.lock().clone();
+        if conf.use_wave_format {
+            vars.insert("audio_format".to_string(), "audio/wma".to_string());
+        } else {
+            vars.insert("audio_format".to_string(), "audio/l16".to_string());
+        }
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         vars.insert("duration".to_string(), "00:00:00".to_string());
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);

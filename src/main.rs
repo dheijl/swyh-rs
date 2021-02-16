@@ -701,8 +701,13 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         }
                     };
                     let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
-                    let channel_stream =
-                        ChannelStream::new(tx.clone(), rx.clone(), remote_ip.clone());
+                    let channel_stream = ChannelStream::new(
+                        tx.clone(),
+                        rx.clone(),
+                        remote_ip.clone(),
+                        conf.use_wave_format,
+                        wd.sample_rate.0,
+                    );
                     {
                         let mut clients = CLIENTS.lock();
                         clients.insert(remote_addr.clone(), channel_stream);
@@ -715,8 +720,13 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         })
                         .unwrap();
                     std::thread::yield_now();
-                    let mut channel_stream =
-                        ChannelStream::new(tx.clone(), rx.clone(), remote_ip.clone());
+                    let mut channel_stream = ChannelStream::new(
+                        tx.clone(),
+                        rx.clone(),
+                        remote_ip.clone(),
+                        conf.use_wave_format,
+                        wd.sample_rate.0,
+                    );
                     channel_stream.create_silence(wd.sample_rate.0);
                     let response = Response::empty(200)
                         .with_data(channel_stream, streamsize)

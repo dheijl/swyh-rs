@@ -12,6 +12,7 @@ pub struct Configuration {
     pub ssdp_interval_mins: f64,
     pub auto_reconnect: bool,
     pub disable_chunked: bool,
+    pub use_wave_format: bool,
     pub last_renderer: String,
     config_dir: PathBuf,
 }
@@ -25,6 +26,7 @@ impl Configuration {
             ssdp_interval_mins: 1.0,
             auto_reconnect: false,
             disable_chunked: false,
+            use_wave_format: false,
             last_renderer: "None".to_string(),
             config_dir: Self::get_config_dir(),
         }
@@ -56,6 +58,7 @@ impl Configuration {
                 .set("SSDPIntervalMins", "1")
                 .set("AutoReconnect", "false")
                 .set("DisableChunked", "false")
+                .set("UseWaveFormat", "false")
                 .set("LastRenderer", "None")
                 .set("ConfigDir", &Self::get_config_dir().display().to_string());
             conf.write_to_file(&configfile).unwrap();
@@ -96,6 +99,11 @@ impl Configuration {
             "DisableChunked",
             "false",
         ));
+        config.use_wave_format = Configuration::parse_bool(conf.get_from_or(
+            Some("Configuration"),
+            "UseWaveFormat",
+            "false",
+        ));
         config.last_renderer = conf
             .get_from_or(Some("Configuration"), "LastRenderer", "None")
             .to_string()
@@ -134,6 +142,14 @@ impl Configuration {
             .set(
                 "DisableChunked",
                 if self.disable_chunked {
+                    "true"
+                } else {
+                    "false"
+                },
+            )
+            .set(
+                "UseWaveFormat",
+                if self.use_wave_format {
                     "true"
                 } else {
                     "false"

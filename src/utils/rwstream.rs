@@ -10,7 +10,7 @@
 ///
 */
 use crossbeam_channel::{Receiver, Sender};
-use log::{debug};
+use log::debug;
 use std::collections::VecDeque;
 use std::io::Read;
 use std::io::Result as IoResult;
@@ -82,66 +82,42 @@ impl Read for ChannelStream {
             self.capture_timeout
         };
         let mut i = 0;
-        if !self.use_wave_format {
-            while i < buf.len() - 2 {
-                match self.fifo.pop_front() {
-                    Some(sample) => {
-                        let b = sample.to_be_bytes(); // audio/l16 = signed big endian format
-                        buf[i] = b[0];
-                        buf[i + 1] = b[1];
-                        i += 2;
-                    }
-                    None => match self.r.recv_timeout(time_out) {
-                        Ok(chunk) => {
-                            self.fifo.extend(chunk);
-                            self.sending_silence = false;
-                            time_out = self.capture_timeout;
-                        }
-                        Err(_) => {
-                            self.fifo.extend(self.silence.clone());
-                            self.sending_silence = true;
-                            time_out = self.silence_period;
-                        }
-                    },
-                }
-            }
-            Ok(i)
-        } else {
-            if !self.wav_hdr.is_empty() {
-                debug!("Adding 'hound' WAV header for 16 bit PCM big endian format of infinite length");
-                // should never happen as io::copy uses 8 KB chunks (DEFAULT_BUFSIZE)
-                assert!(
-                    buf.len() > self.wav_hdr.len(),
-                    "ChannelStream::Read(): the read buffer is smaller than the WAV header!!"
-                );
-                i = self.wav_hdr.len(); 
-                buf[..i - 1].copy_from_slice(&self.wav_hdr[..i - 1]);
-                self.wav_hdr.clear();
-            }
-            while i < buf.len() - 2 {
-                match self.fifo.pop_front() {
-                    Some(sample) => {
-                        let b = sample.to_be_bytes(); // audio/wma header of hound = signed big endian format
-                        buf[i] = b[0];
-                        buf[i + 1] = b[1];
-                        i += 2;
-                    }
-                    None => match self.r.recv_timeout(time_out) {
-                        Ok(chunk) => {
-                            self.fifo.extend(chunk);
-                            self.sending_silence = false;
-                            time_out = self.capture_timeout;
-                        }
-                        Err(_) => {
-                            self.fifo.extend(self.silence.clone());
-                            self.sending_silence = true;
-                            time_out = self.silence_period;
-                        }
-                    },
-                }
-            }
-            Ok(i)
+        if self.use_wave_format && !self.wav_hdr.is_empty() {
+            debug!(
+                "Adding the 'hound' WAV header for 16 bit PCM big endian format of infinite length"
+            );
+            // should never happen as io::copy uses 8 KB chunks (DEFAULT_BUFSIZE)
+            assert!(
+                buf.len() > self.wav_hdr.len(),
+                "ChannelStream::Read(): the read buffer is smaller than the WAV header!!"
+            );
+            i = self.wav_hdr.len();
+            buf[..i - 1].copy_from_slice(&self.wav_hdr[..i - 1]);
+            self.wav_hdr.clear();
         }
+        while i < buf.len() - 2 {
+            match self.fifo.pop_front() {
+                Some(sample) => {
+                    let b = sample.to_be_bytes(); // audio/l16 and audio/wma in signed big endian format
+                    buf[i] = b[0];
+                    buf[i + 1] = b[1];
+                    i += 2;
+                }
+                None => match self.r.recv_timeout(time_out) {
+                    Ok(chunk) => {
+                        self.fifo.extend(chunk);
+                        self.sending_silence = false;
+                        time_out = self.capture_timeout;
+                    }
+                    Err(_) => {
+                        self.fifo.extend(self.silence.clone());
+                        self.sending_silence = true;
+                        time_out = self.silence_period;
+                    }
+                },
+            }
+        }
+        Ok(i)
     }
 }
 

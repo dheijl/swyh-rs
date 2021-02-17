@@ -696,7 +696,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                 // prpare streaming headers
                 let conf = CONFIG.lock().clone();
                 let ct_text = if conf.use_wave_format {
-                    "audio/wav".to_string()
+                    "audio/vnd.wave;codec=1".to_string()
                 } else {
                     format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string())
                 };

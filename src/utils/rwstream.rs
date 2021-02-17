@@ -121,6 +121,9 @@ fn create_wav_hdr(sample_rate: u32) -> Vec<u8> {
     let mut hdr = [0u8; 44];
     let channels: u16 = 2;
     let bits_per_sample: u16 = 16;
+    let samples_per_channel: u32 = sample_rate / channels as u32;
+    let byte_rate: u32 = sample_rate * channels as u32 * bits_per_sample as u32 / 8;
+    let block_align: u16 = channels * bits_per_sample / 8;
     hdr[..4].copy_from_slice(b"RIFF"); //ChunkId
     let chunksize = std::u32::MAX;
     hdr[4..8].copy_from_slice(&chunksize.to_le_bytes()); // ChunkSize
@@ -129,15 +132,13 @@ fn create_wav_hdr(sample_rate: u32) -> Vec<u8> {
     hdr[16..20].copy_from_slice(&16u32.to_le_bytes()); // SubChunk1Size PCM
     hdr[20..22].copy_from_slice(&1u16.to_le_bytes()); // AudioFormat PCM
     hdr[22..24].copy_from_slice(&channels.to_le_bytes()); // numchannels 2
-    hdr[24..28].copy_from_slice(&sample_rate.to_le_bytes()); // SampleRate
-    hdr[28..32].copy_from_slice(
-        &((sample_rate * channels as u32 * bits_per_sample as u32 / 8) as u32).to_le_bytes(),
-    ); // ByteRate
-    hdr[32..34].copy_from_slice(&((channels * bits_per_sample / 8) as u16).to_le_bytes()); // BlockAlign
+    hdr[24..28].copy_from_slice(&samples_per_channel.to_le_bytes()); // SampleRate
+    hdr[28..32].copy_from_slice(&byte_rate.to_le_bytes()); // ByteRate
+    hdr[32..34].copy_from_slice(&block_align.to_le_bytes()); // BlockAlign
     hdr[34..36].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
     hdr[36..40].copy_from_slice(b"data"); // SubChunk2Id
     hdr[40..44].copy_from_slice(&chunksize.to_le_bytes()); // SubChunk2Size
-    //eprintln!("Header: {:02x?}", hdr);
+    /*eprintln!("Header: {:02x?}", hdr);*/
     hdr.to_vec()
 }
 

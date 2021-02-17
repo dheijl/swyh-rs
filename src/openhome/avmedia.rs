@@ -71,6 +71,10 @@ static AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 </s:Body>\
 </s:Envelope>";
 
+/// didl protocolinfo
+static L16_PROT_INFO: &str = "http-get:*:audio/l16;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
+static WAV_PROT_INFO: &str = "http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=03700000000000000000000000000000";
+
 /// didl metadata template
 static DIDL_TEMPLATE: &str = "\
 <DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
@@ -78,7 +82,7 @@ static DIDL_TEMPLATE: &str = "\
 <dc:title>swyh-rs</dc:title>\
 <res bitsPerSample=\"16\" \
 nrAudioChannels=\"2\" \
-protocolInfo=\"http-get:*:{audio_format};rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM\" \
+protocolInfo=\"{didl_prot_info}\" \
 sampleFrequency=\"{sample_rate}\" \
 duration=\"{duration}\" >{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
@@ -275,9 +279,9 @@ impl Renderer {
         vars.insert("server_uri".to_string(), local_url);
         let conf = CONFIG.lock().clone();
         if conf.use_wave_format {
-            vars.insert("audio_format".to_string(), "audio/wma".to_string());
+            vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
-            vars.insert("audio_format".to_string(), "audio/l16".to_string());
+            vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());
         }
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         vars.insert("duration".to_string(), "00:00:00".to_string());
@@ -347,9 +351,9 @@ impl Renderer {
         vars.insert("server_uri".to_string(), local_url);
         let conf = CONFIG.lock().clone();
         if conf.use_wave_format {
-            vars.insert("audio_format".to_string(), "audio/wma".to_string());
+            vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
-            vars.insert("audio_format".to_string(), "audio/l16".to_string());
+            vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());
         }
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         vars.insert("duration".to_string(), "00:00:00".to_string());

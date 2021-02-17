@@ -16,9 +16,8 @@ chrono = "0.4.19"
 cpal = "0.13.1"
 crossbeam-channel = "0.5.0"
 dirs = "3.0.1"
-fltk = { version = "0.14.9", features = ["use-ninja"] }
+fltk = { version = "0.14.11", features = ["use-ninja"] }
 htmlescape = "0.3.1"
-hound = "3.4.0"
 lazy_static = "1.4.0"
 log = { version = "0.4.14", features = ["max_level_trace", "release_max_level_debug"] }
 parking_lot = "0.11.1"
@@ -37,5 +36,3 @@ libc = "0.2.86"
 
 [patch.crates-io]
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
-# need the master version of hound, crates.io is not up to date
-hound = { git = "https://github.com/ruuda/hound" }

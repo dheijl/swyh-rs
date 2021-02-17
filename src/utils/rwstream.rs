@@ -10,7 +10,6 @@
 ///
 */
 use crossbeam_channel::{Receiver, Sender};
-use log::debug;
 use std::collections::VecDeque;
 use std::io::Read;
 use std::io::Result as IoResult;
@@ -83,22 +82,18 @@ impl Read for ChannelStream {
         };
         let mut i = 0;
         if self.use_wave_format && !self.wav_hdr.is_empty() {
-            debug!(
-                "Adding the 'hound' WAV header for 16 bit PCM big endian format of infinite length"
-            );
-            // should never happen as io::copy uses 8 KB chunks (DEFAULT_BUFSIZE)
-            assert!(
-                buf.len() > self.wav_hdr.len(),
-                "ChannelStream::Read(): the read buffer is smaller than the WAV header!!"
-            );
             i = self.wav_hdr.len();
-            buf[..i - 1].copy_from_slice(&self.wav_hdr[..i - 1]);
+            buf[..i].copy_from_slice(&self.wav_hdr[..i]);
             self.wav_hdr.clear();
         }
         while i < buf.len() - 2 {
             match self.fifo.pop_front() {
                 Some(sample) => {
-                    let b = sample.to_be_bytes(); // audio/l16 and audio/wma in signed big endian format
+                    let b = if self.use_wave_format {
+                        sample.to_le_bytes()
+                    } else {
+                        sample.to_be_bytes()
+                    };
                     buf[i] = b[0];
                     buf[i + 1] = b[1];
                     i += 2;
@@ -123,13 +118,27 @@ impl Read for ChannelStream {
 
 // create an "infinite size" wav hdr
 fn create_wav_hdr(sample_rate: u32) -> Vec<u8> {
-    let spec = hound::WavSpec {
-        bits_per_sample: 16,
-        channels: 2,
-        sample_format: hound::SampleFormat::Int,
-        sample_rate,
-    };
-    spec.into_header_for_infinite_file()
+    let mut hdr = [0u8; 44];
+    let channels: u16 = 2;
+    let bits_per_sample: u16 = 16;
+    hdr[..4].copy_from_slice(&b"RIFF"[0..4]); //ChunkId
+    let chunksize = std::u32::MAX & 0xfffffff0;
+    hdr[4..8].copy_from_slice(&chunksize.to_le_bytes()); // ChunkSize
+    hdr[8..12].copy_from_slice(b"WAVE"); // Format
+    hdr[12..16].copy_from_slice(b"fmt "); // Format
+    hdr[16..20].copy_from_slice(&16u32.to_le_bytes()); // SubChunk1Size PCM
+    hdr[20..22].copy_from_slice(&1u16.to_le_bytes()); // AudioFormat PCM
+    hdr[22..24].copy_from_slice(&channels.to_le_bytes()); // numchannels 2
+    hdr[24..28].copy_from_slice(&sample_rate.to_le_bytes()); // SampleRate
+    hdr[28..32].copy_from_slice(
+        &((sample_rate * channels as u32 * bits_per_sample as u32 / 8) as u32).to_le_bytes(),
+    ); // ByteRate
+    hdr[32..34].copy_from_slice(&((channels * bits_per_sample / 8) as u16).to_le_bytes()); // BlockAlign
+    hdr[34..36].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
+    hdr[36..40].copy_from_slice(b"data"); // SubChunk2Id
+    hdr[40..44].copy_from_slice(&((chunksize - 36) as u32).to_le_bytes()); // SubChunk2Size
+    //eprintln!("Header: {:02x?}", hdr);
+    hdr.to_vec()
 }
 
 #[cfg(test)]

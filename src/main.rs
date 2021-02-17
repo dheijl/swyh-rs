@@ -694,7 +694,12 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     remote_ip.truncate(i);
                 }
                 // prpare streaming headers
-                let ct_text = format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string());
+                let conf = CONFIG.lock().clone();
+                let ct_text = if conf.use_wave_format {
+                    "audio/wav".to_string()
+                } else {
+                    format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string())
+                };
                 let ct_hdr = Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
                 let tm_hdr =
                     Header::from_bytes(&b"TransferMode.DLNA.ORG"[..], &b"Streaming"[..]).unwrap();
@@ -706,7 +711,6 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         rq.remote_addr()
                     ));
                     // set transfer encoding chunked unless disabled
-                    let conf = CONFIG.lock().clone();
                     let (streamsize, chunked_threshold) = {
                         if conf.disable_chunked {
                             (Some(usize::MAX - 1), usize::MAX)

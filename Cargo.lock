@@ -504,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.14.9"
+version = "0.14.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffb286def20d30dceb93ec105965023570279f3b4f68d3bcf9bdaf12813b2fb8"
+checksum = "1b5f0ec625a893bbf0d7e2f7efce102df2eb31af6450e2a12cb72c26f39e7136"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -518,9 +518,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.14.9"
+version = "0.14.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f83e70cbf98e410514bd88a577061b4b513762923cca64485a72f51fc86f4f8"
+checksum = "b7f843489d41e8aa980f42a821b7dee447ab8a02e77ebd86b8cddbdc9190d35b"
 dependencies = [
  "quote",
  "syn",
@@ -528,9 +528,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.14.9"
+version = "0.14.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a53eae4bb4a80c350fc4073fcc3e54a8e15ced60c9cf650d6a10de24d88459b"
+checksum = "fccb5dafb2b4c47dd1b039a969ee227ee6a1dc0a0d05dd6d001c15f8b909a05d"
 dependencies = [
  "cmake",
  "libc",
@@ -583,11 +583,6 @@ checksum = "d7afe4a420e3fe79967a00898cc1f4db7c8a49a9333a29f8a4bd76a253d5cd04"
 dependencies = [
  "ahash",
 ]
-
-[[package]]
-name = "hound"
-version = "3.4.0"
-source = "git+https://github.com/ruuda/hound#fa88d577f08370e915a5bb3af6b772de68c53e20"
 
 [[package]]
 name = "htmlescape"
@@ -1424,7 +1419,6 @@ dependencies = [
  "crossbeam-channel",
  "dirs",
  "fltk",
- "hound",
  "htmlescape",
  "lazy_static",
  "libc",

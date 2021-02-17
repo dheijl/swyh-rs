@@ -83,7 +83,7 @@ impl Read for ChannelStream {
         let mut i = 0;
         if self.use_wave_format && !self.wav_hdr.is_empty() {
             i = self.wav_hdr.len();
-            buf[..i].copy_from_slice(&self.wav_hdr[..i]);
+            buf[..i].copy_from_slice(&self.wav_hdr);
             self.wav_hdr.clear();
         }
         while i < buf.len() - 2 {
@@ -121,7 +121,7 @@ fn create_wav_hdr(sample_rate: u32) -> Vec<u8> {
     let mut hdr = [0u8; 44];
     let channels: u16 = 2;
     let bits_per_sample: u16 = 16;
-    hdr[..4].copy_from_slice(&b"RIFF"[0..4]); //ChunkId
+    hdr[..4].copy_from_slice(b"RIFF"); //ChunkId
     let chunksize = std::u32::MAX;
     hdr[4..8].copy_from_slice(&chunksize.to_le_bytes()); // ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // Format

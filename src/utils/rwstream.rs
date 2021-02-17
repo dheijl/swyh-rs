@@ -122,7 +122,7 @@ fn create_wav_hdr(sample_rate: u32) -> Vec<u8> {
     let channels: u16 = 2;
     let bits_per_sample: u16 = 16;
     hdr[..4].copy_from_slice(&b"RIFF"[0..4]); //ChunkId
-    let chunksize = std::u32::MAX & 0xfffffff0;
+    let chunksize = std::u32::MAX;
     hdr[4..8].copy_from_slice(&chunksize.to_le_bytes()); // ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // Format
     hdr[12..16].copy_from_slice(b"fmt "); // Format
@@ -136,7 +136,7 @@ fn create_wav_hdr(sample_rate: u32) -> Vec<u8> {
     hdr[32..34].copy_from_slice(&((channels * bits_per_sample / 8) as u16).to_le_bytes()); // BlockAlign
     hdr[34..36].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
     hdr[36..40].copy_from_slice(b"data"); // SubChunk2Id
-    hdr[40..44].copy_from_slice(&((chunksize - 36) as u32).to_le_bytes()); // SubChunk2Size
+    hdr[40..44].copy_from_slice(&chunksize.to_le_bytes()); // SubChunk2Size
     //eprintln!("Header: {:02x?}", hdr);
     hdr.to_vec()
 }

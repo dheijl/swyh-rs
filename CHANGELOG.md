@@ -2,6 +2,7 @@
 
 - 1.3.6 (unreleased)
   - migrate the configuration folder from `$HOME/swyh-rs` to `$HOME/.swyh-rs` so that it is hidden on Linux and comes before normal folders in Windows Explorer ([issue #32](https://github.com/dheijl/swyh-rs/issues/32))
+  - add InnoSetup Windows Setup, unsigned
   
 - 1.3.5 (Feb 18 2021 dheijl)
   - changes for the new app::awake() in fltk-rs 0.14.0

@@ -62,7 +62,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "*Autoresume*" checkbox if you encounter this problem. But always try to disable the "Chunked Transfer Encoding" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
 - there is an "*Autoreconnect*" checkbox, if set the last used renderer will be automatically activated on program start
 - there is also a "*Disable Chunked Transfer Encoding*" checkbox, because some AV-Transport renderers do not support it properly (those based on the UPnP/1.0, Intel MicroStack in particular). You can safely disable chunked transfer, it's a HTTP/1.1 recommendation for streaming but it does not really matter if you do not use it. 
-- there is (since 1.3.5) a "Use WMA/WAV" format checkbox, that will prepend an infinite size MS "WAV" (RIFF) header to the stream for those renderers that do not support "naked" PCM streams. It may work or not (not if your renderer uses libsndfile like Volumio). 
+- there is (since 1.3.5) a "Use WMA/WAV" format checkbox, that will prepend an infinite size MS "WAV" (RIFF) header to the stream for those renderers that do not support "naked" PCM streams. It may work or not (it will not work if your renderer uses libsndfile like Volumio, because the network stream is not "seekable" and this causes the decoding of the WAV header to fail). 
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program tries to run at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary priviliges (renice).
 - the SSDP discovery process is rerun every x minutes in the background, any newly discovered renderers will be automatically added to the GUI. Existing renderers that "disappear" during discovery are not deleted from the GUI, as SSDP discovery is not guaranteed to be failsafe (it uses UDP packets). The SSDP discovery interval is configurable, minimum value is 0.5 minutes, there is no maximum value.
@@ -78,5 +78,5 @@ If you want maximum audio quality on Windows, there are a number of concerns:
 
 ### Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/103903893-d0344800-50fc-11eb-975a-81f8572aa733.PNG)
+![alt_tag](https://user-images.githubusercontent.com/2384545/108499183-32f93180-72ae-11eb-96b9-77307d66ae7b.PNG)
 

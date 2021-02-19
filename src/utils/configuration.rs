@@ -4,6 +4,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+// the configuration struct, read from and saved in config.ini 
 #[derive(Clone, Debug)]
 pub struct Configuration {
     pub auto_resume: bool,
@@ -109,14 +110,7 @@ impl Configuration {
             .to_string()
             .parse()
             .unwrap();
-        let config_dir = conf
-            .get_from_or(
-                Some("Configuration"),
-                "ConfigDir",
-                &Self::get_config_dir().display().to_string(),
-            )
-            .to_string();
-        config.config_dir = PathBuf::from(config_dir);
+        config.config_dir = Self::get_config_dir();
 
         config
     }
@@ -162,7 +156,22 @@ impl Configuration {
 
     fn get_config_dir() -> PathBuf {
         let hd = dirs::home_dir().unwrap_or_default();
-        let config_dir = Path::new(&hd).join("swyh-rs");
+        let old_config_dir = Path::new(&hd).join("swyh-rs");
+        let config_dir =  Path::new(&hd).join(".swyh-rs");
+        if Path::new(&old_config_dir).exists() && !Path::new(&config_dir).exists() {
+            // migrate old config dir to the new "hidden" config_dir
+            fs::create_dir_all(&config_dir).unwrap();
+            let old_config_file = Path::new(&old_config_dir).join("config.ini");
+            if Path::new(&old_config_file).exists() {
+                let config_file = Path::new(&config_dir).join("config.ini");
+                fs::copy(&old_config_file, &config_file).unwrap();
+                fs::remove_dir_all(&old_config_dir).unwrap();
+                // update the ConfigDir value in the config file
+                let conf = Configuration::read_config();
+                conf.update_config().unwrap();
+            }
+            return config_dir
+        }
         if !Path::new(&config_dir).exists() {
             fs::create_dir_all(&config_dir).unwrap();
         }

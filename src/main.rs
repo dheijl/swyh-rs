@@ -193,7 +193,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // configure simplelogger
     let loglevel = config.log_level;
-    let logfile = Path::new(&config.config_dir()).join("log.txt");
+    let logfile = Path::new(&config.log_dir()).join("log.txt");
     let _ = CombinedLogger::init(vec![
         TermLogger::new(loglevel, Config::default(), simplelog::TerminalMode::Stderr),
         WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
@@ -202,6 +202,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if cfg!(debug_assertions) {
         log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
     }
+    info!("Config: {:?}", config);
 
     // show config option widgets
     let mut p2 = Pack::new(0, 0, gw, 25, "");

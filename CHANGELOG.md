@@ -1,9 +1,12 @@
 ## swyh-rs Changelog
 
-- 1.3.5 beta (unreleased)
+- 1.3.6 (unreleased)
+  -
+  
+- 1.3.5 (Feb 18 2021 dheijl)
   - changes for the new app::awake() in fltk-rs 0.14.0
   - deglob imports
-  - support for WAV (audio/wma) file format of infinite length using the hound crate
+  - optional support for WAV (audio/wma) file format of infinite length for renderers that do not support "naked" PCM 
 
 - 1.3.4 (Feb 03 2021 dheijl)
   - optimize GUI event loop with new fltk-rs app messages, decreasing CPU usage even more

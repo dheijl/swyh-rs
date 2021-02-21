@@ -61,6 +61,7 @@ use fltk::{
     frame::Frame,
     group::{Pack, PackType},
     menu::MenuButton,
+    misc::Progress,
     text::{TextBuffer, TextDisplay},
     valuator::Counter,
     window::DoubleWindow,
@@ -346,6 +347,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p2b.make_resizable(false);
     vpack.add(&p2b);
 
+    // RMS animation
+    let mut p2c = Pack::new(0, 0, gw, 25, "");
+    p2c.set_spacing(10);
+    p2c.set_type(PackType::Horizontal);
+    p2c.end();
+
+    // RMS animation enable checkbox
+    let mut show_rms = CheckButton::new(0, 0, 0, 0, "Enable RMS Monitor");
+    if config.monitor_rms {
+        show_rms.set(true);
+    }
+    show_rms.set_callback2(move |b| {
+        let mut conf = CONFIG.lock();
+        if b.is_set() {
+            conf.monitor_rms = true;
+        } else {
+            conf.monitor_rms = false;
+        }
+        let _ = conf.update_config();
+    });
+    p2c.add(&show_rms);
+
+    let mut rms_mon = Progress::new(0, 0, 0, 5, "");
+    p2c.add(&rms_mon);
+
+    p2c.auto_layout();
+    p2c.make_resizable(false);
+    vpack.add(&p2c);
+
+    rms_mon.set_minimum(0.0);
+    rms_mon.set_maximum(16384.0);
+    rms_mon.set_value(0.0);
+    rms_mon.set_color(Color::White);
+    rms_mon.set_selection_color(Color::Green);
+
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices().unwrap();
     let mut source_names: Vec<String> = Vec::new();
@@ -413,10 +449,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // set the last renderer used (for autoreconnect)
     let last_renderer = config.last_renderer;
 
+    // the rms monitor channel
+    let rms_channel: (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
+
     // capture system audio
     debug!("Try capturing system audio");
     let stream: cpal::Stream;
-    match capture_output_audio(&audio_output_device) {
+    match capture_output_audio(&audio_output_device, rms_channel.0) {
         Some(s) => {
             stream = s;
             stream.play().unwrap();
@@ -462,6 +501,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .spawn(move || run_ssdp_updater(ssdp_tx, conf.ssdp_interval_mins))
         .unwrap();
 
+    // start the "monitor_rms" thread
+    let rms_receiver = rms_channel.1;
+    let _ = std::thread::Builder::new()
+        .name("rms_monitor".into())
+        .stack_size(4 * 1024 * 1024)
+        .spawn(move || run_rms_monitor(&wd.clone(), rms_receiver, rms_mon))
+        .unwrap();
+
     // start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
@@ -476,7 +523,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // (SSDP) new renderer button dimensions and starting position
     let bwidth = frame.width();
     let bheight = frame.height();
-    let binsert: u32 = 5;
+    let binsert: u32 = 6;
 
     // get the logreader channel
     let logreader: Receiver<String>;
@@ -843,7 +890,10 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
 /// capture_audio_output - capture the audio stream from the default audio output device
 ///
 /// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16)
-fn capture_output_audio(device: &cpal::Device) -> Option<cpal::Stream> {
+fn capture_output_audio(
+    device: &cpal::Device,
+    rms_sender: Sender<Vec<i16>>,
+) -> Option<cpal::Stream> {
     log(format!(
         "Capturing audio from: {}",
         device
@@ -858,7 +908,7 @@ fn capture_output_audio(device: &cpal::Device) -> Option<cpal::Stream> {
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             &audio_cfg.config(),
-            move |data, _: &_| wave_reader::<f32>(data, &mut i16_samples),
+            move |data, _: &_| wave_reader::<f32>(data, &mut i16_samples, rms_sender.clone()),
             capture_err_fn,
         ) {
             Ok(stream) => Some(stream),
@@ -870,7 +920,7 @@ fn capture_output_audio(device: &cpal::Device) -> Option<cpal::Stream> {
         cpal::SampleFormat::I16 => {
             match device.build_input_stream(
                 &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<i16>(data, &mut i16_samples),
+                move |data, _: &_| wave_reader::<i16>(data, &mut i16_samples, rms_sender.clone()),
                 capture_err_fn,
             ) {
                 Ok(stream) => Some(stream),
@@ -883,7 +933,7 @@ fn capture_output_audio(device: &cpal::Device) -> Option<cpal::Stream> {
         cpal::SampleFormat::U16 => {
             match device.build_input_stream(
                 &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<u16>(data, &mut i16_samples),
+                move |data, _: &_| wave_reader::<u16>(data, &mut i16_samples, rms_sender.clone()),
                 capture_err_fn,
             ) {
                 Ok(stream) => Some(stream),
@@ -905,7 +955,7 @@ fn capture_err_fn(err: cpal::StreamError) {
 ///
 /// writes the captured samples to all registered clients in the
 /// CLIENTS ChannnelStream hashmap
-fn wave_reader<T>(samples: &[T], i16_samples: &mut Vec<i16>)
+fn wave_reader<T>(samples: &[T], i16_samples: &mut Vec<i16>, rms_sender: Sender<Vec<i16>>)
 where
     T: cpal::Sample,
 {
@@ -915,8 +965,36 @@ where
     });
     i16_samples.clear();
     i16_samples.extend(samples.iter().map(|x| x.to_i16()));
-    let clients = CLIENTS.lock();
-    for (_, v) in clients.iter() {
-        v.write(i16_samples);
+    {
+        let clients = CLIENTS.lock();
+        for (_, v) in clients.iter() {
+            v.write(i16_samples);
+        }
+    }
+    let monitor_rms = { CONFIG.lock().monitor_rms };
+    if monitor_rms {
+        rms_sender.send(i16_samples.to_vec()).unwrap();
+    }
+}
+
+fn run_rms_monitor(wd: &WavData, rms_receiver: Receiver<Vec<i16>>, mut rms_frame: Progress) {
+    let samples_per_update: i64 = ((wd.sample_rate.0 * wd.channels as u32) / 25) as i64; // samples per second / refresh rate
+    let mut nsamples: i64 = 0;
+    let mut sum: i64 = 0;
+    while let Ok(samples) = rms_receiver.recv() {
+        //samples.iter().fold(0i64, |sum, sample| { sum + *sample as i64 * *sample as i64 });
+        for sample in samples.iter() {
+            nsamples += 1;
+            sum += *sample as i64 * *sample as i64;
+            if nsamples >= samples_per_update {
+                // compute rms value
+                let rms = ((sum / nsamples) as f64).sqrt();
+                rms_frame.set_value(rms);
+                app::awake();
+                //reset counters
+                nsamples = 0;
+                sum = 0;
+            }
+        }
     }
 }

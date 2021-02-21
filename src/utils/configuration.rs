@@ -4,7 +4,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-// the configuration struct, read from and saved in config.ini 
+// the configuration struct, read from and saved in config.ini
 #[derive(Clone, Debug)]
 pub struct Configuration {
     pub auto_resume: bool,
@@ -14,6 +14,7 @@ pub struct Configuration {
     pub auto_reconnect: bool,
     pub disable_chunked: bool,
     pub use_wave_format: bool,
+    pub monitor_rms: bool,
     pub last_renderer: String,
     config_dir: PathBuf,
 }
@@ -28,6 +29,7 @@ impl Configuration {
             auto_reconnect: false,
             disable_chunked: false,
             use_wave_format: false,
+            monitor_rms: false,
             last_renderer: "None".to_string(),
             config_dir: Self::get_config_dir(),
         }
@@ -60,6 +62,7 @@ impl Configuration {
                 .set("AutoReconnect", "false")
                 .set("DisableChunked", "false")
                 .set("UseWaveFormat", "false")
+                .set("MonitorRms", "false")
                 .set("LastRenderer", "None")
                 .set("ConfigDir", &Self::get_config_dir().display().to_string());
             conf.write_to_file(&configfile).unwrap();
@@ -103,6 +106,11 @@ impl Configuration {
         config.use_wave_format = Configuration::parse_bool(conf.get_from_or(
             Some("Configuration"),
             "UseWaveFormat",
+            "false",
+        ));
+        config.monitor_rms = Configuration::parse_bool(conf.get_from_or(
+            Some("Configuration"),
+            "MonitorRms",
             "false",
         ));
         config.last_renderer = conf
@@ -149,6 +157,10 @@ impl Configuration {
                     "false"
                 },
             )
+            .set(
+                "MonitorRms",
+                if self.monitor_rms { "true" } else { "false" },
+            )
             .set("LastRenderer", self.last_renderer.to_string())
             .set("ConfigDir", &self.config_dir.display().to_string());
         conf.write_to_file(&configfile)
@@ -157,7 +169,7 @@ impl Configuration {
     fn get_config_dir() -> PathBuf {
         let hd = dirs::home_dir().unwrap_or_default();
         let old_config_dir = Path::new(&hd).join("swyh-rs");
-        let config_dir =  Path::new(&hd).join(".swyh-rs");
+        let config_dir = Path::new(&hd).join(".swyh-rs");
         if Path::new(&old_config_dir).exists() && !Path::new(&config_dir).exists() {
             // migrate old config dir to the new "hidden" config_dir
             fs::create_dir_all(&config_dir).unwrap();
@@ -170,7 +182,7 @@ impl Configuration {
                 let conf = Configuration::read_config();
                 conf.update_config().unwrap();
             }
-            return config_dir
+            return config_dir;
         }
         if !Path::new(&config_dir).exists() {
             fs::create_dir_all(&config_dir).unwrap();

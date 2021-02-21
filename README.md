@@ -36,7 +36,7 @@ You can get the latest Windows binary from the Release page (<https://github.com
 No install needed, no runtime, no dependencies. Just unzip the binary in a convenient place and run it.
 
 There is a debug build and a release build in the zip file. 
-You will only need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the swyh-rs folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
+You will only need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the _.swyh-rs_ folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
 
 If you want to build swyh-rs yourself, you can find some information in the [wiki](https://github.com/dheijl/swyh-rs/wiki).
 
@@ -63,6 +63,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - there is an "*Autoreconnect*" checkbox, if set the last used renderer will be automatically activated on program start
 - there is also a "*Disable Chunked Transfer Encoding*" checkbox, because some AV-Transport renderers do not support it properly (those based on the UPnP/1.0, Intel MicroStack in particular). You can safely disable chunked transfer, it's a HTTP/1.1 recommendation for streaming but it does not really matter if you do not use it. 
 - there is (since 1.3.5) a "Use WMA/WAV" format checkbox, that will prepend an infinite size MS "WAV" (RIFF) header to the stream for those renderers that do not support "naked" PCM streams. It may work or not (it will not work if your renderer uses libsndfile like Volumio, because the network stream is not "seekable" and this causes the decoding of the WAV header to fail). 
+- there is (since 1.3.6) an option to enable visualization of the RMS value (sum of L+R channels) of the captured PCM audio signal. It will only add an insignificant amount of CPU use.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program tries to run at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary priviliges (renice).
 - the SSDP discovery process is rerun every x minutes in the background, any newly discovered renderers will be automatically added to the GUI. Existing renderers that "disappear" during discovery are not deleted from the GUI, as SSDP discovery is not guaranteed to be failsafe (it uses UDP packets). The SSDP discovery interval is configurable, minimum value is 0.5 minutes, there is no maximum value.
@@ -78,5 +79,5 @@ If you want maximum audio quality on Windows, there are a number of concerns:
 
 ### Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/108499183-32f93180-72ae-11eb-96b9-77307d66ae7b.PNG)
+![alt_tag](https://user-images.githubusercontent.com/2384545/108632396-fcb6e000-746e-11eb-9a9a-8d4eaf1cf010.PNG)
 

@@ -1,6 +1,9 @@
 ## swyh-rs Changelog
 
-- 1.3.6 (unreleased)
+- 1.3.7 (unreleased)
+- 
+
+- 1.3.6 (Feb 21 2021 dheijl)
   - migrate the configuration folder from `$HOME/swyh-rs` to `$HOME/.swyh-rs` so that it is hidden on Linux and comes before normal folders in Windows Explorer ([issue #32](https://github.com/dheijl/swyh-rs/issues/32))
   - add visual feedback (RMS value) for the audio capture
   - add InnoSetup Windows Setup, unsigned

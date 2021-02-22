@@ -42,6 +42,7 @@ extern crate bitflags;
 mod openhome;
 mod utils;
 
+use parking_lot::RwLock;
 use crate::openhome::avmedia::{discover, Renderer, WavData};
 use crate::utils::audiodevices::{get_default_audio_output_device, get_output_audio_devices};
 use crate::utils::configuration::Configuration;
@@ -108,11 +109,11 @@ struct StreamerFeedBack {
 
 lazy_static! {
     // streaming clients of the webserver
-    static ref CLIENTS: Mutex<HashMap<String, ChannelStream>> = Mutex::new(HashMap::new());
+    static ref CLIENTS: RwLock<HashMap<String, ChannelStream>> = RwLock::new(HashMap::new());
     // the global GUI logger textbox channel used by all threads
-    static ref LOGCHANNEL: Mutex<(Sender<String>, Receiver<String>)> = Mutex::new(unbounded());
+    static ref LOGCHANNEL: RwLock<(Sender<String>, Receiver<String>)> = RwLock::new(unbounded());
     // the global configuration state
-    static ref CONFIG: Mutex<Configuration> = Mutex::new(Configuration::read_config());
+    static ref CONFIG: RwLock<Configuration> = RwLock::new(Configuration::read_config());
 }
 
 /// swyh-rs
@@ -178,7 +179,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // initialize config
     let mut config: Configuration;
     {
-        let mut conf = CONFIG.lock();
+        let mut conf = CONFIG.write();
         if conf.sound_source == "None" {
             conf.sound_source = audio_output_device.name().unwrap();
             let _ = conf.update_config();
@@ -217,7 +218,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_resume.set(true);
     }
     auto_resume.set_callback2(move |b| {
-        let mut conf = CONFIG.lock();
+        let mut conf = CONFIG.write();
         if b.is_set() {
             conf.auto_resume = true;
         } else {
@@ -233,7 +234,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         auto_reconnect.set(true);
     }
     auto_reconnect.set_callback2(move |b| {
-        let mut conf = CONFIG.lock();
+        let mut conf = CONFIG.write();
         if b.is_set() {
             conf.auto_reconnect = true;
         } else {
@@ -249,7 +250,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_ch_flag = config_changed.clone();
     ssdp_interval.handle2(move |b, ev| match ev {
         Event::Leave => {
-            let mut conf = CONFIG.lock();
+            let mut conf = CONFIG.write();
             if b.value() < 0.5 {
                 b.set_value(0.5);
             }
@@ -286,7 +287,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return;
         }
         *recursion += 1;
-        let mut conf = CONFIG.lock();
+        let mut conf = CONFIG.write();
         let i = b.value();
         if i < 0 {
             return;
@@ -320,7 +321,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         disable_chunked.set(true);
     }
     disable_chunked.set_callback2(move |b| {
-        let mut conf = CONFIG.lock();
+        let mut conf = CONFIG.write();
         if b.is_set() {
             conf.disable_chunked = true;
         } else {
@@ -334,7 +335,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         use_wma.set(true);
     }
     use_wma.set_callback2(move |b| {
-        let mut conf = CONFIG.lock();
+        let mut conf = CONFIG.write();
         if b.is_set() {
             conf.use_wave_format = true;
         } else {
@@ -359,7 +360,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         show_rms.set(true);
     }
     show_rms.set_callback2(move |b| {
-        let mut conf = CONFIG.lock();
+        let mut conf = CONFIG.write();
         if b.is_set() {
             conf.monitor_rms = true;
         } else {
@@ -420,7 +421,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return;
         }
         *recursion += 1;
-        let mut conf = CONFIG.lock();
+        let mut conf = CONFIG.write();
         let mut i = b.value();
         if i < 0 {
             return;
@@ -494,7 +495,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     log("Starting SSDP discovery".to_string());
-    let conf = CONFIG.lock().clone();
+    let conf = CONFIG.read().clone();
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 1024 * 1024)
@@ -528,7 +529,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // get the logreader channel
     let logreader: Receiver<String>;
     {
-        let ch = &LOGCHANNEL.lock();
+        let ch = &LOGCHANNEL.read();
         logreader = ch.1.clone();
     }
 
@@ -575,7 +576,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // as this can happen with Bubble/Nest Audio Openhome
                         let mut still_streaming = false;
                         {
-                            let clients = CLIENTS.lock();
+                            let clients = CLIENTS.read();
                             for (_, c) in clients.iter() {
                                 if c.remote_ip == streamer_feedback.remote_ip {
                                     still_streaming = true;
@@ -622,7 +623,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if b.is_set() {
                     let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
                     {
-                        let mut conf = CONFIG.lock();
+                        let mut conf = CONFIG.write();
                         conf.last_renderer = b.label();
                         let _ = conf.update_config();
                     }
@@ -667,7 +668,7 @@ fn log(s: String) {
     };
     let logger: Sender<String>;
     {
-        let ch = &LOGCHANNEL.lock();
+        let ch = &LOGCHANNEL.read();
         logger = ch.0.clone();
     }
     logger.send(s).unwrap();
@@ -742,7 +743,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     remote_ip.truncate(i);
                 }
                 // prpare streaming headers
-                let conf = CONFIG.lock().clone();
+                let conf = CONFIG.read().clone();
                 let ct_text = if conf.use_wave_format {
                     "audio/vnd.wave;codec=1".to_string()
                 } else {
@@ -775,7 +776,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         wd.sample_rate.0,
                     );
                     {
-                        let mut clients = CLIENTS.lock();
+                        let mut clients = CLIENTS.write();
                         clients.insert(remote_addr.clone(), channel_stream);
                         debug!("Now have {} streaming clients", clients.len());
                     }
@@ -809,7 +810,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         ));
                     }
                     {
-                        let mut clients = CLIENTS.lock();
+                        let mut clients = CLIENTS.write();
                         clients.remove(&remote_addr.clone());
                         debug!("Now have {} streaming clients left", clients.len());
                     }
@@ -966,12 +967,12 @@ where
     i16_samples.clear();
     i16_samples.extend(samples.iter().map(|x| x.to_i16()));
     {
-        let clients = CLIENTS.lock();
+        let clients = CLIENTS.read();
         for (_, v) in clients.iter() {
             v.write(i16_samples);
         }
     }
-    let monitor_rms = { CONFIG.lock().monitor_rms };
+    let monitor_rms = { CONFIG.read().monitor_rms };
     if monitor_rms {
         rms_sender.send(i16_samples.to_vec()).unwrap();
     }

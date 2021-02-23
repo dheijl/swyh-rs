@@ -42,7 +42,6 @@ extern crate bitflags;
 mod openhome;
 mod utils;
 
-use parking_lot::RwLock;
 use crate::openhome::avmedia::{discover, Renderer, WavData};
 use crate::utils::audiodevices::{get_default_audio_output_device, get_output_audio_devices};
 use crate::utils::configuration::Configuration;
@@ -69,6 +68,7 @@ use fltk::{
 };
 use lazy_static::lazy_static;
 use log::{debug, error, info, log, warn, LevelFilter};
+use parking_lot::RwLock;
 use parking_lot::{Mutex, Once};
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
@@ -574,23 +574,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     StreamingState::Ended => {
                         // first check if the renderer has actually not started streaming again
                         // as this can happen with Bubble/Nest Audio Openhome
-                        let mut still_streaming = false;
-                        {
-                            let clients = CLIENTS.read();
-                            for (_, c) in clients.iter() {
-                                if c.remote_ip == streamer_feedback.remote_ip {
-                                    still_streaming = true;
-                                    break;
-                                }
-                            }
-                        }
+                        let still_streaming = CLIENTS
+                            .read()
+                            .values()
+                            .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
                         if !still_streaming {
                             if auto_resume.is_set() && button.is_set() {
-                                for r in renderers.iter() {
-                                    if streamer_feedback.remote_ip == r.remote_addr {
-                                        let _ = r.play(&local_addr, SERVER_PORT, &wd, &dummy_log);
-                                        break;
-                                    }
+                                if let Some(r) = renderers
+                                    .iter()
+                                    .find(|r| r.remote_addr == streamer_feedback.remote_ip)
+                                {
+                                    let _ = r.play(&local_addr, SERVER_PORT, &wd, &dummy_log);
                                 }
                             } else if button.is_set() {
                                 button.set(false);
@@ -775,11 +769,13 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         conf.use_wave_format,
                         wd.sample_rate.0,
                     );
-                    {
+                    let nclients = {
                         let mut clients = CLIENTS.write();
                         clients.insert(remote_addr.clone(), channel_stream);
-                        debug!("Now have {} streaming clients", clients.len());
-                    }
+                        clients.len()
+                    };
+                    debug!("Now have {} streaming clients", nclients);
+
                     feedback_tx_c
                         .send(StreamerFeedBack {
                             remote_ip: remote_ip.clone(),
@@ -809,11 +805,12 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                             remote_addr, e
                         ));
                     }
-                    {
+                    let nclients = {
                         let mut clients = CLIENTS.write();
                         clients.remove(&remote_addr.clone());
-                        debug!("Now have {} streaming clients left", clients.len());
-                    }
+                        clients.len()
+                    };
+                    debug!("Now have {} streaming clients left", nclients);
                     log(format!("Streaming to {} has ended", remote_addr));
                     // inform the main thread that this renderer has finished receiving
                     // necessary if the connection close was not caused by our own GUI
@@ -966,13 +963,10 @@ where
     });
     i16_samples.clear();
     i16_samples.extend(samples.iter().map(|x| x.to_i16()));
-    {
-        let clients = CLIENTS.read();
-        for (_, v) in clients.iter() {
-            v.write(i16_samples);
-        }
+    for (_, v) in CLIENTS.read().iter() {
+        v.write(i16_samples);
     }
-    let monitor_rms = { CONFIG.read().monitor_rms };
+    let monitor_rms = CONFIG.read().monitor_rms;
     if monitor_rms {
         rms_sender.send(i16_samples.to_vec()).unwrap();
     }

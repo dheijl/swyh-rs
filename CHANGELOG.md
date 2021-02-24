@@ -1,7 +1,7 @@
 ## swyh-rs Changelog
 
 - 1.3.7 (unreleased)
-- 
+  - use ParkingLot RwLock instead of Mutex since most accesses of the locks (CLIENTS, CONFIG) are read
 
 - 1.3.6 (Feb 21 2021 dheijl)
   - migrate the configuration folder from `$HOME/swyh-rs` to `$HOME/.swyh-rs` so that it is hidden on Linux and comes before normal folders in Windows Explorer ([issue #32](https://github.com/dheijl/swyh-rs/issues/32))

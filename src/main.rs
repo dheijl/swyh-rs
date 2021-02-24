@@ -68,8 +68,7 @@ use fltk::{
 };
 use lazy_static::lazy_static;
 use log::{debug, error, info, log, warn, LevelFilter};
-use parking_lot::RwLock;
-use parking_lot::{Mutex, Once};
+use parking_lot::{Mutex, Once, RwLock};
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -953,6 +952,7 @@ fn capture_err_fn(err: cpal::StreamError) {
 ///
 /// writes the captured samples to all registered clients in the
 /// CLIENTS ChannnelStream hashmap
+/// also feeds the RMS monitor channel if the RMS option is set
 fn wave_reader<T>(samples: &[T], i16_samples: &mut Vec<i16>, rms_sender: Sender<Vec<i16>>)
 where
     T: cpal::Sample,
@@ -966,8 +966,7 @@ where
     for (_, v) in CLIENTS.read().iter() {
         v.write(i16_samples);
     }
-    let monitor_rms = CONFIG.read().monitor_rms;
-    if monitor_rms {
+    if CONFIG.read().monitor_rms {
         rms_sender.send(i16_samples.to_vec()).unwrap();
     }
 }

@@ -45,10 +45,6 @@ impl Configuration {
         self.config_dir.clone()
     }
 
-    fn parse_bool(s: &str) -> bool {
-        matches!(s, "true" | "True" | "TRUE" | "1" | "T" | "t")
-    }
-
     pub fn read_config() -> Configuration {
         let configfile = Self::get_config_path();
         if !Path::new(&configfile).exists() {
@@ -73,11 +69,10 @@ impl Configuration {
             Err(_) => Ini::new(),
         };
         let mut config = Configuration::new();
-        config.auto_resume = Configuration::parse_bool(conf.get_from_or(
-            Some("Configuration"),
-            "AutoResume",
-            "false",
-        ));
+        config.auto_resume = conf
+            .get_from_or(Some("Configuration"), "AutoResume", "false")
+            .parse()
+            .unwrap_or_default();
         config.sound_source = conf
             .get_from_or(Some("Configuration"), "SoundCard", "None")
             .to_string();
@@ -93,31 +88,25 @@ impl Configuration {
         if config.ssdp_interval_mins < 0.5 {
             config.ssdp_interval_mins = 0.5;
         }
-        config.auto_reconnect = Configuration::parse_bool(conf.get_from_or(
-            Some("Configuration"),
-            "AutoReconnect",
-            "false",
-        ));
-        config.disable_chunked = Configuration::parse_bool(conf.get_from_or(
-            Some("Configuration"),
-            "DisableChunked",
-            "false",
-        ));
-        config.use_wave_format = Configuration::parse_bool(conf.get_from_or(
-            Some("Configuration"),
-            "UseWaveFormat",
-            "false",
-        ));
-        config.monitor_rms = Configuration::parse_bool(conf.get_from_or(
-            Some("Configuration"),
-            "MonitorRms",
-            "false",
-        ));
+        config.auto_reconnect = conf
+            .get_from_or(Some("Configuration"), "AutoReconnect", "false")
+            .parse()
+            .unwrap_or_default();
+        config.disable_chunked = conf
+            .get_from_or(Some("Configuration"), "DisableChunked", "false")
+            .parse()
+            .unwrap_or_default();
+        config.use_wave_format = conf
+            .get_from_or(Some("Configuration"), "UseWaveFormat", "false")
+            .parse()
+            .unwrap_or_default();
+        config.monitor_rms = conf
+            .get_from_or(Some("Configuration"), "MonitorRms", "false")
+            .parse()
+            .unwrap_or_default();
         config.last_renderer = conf
             .get_from_or(Some("Configuration"), "LastRenderer", "None")
-            .to_string()
-            .parse()
-            .unwrap();
+            .to_string();
         config.config_dir = Self::get_config_dir();
 
         config
@@ -130,37 +119,14 @@ impl Configuration {
             Err(_) => Ini::new(),
         };
         conf.with_section(Some("Configuration"))
-            .set(
-                "AutoResume",
-                if self.auto_resume { "true" } else { "false" },
-            )
+            .set("AutoResume", self.auto_resume.to_string())
             .set("SoundCard", &self.sound_source)
             .set("LogLevel", self.log_level.to_string())
             .set("SSDPIntervalMins", self.ssdp_interval_mins.to_string())
-            .set(
-                "AutoReconnect",
-                if self.auto_reconnect { "true" } else { "false" },
-            )
-            .set(
-                "DisableChunked",
-                if self.disable_chunked {
-                    "true"
-                } else {
-                    "false"
-                },
-            )
-            .set(
-                "UseWaveFormat",
-                if self.use_wave_format {
-                    "true"
-                } else {
-                    "false"
-                },
-            )
-            .set(
-                "MonitorRms",
-                if self.monitor_rms { "true" } else { "false" },
-            )
+            .set("AutoReconnect", self.auto_reconnect.to_string())
+            .set("DisableChunked", self.disable_chunked.to_string())
+            .set("UseWaveFormat", self.use_wave_format.to_string())
+            .set("MonitorRms", self.monitor_rms.to_string())
             .set("LastRenderer", self.last_renderer.to_string())
             .set("ConfigDir", &self.config_dir.display().to_string());
         conf.write_to_file(&configfile)

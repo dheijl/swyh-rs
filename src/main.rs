@@ -122,7 +122,7 @@ lazy_static! {
 /// - start the streaming webserver
 /// - start ssdp discovery of media renderers thread
 /// - run the GUI, and show any renderers found in the GUI as buttons (to start/stop playing)
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let mut audio_output_device =
         get_default_audio_output_device().expect("No default audio device");
@@ -648,7 +648,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     } // while app::wait()
 
-    Ok(())
 }
 
 /// log - send a logmessage to the textbox on the Crossbeam LOGCHANNEL

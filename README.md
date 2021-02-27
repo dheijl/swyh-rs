@@ -79,5 +79,5 @@ If you want maximum audio quality on Windows, there are a number of concerns:
 
 ### Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/108632396-fcb6e000-746e-11eb-9a9a-8d4eaf1cf010.PNG)
+![alt_tag](https://user-images.githubusercontent.com/2384545/109391333-cd90ea80-7916-11eb-8269-06fc81859b68.PNG)
 

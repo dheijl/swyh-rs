@@ -369,18 +369,34 @@ fn main() {
     });
     p2c.add(&show_rms);
 
-    let mut rms_mon = Progress::new(0, 0, 0, 5, "");
-    p2c.add(&rms_mon);
+    let mut p2c_v = Pack::new(0, 0, gw, 25, "");
+    p2c_v.set_spacing(4);
+    p2c_v.set_type(PackType::Vertical);
+    p2c_v.end();
+
+    let mut rms_mon_l = Progress::new(0, 0, 0, 0, "");
+    p2c_v.add(&rms_mon_l);
+    let mut rms_mon_r = Progress::new(0, 0, 0, 0, "");
+    p2c_v.add(&rms_mon_r);
+    p2c_v.auto_layout();
+    p2c_v.make_resizable(false);
+    p2c.add(&p2c_v);
 
     p2c.auto_layout();
     p2c.make_resizable(false);
     vpack.add(&p2c);
 
-    rms_mon.set_minimum(0.0);
-    rms_mon.set_maximum(16384.0);
-    rms_mon.set_value(0.0);
-    rms_mon.set_color(Color::White);
-    rms_mon.set_selection_color(Color::Green);
+    rms_mon_l.set_minimum(0.0);
+    rms_mon_l.set_maximum(16384.0);
+    rms_mon_l.set_value(0.0);
+    rms_mon_l.set_color(Color::White);
+    rms_mon_l.set_selection_color(Color::Green);
+
+    rms_mon_r.set_minimum(0.0);
+    rms_mon_r.set_maximum(16384.0);
+    rms_mon_r.set_value(0.0);
+    rms_mon_r.set_color(Color::White);
+    rms_mon_r.set_selection_color(Color::Green);
 
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices().unwrap();
@@ -506,7 +522,7 @@ fn main() {
     let _ = std::thread::Builder::new()
         .name("rms_monitor".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_rms_monitor(&wd.clone(), rms_receiver, rms_mon))
+        .spawn(move || run_rms_monitor(&wd.clone(), rms_receiver, rms_mon_l, rms_mon_r))
         .unwrap();
 
     // start a webserver on the local address,
@@ -970,23 +986,31 @@ where
     }
 }
 
-fn run_rms_monitor(wd: &WavData, rms_receiver: Receiver<Vec<i16>>, mut rms_frame: Progress) {
-    let samples_per_update: i64 = ((wd.sample_rate.0 * wd.channels as u32) / 25) as i64; // samples per second / refresh rate
+fn run_rms_monitor(wd: &WavData, rms_receiver: Receiver<Vec<i16>>, mut rms_frame_l: Progress, mut rms_frame_r: Progress) {
+    let samples_per_update: i64 = (wd.sample_rate.0 / 10) as i64; // samples per second / refresh rate
     let mut nsamples: i64 = 0;
-    let mut sum: i64 = 0;
+    let mut sum_l: i64 = 0;
+    let mut sum_r: i64 = 0;
     while let Ok(samples) = rms_receiver.recv() {
         //samples.iter().fold(0i64, |sum, sample| { sum + *sample as i64 * *sample as i64 });
-        for sample in samples.iter() {
+        for (n, sample) in samples.iter().enumerate() {
             nsamples += 1;
-            sum += *sample as i64 * *sample as i64;
+            if n & 1 == 0 {
+            sum_l += *sample as i64 * *sample as i64;
+            } else {
+                sum_r += *sample as i64 * *sample as i64; 
+            }
             if nsamples >= samples_per_update {
                 // compute rms value
-                let rms = ((sum / nsamples) as f64).sqrt();
-                rms_frame.set_value(rms);
+                let rms_l = ((sum_l / nsamples) as f64).sqrt();
+                rms_frame_l.set_value(rms_l);
+                let rms_r = ((sum_r / nsamples) as f64).sqrt();
+                rms_frame_r.set_value(rms_r);
                 app::awake();
                 //reset counters
                 nsamples = 0;
-                sum = 0;
+                sum_l = 0;
+                sum_r = 0;
             }
         }
     }

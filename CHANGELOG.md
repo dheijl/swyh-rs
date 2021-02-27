@@ -1,6 +1,7 @@
 ## swyh-rs Changelog
 
-- 1.3.8 (unreleased)
+- 1.3.8 (Feb 27 2021 dheijl)
+  - show left and right channel RMS values
 
 - 1.3.7 (Feb 25 2021 dheijl)
   - use ParkingLot RwLock instead of Mutex since most accesses of the locks (CLIENTS, CONFIG) are read anyway

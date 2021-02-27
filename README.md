@@ -19,7 +19,7 @@ If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and 
 
 I wrote this because I a) wanted to learn Rust and b) SWYH does not work on Linux, does not work well with Volumio (push streaming does not work), and has a substantial memory leak in the ancient Intel .Net UPNP/DLNA library it uses.
 
-Music is streamed in uncompressed LPCM format (audio/l16) with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input). 
+Music is streamed in uncompressed 16 bit LPCM format (audio/l16, or optionally audio/wav with an "infinite length" WAV header) with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input). 
 Since version 1.3.5 there is also support for streaming in in !uncompressed PCM WAV file format in case your renderer does not support "naked" uncompressed PCM streams.
 Note that libsndfile based renderers may not be able to decode the WAV format if they do not open the stram as a "pipe", because the stream is not "seekable". 
 

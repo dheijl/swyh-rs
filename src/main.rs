@@ -663,7 +663,6 @@ fn main() {
             tb.scroll(buflines, 0);
         }
     } // while app::wait()
-
 }
 
 /// log - send a logmessage to the textbox on the Crossbeam LOGCHANNEL
@@ -986,19 +985,24 @@ where
     }
 }
 
-fn run_rms_monitor(wd: &WavData, rms_receiver: Receiver<Vec<i16>>, mut rms_frame_l: Progress, mut rms_frame_r: Progress) {
-    let samples_per_update: i64 = (wd.sample_rate.0 / 10) as i64; // samples per second / refresh rate
-    let mut nsamples: i64 = 0;
-    let mut sum_l: i64 = 0;
-    let mut sum_r: i64 = 0;
+fn run_rms_monitor(
+    wd: &WavData,
+    rms_receiver: Receiver<Vec<i16>>,
+    mut rms_frame_l: Progress,
+    mut rms_frame_r: Progress,
+) {
+    // compute # of samples needed to get a 10 Hz refresh rate
+    let samples_per_update = ((wd.sample_rate.0 * wd.channels as u32) / 10) as i64; 
+    let mut nsamples = 0i64;
+    let mut sum_l = 0i64;
+    let mut sum_r = 0i64;
     while let Ok(samples) = rms_receiver.recv() {
-        //samples.iter().fold(0i64, |sum, sample| { sum + *sample as i64 * *sample as i64 });
         for (n, sample) in samples.iter().enumerate() {
             nsamples += 1;
             if n & 1 == 0 {
-            sum_l += *sample as i64 * *sample as i64;
+                sum_l += *sample as i64 * *sample as i64;
             } else {
-                sum_r += *sample as i64 * *sample as i64; 
+                sum_r += *sample as i64 * *sample as i64;
             }
             if nsamples >= samples_per_update {
                 // compute rms value

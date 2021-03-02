@@ -176,15 +176,14 @@ fn main() {
     vpack.add(&p1);
 
     // initialize config
-    let mut config: Configuration;
-    {
+    let mut config = {
         let mut conf = CONFIG.write();
         if conf.sound_source == "None" {
             conf.sound_source = audio_output_device.name().unwrap();
             let _ = conf.update_config();
         }
-        config = conf.clone();
-    }
+        conf.clone()
+    };
     log(format!("{:?}", config));
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
@@ -352,12 +351,27 @@ fn main() {
     p2c.set_spacing(10);
     p2c.set_type(PackType::Horizontal);
     p2c.end();
-
     // RMS animation enable checkbox
     let mut show_rms = CheckButton::new(0, 0, 0, 0, "Enable RMS Monitor");
     if config.monitor_rms {
         show_rms.set(true);
     }
+    // rms monitor meters widgets
+    let mut rms_mon_l = Progress::new(0, 0, 0, 0, "");
+    let mut rms_mon_r = Progress::new(0, 0, 0, 0, "");
+    rms_mon_l.set_minimum(0.0);
+    rms_mon_l.set_maximum(16384.0);
+    rms_mon_l.set_value(0.0);
+    rms_mon_l.set_color(Color::White);
+    rms_mon_l.set_selection_color(Color::Green);
+    rms_mon_r.set_minimum(0.0);
+    rms_mon_r.set_maximum(16384.0);
+    rms_mon_r.set_value(0.0);
+    rms_mon_r.set_color(Color::White);
+    rms_mon_r.set_selection_color(Color::Green);
+    // rms checkbox callback
+    let mut mon_l = rms_mon_l.clone();
+    let mut mon_r = rms_mon_r.clone();
     show_rms.set_callback2(move |b| {
         let mut conf = CONFIG.write();
         if b.is_set() {
@@ -366,17 +380,16 @@ fn main() {
             conf.monitor_rms = false;
         }
         let _ = conf.update_config();
+        mon_l.set_value(0.0);
+        mon_r.set_value(0.0);
     });
     p2c.add(&show_rms);
-
+    // vertical pack for the RMS meters
     let mut p2c_v = Pack::new(0, 0, gw, 25, "");
     p2c_v.set_spacing(4);
     p2c_v.set_type(PackType::Vertical);
     p2c_v.end();
-
-    let mut rms_mon_l = Progress::new(0, 0, 0, 0, "");
     p2c_v.add(&rms_mon_l);
-    let mut rms_mon_r = Progress::new(0, 0, 0, 0, "");
     p2c_v.add(&rms_mon_r);
     p2c_v.auto_layout();
     p2c_v.make_resizable(false);
@@ -385,18 +398,6 @@ fn main() {
     p2c.auto_layout();
     p2c.make_resizable(false);
     vpack.add(&p2c);
-
-    rms_mon_l.set_minimum(0.0);
-    rms_mon_l.set_maximum(16384.0);
-    rms_mon_l.set_value(0.0);
-    rms_mon_l.set_color(Color::White);
-    rms_mon_l.set_selection_color(Color::Green);
-
-    rms_mon_r.set_minimum(0.0);
-    rms_mon_r.set_maximum(16384.0);
-    rms_mon_r.set_value(0.0);
-    rms_mon_r.set_color(Color::White);
-    rms_mon_r.set_selection_color(Color::Green);
 
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices().unwrap();

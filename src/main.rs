@@ -513,11 +513,10 @@ fn main() {
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     log("Starting SSDP discovery".to_string());
-    let conf = CONFIG.read().clone();
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_ssdp_updater(ssdp_tx, conf.ssdp_interval_mins))
+        .spawn(move || run_ssdp_updater(ssdp_tx, CONFIG.read().ssdp_interval_mins))
         .unwrap();
 
     // start the "monitor_rms" thread
@@ -535,7 +534,7 @@ fn main() {
     let _ = std::thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_server(&local_addr, wd, feedback_tx.clone()))
+        .spawn(move || run_server(&local_addr, wd, feedback_tx))
         .unwrap();
     std::thread::yield_now();
 
@@ -545,11 +544,7 @@ fn main() {
     let binsert: u32 = 6;
 
     // get the logreader channel
-    let logreader: Receiver<String>;
-    {
-        let ch = &LOGCHANNEL.read();
-        logreader = ch.1.clone();
-    }
+    let logreader = &LOGCHANNEL.read().1;
 
     // now run the GUI event loop, app::awake() is used by the various threads to
     // trigger updates when something has changed, some threads use Crossbeam channels
@@ -676,11 +671,7 @@ fn log(s: String) {
         "*E" => error!("tb_log: {}", s),
         _ => info!("tb_log: {}", s),
     };
-    let logger: Sender<String>;
-    {
-        let ch = &LOGCHANNEL.read();
-        logger = ch.0.clone();
-    }
+    let logger = &LOGCHANNEL.read().0;
     logger.send(s).unwrap();
     app::awake();
 }
@@ -753,7 +744,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     remote_ip.truncate(i);
                 }
                 // prpare streaming headers
-                let conf = CONFIG.read().clone();
+                let conf = CONFIG.read();
                 let ct_text = if conf.use_wave_format {
                     "audio/vnd.wave;codec=1".to_string()
                 } else {

@@ -277,8 +277,7 @@ impl Renderer {
         // create new playlist
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
-        let conf = CONFIG.read().clone();
-        if conf.use_wave_format {
+        if CONFIG.read().use_wave_format {
             vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
             vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());
@@ -349,8 +348,7 @@ impl Renderer {
         // set AVTransportURI
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
-        let conf = CONFIG.read().clone();
-        if conf.use_wave_format {
+        if CONFIG.read().use_wave_format {
             vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
             vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());

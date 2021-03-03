@@ -246,25 +246,27 @@ fn main() {
     let mut ssdp_interval = Counter::new(0, 0, 0, 0, "SSDP Interval (in minutes)");
     ssdp_interval.set_value(config.ssdp_interval_mins);
     let config_ch_flag = config_changed.clone();
-    ssdp_interval.handle2(move |b, ev| match ev {
-        Event::Leave => {
-            let mut conf = CONFIG.write();
-            if b.value() < 0.5 {
-                b.set_value(0.5);
-            }
-            if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
-                conf.ssdp_interval_mins = b.value();
-                log(format!(
-                    "*W*W*> ssdp interval changed to {} minutes, restart required!!",
-                    conf.ssdp_interval_mins
-                ));
-                let _ = conf.update_config();
-                config_ch_flag.set(true);
-                app::awake();
-            }
-            true
+    ssdp_interval.handle2(move |b, ev| {
+        if b.value() < 0.5 {
+            b.set_value(0.5);
         }
-        _ => false,
+        match ev {
+            Event::Leave | Event::Enter | Event::Unfocus => {
+                let mut conf = CONFIG.write();
+                if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
+                    conf.ssdp_interval_mins = b.value();
+                    log(format!(
+                        "*W*W*> ssdp interval changed to {} minutes, restart required!!",
+                        conf.ssdp_interval_mins
+                    ));
+                    let _ = conf.update_config();
+                    config_ch_flag.set(true);
+                    app::awake();
+                }
+                true
+            }
+            _ => false,
+        }
     });
     p2.add(&ssdp_interval);
 
@@ -993,7 +995,7 @@ fn run_rms_monitor(
     mut rms_frame_r: Progress,
 ) {
     // compute # of samples needed to get a 10 Hz refresh rate
-    let samples_per_update = ((wd.sample_rate.0 * wd.channels as u32) / 10) as i64; 
+    let samples_per_update = ((wd.sample_rate.0 * wd.channels as u32) / 10) as i64;
     let mut nsamples = 0i64;
     let mut sum_l = 0i64;
     let mut sum_r = 0i64;

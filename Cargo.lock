@@ -504,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.15.5"
+version = "0.15.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16c63c2ae8d3936100ebbcf5c62aaa49a2410bee317091541c7882d437d161fc"
+checksum = "721b303779221ed1695e40e10af39ae5517dd6eb59fcc94ddcb7e2cefac10f38"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -518,9 +518,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.15.4"
+version = "0.15.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7cce9c18c88ac2c8fadb64b3c06343bb0f85f9ebcc8dd9dc39bde4cc396a9e6"
+checksum = "adb44f6aed27b4d2a54570669f97e33217131aab9981f6edbcdff3b6207d50ca"
 dependencies = [
  "quote",
  "syn",
@@ -528,9 +528,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.15.4"
+version = "0.15.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c32d92b7e3a55a903eed17336a0de1f9c2e162bd9f6047f4258f25b553ddac95"
+checksum = "0149679b76f305ab843c20cd17a28dcc4693bd22ed248833923789a31021a7e1"
 dependencies = [
  "cmake",
  "libc",
@@ -929,9 +929,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea78b9742c52ac729753c1590e9adc5248ea9bdaf974597efd46c74cfaa5fb54"
+checksum = "af8b08b04175473088b46763e51ee54da5f9a164bc162f615b91bc179dbf15a3"
 
 [[package]]
 name = "ordered-multimap"

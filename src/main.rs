@@ -513,10 +513,11 @@ fn main() {
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     log("Starting SSDP discovery".to_string());
+    let ssdp_int = CONFIG.read().ssdp_interval_mins;
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_ssdp_updater(ssdp_tx, CONFIG.read().ssdp_interval_mins))
+        .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
         .unwrap();
 
     // start the "monitor_rms" thread

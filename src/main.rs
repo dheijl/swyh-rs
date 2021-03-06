@@ -629,12 +629,12 @@ fn main() {
                     if b.is_set() { "ON" } else { "OFF" }
                 );
                 if b.is_set() {
-                    let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
                     {
                         let mut conf = CONFIG.write();
                         conf.last_renderer = b.label();
                         let _ = conf.update_config();
                     }
+                    let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
                 } else {
                     let _ = newr_c.stop_play(&log);
                 }

@@ -7,7 +7,6 @@
 ///
 ///
 use crate::get_local_addr;
-use crate::CONFIG;
 use log::{debug, error, info};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -229,17 +228,18 @@ impl Renderer {
         server_port: u16,
         wd: &WavData,
         log: &dyn Fn(String),
+        use_wav_format: bool,
     ) -> Result<(), &str> {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            return self.oh_play(local_addr, server_port, wd, log);
+            return self.oh_play(local_addr, server_port, wd, log, use_wav_format);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            return self.av_play(local_addr, server_port, wd, log);
+            return self.av_play(local_addr, server_port, wd, log, use_wav_format);
         } else {
             log("ERROR: play: no supported renderer protocol found".to_string());
         }
@@ -256,6 +256,7 @@ impl Renderer {
         server_port: u16,
         wd: &WavData,
         log: &dyn Fn(String),
+        use_wav_format: bool,
     ) -> Result<(), &str> {
         let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
@@ -277,7 +278,7 @@ impl Renderer {
         // create new playlist
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
-        if CONFIG.read().use_wave_format {
+        if use_wav_format {
             vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
             vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());
@@ -331,6 +332,7 @@ impl Renderer {
         server_port: u16,
         wd: &WavData,
         log: &dyn Fn(String),
+        use_wav_format: bool,
     ) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
@@ -348,7 +350,7 @@ impl Renderer {
         // set AVTransportURI
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
-        if CONFIG.read().use_wave_format {
+        if use_wav_format {
             vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
             vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());

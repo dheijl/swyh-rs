@@ -598,7 +598,14 @@ fn main() {
                                     .iter()
                                     .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                                 {
-                                    let _ = r.play(&local_addr, SERVER_PORT, &wd, &dummy_log);
+                                    let use_wav_format = CONFIG.read().use_wave_format;
+                                    let _ = r.play(
+                                        &local_addr,
+                                        SERVER_PORT,
+                                        &wd,
+                                        &dummy_log,
+                                        use_wav_format,
+                                    );
                                 }
                             } else if button.is_set() {
                                 button.set(false);
@@ -629,12 +636,13 @@ fn main() {
                     if b.is_set() { "ON" } else { "OFF" }
                 );
                 if b.is_set() {
-                    {
+                    let use_wav_format = {
                         let mut conf = CONFIG.write();
                         conf.last_renderer = b.label();
                         let _ = conf.update_config();
-                    }
-                    let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log);
+                        conf.use_wave_format
+                    };
+                    let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log, use_wav_format);
                 } else {
                     let _ = newr_c.stop_play(&log);
                 }
@@ -745,7 +753,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     remote_ip.truncate(i);
                 }
                 // prpare streaming headers
-                let conf = CONFIG.read();
+                let conf = CONFIG.read().clone();
                 let ct_text = if conf.use_wave_format {
                     "audio/vnd.wave;codec=1".to_string()
                 } else {

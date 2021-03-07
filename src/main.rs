@@ -598,13 +598,12 @@ fn main() {
                                     .iter()
                                     .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                                 {
-                                    let use_wav_format = CONFIG.read().use_wave_format;
                                     let _ = r.play(
                                         &local_addr,
                                         SERVER_PORT,
                                         &wd,
                                         &dummy_log,
-                                        use_wav_format,
+                                        CONFIG.read().use_wave_format,
                                     );
                                 }
                             } else if button.is_set() {

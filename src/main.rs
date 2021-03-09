@@ -40,12 +40,13 @@ SOFTWARE.
 extern crate bitflags;
 
 mod openhome;
+mod ui;
 mod utils;
 
 use crate::openhome::avmedia::{discover, Renderer, WavData};
+use crate::ui::mainform::MainForm;
 use crate::utils::audiodevices::{get_default_audio_output_device, get_output_audio_devices};
 use crate::utils::configuration::Configuration;
-use crate::utils::escape::FwSlashPipeEscape;
 use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
@@ -53,22 +54,13 @@ use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{
     app,
-    button::{
-        Align, ButtonExt, CheckButton, Color, DisplayExt, Event, FrameType, GroupExt, LightButton,
-        MenuExt, ValuatorExt, WidgetBase, WidgetExt, WindowExt,
-    },
+    button::{ButtonExt, WidgetExt},
     dialog,
-    frame::Frame,
-    group::{Pack, PackType},
-    menu::MenuButton,
     misc::Progress,
-    text::{TextBuffer, TextDisplay},
-    valuator::Counter,
-    window::DoubleWindow,
 };
 use lazy_static::lazy_static;
-use log::{debug, error, info, log, warn, LevelFilter};
-use parking_lot::{Mutex, Once, RwLock};
+use log::{debug, error, info, warn, LevelFilter};
+use parking_lot::{Once, RwLock};
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -127,54 +119,6 @@ fn main() {
     let mut audio_output_device =
         get_default_audio_output_device().expect("No default audio device");
 
-    let app = app::App::default().with_scheme(app::Scheme::Gtk);
-    app::background(247, 247, 247);
-    let ww = 660;
-    let wh = 660;
-    let mut wind = DoubleWindow::default()
-        .with_size(ww, wh)
-        .with_label(&format!(
-            "swyh-rs UPNP/DLNA Media Renderers V{}",
-            APP_VERSION
-        ));
-    wind.handle(move |_ev| {
-        //eprintln!("{:?}", app::event());
-        let ev = app::event();
-        match ev {
-            Event::Close => {
-                app.quit();
-                std::process::exit(0);
-            }
-            _ => false,
-        }
-    });
-
-    wind.make_resizable(true);
-    wind.size_range(ww, wh * 2 / 3, 0, 0);
-    wind.end();
-    wind.show();
-
-    let gw = 600;
-    let fw = 600;
-    let xpos = 30;
-    let ypos = 5;
-
-    let mut vpack = Pack::new(xpos, ypos, gw, wh - 10, "");
-    vpack.make_resizable(false);
-    vpack.set_spacing(15);
-    vpack.end();
-    wind.add(&vpack);
-
-    // title frame
-    let mut p1 = Pack::new(0, 0, gw, 25, "");
-    p1.end();
-    let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
-    opt_frame.set_frame(FrameType::BorderBox);
-    opt_frame.set_label("Options");
-    opt_frame.set_color(Color::Light2);
-    p1.add(&opt_frame);
-    vpack.add(&p1);
-
     // initialize config
     let mut config = {
         let mut conf = CONFIG.write();
@@ -184,7 +128,7 @@ fn main() {
         }
         conf.clone()
     };
-    log(format!("{:?}", config));
+    ui_log(format!("{:?}", config));
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
     }
@@ -200,206 +144,9 @@ fn main() {
     ]);
     info!("swyh-rs Logging started.");
     if cfg!(debug_assertions) {
-        log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
+        ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
     }
     info!("Config: {:?}", config);
-
-    // show config option widgets
-    let mut p2 = Pack::new(0, 0, gw, 25, "");
-    p2.set_spacing(10);
-    p2.set_type(PackType::Horizontal);
-    p2.end();
-
-    // auto_resume button for AVTransport autoresume play
-    let mut auto_resume = CheckButton::new(0, 0, 0, 0, "Autoresume play");
-    if config.auto_resume {
-        auto_resume.set(true);
-    }
-    auto_resume.set_callback2(move |b| {
-        let mut conf = CONFIG.write();
-        if b.is_set() {
-            conf.auto_resume = true;
-        } else {
-            conf.auto_resume = false;
-        }
-        let _ = conf.update_config();
-    });
-    p2.add(&auto_resume);
-
-    // AutoReconnect to last renderer on startup button
-    let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, "Autoreconnect");
-    if config.auto_reconnect {
-        auto_reconnect.set(true);
-    }
-    auto_reconnect.set_callback2(move |b| {
-        let mut conf = CONFIG.write();
-        if b.is_set() {
-            conf.auto_reconnect = true;
-        } else {
-            conf.auto_reconnect = false;
-        }
-        let _ = conf.update_config();
-    });
-    p2.add(&auto_reconnect);
-
-    // SSDP interval counter
-    let mut ssdp_interval = Counter::new(0, 0, 0, 0, "SSDP Interval (in minutes)");
-    ssdp_interval.set_value(config.ssdp_interval_mins);
-    let config_ch_flag = config_changed.clone();
-    ssdp_interval.handle2(move |b, ev| {
-        if b.value() < 0.5 {
-            b.set_value(0.5);
-        }
-        match ev {
-            Event::Leave | Event::Enter | Event::Unfocus => {
-                let mut conf = CONFIG.write();
-                if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
-                    conf.ssdp_interval_mins = b.value();
-                    log(format!(
-                        "*W*W*> ssdp interval changed to {} minutes, restart required!!",
-                        conf.ssdp_interval_mins
-                    ));
-                    let _ = conf.update_config();
-                    config_ch_flag.set(true);
-                    app::awake();
-                }
-                true
-            }
-            _ => false,
-        }
-    });
-    p2.add(&ssdp_interval);
-
-    // show log level choice
-    let ll = format!("Log Level: {}", config.log_level.to_string());
-    let mut log_level_choice = MenuButton::new(0, 0, 0, 0, &ll);
-    let log_levels = vec!["Info", "Debug"];
-    for ll in log_levels.iter() {
-        log_level_choice.add_choice(ll);
-    }
-    // apparently this event can recurse on very fast machines
-    // probably because it takes some time doing the file I/O, hence recursion lock
-    let rlock = Mutex::new(0);
-    let config_ch_flag = config_changed.clone();
-    log_level_choice.set_callback2(move |b| {
-        let mut recursion = rlock.lock();
-        if *recursion > 0 {
-            return;
-        }
-        *recursion += 1;
-        let mut conf = CONFIG.write();
-        let i = b.value();
-        if i < 0 {
-            return;
-        }
-        let level = log_levels[i as usize];
-        log(format!(
-            "*W*W*> Log level changed to {}, restart required!!",
-            level
-        ));
-        conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
-        let _ = conf.update_config();
-        config_ch_flag.set(true);
-        let ll = format!("Log Level: {}", conf.log_level.to_string());
-        b.set_label(&ll);
-        app::awake();
-        *recursion -= 1;
-    });
-    p2.add(&log_level_choice);
-    p2.auto_layout();
-    p2.make_resizable(false);
-    vpack.add(&p2);
-
-    let mut p2b = Pack::new(0, 0, gw, 25, "");
-    p2b.set_spacing(10);
-    p2b.set_type(PackType::Horizontal);
-    p2b.end();
-
-    // disable chunked transfer (for AVTransport renderers that can't handle chunkeed transfer)
-    let mut disable_chunked = CheckButton::new(0, 0, 0, 0, "Disable Chunked TransferEncoding");
-    if config.disable_chunked {
-        disable_chunked.set(true);
-    }
-    disable_chunked.set_callback2(move |b| {
-        let mut conf = CONFIG.write();
-        if b.is_set() {
-            conf.disable_chunked = true;
-        } else {
-            conf.disable_chunked = false;
-        }
-        let _ = conf.update_config();
-    });
-    p2b.add(&disable_chunked);
-    let mut use_wma = CheckButton::new(0, 0, 0, 0, "Use WMA/WAV format");
-    if config.use_wave_format {
-        use_wma.set(true);
-    }
-    use_wma.set_callback2(move |b| {
-        let mut conf = CONFIG.write();
-        if b.is_set() {
-            conf.use_wave_format = true;
-        } else {
-            conf.use_wave_format = false;
-        }
-        let _ = conf.update_config();
-    });
-    p2b.add(&use_wma);
-    p2b.auto_layout();
-    p2b.make_resizable(false);
-    vpack.add(&p2b);
-
-    // RMS animation
-    let mut p2c = Pack::new(0, 0, gw, 25, "");
-    p2c.set_spacing(10);
-    p2c.set_type(PackType::Horizontal);
-    p2c.end();
-    // RMS animation enable checkbox
-    let mut show_rms = CheckButton::new(0, 0, 0, 0, "Enable RMS Monitor");
-    if config.monitor_rms {
-        show_rms.set(true);
-    }
-    // rms monitor meters widgets
-    let mut rms_mon_l = Progress::new(0, 0, 0, 0, "");
-    let mut rms_mon_r = Progress::new(0, 0, 0, 0, "");
-    rms_mon_l.set_minimum(0.0);
-    rms_mon_l.set_maximum(16384.0);
-    rms_mon_l.set_value(0.0);
-    rms_mon_l.set_color(Color::White);
-    rms_mon_l.set_selection_color(Color::Green);
-    rms_mon_r.set_minimum(0.0);
-    rms_mon_r.set_maximum(16384.0);
-    rms_mon_r.set_value(0.0);
-    rms_mon_r.set_color(Color::White);
-    rms_mon_r.set_selection_color(Color::Green);
-    // rms checkbox callback
-    let mut mon_l = rms_mon_l.clone();
-    let mut mon_r = rms_mon_r.clone();
-    show_rms.set_callback2(move |b| {
-        let mut conf = CONFIG.write();
-        if b.is_set() {
-            conf.monitor_rms = true;
-        } else {
-            conf.monitor_rms = false;
-        }
-        let _ = conf.update_config();
-        mon_l.set_value(0.0);
-        mon_r.set_value(0.0);
-    });
-    p2c.add(&show_rms);
-    // vertical pack for the RMS meters
-    let mut p2c_v = Pack::new(0, 0, gw, 25, "");
-    p2c_v.set_spacing(4);
-    p2c_v.set_type(PackType::Vertical);
-    p2c_v.end();
-    p2c_v.add(&rms_mon_l);
-    p2c_v.add(&rms_mon_r);
-    p2c_v.auto_layout();
-    p2c_v.make_resizable(false);
-    p2c.add(&p2c_v);
-
-    p2c.auto_layout();
-    p2c.make_resizable(false);
-    vpack.add(&p2c);
 
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices().unwrap();
@@ -422,51 +169,19 @@ fn main() {
         channels: audio_cfg.channels(),
     };
 
-    // setup audio source choice
-    let mut p3 = Pack::new(0, 0, gw, 25, "");
-    p3.end();
-    let cur_audio_src = format!("Source: {}", config.sound_source);
-    log("Setup audio sources".to_string());
-    let mut choose_audio_source_but = MenuButton::new(0, 0, 0, 25, &cur_audio_src);
-    for name in source_names.iter() {
-        choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
-    }
-    let rlock = Mutex::new(0);
-    let config_ch_flag = config_changed.clone();
-    choose_audio_source_but.set_callback2(move |b| {
-        let mut recursion = rlock.lock();
-        if *recursion > 0 {
-            return;
-        }
-        *recursion += 1;
-        let mut conf = CONFIG.write();
-        let mut i = b.value();
-        if i < 0 {
-            return;
-        }
-        if i as usize >= source_names.len() {
-            i = (source_names.len() - 1) as i32;
-        }
-        let name = source_names[i as usize].clone();
-        log(format!(
-            "*W*W*> Audio source changed to {}, restart required!!",
-            name
-        ));
-        conf.sound_source = name;
-        let _ = conf.update_config();
-        b.set_label(&format!("New Source: {}", conf.sound_source));
-        config_ch_flag.set(true);
-        app::awake();
-        *recursion -= 1;
-    });
-    p3.add(&choose_audio_source_but);
-    vpack.add(&p3);
+    let local_addr = get_local_addr().expect("Could not obtain local address.");
+
+    let mut mf = MainForm::create(
+        &config,
+        config_changed.clone(),
+        &source_names,
+        local_addr,
+        &wd,
+        APP_VERSION.to_string(),
+    );
 
     // raise process priority a bit to prevent audio stuttering under cpu load
     raise_priority();
-
-    // set the last renderer used (for autoreconnect)
-    let last_renderer = config.last_renderer;
 
     // the rms monitor channel
     let rms_channel: (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
@@ -480,39 +195,15 @@ fn main() {
             stream.play().unwrap();
         }
         None => {
-            log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
+            ui_log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
         }
     }
 
-    // show renderer buttons title with our local ip address
-    let local_addr = get_local_addr().expect("Could not obtain local address.");
-    let mut p4 = Pack::new(0, 0, gw, 25, "");
-    p4.end();
-    let mut frame = Frame::new(0, 0, fw, 25, "").with_align(Align::Center);
-    frame.set_frame(FrameType::BorderBox);
-    frame.set_label(&format!("UPNP rendering devices on network {}", local_addr));
-    frame.set_color(Color::Light2);
-    p4.add(&frame);
-    vpack.add(&p4);
-
-    // setup feedback textbox at the bottom
-    let mut p5 = Pack::new(0, 0, gw, 156, "");
-    p5.end();
-    let buf = TextBuffer::default();
-    let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
-    tb.set_buffer(Some(buf));
-    p5.add(&tb);
-    p5.resizable(&tb);
-    vpack.add(&p5);
-    vpack.resizable(&p5);
-
-    // create a hashmap for a button for each discovered renderer
-    let mut buttons: HashMap<String, LightButton> = HashMap::new();
     // the discovered renderers will be kept in this list
     let mut renderers: Vec<Renderer> = Vec::new();
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
-    log("Starting SSDP discovery".to_string());
+    ui_log("Starting SSDP discovery".to_string());
     let ssdp_int = CONFIG.read().ssdp_interval_mins;
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
@@ -522,10 +213,12 @@ fn main() {
 
     // start the "monitor_rms" thread
     let rms_receiver = rms_channel.1;
+    let mon_l = mf.rms_mon_l.clone();
+    let mon_r = mf.rms_mon_r.clone();
     let _ = std::thread::Builder::new()
         .name("rms_monitor".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_rms_monitor(&wd.clone(), rms_receiver, rms_mon_l, rms_mon_r))
+        .spawn(move || run_rms_monitor(&wd.clone(), rms_receiver, mon_l, mon_r))
         .unwrap();
 
     // start a webserver on the local address,
@@ -538,11 +231,6 @@ fn main() {
         .spawn(move || run_server(&local_addr, wd, feedback_tx))
         .unwrap();
     std::thread::yield_now();
-
-    // (SSDP) new renderer button dimensions and starting position
-    let bwidth = frame.width();
-    let bheight = frame.height();
-    let binsert: u32 = 6;
 
     // get the logreader channel
     let logreader = &LOGCHANNEL.read().1;
@@ -557,8 +245,8 @@ fn main() {
         // a configuration change that needs an app restart to take effect
         if config_changed.get() {
             let c = dialog::choice(
-                wind.width() as i32 / 2 - 100,
-                wind.height() as i32 / 2 - 50,
+                mf.wind.width() as i32 / 2 - 100,
+                mf.wind.height() as i32 / 2 - 50,
                 "Configuration value changed!",
                 "Restart",
                 "Cancel",
@@ -578,7 +266,7 @@ fn main() {
         // in that case we turn the button off as a visual feedback for the user
         // but if auto_resume is set, we restart playing instead
         while let Ok(streamer_feedback) = feedback_rx.try_recv() {
-            if let Some(button) = buttons.get_mut(&streamer_feedback.remote_ip) {
+            if let Some(button) = mf.buttons.get_mut(&streamer_feedback.remote_ip) {
                 match streamer_feedback.streaming_state {
                     StreamingState::Started => {
                         if !button.is_set() {
@@ -593,7 +281,7 @@ fn main() {
                             .values()
                             .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
                         if !still_streaming {
-                            if auto_resume.is_set() && button.is_set() {
+                            if mf.auto_resume.is_set() && button.is_set() {
                                 if let Some(r) = renderers
                                     .iter()
                                     .find(|r| r.remote_addr == streamer_feedback.remote_ip)
@@ -617,62 +305,18 @@ fn main() {
         // check the ssdp discovery thread channel for newly discovered renderers
         // add a new button below the last one for each discovered renderer
         while let Ok(newr) = ssdp_rx.try_recv() {
-            let mut but = LightButton::default() // create the button
-                .with_size(bwidth, bheight)
-                .with_pos(0, 0)
-                .with_align(Align::Center)
-                .with_label(&format!("{} {}", newr.dev_model, newr.dev_name));
+            mf.add_renderer_button(&newr);
             renderers.push(newr.clone());
-            // prepare for event handler closure
-            let newr_c = newr.clone();
-            let bi = buttons.len();
-            but.set_callback2(move |b| {
-                debug!(
-                    "Pushed renderer #{} {} {}, state = {}",
-                    bi,
-                    newr_c.dev_model,
-                    newr_c.dev_name,
-                    if b.is_set() { "ON" } else { "OFF" }
-                );
-                if b.is_set() {
-                    let use_wav_format = {
-                        let mut conf = CONFIG.write();
-                        conf.last_renderer = b.label();
-                        let _ = conf.update_config();
-                        conf.use_wave_format
-                    };
-                    let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &log, use_wav_format);
-                } else {
-                    let _ = newr_c.stop_play(&log);
-                }
-            });
-            // the pack for the new button
-            let mut pbutton = Pack::new(0, 0, bwidth, bheight, "");
-            pbutton.end();
-            pbutton.add(&but); // add the button to the window
-            vpack.insert(&pbutton, binsert);
-            buttons.insert(newr.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
-            app::redraw();
-            // check if autoreconnect is set for this renderer
-            if auto_reconnect.is_set() && but.label() == *last_renderer {
-                but.turn_on(true);
-                but.do_callback();
-            }
         }
         // check the logchannel for new log messages to show in the logger textbox
         while let Ok(msg) = logreader.try_recv() {
-            tb.buffer().unwrap().append(&msg);
-            tb.buffer().unwrap().append("\n");
-            let buflen = tb.buffer().unwrap().length();
-            tb.set_insert_position(buflen);
-            let buflines = tb.count_lines(0, buflen, true);
-            tb.scroll(buflines, 0);
+            mf.add_log_msg(msg);
         }
     } // while app::wait()
 }
 
-/// log - send a logmessage to the textbox on the Crossbeam LOGCHANNEL
-fn log(s: String) {
+/// ui_log - send a logmessage to the textbox on the Crossbeam LOGCHANNEL
+fn ui_log(s: String) {
     let cat: &str = &s[..2];
     match cat {
         "*W" => warn!("tb_log: {}", s),
@@ -701,12 +345,12 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
         "The streaming server is listening on http://{}/stream/swyh.wav",
         addr,
     );
-    log(logmsg);
+    ui_log(logmsg);
     let logmsg = format!(
         "Sample rate: {}, sample format: audio/l16 (PCM)",
         wd.sample_rate.0.to_string(),
     );
-    log(logmsg);
+    ui_log(logmsg);
     let server = Arc::new(Server::http(addr).unwrap());
     let mut handles = Vec::new();
     for _ in 0..8 {
@@ -728,7 +372,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                 let cc_hdr = Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap();
                 // check url
                 if rq.url() != "/stream/swyh.wav" {
-                    log(format!(
+                    ui_log(format!(
                         "Unrecognized request '{}' from {}'",
                         rq.url(),
                         rq.remote_addr()
@@ -738,7 +382,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .with_header(srvr_hdr)
                         .with_header(nm_hdr);
                     if let Err(e) = rq.respond(response) {
-                        log(format!(
+                        ui_log(format!(
                             "=>Http POST connection with {} terminated [{}]",
                             remote_addr, e
                         ));
@@ -763,7 +407,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                     Header::from_bytes(&b"TransferMode.DLNA.ORG"[..], &b"Streaming"[..]).unwrap();
                 // handle response, streaming if GET, headers only otherwise
                 if matches!(rq.method(), Method::Get) {
-                    log(format!(
+                    ui_log(format!(
                         "Received request {} from {}",
                         rq.url(),
                         rq.remote_addr()
@@ -815,7 +459,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .with_header(srvr_hdr)
                         .with_header(nm_hdr);
                     if let Err(e) = rq.respond(response) {
-                        log(format!(
+                        ui_log(format!(
                             "=>Http connection with {} terminated [{}]",
                             remote_addr, e
                         ));
@@ -826,7 +470,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         clients.len()
                     };
                     debug!("Now have {} streaming clients left", nclients);
-                    log(format!("Streaming to {} has ended", remote_addr));
+                    ui_log(format!("Streaming to {} has ended", remote_addr));
                     // inform the main thread that this renderer has finished receiving
                     // necessary if the connection close was not caused by our own GUI
                     // so that we can update the corresponding button state
@@ -847,7 +491,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .with_header(srvr_hdr)
                         .with_header(nm_hdr);
                     if let Err(e) = rq.respond(response) {
-                        log(format!(
+                        ui_log(format!(
                             "=>Http HEAD connection with {} terminated [{}]",
                             remote_addr, e
                         ));
@@ -859,7 +503,7 @@ fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeed
                         .with_header(srvr_hdr)
                         .with_header(nm_hdr);
                     if let Err(e) = rq.respond(response) {
-                        log(format!(
+                        ui_log(format!(
                             "=>Http POST connection with {} terminated [{}]",
                             remote_addr, e
                         ));
@@ -881,7 +525,7 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
-        let renderers = discover(&rmap, &log).unwrap_or_default();
+        let renderers = discover(&rmap, &ui_log).unwrap_or_default();
         for r in renderers.iter() {
             if !rmap.contains_key(&r.remote_addr) {
                 let _ = ssdp_tx.send(r.clone());
@@ -907,7 +551,7 @@ fn capture_output_audio(
     device: &cpal::Device,
     rms_sender: Sender<Vec<i16>>,
 ) -> Option<cpal::Stream> {
-    log(format!(
+    ui_log(format!(
         "Capturing audio from: {}",
         device
             .name()
@@ -916,7 +560,7 @@ fn capture_output_audio(
     let audio_cfg = device
         .default_output_config()
         .expect("No default output config found");
-    log(format!("Default audio {:?}", audio_cfg));
+    ui_log(format!("Default audio {:?}", audio_cfg));
     let mut i16_samples: Vec<i16> = Vec::with_capacity(16384);
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
@@ -926,7 +570,7 @@ fn capture_output_audio(
         ) {
             Ok(stream) => Some(stream),
             Err(e) => {
-                log(format!("Error capturing f32 audio stream: {}", e));
+                ui_log(format!("Error capturing f32 audio stream: {}", e));
                 None
             }
         },
@@ -938,7 +582,7 @@ fn capture_output_audio(
             ) {
                 Ok(stream) => Some(stream),
                 Err(e) => {
-                    log(format!("Error capturing i16 audio stream: {}", e));
+                    ui_log(format!("Error capturing i16 audio stream: {}", e));
                     None
                 }
             }
@@ -951,7 +595,7 @@ fn capture_output_audio(
             ) {
                 Ok(stream) => Some(stream),
                 Err(e) => {
-                    log(format!("Error capturing u16 audio stream: {}", e));
+                    ui_log(format!("Error capturing u16 audio stream: {}", e));
                     None
                 }
             }
@@ -961,7 +605,7 @@ fn capture_output_audio(
 
 /// capture_err_fn - called whan it's impossible to build an audio input stream
 fn capture_err_fn(err: cpal::StreamError) {
-    log(format!("Error {} building audio input stream", err));
+    ui_log(format!("Error {} building audio input stream", err));
 }
 
 /// wave_reader - the captured audio input stream reader
@@ -975,7 +619,7 @@ where
 {
     static INITIALIZER: Once = Once::new();
     INITIALIZER.call_once(|| {
-        log("The wave_reader is now receiving samples".to_string());
+        ui_log("The wave_reader is now receiving samples".to_string());
     });
     i16_samples.clear();
     i16_samples.extend(samples.iter().map(|x| x.to_i16()));

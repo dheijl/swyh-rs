@@ -1,4 +1,4 @@
-use crate::log;
+use crate::ui_log;
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
@@ -10,14 +10,14 @@ pub fn raise_priority() {
         let id = GetCurrentProcess() as HANDLE;
         if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS) == 0 {
             let e = GetLastError();
-            log(format!(
+            ui_log(format!(
                 "*E*E*>Failed to set process priority id={}, error={}",
                 GetCurrentProcessId(),
                 e
             ));
         }
     }
-    log("Now running at ABOVE_NORMAL_PRIORITY_CLASS".to_string());
+    ui_log("Now running at ABOVE_NORMAL_PRIORITY_CLASS".to_string());
 }
 
 #[cfg(target_os = "linux")]

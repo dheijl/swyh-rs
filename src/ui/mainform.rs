@@ -28,7 +28,6 @@ use std::rc::Rc;
 
 pub struct MainForm {
     pub wind: DoubleWindow,
-    pub vpack: Pack,
     pub auto_resume: CheckButton,
     pub auto_reconnect: CheckButton,
     pub ssdp_interval: Counter,
@@ -41,6 +40,7 @@ pub struct MainForm {
     pub choose_audio_source_but: MenuButton,
     pub tb: TextDisplay,
     pub buttons: HashMap<String, LightButton>,
+    vpack: Pack,
     bwidth: i32,
     bheight: i32,
     btn_index: u32,

@@ -47,7 +47,9 @@ mod utils;
 use crate::openhome::avmedia::{discover, Renderer, WavData};
 use crate::server::streaming_server::run_server;
 use crate::ui::mainform::MainForm;
-use crate::utils::audiodevices::{get_default_audio_output_device, get_output_audio_devices};
+use crate::utils::audiodevices::{
+    capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+};
 use crate::utils::configuration::Configuration;
 use crate::utils::local_ip_address::get_local_addr;
 use crate::utils::priority::raise_priority;
@@ -62,7 +64,7 @@ use fltk::{
 };
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn, LevelFilter};
-use parking_lot::{Once, RwLock};
+use parking_lot::RwLock;
 use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -355,93 +357,6 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
         std::thread::sleep(Duration::from_millis(
             (ssdp_interval_mins * 60.0 * 1000.0) as u64,
         ));
-    }
-}
-
-/// capture_audio_output - capture the audio stream from the default audio output device
-///
-/// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16)
-fn capture_output_audio(
-    device: &cpal::Device,
-    rms_sender: Sender<Vec<i16>>,
-) -> Option<cpal::Stream> {
-    ui_log(format!(
-        "Capturing audio from: {}",
-        device
-            .name()
-            .expect("Could not get default audio device name")
-    ));
-    let audio_cfg = device
-        .default_output_config()
-        .expect("No default output config found");
-    ui_log(format!("Default audio {:?}", audio_cfg));
-    let mut i16_samples: Vec<i16> = Vec::with_capacity(16384);
-    match audio_cfg.sample_format() {
-        cpal::SampleFormat::F32 => match device.build_input_stream(
-            &audio_cfg.config(),
-            move |data, _: &_| wave_reader::<f32>(data, &mut i16_samples, rms_sender.clone()),
-            capture_err_fn,
-        ) {
-            Ok(stream) => Some(stream),
-            Err(e) => {
-                ui_log(format!("Error capturing f32 audio stream: {}", e));
-                None
-            }
-        },
-        cpal::SampleFormat::I16 => {
-            match device.build_input_stream(
-                &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<i16>(data, &mut i16_samples, rms_sender.clone()),
-                capture_err_fn,
-            ) {
-                Ok(stream) => Some(stream),
-                Err(e) => {
-                    ui_log(format!("Error capturing i16 audio stream: {}", e));
-                    None
-                }
-            }
-        }
-        cpal::SampleFormat::U16 => {
-            match device.build_input_stream(
-                &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<u16>(data, &mut i16_samples, rms_sender.clone()),
-                capture_err_fn,
-            ) {
-                Ok(stream) => Some(stream),
-                Err(e) => {
-                    ui_log(format!("Error capturing u16 audio stream: {}", e));
-                    None
-                }
-            }
-        }
-    }
-}
-
-/// capture_err_fn - called whan it's impossible to build an audio input stream
-fn capture_err_fn(err: cpal::StreamError) {
-    ui_log(format!("Error {} building audio input stream", err));
-}
-
-/// wave_reader - the captured audio input stream reader
-///
-/// writes the captured samples to all registered clients in the
-/// CLIENTS ChannnelStream hashmap
-/// also feeds the RMS monitor channel if the RMS option is set
-fn wave_reader<T>(samples: &[T], i16_samples: &mut Vec<i16>, rms_sender: Sender<Vec<i16>>)
-where
-    T: cpal::Sample,
-{
-    static INITIALIZER: Once = Once::new();
-    INITIALIZER.call_once(|| {
-        ui_log("The wave_reader is now receiving samples".to_string());
-    });
-    i16_samples.clear();
-    i16_samples.extend(samples.iter().map(|x| x.to_i16()));
-    for (_, v) in CLIENTS.read().iter() {
-        v.write(i16_samples);
-    }
-    if CONFIG.read().monitor_rms {
-        rms_sender.send(i16_samples.to_vec()).unwrap();
     }
 }
 

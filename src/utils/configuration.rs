@@ -1,7 +1,7 @@
 use ini::Ini;
 use log::{debug, LevelFilter};
-use std::{f64, file, format_args, fs, io, line, module_path};
 use std::path::{Path, PathBuf};
+use std::{f64, file, format_args, fs, io, line, module_path};
 
 // the configuration struct, read from and saved in config.ini
 #[derive(Clone, Debug)]

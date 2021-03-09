@@ -172,6 +172,7 @@ fn main() {
 
     let local_addr = get_local_addr().expect("Could not obtain local address.");
 
+    // we now have enough information to create the GUI with meaningful data
     let mut mf = MainForm::create(
         &config,
         config_changed.clone(),
@@ -200,9 +201,9 @@ fn main() {
         }
     }
 
+    // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
     let mut renderers: Vec<Renderer> = Vec::new();
-    // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     ui_log("Starting SSDP discovery".to_string());
     let ssdp_int = CONFIG.read().ssdp_interval_mins;
@@ -212,7 +213,7 @@ fn main() {
         .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
         .unwrap();
 
-    // start the "monitor_rms" thread
+    // also start the "monitor_rms" thread
     let rms_receiver = rms_channel.1;
     let mon_l = mf.rms_mon_l.clone();
     let mon_r = mf.rms_mon_r.clone();
@@ -222,7 +223,7 @@ fn main() {
         .spawn(move || run_rms_monitor(&wd.clone(), rms_receiver, mon_l, mon_r))
         .unwrap();
 
-    // start a webserver on the local address,
+    // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
@@ -236,29 +237,16 @@ fn main() {
     // get the logreader channel
     let logreader = &LOGCHANNEL.read().1;
 
-    // now run the GUI event loop, app::awake() is used by the various threads to
+    // and now we can run the GUI event loop, app::awake() is used by the various threads to
     // trigger updates when something has changed, some threads use Crossbeam channels
     // to signal what has changed
     while app::wait() {
         if app::should_program_quit() {
             break;
         }
-        // a configuration change that needs an app restart to take effect
+        // test for a configuration change that needs an app restart to take effect
         if config_changed.get() {
-            let c = dialog::choice(
-                mf.wind.width() as i32 / 2 - 100,
-                mf.wind.height() as i32 / 2 - 50,
-                "Configuration value changed!",
-                "Restart",
-                "Cancel",
-                "",
-            );
-            if c == 0 {
-                std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
-                    .spawn()
-                    .expect("Unable to spawn myself!");
-                std::process::exit(0);
-            } else {
+            if app_restart(&mf) != 0 {
                 config_changed.set(false);
             }
         }
@@ -314,6 +302,25 @@ fn main() {
             mf.add_log_msg(msg);
         }
     } // while app::wait()
+}
+
+fn app_restart(mf: &MainForm) -> u32 {
+    let c = dialog::choice(
+        mf.wind.width() as i32 / 2 - 100,
+        mf.wind.height() as i32 / 2 - 50,
+        "Configuration value changed!",
+        "Restart",
+        "Cancel",
+        "",
+    );
+    if c == 0 {
+        std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
+            .spawn()
+            .expect("Unable to spawn myself!");
+        std::process::exit(0);
+    } else {
+        c
+    }
 }
 
 /// ui_log - send a logmessage to the textbox on the Crossbeam LOGCHANNEL

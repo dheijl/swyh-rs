@@ -245,10 +245,8 @@ fn main() {
             break;
         }
         // test for a configuration change that needs an app restart to take effect
-        if config_changed.get() {
-            if app_restart(&mf) != 0 {
+        if config_changed.get() && app_restart(&mf) != 0 {
                 config_changed.set(false);
-            }
         }
         // check if the streaming webserver has closed a connection not caused by
         // pushing a renderer button

@@ -30,9 +30,9 @@ pub fn raise_priority() {
         let newpri = pri - 5;
         let rc = setpriority(PRIO_PROCESS, 0, newpri);
         if rc != 0 {
-            log("Sorry, but you don't have permissions to raise priority...".to_string());
+            ui_log("Sorry, but you don't have permissions to raise priority...".to_string());
         } else {
-            log(format!("Now running at nice value {}", newpri));
+            ui_log(format!("Now running at nice value {}", newpri));
         }
     }
 }

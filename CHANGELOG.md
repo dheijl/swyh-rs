@@ -1,8 +1,10 @@
 ## swyh-rs Changelog
 
-- 1.3.9 (unreleased)
-  - clear rms meters when checkbox is (un)set
-  - restructure more code into modules, and some refactoring
+- 1.3.10 (unreleased)
+
+- 1.3.9 (Mar 14 2021 dheijl)
+  - clear rms meter widget values when checkbox is (un)set
+  - restructure more code into modules (ui, audio), and some refactoring
 
 - 1.3.8 (Feb 27 2021 dheijl)
   - show left and right channel RMS values

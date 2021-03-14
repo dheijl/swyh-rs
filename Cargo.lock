@@ -504,9 +504,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.15.9"
+version = "0.15.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "117a785da121982d89d0aab1f125197f3d3b31f9a4b045d90395a5609f043e6e"
+checksum = "db2197d8bcc3a89e92c692c88e931eee0b7a8c34953305b71a61a50b9b8be950"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -518,9 +518,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.15.9"
+version = "0.15.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "526bb3e9ff71a85c968b8316afd134f09b44f28824db473dd2dd6defb166dd50"
+checksum = "435aa174831f732a69cae4403b32dcc9ff46f30380a9cd4cb043a16096283dd3"
 dependencies = [
  "quote",
  "syn",
@@ -528,9 +528,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.15.9"
+version = "0.15.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13117cf92b8712db7fa0208b4c6133b4e01155e6893cd8296356266ef66e9da8"
+checksum = "903cf29e388d39c406ee0ced931acea0543ba5eda2a49bf596dd0e6995638453"
 dependencies = [
  "cmake",
  "libc",
@@ -1122,18 +1122,18 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.4.3"
+version = "1.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9251239e129e16308e70d853559389de218ac275b515068abc96829d05b948a"
+checksum = "54fd1046a3107eb58f42de31d656fee6853e5d276c455fd943742dce89fc3dd3"
 dependencies = [
  "regex-syntax",
 ]
 
 [[package]]
 name = "regex-syntax"
-version = "0.6.22"
+version = "0.6.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5eb417147ba9860a96cfe72a0b93bf88fee1744b5636ec99ab20c1aa9376581"
+checksum = "24d5f089152e60f62d28b835fbff2cd2e8dc0baf1ac13343bef92ab7eed84548"
 
 [[package]]
 name = "ring"
@@ -1434,9 +1434,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.63"
+version = "1.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fd9bc7ccc2688b3344c2f48b9b546648b25ce0b20fc717ee7fa7981a8ca9717"
+checksum = "3fd9d1e9976102a03c542daa2eff1b43f9d72306342f3f8b3ed5fb8908195d6f"
 dependencies = [
  "proc-macro2",
  "quote",

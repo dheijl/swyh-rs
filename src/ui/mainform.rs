@@ -71,11 +71,9 @@ impl MainForm {
 
         wind.make_resizable(true);
         wind.size_range(ww, wh * 2 / 3, 0, 0);
-        if cfg!(target_os = "windows") {
-            let icon_bytes = include_bytes!("..\\..\\assets\\swyh-rs.png");
-            if let Ok(icon) = PngImage::from_data(icon_bytes) {
-                wind.set_icon(Some(icon));
-            }
+        let icon_bytes = include_bytes!("../../assets/swyh-rs.png");
+        if let Ok(icon) = PngImage::from_data(icon_bytes) {
+            wind.set_icon(Some(icon));
         }
         wind.end();
         wind.show();

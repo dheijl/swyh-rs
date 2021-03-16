@@ -1,4 +1,5 @@
 # swyh-rs
+![swyh-rs](https://user-images.githubusercontent.com/2384545/111324191-d699ef80-866a-11eb-8c73-caf49444a37a.png) 
 
 ### What is it
 
@@ -51,6 +52,10 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - resizing a window in fltk 1.4 is not ideal, but thanks to @MoAlyousef it is now usable in swyh-rs. But if you resize vertically to a very small window you risk losing the horizontal scrollbar in the textbox at the bottom. 
 - simultaneous streaming to multiple renderers is (arbitrarily) limited to 8 simultaneous streaming connections. If you hit this limit let me know, I can easily increase the number of serving threads, or I could add a configuration parameter. The number of renderer buttons that can be shown is also limited by the available space in the window.
 
+### Artwork Credits
+
+The icon was designed by @numanair, thanks!
+
 
 ### How does it work?
 
@@ -80,5 +85,6 @@ If you want maximum audio quality on Windows, there are a number of concerns:
 
 ### Screenshot:
 
-![alt_tag](https://user-images.githubusercontent.com/2384545/109391333-cd90ea80-7916-11eb-8269-06fc81859b68.PNG)
+![Knipsel](https://user-images.githubusercontent.com/2384545/111324800-6344ad80-866b-11eb-95ab-c81f4664f45c.PNG)
+
 

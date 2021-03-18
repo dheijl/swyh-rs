@@ -52,6 +52,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 - resizing a window in fltk 1.4 is not ideal, but thanks to @MoAlyousef it is now usable in swyh-rs. But if you resize vertically to a very small window you risk losing the horizontal scrollbar in the textbox at the bottom. 
 - simultaneous streaming to multiple renderers is (arbitrarily) limited to 8 simultaneous streaming connections. If you hit this limit let me know, I can easily increase the number of serving threads, or I could add a configuration parameter. The number of renderer buttons that can be shown is also limited by the available space in the window.
+- Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
 
 ### Artwork Credits
 

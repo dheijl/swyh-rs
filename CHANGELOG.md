@@ -1,6 +1,9 @@
 ## swyh-rs Changelog
 
-- 1.3.10 (unreleased)
+- 1.3.11˘unreleased)
+
+- 1.3.10 (Mar 16 2021 dheijl)
+  - added icon designed by @numanair
 
 - 1.3.9 (Mar 14 2021 dheijl)
   - clear rms meter widget values when checkbox is (un)set

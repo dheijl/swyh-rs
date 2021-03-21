@@ -1,6 +1,7 @@
 ## swyh-rs Changelog
 
-- 1.3.11˘unreleased)
+- 1.3.11 (Mar 21 20121 dheijl)
+  - note-only icon for smaller icon sizes designed by @numanair
 
 - 1.3.10 (Mar 16 2021 dheijl)
   - added icon designed by @numanair

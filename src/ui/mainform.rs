@@ -5,7 +5,6 @@ use crate::Renderer;
 use crate::WavData;
 use crate::CONFIG;
 use crate::SERVER_PORT;
-use fltk::image::PngImage;
 use fltk::{
     app,
     button::{
@@ -14,6 +13,7 @@ use fltk::{
     },
     frame::Frame,
     group::{Pack, PackType},
+    image::SvgImage,
     menu::MenuButton,
     misc::Progress,
     text::{TextBuffer, TextDisplay},
@@ -71,8 +71,8 @@ impl MainForm {
 
         wind.make_resizable(true);
         wind.size_range(ww, wh * 2 / 3, 0, 0);
-        let icon_bytes = include_bytes!("../../assets/swyh-rs.png");
-        if let Ok(icon) = PngImage::from_data(icon_bytes) {
+        let icon_bytes = include_str!("../../assets/swyh-rs-logo-note-only.svg");
+        if let Ok(icon) = SvgImage::from_data(icon_bytes) {
             wind.set_icon(Some(icon));
         }
         wind.end();

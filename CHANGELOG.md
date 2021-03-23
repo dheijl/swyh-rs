@@ -1,6 +1,6 @@
 ## swyh-rs Changelog
 
-- 1.3.12 (unreleased)
+- 1.3.12 (Mar 23 2021 dheijl)
   - latest icon versions by @numanair
 
 - 1.3.11 (Mar 21 20121 dheijl)

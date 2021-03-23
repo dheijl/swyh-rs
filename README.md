@@ -1,5 +1,5 @@
 # swyh-rs
-![swyh-rs](https://user-images.githubusercontent.com/2384545/111324191-d699ef80-866a-11eb-8c73-caf49444a37a.png) 
+![rs-tall](https://user-images.githubusercontent.com/2384545/112133026-8ae7c880-8bcb-11eb-835e-f6aaed25bea3.png)
 
 ### What is it
 

@@ -71,7 +71,7 @@ impl MainForm {
 
         wind.make_resizable(true);
         wind.size_range(ww, wh * 2 / 3, 0, 0);
-        let icon_bytes = include_str!("../../assets/swyh-rs-logo-note-only.svg");
+        let icon_bytes = include_str!("../../assets/swyh-rs logo note-only 16x16.svg");
         if let Ok(icon) = SvgImage::from_data(icon_bytes) {
             wind.set_icon(Some(icon));
         }

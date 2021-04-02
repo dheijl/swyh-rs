@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 1.3.13 (unreleased)
+  - update SimpleLog
+
 - 1.3.12 (Mar 23 2021 dheijl)
   - latest icon versions by @numanair
 

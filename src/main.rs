@@ -65,7 +65,7 @@ use fltk::{
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn, LevelFilter};
 use parking_lot::RwLock;
-use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger, ColorChoice};
+use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::fs::File;
@@ -140,7 +140,12 @@ fn main() {
     let loglevel = config.log_level;
     let logfile = Path::new(&config.log_dir()).join("log.txt");
     let _ = CombinedLogger::init(vec![
-        TermLogger::new(loglevel, Config::default(), simplelog::TerminalMode::Stderr, ColorChoice::Auto),
+        TermLogger::new(
+            loglevel,
+            Config::default(),
+            simplelog::TerminalMode::Stderr,
+            ColorChoice::Auto,
+        ),
         WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
     ]);
     info!("swyh-rs Logging started.");

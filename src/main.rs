@@ -232,10 +232,11 @@ fn main() {
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
+    let server_port = CONFIG.read().server_port;
     let _ = std::thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_server(&local_addr, wd, feedback_tx))
+        .spawn(move || run_server(&local_addr, server_port, wd, feedback_tx))
         .unwrap();
     std::thread::yield_now();
 
@@ -280,7 +281,7 @@ fn main() {
                                 {
                                     let _ = r.play(
                                         &local_addr,
-                                        SERVER_PORT,
+                                        server_port,
                                         &wd,
                                         &dummy_log,
                                         CONFIG.read().use_wave_format,

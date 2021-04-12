@@ -4,7 +4,6 @@ use crate::Configuration;
 use crate::Renderer;
 use crate::WavData;
 use crate::CONFIG;
-use crate::SERVER_PORT;
 use fltk::{
     app,
     button::{
@@ -434,7 +433,13 @@ impl MainForm {
                     let _ = conf.update_config();
                     conf.use_wave_format
                 };
-                let _ = newr_c.play(&local_addr, SERVER_PORT, &wd, &ui_log, use_wav_format);
+                let _ = newr_c.play(
+                    &local_addr,
+                    CONFIG.read().server_port,
+                    &wd,
+                    &ui_log,
+                    use_wav_format,
+                );
             } else {
                 let _ = newr_c.stop_play(&ui_log);
             }

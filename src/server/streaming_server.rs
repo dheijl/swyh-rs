@@ -1,6 +1,4 @@
-use crate::{
-    ui_log, ChannelStream, StreamerFeedBack, StreamingState, WavData, CLIENTS, CONFIG, SERVER_PORT,
-};
+use crate::{ui_log, ChannelStream, StreamerFeedBack, StreamingState, WavData, CLIENTS, CONFIG};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;
 use log::debug;
@@ -14,8 +12,13 @@ use tiny_http::{Header, Method, Response, Server};
 /// the samples are read from a crossbeam channel fed by the wave_reader
 /// a ChannelStream is created for this purpose, and inserted in the array of active
 /// "clients" for the wave_reader
-pub fn run_server(local_addr: &IpAddr, wd: WavData, feedback_tx: Sender<StreamerFeedBack>) {
-    let addr = format!("{}:{}", local_addr, SERVER_PORT);
+pub fn run_server(
+    local_addr: &IpAddr,
+    server_port: u16,
+    wd: WavData,
+    feedback_tx: Sender<StreamerFeedBack>,
+) {
+    let addr = format!("{}:{}", local_addr, server_port);
     let logmsg = format!(
         "The streaming server is listening on http://{}/stream/swyh.wav",
         addr,

@@ -1,3 +1,4 @@
+use crate::SERVER_PORT;
 use ini::Ini;
 use log::{debug, LevelFilter};
 use std::path::{Path, PathBuf};
@@ -6,6 +7,7 @@ use std::{f64, file, format_args, fs, io, line, module_path};
 // the configuration struct, read from and saved in config.ini
 #[derive(Clone, Debug)]
 pub struct Configuration {
+    pub server_port: u16,
     pub auto_resume: bool,
     pub sound_source: String,
     pub log_level: LevelFilter,
@@ -21,6 +23,7 @@ pub struct Configuration {
 impl Configuration {
     pub fn new() -> Configuration {
         Configuration {
+            server_port: SERVER_PORT,
             auto_resume: false,
             sound_source: "None".to_string(),
             log_level: LevelFilter::Info,
@@ -50,6 +53,7 @@ impl Configuration {
             debug!("Creating a new default config {}", configfile.display());
             let mut conf = Ini::new();
             conf.with_section(Some("Configuration"))
+                .set("ServerPort", SERVER_PORT.to_string())
                 .set("AutoResume", "false")
                 .set("SoundCard", "None")
                 .set("LogLevel", LevelFilter::Info.to_string())
@@ -68,6 +72,14 @@ impl Configuration {
             Err(_) => Ini::new(),
         };
         let mut config = Configuration::new();
+        config.server_port = conf
+            .get_from_or(
+                Some("Configuration"),
+                "ServerPort",
+                &SERVER_PORT.to_string(),
+            )
+            .parse()
+            .unwrap_or_default();
         config.auto_resume = conf
             .get_from_or(Some("Configuration"), "AutoResume", "false")
             .parse()
@@ -118,6 +130,7 @@ impl Configuration {
             Err(_) => Ini::new(),
         };
         conf.with_section(Some("Configuration"))
+            .set("ServerPort", self.server_port.to_string())
             .set("AutoResume", self.auto_resume.to_string())
             .set("SoundCard", &self.sound_source)
             .set("LogLevel", self.log_level.to_string())

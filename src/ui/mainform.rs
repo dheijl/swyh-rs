@@ -7,12 +7,13 @@ use crate::CONFIG;
 use fltk::{
     app,
     button::{
-        Align, ButtonExt, CheckButton, Color, DisplayExt, Event, FrameType, GroupExt, LightButton,
-        MenuExt, ValuatorExt, WidgetBase, WidgetExt, WindowExt,
+        Align, ButtonExt, CheckButton, Color, DisplayExt, Event, FrameType, GroupExt, InputExt,
+        LightButton, MenuExt, ValuatorExt, WidgetBase, WidgetExt, WindowExt,
     },
     frame::Frame,
     group::{Pack, PackType},
     image::SvgImage,
+    input::IntInput,
     menu::MenuButton,
     misc::Progress,
     text::{TextBuffer, TextDisplay},
@@ -111,7 +112,7 @@ impl MainForm {
         vpack.add(&p1);
 
         // show config option widgets
-        let mut p2 = Pack::new(0, 0, gw, 25, "");
+        let mut p2 = Pack::new(0, 0, gw, 20, "");
         p2.set_spacing(10);
         p2.set_type(PackType::Horizontal);
         p2.end();
@@ -215,14 +216,18 @@ impl MainForm {
         p2.auto_layout();
         p2.make_resizable(false);
         vpack.add(&p2);
+        // spacer
+        let mut pspacer = Pack::new(0, 0, gw, 10, "");
+        pspacer.make_resizable(false);
+        vpack.add(&pspacer);
 
-        let mut p2b = Pack::new(0, 0, gw, 25, "");
+        let mut p2b = Pack::new(0, 0, gw, 20, "");
         p2b.set_spacing(10);
         p2b.set_type(PackType::Horizontal);
         p2b.end();
 
         // disable chunked transfer (for AVTransport renderers that can't handle chunkeed transfer)
-        let mut disable_chunked = CheckButton::new(0, 0, 0, 0, "Disable Chunked TransferEncoding");
+        let mut disable_chunked = CheckButton::new(0, 0, 0, 0, "No Chunked Tr. Enc.");
         if config.disable_chunked {
             disable_chunked.set(true);
         }
@@ -236,7 +241,8 @@ impl MainForm {
             let _ = conf.update_config();
         });
         p2b.add(&disable_chunked);
-        let mut use_wma = CheckButton::new(0, 0, 0, 0, "Use WMA/WAV format");
+        // add a WAV format header instead of sending the "RAW" PCM stream
+        let mut use_wma = CheckButton::new(0, 0, 0, 0, "Add WAV Hdr");
         if config.use_wave_format {
             use_wma.set(true);
         }
@@ -250,12 +256,32 @@ impl MainForm {
             let _ = conf.update_config();
         });
         p2b.add(&use_wma);
+        // HTTP server listen port
+        let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
+        listen_port.set_value(&CONFIG.read().server_port.to_string());
+        listen_port.set_maximum_size(5);
+        let config_ch_flag = config_changed.clone();
+        listen_port.set_callback2(move |lp| {
+            let new_value: u32 = lp.value().parse().unwrap();
+            if new_value > 65535 {
+                lp.set_value(&CONFIG.read().server_port.to_string());
+                return;
+            }
+            if new_value as u16 != CONFIG.read().server_port {
+                let mut conf = CONFIG.write();
+                conf.server_port = new_value as u16;
+                let _ = conf.update_config();
+                config_ch_flag.set(true);
+            }
+        });
+
+        p2b.add(&listen_port);
         p2b.auto_layout();
         p2b.make_resizable(false);
         vpack.add(&p2b);
 
         // RMS animation
-        let mut p2c = Pack::new(0, 0, gw, 25, "");
+        let mut p2c = Pack::new(0, 0, gw, 20, "");
         p2c.set_spacing(10);
         p2c.set_type(PackType::Horizontal);
         p2c.end();

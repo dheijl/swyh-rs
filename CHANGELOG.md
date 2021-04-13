@@ -1,5 +1,7 @@
 ## swyh-rs Changelog
 
+- 1.3.14 (unreleased)
+
 - 1.3.13 (Apr 13 2021 dheijl)
   - update SimpleLog
   - add configurable HTTP listener port number

@@ -67,10 +67,11 @@ The icon was designed by @numanair, thanks!
 - then a button is shown for every renderer found
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source.
-- some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "*Autoresume*" checkbox if you encounter this problem. But always try to disable the "Chunked Transfer Encoding" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
+- some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "*Autoresume*" checkbox if you encounter this problem. But always try to disable the "*Chunked Transfer Encoding*" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
 - there is an "*Autoreconnect*" checkbox, if set the last used renderer will be automatically activated on program start
-- there is also a "*Disable Chunked Transfer Encoding*" checkbox, because some AV-Transport renderers do not support it properly (those based on the UPnP/1.0, Intel MicroStack in particular). You can safely disable chunked transfer, it's a HTTP/1.1 recommendation for streaming but it does not really matter if you do not use it. 
-- there is (since 1.3.5) a "Use WMA/WAV" format checkbox, that will prepend an infinite size MS "WAV" (RIFF) header to the stream for those renderers that do not support "naked" PCM streams. It may work or not (it will not work if your renderer uses libsndfile like Volumio, because the network stream is not "seekable" and this causes the decoding of the WAV header to fail). 
+- there is also a "*No Chunked Tr. Enc.*" checkbox, because some AV-Transport renderers do not support it properly (those based on the UPnP/1.0, Intel MicroStack in particular). You can safely disable chunked transfer, it's a HTTP/1.1 recommendation for streaming but it does not really matter if you do not use it. 
+- there is (since 1.3.5) an "*Add WAV Hdr*" checkbox, that will prepend an infinite size MS "WAV" (RIFF) header to the stream for those renderers that do not support "naked" PCM streams. It may work or not (it will not work if your renderer uses libsndfile like Volumio, because the network stream is not "seekable" and this causes the decoding of the WAV header to fail). Apparently Sonos devices do not accept raw PCM, they need the WAV header.
+- there is (since 1.3.13) an input box to select the *HTTP listener port* for the streaming server. Default is 5901. If you use a firewall, this port should allow incoming HTTP connections. 
 - there is (since 1.3.6) an option to enable visualization of the RMS value (L+R channel) of the captured PCM audio signal. It will only add an insignificant amount of CPU use.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program tries to run at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary priviliges (renice).
@@ -87,6 +88,6 @@ If you want maximum audio quality on Windows, there are a number of concerns:
 
 ### Screenshot:
 
-![Knipsel](https://user-images.githubusercontent.com/2384545/111324800-6344ad80-866b-11eb-95ab-c81f4664f45c.PNG)
+![image](https://user-images.githubusercontent.com/2384545/114530298-1a245100-9c4b-11eb-8cbb-41bf84acd60e.png)
 
 

@@ -6,16 +6,15 @@ use crate::WavData;
 use crate::CONFIG;
 use fltk::{
     app,
-    button::{
-        Align, ButtonExt, CheckButton, Color, DisplayExt, Event, FrameType, GroupExt, InputExt,
-        LightButton, MenuExt, ValuatorExt, WidgetBase, WidgetExt, WindowExt,
-    },
+    button::{CheckButton, LightButton},
+    enums::{Align, Color, Event, FrameType},
     frame::Frame,
     group::{Pack, PackType},
     image::SvgImage,
     input::IntInput,
     menu::MenuButton,
     misc::Progress,
+    prelude::*,
     text::{TextBuffer, TextDisplay},
     valuator::Counter,
     window::DoubleWindow,
@@ -44,7 +43,7 @@ pub struct MainForm {
     vpack: Pack,
     bwidth: i32,
     bheight: i32,
-    btn_index: u32,
+    btn_index: i32,
     wd: WavData,
     local_addr: IpAddr,
 }
@@ -78,7 +77,7 @@ impl MainForm {
         wind.end();
         wind.show();
 
-        wind.handle(move |_ev| {
+        wind.handle(move |_, _ev| {
             //eprintln!("{:?}", app::event());
             let ev = app::event();
             match ev {
@@ -122,7 +121,7 @@ impl MainForm {
         if config.auto_resume {
             auto_resume.set(true);
         }
-        auto_resume.set_callback2(move |b| {
+        auto_resume.set_callback(move |b| {
             let mut conf = CONFIG.write();
             if b.is_set() {
                 conf.auto_resume = true;
@@ -138,7 +137,7 @@ impl MainForm {
         if config.auto_reconnect {
             auto_reconnect.set(true);
         }
-        auto_reconnect.set_callback2(move |b| {
+        auto_reconnect.set_callback(move |b| {
             let mut conf = CONFIG.write();
             if b.is_set() {
                 conf.auto_reconnect = true;
@@ -153,7 +152,7 @@ impl MainForm {
         let mut ssdp_interval = Counter::new(0, 0, 0, 0, "SSDP Interval (in minutes)");
         ssdp_interval.set_value(config.ssdp_interval_mins);
         let config_ch_flag = config_changed.clone();
-        ssdp_interval.handle2(move |b, ev| {
+        ssdp_interval.handle(move |b, ev| {
             if b.value() < 0.5 {
                 b.set_value(0.5);
             }
@@ -179,7 +178,7 @@ impl MainForm {
 
         // show log level choice
         let ll = format!("Log Level: {}", config.log_level.to_string());
-        let mut log_level_choice = MenuButton::new(0, 0, 0, 0, &ll);
+        let mut log_level_choice = MenuButton::default().with_label(&ll);
         let log_levels = vec!["Info", "Debug"];
         for ll in log_levels.iter() {
             log_level_choice.add_choice(ll);
@@ -188,7 +187,7 @@ impl MainForm {
         // probably because it takes some time doing the file I/O, hence recursion lock
         let rlock = Mutex::new(0);
         let config_ch_flag = config_changed.clone();
-        log_level_choice.set_callback2(move |b| {
+        log_level_choice.set_callback(move |b| {
             let mut recursion = rlock.lock();
             if *recursion > 0 {
                 return;
@@ -231,7 +230,7 @@ impl MainForm {
         if config.disable_chunked {
             disable_chunked.set(true);
         }
-        disable_chunked.set_callback2(move |b| {
+        disable_chunked.set_callback(move |b| {
             let mut conf = CONFIG.write();
             if b.is_set() {
                 conf.disable_chunked = true;
@@ -246,7 +245,7 @@ impl MainForm {
         if config.use_wave_format {
             use_wma.set(true);
         }
-        use_wma.set_callback2(move |b| {
+        use_wma.set_callback(move |b| {
             let mut conf = CONFIG.write();
             if b.is_set() {
                 conf.use_wave_format = true;
@@ -261,7 +260,7 @@ impl MainForm {
         listen_port.set_value(&CONFIG.read().server_port.to_string());
         listen_port.set_maximum_size(5);
         let config_ch_flag = config_changed.clone();
-        listen_port.set_callback2(move |lp| {
+        listen_port.set_callback(move |lp| {
             let new_value: u32 = lp.value().parse().unwrap();
             if new_value > 65535 {
                 lp.set_value(&CONFIG.read().server_port.to_string());
@@ -306,7 +305,7 @@ impl MainForm {
         // rms checkbox callback
         let mut mon_l = rms_mon_l.clone();
         let mut mon_r = rms_mon_r.clone();
-        show_rms.set_callback2(move |b| {
+        show_rms.set_callback(move |b| {
             let mut conf = CONFIG.write();
             if b.is_set() {
                 conf.monitor_rms = true;
@@ -338,14 +337,15 @@ impl MainForm {
         p3.end();
         let cur_audio_src = format!("Source: {}", config.sound_source);
         ui_log("Setup audio sources".to_string());
-        let mut choose_audio_source_but = MenuButton::new(0, 0, 0, 25, &cur_audio_src);
+        let mut choose_audio_source_but =
+            MenuButton::new(0, 0, 0, 25, None).with_label(&cur_audio_src);
         for name in audio_sources.iter() {
             choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
         }
         let rlock = Mutex::new(0);
         let config_ch_flag = config_changed;
         let audio_sources_c = audio_sources.to_vec();
-        choose_audio_source_but.set_callback2(move |b| {
+        choose_audio_source_but.set_callback(move |b| {
             let mut recursion = rlock.lock();
             if *recursion > 0 {
                 return;
@@ -444,7 +444,7 @@ impl MainForm {
         let bi = self.buttons.len();
         let local_addr = self.local_addr;
         let wd = self.wd;
-        but.set_callback2(move |b| {
+        but.set_callback(move |b| {
             debug!(
                 "Pushed renderer #{} {} {}, state = {}",
                 bi,

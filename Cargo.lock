@@ -348,9 +348,8 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "0.16.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68960d8666972f7a5334620405c80feae9da915f572754ef9236ae3ecf4ed48b"
+version = "1.0.0"
+source = "git+https://github.com/MoAlyousef/fltk-rs#4f698f399e941d343ace7183bb067319a615e665"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -362,9 +361,8 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "0.16.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6a89f84b5d78cd3c5c05881e9fd7545e52f029242723ea9b62062b2aadfa047"
+version = "1.0.0"
+source = "git+https://github.com/MoAlyousef/fltk-rs#4f698f399e941d343ace7183bb067319a615e665"
 dependencies = [
  "quote",
  "syn",
@@ -372,9 +370,8 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "0.16.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fb7f14cd3f5529455d5feb8cbbba2119e1658628d48a70c8697aa44d0f2e558"
+version = "1.0.0"
+source = "git+https://github.com/MoAlyousef/fltk-rs#4f698f399e941d343ace7183bb067319a615e665"
 dependencies = [
  "cmake",
  "libc",
@@ -436,9 +433,9 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "idna"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89829a5d69c23d348314a7ac337fe39173b61149a9864deabd260983aed48c21"
+checksum = "418a0a6fab821475f634efe3ccc45c013f742efe03d853e8d3355d5cb850ecf8"
 dependencies = [
  "matches",
  "unicode-bidi",
@@ -755,7 +752,7 @@ dependencies = [
  "cfg-if",
  "instant",
  "libc",
- "redox_syscall 0.2.5",
+ "redox_syscall 0.2.6",
  "smallvec",
  "winapi",
 ]
@@ -869,9 +866,9 @@ checksum = "41cc0f7e4d5d4544e8861606a285bb08d3e70712ccc7d2b84d7c0ccfaf4b05ce"
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94341e4e44e24f6b591b59e47a8a027df12e008d73fd5672dbea9cc22f4507d9"
+checksum = "8270314b5ccceb518e7e578952f0b72b88222d02e8f77f5ecf7abbb673539041"
 dependencies = [
  "bitflags",
 ]
@@ -947,9 +944,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustls"
-version = "0.19.0"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "064fd21ff87c6e87ed4506e68beb42459caa4a0e2eb144932e6776768556980b"
+checksum = "35edb675feee39aec9c99fa5ff985081995a06d594114ae14cbe797ad7b7a6d7"
 dependencies = [
  "base64",
  "log",

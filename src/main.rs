@@ -57,10 +57,9 @@ use crate::utils::rwstream::ChannelStream;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{
-    app,
-    button::{ButtonExt, WidgetExt},
-    dialog,
+    app, dialog,
     misc::Progress,
+    prelude::{ButtonExt, WidgetExt},
 };
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn, LevelFilter};
@@ -308,7 +307,7 @@ fn main() {
     } // while app::wait()
 }
 
-fn app_restart(mf: &MainForm) -> u32 {
+fn app_restart(mf: &MainForm) -> i32 {
     let c = dialog::choice(
         mf.wind.width() as i32 / 2 - 100,
         mf.wind.height() as i32 / 2 - 50,

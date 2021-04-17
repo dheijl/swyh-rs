@@ -1,6 +1,7 @@
 ## swyh-rs Changelog
 
 - 1.3.14 (unreleased)
+  - upgrade to fltk-rs 1.0 (prerelease from master)
 
 - 1.3.13 (Apr 13 2021 dheijl)
   - update SimpleLog

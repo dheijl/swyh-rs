@@ -19,7 +19,7 @@ chrono = "0.4.19"
 cpal = "0.13.3"
 crossbeam-channel = "0.5.1"
 dirs = "3.0.1"
-fltk = { version = "1.0", features = ["use-ninja"] }
+fltk = { version = "1.0.1", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 lazy_static = "1.4.0"
 log = { version = "0.4.14", features = ["max_level_trace", "release_max_level_debug"] }
@@ -40,4 +40,4 @@ libc = "0.2.93"
 
 [patch.crates-io]
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
-fltk = { git = "https://github.com/MoAlyousef/fltk-rs" }
+#fltk = { git = "https://github.com/MoAlyousef/fltk-rs" }

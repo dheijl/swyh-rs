@@ -18,8 +18,8 @@ bitflags = "1.2.1"
 chrono = "0.4.19"
 cpal = "0.13.3"
 crossbeam-channel = "0.5.1"
-dirs = "3.0.1"
-fltk = { version = "1.0.1", features = ["use-ninja"] }
+dirs = "3.0.2"
+fltk = { version = "1.0.3", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 lazy_static = "1.4.0"
 log = { version = "0.4.14", features = ["max_level_trace", "release_max_level_debug"] }
@@ -28,15 +28,15 @@ rust-ini = "0.17.0"
 simplelog = "0.10.0"
 strfmt = "0.1.6"
 stringreader = "0.1.1"
-tiny_http = "0.8.0"
-ureq = { version = "2.1.0", features = ["charset"] }
+tiny_http = "0.8.1"
+ureq = { version = "2.1.1", features = ["charset"] }
 url = "2.2.1"
 xml-rs = "0.8.3"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.11"
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.93"
+libc = "0.2.94"
 
 [patch.crates-io]
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }

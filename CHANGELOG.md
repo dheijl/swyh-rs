@@ -1,7 +1,8 @@
 ## swyh-rs Changelog
 
-- 1.3.14 (unreleased)
+- 1.3.14 (Apr 28 2021 dheijl)
   - upgrade to fltk-rs 1.x 
+  - include Ubuntu (Mint 20.1) binary in release
 
 - 1.3.13 (Apr 13 2021 dheijl)
   - update SimpleLog

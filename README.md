@@ -16,7 +16,7 @@ It has been tested with
 - Chromecast devices defined as an OpenHome or DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)   
 - Sonos speaker using WAV format (thanks @Cunkers !)
 - Kef Wireless LS50 II (thanks @Turbomortel via Twitter)
-- Xbox 360, using Foobar2000 and entering the strealing url in foo_upnp (thanks @instinctualjealousy)
+- Xbox 360, using Foobar2000 and entering the streaming url in foo_upnp (thanks @instinctualjealousy)
   
 but will probably support any streamer that supports the OpenHome or AVTransport (DLNA) protocol.
 If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and the DLNA AVTransport endpoint is ignored.

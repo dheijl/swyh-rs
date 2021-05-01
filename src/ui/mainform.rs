@@ -72,12 +72,12 @@ impl MainForm {
         wind.size_range(ww, wh * 2 / 3, 0, 0);
 
         // set window icon
-        if cfg!(never) {
+//        if cfg!(never) {
             let icon_bytes = include_str!("../../assets/swyh-rs logo note-only 16x16.svg");
             if let Ok(icon) = SvgImage::from_data(icon_bytes) {
                 wind.set_icon(Some(icon));
             }
-        }
+//        }
 
         wind.end();
         wind.show();

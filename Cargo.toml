@@ -39,5 +39,5 @@ winres = "0.1.11"
 libc = "0.2.94"
 
 [patch.crates-io]
-#fltk = { git = "https://github.com/MoAlyousef/fltk-rs" }
+fltk = { git = "https://github.com/MoAlyousef/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }

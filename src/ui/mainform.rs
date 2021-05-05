@@ -83,7 +83,8 @@ impl MainForm {
         wind.show();
 
         wind.handle(move |_, _ev| {
-            //eprintln!("{:?}", app::event());
+            // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called 
+            // eprintln!("_ev = {:?}, app_event = {:?}", _ev, app::event());
             let ev = app::event();
             match ev {
                 Event::Close => {

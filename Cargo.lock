@@ -319,9 +319,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.0.7"
+version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a598237b3b79c8ff10ea2bc2735d5b907e09b665868c36a51f5af6111796eed4"
+checksum = "af41f3ee4b89a368fb02e0e2f4fd13a0b2b98b37abad2066a6f7369585017fc6"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -333,9 +333,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "1.0.7"
+version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a051cc78b5aec565cce15b1b2f958f877c2a6cb5029c8f1c3db0f7d1702bfe19"
+checksum = "fa600e5de975a0f885f7fd26ce20576072545537f978745166e7699f2249fd75"
 dependencies = [
  "quote",
  "syn",
@@ -343,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.0.7"
+version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c31e7c21b30b6cc1ef52b3777dc05f4bd9afa0f49191d973e9d616be5a23b25"
+checksum = "3569ca332f1bd24b840d6b263a09cf1bcb23424e004f3c909d0d64d7fc311689"
 dependencies = [
  "cmake",
  "libc",
@@ -833,9 +833,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.7"
+version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85dd92e586f7355c633911e11f77f3d12f04b1b1bd76a198bd34ae3af8341ef2"
+checksum = "742739e41cd49414de871ea5e549afb7e2a3ac77b589bcbebe8c82fab37147fc"
 dependencies = [
  "bitflags",
 ]
@@ -852,18 +852,18 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.5.2"
+version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1efb2352a0f4d4b128f734b5c44c79ff80117351138733f12f982fe3e2b13343"
+checksum = "ce5f1ceb7f74abbce32601642fcf8e8508a8a8991e0621c7d750295b9095702b"
 dependencies = [
  "regex-syntax",
 ]
 
 [[package]]
 name = "regex-syntax"
-version = "0.6.24"
+version = "0.6.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00efb87459ba4f6fb2169d20f68565555688e1250ee6825cdf6254f8b48fafb2"
+checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
 name = "ring"
@@ -1022,9 +1022,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.71"
+version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad184cc9470f9117b2ac6817bfe297307418819ba40552f9b3846f05c33d5373"
+checksum = "a1e8cdbefb79a9a5a65e0db8b47b723ee907b7c7f8496c76a1770b5c310bab82"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -83,7 +83,7 @@ impl MainForm {
         wind.show();
 
         wind.handle(move |_, _ev| {
-            // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called 
+            // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called
             // eprintln!("_ev = {:?}, app_event = {:?}", _ev, app::event());
             let ev = app::event();
             match ev {
@@ -419,7 +419,7 @@ impl MainForm {
             choose_audio_source_but,
             tb,
             buttons,
-            btn_index: 6,
+            btn_index: 7,
             bwidth: frame.width(),
             bheight: frame.height(),
             wd: *wd,

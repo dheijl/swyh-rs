@@ -17,6 +17,7 @@ It has been tested with
 - Sonos speaker using WAV format (thanks @Cunkers !)
 - Kef Wireless LS50 II (thanks @Turbomortel via Twitter)
 - Xbox 360, using Foobar2000 and entering the streaming url in foo_upnp (thanks @instinctualjealousy)
+- iEast Audiocast M5 using the WAV format header (thanks @Katharsas)
   
 but will probably support any streamer that supports the OpenHome or AVTransport (DLNA) protocol.
 If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and the DLNA AVTransport endpoint is ignored.

@@ -319,9 +319,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.0.9"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93976066512905df1768cbf8bfe229089f91e992fb826b5ae0aa04db26c374ed"
+checksum = "4b637b90bb5de2ed3bc0f93a6e13ca820a0a005c3a2d5a18549d0d6953d187b0"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -333,9 +333,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "1.0.9"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c59d32edd6499bef496473f31281a941c8309026a19e4a92839db3bbda591474"
+checksum = "e2c66866d032a4a55e23fe51b4de2abca23795a59295d15fe210043ed2007e15"
 dependencies = [
  "quote",
  "syn",
@@ -343,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.0.9"
+version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd93e3698638a72c5dd38b9cb34a9eb90417f0ef59028de0f7e3f008304754e3"
+checksum = "21e07bcde480ba0f4c3a712a27fb18717ff258d1e18c3f2ccb12f9ede30215b1"
 dependencies = [
  "cmake",
  "libc",
@@ -936,9 +936,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.125"
+version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "558dc50e1a5a5fa7112ca2ce4effcb321b0300c0d4ccf0776a9f60cd89031171"
+checksum = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03"
 
 [[package]]
 name = "shlex"
@@ -1073,9 +1073,9 @@ dependencies = [
 
 [[package]]
 name = "tiny_http"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04c9d60c25d1134335a1f29852c0b0dd93e329054f826c87c69a1cc688edbdff"
+checksum = "9ce51b50006056f590c9b7c3808c3bd70f0d1101666629713866c227d6e58d39"
 dependencies = [
  "ascii",
  "chrono",

@@ -1,6 +1,9 @@
 ## swyh-rs Changelog
-- 1.3.15 (unreleased)
-  - fltk-rs 1.05 update
+- 1.3.17 (unreleased)
+
+- 1.3.16 (May 16 2021 dheijl)
+  - remove simultaneous streaming limit and reduce thread count
+  - fix renderer button header and button index position
 
 - 1.3.14 (Apr 28 2021 dheijl)
   - upgrade to fltk-rs 1.x 

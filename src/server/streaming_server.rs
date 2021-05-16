@@ -31,12 +31,14 @@ pub fn run_server(
     ui_log(logmsg);
     let server = Arc::new(Server::http(addr).unwrap());
     let mut handles = Vec::new();
+    // always have two threads ready to serve new requests
     for _ in 0..2 {
         let server = server.clone();
         let feedback_tx_c = feedback_tx.clone();
         handles.push(std::thread::spawn(move || {
             for rq in server.incoming_requests() {
                 let feedback_tx_c = feedback_tx_c.clone();
+                // start streaming in a new thread and continue serving new requests
                 std::thread::spawn(move || {
                     // get remote ip
                     let remote_addr = format!("{}", rq.remote_addr());

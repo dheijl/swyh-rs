@@ -37,7 +37,7 @@ pub fn run_server(
         handles.push(std::thread::spawn(move || {
             for rq in server.incoming_requests() {
                 let feedback_tx_c = feedback_tx_c.clone();
-                let h = std::thread::spawn(move || {
+                std::thread::spawn(move || {
                     // get remote ip
                     let remote_addr = format!("{}", rq.remote_addr());
                     let mut remote_ip = remote_addr.clone();
@@ -203,7 +203,6 @@ pub fn run_server(
                         }
                     }
                 });
-                h.join().unwrap();
             }
         }));
     }

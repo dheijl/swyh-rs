@@ -319,9 +319,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.0.12"
+version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b637b90bb5de2ed3bc0f93a6e13ca820a0a005c3a2d5a18549d0d6953d187b0"
+checksum = "46b097a2aa61da2f1f30faa393c438119523e02b204f367ad1475ca5eaaf0b11"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -333,9 +333,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "1.0.12"
+version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2c66866d032a4a55e23fe51b4de2abca23795a59295d15fe210043ed2007e15"
+checksum = "4b0ec5c0766f4e3192a8e69c3f21491013810d606e134467a896b856ade82f8f"
 dependencies = [
  "quote",
  "syn",
@@ -369,9 +369,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9495705279e7140bf035dde1f6e750c162df8b625267cd52cc44e0b156732c8"
+checksum = "7fcd999463524c52659517fe2cea98493cfe485d10565e7b0fb07dbba7ad2753"
 dependencies = [
  "cfg-if",
  "libc",
@@ -766,9 +766,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a152013215dca273577e18d2bf00fa862b89b24169fb78c4c95aeb07992c9cec"
+checksum = "f0d8caf72986c1a598726adc988bb5984792ef84f5ee5aa50209145ee8077038"
 dependencies = [
  "unicode-xid",
 ]

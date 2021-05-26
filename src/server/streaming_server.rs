@@ -40,6 +40,12 @@ pub fn run_server(
                 let feedback_tx_c = feedback_tx_c.clone();
                 // start streaming in a new thread and continue serving new requests
                 std::thread::spawn(move || {
+                    if cfg!(debug_assertions) {
+                        debug!("<== Incoming {:?}", rq);
+                        for hdr in rq.headers() {
+                            debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr());
+                        }
+                    }
                     // get remote ip
                     let remote_addr = format!("{}", rq.remote_addr());
                     let mut remote_ip = remote_addr.clone();

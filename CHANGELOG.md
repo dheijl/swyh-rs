@@ -1,5 +1,6 @@
 ## swyh-rs Changelog
 - 1.3.17 (unreleased)
+  - log streaming request headers in debug log ([issue #40](https://github.com/dheijl/swyh-rs/issues/40))
 
 - 1.3.16 (May 16 2021 dheijl)
   - remove simultaneous streaming limit and reduce thread count

@@ -1,5 +1,9 @@
 ## swyh-rs Changelog
-- 1.3.17 (unreleased)
+
+- 1.3.18 (July 2 2021 dheijl)
+  - fix button insert position
+
+- 1.3.17 (July 2 2021 dheijl)
   - log streaming request headers in debug log ([issue #40](https://github.com/dheijl/swyh-rs/issues/40))
   - add buildall script and 32-bit Windows build
   - add option to select the network interface (IPV4) to use and save it in the config

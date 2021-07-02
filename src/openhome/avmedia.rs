@@ -6,7 +6,7 @@
 /// Only tested with Volumio streamers (https://volumio.org/)
 ///
 ///
-use crate::get_local_addr;
+use crate::CONFIG;
 use log::{debug, error, info};
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
@@ -471,9 +471,8 @@ pub fn discover(
     const OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
     const AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
 
-    // get the address of the internet connected interface
-    let local_addr =
-        get_local_addr().expect("Could not obtain local ip address for udp broadcast socket");
+    // get the address of the selected interface
+    let local_addr = CONFIG.read().last_network.parse().unwrap();
     let bind_addr = SocketAddr::new(local_addr, 0);
     let socket = UdpSocket::bind(&bind_addr).unwrap();
     let _ = socket.set_broadcast(true).unwrap();

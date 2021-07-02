@@ -1,3 +1,4 @@
+use ifcfg::{AddressFamily, IfCfg};
 use std::net::{IpAddr, UdpSocket};
 
 /// get_local_address - get the local ip address, return an `Option<String>`. when it fails, return `None`.
@@ -17,4 +18,17 @@ pub fn get_local_addr() -> Option<IpAddr> {
         Ok(addr) => Some(addr.ip()),
         Err(_) => None,
     }
+}
+
+pub fn get_interfaces() -> Vec<String> {
+    let mut interfaces: Vec<String> = Vec::new();
+    let ifaces = IfCfg::get().expect("could not get interfaces");
+    for iface in ifaces {
+        for addr in iface.addresses {
+            if let AddressFamily::IPv4 = addr.address_family {
+                interfaces.push(addr.address.unwrap().ip().to_string());
+            }
+        }
+    }
+    interfaces
 }

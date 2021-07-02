@@ -1,6 +1,8 @@
 ## swyh-rs Changelog
 - 1.3.17 (unreleased)
   - log streaming request headers in debug log ([issue #40](https://github.com/dheijl/swyh-rs/issues/40))
+  - add buildall script and 32-bit Windows build
+  - add option to select the network interface (IPV4) to use and save it in the config
 
 - 1.3.16 (May 16 2021 dheijl)
   - remove simultaneous streaming limit and reduce thread count

@@ -53,6 +53,7 @@ impl MainForm {
         config: &Configuration,
         config_changed: Rc<Cell<bool>>,
         audio_sources: &[String],
+        networks: &[String],
         local_addr: IpAddr,
         wd: &WavData,
         app_version: String,
@@ -337,6 +338,53 @@ impl MainForm {
         p2c.auto_layout();
         p2c.make_resizable(false);
         vpack.add(&p2c);
+
+        // network selection
+        let mut pnw = Pack::new(0, 0, gw, 25, "");
+        pnw.end();
+        let cur_nw = {
+            if config.last_network != "None" {
+                format!("Active network: {}", config.last_network.clone())
+            } else {
+                format!("Active network: {}", local_addr.to_string())
+            }
+        };
+        ui_log("Discover networks".to_string());
+        let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);
+        for name in networks.iter() {
+            choose_network_but.add_choice(&name);
+        }
+        let rlock = Mutex::new(0);
+        let config_ch_flag = config_changed.clone();
+        let networks_c = networks.to_vec();
+        choose_network_but.set_callback(move |b| {
+            let mut recursion = rlock.lock();
+            if *recursion > 0 {
+                return;
+            }
+            *recursion += 1;
+            let mut conf = CONFIG.write();
+            let mut i = b.value();
+            if i < 0 {
+                return;
+            }
+            if i as usize >= networks_c.len() {
+                i = (networks_c.len() - 1) as i32;
+            }
+            let name = networks_c[i as usize].clone();
+            ui_log(format!(
+                "*W*W*> Network changed to {}, restart required!!",
+                name
+            ));
+            conf.last_network = name;
+            let _ = conf.update_config();
+            b.set_label(&format!("New Network: {}", conf.last_network));
+            config_ch_flag.set(true);
+            app::awake();
+            *recursion -= 1;
+        });
+        pnw.add(&choose_network_but);
+        vpack.add(&pnw);
 
         // setup audio source choice
         let mut p3 = Pack::new(0, 0, gw, 25, "");

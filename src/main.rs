@@ -51,7 +51,7 @@ use crate::utils::audiodevices::{
     capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
 };
 use crate::utils::configuration::Configuration;
-use crate::utils::local_ip_address::get_local_addr;
+use crate::utils::local_ip_address::*;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
 use cpal::traits::{DeviceTrait, StreamTrait};
@@ -68,6 +68,7 @@ use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::fs::File;
+use std::net::IpAddr;
 use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
@@ -164,6 +165,19 @@ fn main() {
         }
         source_names.push(devname);
     }
+
+    // get the default network that connects to the internet
+    let local_addr: IpAddr = {
+        if config.last_network == "None" {
+            get_local_addr().expect("Could not obtain local address.")
+        } else {
+            config.last_network.parse().unwrap()
+        }
+    };
+
+    // get the list of available networks
+    let networks = get_interfaces();
+
     // we need to pass some audio config data to the play function
     let audio_cfg = &audio_output_device
         .default_output_config()
@@ -174,13 +188,12 @@ fn main() {
         channels: audio_cfg.channels(),
     };
 
-    let local_addr = get_local_addr().expect("Could not obtain local address.");
-
     // we now have enough information to create the GUI with meaningful data
     let mut mf = MainForm::create(
         &config,
         config_changed.clone(),
         &source_names,
+        &networks,
         local_addr,
         &wd,
         APP_VERSION.to_string(),

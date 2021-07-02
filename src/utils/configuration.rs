@@ -17,6 +17,7 @@ pub struct Configuration {
     pub use_wave_format: bool,
     pub monitor_rms: bool,
     pub last_renderer: String,
+    pub last_network: String,
     config_dir: PathBuf,
 }
 
@@ -33,6 +34,7 @@ impl Configuration {
             use_wave_format: false,
             monitor_rms: false,
             last_renderer: "None".to_string(),
+            last_network: "None".to_string(),
             config_dir: Self::get_config_dir(),
         }
     }
@@ -63,6 +65,7 @@ impl Configuration {
                 .set("UseWaveFormat", "false")
                 .set("MonitorRms", "false")
                 .set("LastRenderer", "None")
+                .set("LastNetwork", "None")
                 .set("ConfigDir", &Self::get_config_dir().display().to_string());
             conf.write_to_file(&configfile).unwrap();
         }
@@ -118,6 +121,9 @@ impl Configuration {
         config.last_renderer = conf
             .get_from_or(Some("Configuration"), "LastRenderer", "None")
             .to_string();
+        config.last_network = conf
+            .get_from_or(Some("Configuration"), "LastNetwork", "None")
+            .to_string();
         config.config_dir = Self::get_config_dir();
 
         config
@@ -140,6 +146,7 @@ impl Configuration {
             .set("UseWaveFormat", self.use_wave_format.to_string())
             .set("MonitorRms", self.monitor_rms.to_string())
             .set("LastRenderer", self.last_renderer.to_string())
+            .set("LastNetwork", self.last_network.to_string())
             .set("ConfigDir", &self.config_dir.display().to_string());
         conf.write_to_file(&configfile)
     }

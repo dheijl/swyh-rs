@@ -329,9 +329,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.0.21"
+version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f77af0696d0f7f3b2cd18895a3e54c077f230d28aede0b6c67335e6a25abced"
+checksum = "4c148a3f7816a8c58d50a3c1a1c02e1b3cf84a43e9d9f9a2947ec07772f44465"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -343,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "1.0.21"
+version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4dd3db11d41e944817e86d69aef34839d9a8fff5c12bf51184381c0799d43e7"
+checksum = "45b3f97c16ed21f506729f566f07fd9e8636734d8709e84ea8e78b76c170a16e"
 dependencies = [
  "quote",
  "syn",
@@ -353,9 +353,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.0.21"
+version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07412a8e60102a03ba690d31f60e403cfeaafe66079437ee57e16bcae96a997b"
+checksum = "6fb98b9730ad4fe628e6740dee3bd6bf50bfd691354bc6005c4bf833657bed20"
 dependencies = [
  "cmake",
  "libc",
@@ -1124,7 +1124,7 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "swyh-rs"
-version = "1.3.18"
+version = "1.3.19"
 dependencies = [
  "bitflags",
  "chrono",
@@ -1172,18 +1172,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.25"
+version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa6f76457f59514c7eeb4e59d891395fab0b2fd1d40723ae737d64153392e9c6"
+checksum = "93119e4feac1cbe6c798c34d3a53ea0026b0b1de6a120deef895137c0529bfe2"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.25"
+version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a36768c0fbf1bb15eca10defa29526bda730a2376c2ab4393ccfa16fb1a318d"
+checksum = "060d69a0afe7796bf42e9e2ff91f5ee691fb15c53d38b4b62a9a53eb23164745"
 dependencies = [
  "proc-macro2",
  "quote",

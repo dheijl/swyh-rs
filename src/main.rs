@@ -220,6 +220,7 @@ fn main() {
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
+    ui_log("Discover networks".to_string());
     let mut renderers: Vec<Renderer> = Vec::new();
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     ui_log("Starting SSDP discovery".to_string());

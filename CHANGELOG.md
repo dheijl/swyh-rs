@@ -1,5 +1,8 @@
 ## swyh-rs Changelog
 
+- 1.3.19 (unreleased)
+  - rearrange UI
+  
 - 1.3.18 (July 2 2021 dheijl)
   - fix button insert position
 

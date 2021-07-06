@@ -169,7 +169,11 @@ fn main() {
     // get the default network that connects to the internet
     let local_addr: IpAddr = {
         if config.last_network == "None" {
-            get_local_addr().expect("Could not obtain local address.")
+            let addr = get_local_addr().expect("Could not obtain local address.");
+            let mut conf = CONFIG.write();
+            conf.last_network = addr.to_string();
+            let _ = conf.update_config();
+            addr
         } else {
             config.last_network.parse().unwrap()
         }

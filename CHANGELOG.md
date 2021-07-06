@@ -1,8 +1,11 @@
 ## swyh-rs Changelog
 
-- 1.3.19 (unreleased)
+- 1.3.20 (unreleased)
+
+- 1.3.19 (July 6 2021 dheijl)
   - rearrange UI
-  
+  - bugfix: forgot to save the new last_network config value on first start
+
 - 1.3.18 (July 2 2021 dheijl)
   - fix button insert position
 

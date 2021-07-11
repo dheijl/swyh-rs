@@ -67,7 +67,7 @@ The icon was designed by @numanair, thanks!
 
 - audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac), but you can choose any audio source you want. Changing the sound source needs a restart of the app to take effect.
 - a built-in audio streaming web server is started on port 5901.
-- all media renderers are discoverded using SSDP on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen. If necessary you can choose another network from the network dropdown, for instance if you use a VPN. 
+- all media renderers are discoverded using SSDP on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen (so that on a multihomed Windows machine the most likely interface is selected). If necessary you can choose another network from the network dropdown, for instance if you use a VPN. 
 - then a button is shown for every renderer found
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source.

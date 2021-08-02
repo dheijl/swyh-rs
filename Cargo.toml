@@ -20,7 +20,7 @@ chrono = "0.4.19"
 cpal = "0.13.3"
 crossbeam-channel = "0.5.1"
 dirs = "3.0.2"
-fltk = { version = "1.1.0", features = ["use-ninja"] }
+fltk = { version = "1.1.6", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 ifcfg = "0.1.2"
 lazy_static = "1.4.0"
@@ -33,7 +33,7 @@ stringreader = "0.1.1"
 tiny_http = "0.8.2"
 ureq = { version = "2.1.1", features = ["charset"] }
 url = "2.2.2"
-xml-rs = "0.8.3"
+xml-rs = "0.8.4"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.11"

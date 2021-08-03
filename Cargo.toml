@@ -43,3 +43,4 @@ libc = "0.2.98"
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
+rust-ini = { git = "https://github.com/zonyitoo/rust-ini"}

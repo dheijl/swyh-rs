@@ -1,24 +1,55 @@
 use crate::SERVER_PORT;
-use ini::Ini;
 use log::{debug, LevelFilter};
-use std::path::{Path, PathBuf};
-use std::{f64, file, format_args, fs, io, line, module_path};
+use serde::{Deserialize, Serialize};
+use std::{
+    f64, file, format_args, fs,
+    fs::File,
+    io::{BufRead, BufReader, BufWriter, Write},
+    path::{Path, PathBuf},
+};
+use toml::*;
+
+const CONFIGFILE: &str = "config.toml";
+const PKGNAME: &str = env!("CARGO_PKG_NAME");
 
 // the configuration struct, read from and saved in config.ini
-#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
+struct Config {
+    #[serde(rename(deserialize = "Configuration", serialize = "Configuration"))]
+    pub configuration: Configuration,
+}
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Configuration {
+    #[serde(rename(deserialize = "ServerPort", serialize = "ServerPort"))]
     pub server_port: u16,
+    #[serde(rename(deserialize = "AutoResume", serialize = "AutoResume"))]
     pub auto_resume: bool,
+    #[serde(rename(deserialize = "SoundCard", serialize = "SoundCard"))]
     pub sound_source: String,
+    #[serde(rename(deserialize = "LogLevel", serialize = "LogLevel"))]
     pub log_level: LevelFilter,
+    #[serde(rename(deserialize = "SSDPIntervalMins", serialize = "SSDPIntervalMins"))]
     pub ssdp_interval_mins: f64,
+    #[serde(rename(deserialize = "AutoReconnect", serialize = "AutoReconnect"))]
     pub auto_reconnect: bool,
+    #[serde(rename(deserialize = "DisableChunked", serialize = "DisableChunked"))]
     pub disable_chunked: bool,
+    #[serde(rename(deserialize = "UseWaveFormat", serialize = "UseWaveFormat"))]
     pub use_wave_format: bool,
+    #[serde(rename(deserialize = "MonitorRms", serialize = "MonitorRms"))]
     pub monitor_rms: bool,
+    #[serde(rename(deserialize = "LastRenderer", serialize = "LastRenderer"))]
     pub last_renderer: String,
+    #[serde(rename(deserialize = "LastNetwork", serialize = "LastNetwork"))]
     pub last_network: String,
+    #[serde(rename(deserialize = "ConfigDir", serialize = "ConfigDir"))]
     config_dir: PathBuf,
+}
+
+impl Default for Configuration {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Configuration {
@@ -50,111 +81,49 @@ impl Configuration {
     }
 
     pub fn read_config() -> Configuration {
-        let configfile = Self::get_config_path();
+        let configfile = Self::get_config_path(CONFIGFILE);
+        let old_configfile = Self::get_config_path("config.ini");
         if !Path::new(&configfile).exists() {
-            debug!("Creating a new default config {}", configfile.display());
-            let mut conf = Ini::new();
-            conf.with_section(Some("Configuration"))
-                .set("ServerPort", SERVER_PORT.to_string())
-                .set("AutoResume", "false")
-                .set("SoundCard", "None")
-                .set("LogLevel", LevelFilter::Info.to_string())
-                .set("SSDPIntervalMins", "1")
-                .set("AutoReconnect", "false")
-                .set("DisableChunked", "false")
-                .set("UseWaveFormat", "false")
-                .set("MonitorRms", "false")
-                .set("LastRenderer", "None")
-                .set("LastNetwork", "None")
-                .set("ConfigDir", &Self::get_config_dir().display().to_string());
-            conf.write_to_file(&configfile).unwrap();
+            if !Path::new(&old_configfile).exists() {
+                debug!("Creating a new default config {}", configfile.display());
+                let config = Configuration::new();
+                let configuration = Config {
+                    configuration: config,
+                };
+                let f = File::create(&configfile).unwrap();
+                let s = toml::to_string(&configuration).unwrap();
+                let mut w = BufWriter::new(f);
+                debug!("New default CONFIG: {}", s);
+                w.write_all(s.as_bytes()).unwrap();
+                w.flush().unwrap();
+            } else {
+                Self::migrate_config_to_toml(&old_configfile, &configfile);
+            }
         }
-
-        let conf = match Ini::load_from_file(&configfile) {
-            Ok(conf) => conf,
-            Err(_) => Ini::new(),
-        };
-        let mut config = Configuration::new();
-        config.server_port = conf
-            .get_from_or(
-                Some("Configuration"),
-                "ServerPort",
-                &SERVER_PORT.to_string(),
-            )
-            .parse()
-            .unwrap_or_default();
-        config.auto_resume = conf
-            .get_from_or(Some("Configuration"), "AutoResume", "false")
-            .parse()
-            .unwrap_or_default();
-        config.sound_source = conf
-            .get_from_or(Some("Configuration"), "SoundCard", "None")
-            .to_string();
-        config.log_level = conf
-            .get_from_or(Some("Configuration"), "LogLevel", "Info")
-            .to_string()
-            .parse()
-            .unwrap();
-        config.ssdp_interval_mins = conf
-            .get_from_or(Some("Configuration"), "SSDPIntervalMins", "1")
-            .parse::<f64>()
-            .unwrap();
-        if config.ssdp_interval_mins < 0.5 {
-            config.ssdp_interval_mins = 0.5;
-        }
-        config.auto_reconnect = conf
-            .get_from_or(Some("Configuration"), "AutoReconnect", "false")
-            .parse()
-            .unwrap_or_default();
-        config.disable_chunked = conf
-            .get_from_or(Some("Configuration"), "DisableChunked", "false")
-            .parse()
-            .unwrap_or_default();
-        config.use_wave_format = conf
-            .get_from_or(Some("Configuration"), "UseWaveFormat", "false")
-            .parse()
-            .unwrap_or_default();
-        config.monitor_rms = conf
-            .get_from_or(Some("Configuration"), "MonitorRms", "false")
-            .parse()
-            .unwrap_or_default();
-        config.last_renderer = conf
-            .get_from_or(Some("Configuration"), "LastRenderer", "None")
-            .to_string();
-        config.last_network = conf
-            .get_from_or(Some("Configuration"), "LastNetwork", "None")
-            .to_string();
-        config.config_dir = Self::get_config_dir();
-
-        config
+        let s = fs::read_to_string(&configfile).unwrap();
+        let config: Config = from_str(&s).unwrap();
+        config.configuration
     }
 
-    pub fn update_config(&self) -> io::Result<()> {
-        let configfile = Self::get_config_path();
-        let mut conf = match Ini::load_from_file(&configfile) {
-            Ok(conf) => conf,
-            Err(_) => Ini::new(),
+    pub fn update_config(&self) -> std::io::Result<()> {
+        let configfile = Self::get_config_path(CONFIGFILE);
+        let f = File::create(&configfile).unwrap();
+        let conf = Config {
+            configuration: self.clone(),
         };
-        conf.with_section(Some("Configuration"))
-            .set("ServerPort", self.server_port.to_string())
-            .set("AutoResume", self.auto_resume.to_string())
-            .set("SoundCard", &self.sound_source)
-            .set("LogLevel", self.log_level.to_string())
-            .set("SSDPIntervalMins", self.ssdp_interval_mins.to_string())
-            .set("AutoReconnect", self.auto_reconnect.to_string())
-            .set("DisableChunked", self.disable_chunked.to_string())
-            .set("UseWaveFormat", self.use_wave_format.to_string())
-            .set("MonitorRms", self.monitor_rms.to_string())
-            .set("LastRenderer", self.last_renderer.to_string())
-            .set("LastNetwork", self.last_network.to_string())
-            .set("ConfigDir", &self.config_dir.display().to_string());
-        conf.write_to_file(&configfile)
+        let s = toml::to_string(&conf).unwrap();
+        let mut w = BufWriter::new(f);
+        debug!("Updated CONFIG: {}", s);
+        w.write_all(s.as_bytes()).unwrap();
+        w.flush().unwrap();
+
+        Ok(())
     }
 
     fn get_config_dir() -> PathBuf {
         let hd = dirs::home_dir().unwrap_or_default();
-        let old_config_dir = Path::new(&hd).join("swyh-rs");
-        let config_dir = Path::new(&hd).join(".swyh-rs");
+        let old_config_dir = Path::new(&hd).join(PKGNAME);
+        let config_dir = Path::new(&hd).join(".".to_string() + PKGNAME);
         if Path::new(&old_config_dir).exists() && !Path::new(&config_dir).exists() {
             // migrate old config dir to the new "hidden" config_dir
             fs::create_dir_all(&config_dir).unwrap();
@@ -175,8 +144,36 @@ impl Configuration {
         config_dir
     }
 
-    fn get_config_path() -> PathBuf {
+    fn get_config_path(filename: &str) -> PathBuf {
         let config_dir = Self::get_config_dir();
-        Path::new(&config_dir).join("config.ini")
+        Path::new(&config_dir).join(filename)
+    }
+
+    fn migrate_config_to_toml(old_config: &Path, new_config: &Path) {
+        debug!(
+            "Migrating {} to {}",
+            old_config.display(),
+            new_config.display()
+        );
+        let oldf = File::open(&old_config).unwrap();
+        let r = BufReader::new(&oldf);
+        let newf = File::create(&new_config).unwrap();
+        let mut w = BufWriter::new(&newf);
+        for line in r.lines() {
+            let mut s = line.unwrap();
+            if let Some(n) = s.find('=') {
+                const NEEDS_QUOTE: &str = "|SoundCard|LogLevel|LastRenderer|LastNetwork|ConfigDir|";
+                let key = s.get(0..n).unwrap();
+                if NEEDS_QUOTE.contains(key) {
+                    s.insert(n + 1, '"');
+                    s.insert(s.len(), '"');
+                }
+            }
+            w.write_all(s.as_bytes()).unwrap();
+            writeln!(w).unwrap();
+        }
+        w.flush().unwrap();
+        drop(oldf);
+        fs::remove_file(&old_config).unwrap();
     }
 }

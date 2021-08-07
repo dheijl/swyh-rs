@@ -26,7 +26,6 @@ ifcfg = "0.1.2"
 lazy_static = "1.4.0"
 log = { version = "0.4.14", features = ["max_level_trace", "release_max_level_debug", "serde"] }
 parking_lot = "0.11.1"
-rust-ini = "0.17.0"
 serde = { version = "1.0.127", features = ["derive"] }
 simplelog = "0.10.0"
 strfmt = "0.1.6"
@@ -45,4 +44,3 @@ libc = "0.2.98"
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
-rust-ini = { git = "https://github.com/zonyitoo/rust-ini"}

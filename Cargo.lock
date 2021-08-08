@@ -169,9 +169,9 @@ dependencies = [
 
 [[package]]
 name = "core-foundation-sys"
-version = "0.6.2"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7ca8a5221364ef15ce201e8ed2f609fc312682a8f4e0e3d4aa5879764e0fa3b"
+checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
 
 [[package]]
 name = "coreaudio-rs"
@@ -195,13 +195,12 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8351ddf2aaa3c583fa388029f8b3d26f3c7035a20911fdd5f2e2ed7ab57dad25"
+source = "git+https://github.com/RustAudio/cpal#508618d55821a311a0b7a6dffb54003f3f70f4b9"
 dependencies = [
  "alsa",
  "core-foundation-sys",
  "coreaudio-rs",
- "jni",
+ "jni 0.19.0",
  "js-sys",
  "lazy_static 1.4.0",
  "libc",
@@ -314,9 +313,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.1.6"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3377d3753c9664d18d2c69d0b4be0a41af2ba40fa77d79e1974de6c22045d64c"
+checksum = "71cbf5ffb0d816bdb3fe67bd559024d27b5a3ffb963a5644e8e66d6eb64e1708"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -328,9 +327,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "1.1.5"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b82eee250712509bd08ea230f7645e906e790a8d906e0a1bc326b06dd246a07"
+checksum = "97a395aeae844e24ebbb790b0342a9c49bad4845adc67d81e858d5a149ec76b1"
 dependencies = [
  "quote",
  "syn",
@@ -338,9 +337,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.1.6"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d21d7cc7665a4343a09bfb17953c33f3cec765bb897b9b00de04e785dec9581b"
+checksum = "727a64659be2b6f39c880f3fb228df14a3c8dfc9a0b9eabcba64f29442a0d62e"
 dependencies = [
  "cmake",
  "libc",
@@ -465,6 +464,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "jni"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6df18c2e3db7e453d3c6ac5b3e9d5182664d28788126d39b91f2d1e22b017ec"
+dependencies = [
+ "cesu8",
+ "combine",
+ "jni-sys",
+ "log 0.4.14",
+ "thiserror",
+ "walkdir",
+]
+
+[[package]]
 name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -472,9 +485,9 @@ checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 
 [[package]]
 name = "jobserver"
-version = "0.1.22"
+version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "972f5ae5d1cb9c6ae417789196c803205313edde988685da5e3aae0827b9e7fd"
+checksum = "f5ca711fd837261e14ec9e674f092cbb931d3fa1482b017ae59328ddc6f3212b"
 dependencies = [
  "libc",
 ]
@@ -714,7 +727,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa187b38ae20374617b7ad418034ed3dc90ac980181d211518bd03537ae8f8d"
 dependencies = [
- "jni",
+ "jni 0.18.0",
  "ndk",
  "ndk-glue",
  "num-derive",
@@ -840,9 +853,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ab49abadf3f9e1c4bc499e8845e152ad87d2ad2d30371841171169e9d75feee"
+checksum = "8383f39639269cde97d255a32bdb68c047337295414940c68bdd30c2e13203ff"
 dependencies = [
  "bitflags",
 ]

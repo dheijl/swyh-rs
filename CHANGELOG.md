@@ -1,6 +1,8 @@
 ## swyh-rs Changelog
 
 - 1.3.20 (unreleased)
+  - get rid of the ini file format in favour of toml, so that I can use serde (de)serialization instead of reading and writing individual values
+  - automatically migrate an exisiting config.ini to config.toml
 
 - 1.3.19 (July 6 2021 dheijl)
   - rearrange UI

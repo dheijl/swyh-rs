@@ -132,7 +132,7 @@ impl MainForm {
         };
         let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);
         for name in networks.iter() {
-            choose_network_but.add_choice(&name);
+            choose_network_but.add_choice(name);
         }
         let rlock = Mutex::new(0);
         let config_ch_flag = config_changed.clone();
@@ -357,7 +357,7 @@ impl MainForm {
         let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
         listen_port.set_value(&CONFIG.read().server_port.to_string());
         listen_port.set_maximum_size(5);
-        let config_ch_flag = config_changed.clone();
+        let config_ch_flag = config_changed;
         listen_port.set_callback(move |lp| {
             let new_value: u32 = lp.value().parse().unwrap();
             if new_value > 65535 {

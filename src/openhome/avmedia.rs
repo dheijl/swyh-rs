@@ -667,7 +667,7 @@ fn get_service_description(dev_url: &str) -> Option<String> {
 
 /// build a renderer struct by parsing the GetDescription.xml
 fn get_renderer(xml: &str) -> Option<Renderer> {
-    let xmlstream = StringReader::new(&xml);
+    let xmlstream = StringReader::new(xml);
     let parser = EventReader::new(xmlstream);
     let mut cur_elem = String::new();
     let mut service = AvService::new();

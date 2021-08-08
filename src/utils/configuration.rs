@@ -101,7 +101,10 @@ impl Configuration {
             }
         }
         let s = fs::read_to_string(&configfile).unwrap();
-        let config: Config = from_str(&s).unwrap();
+        let mut config: Config = from_str(&s).unwrap();
+        if config.configuration.ssdp_interval_mins < 0.5 {
+            config.configuration.ssdp_interval_mins = 0.5;
+        }
         config.configuration
     }
 

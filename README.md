@@ -90,6 +90,16 @@ If you want maximum audio quality on Windows, there are a number of concerns:
 - you should avoid resampling, because it affects audio quality. The sampling rate from the original audio source should be used to preserve quality. This means that you should make sure that the sampling frequency in the entire audio chain is the same (Use "Control Panel Sound" to check/change the sampling frequency). Bit depth does not really affect sound quality, and 16 bit *is* enough except if you are recording for mastering purposes in an audio lab. Deezer HiFi and Tidal HiFi use 16 bit 44100 Hz (lossless CD quality).
 - on Windows, WasApi is used to capture audio. WasApi tries to capture directly from the hardware (soundcard) loopback if available, otherwise it uses the soundsource directly. In practice, this means that the soundcard loopback audio quality can be vastly inferior to the original soundsource (Realtek, Conexant, especially in laptops). Make sure all "effects" are disabled. The freeware/donationware VBAudio HiFi Cable driver (https://shop.vb-audio.com/en/win-apps/19-hifi-cable-asio-bridge.html?SubmitCurrency=1&id_currency=2) is an excellent solution to prevent this problem. Just make sure you configure it with the same sampling frequency as the default Windows audio source. You can then select HiFi Cable as the sound source in swyh-rs, and use the Windows Sound Mixer to route different apps to other sound drivers for Windows as needed (system sound etc). HiFi cable is a bit perfect pipe from the audio source to the renderer, except for the bit depth at this moment, because swyh-rs uses audio/l16 to stream to the network players, but this does not affect sound quality, it only limits the dynamic range to 96 dB which is fine for HiFi. You can also make HiFi cable the default output source, and configure other sound cards in the volume mixer for applications as needed.
 
+### Audio recording:
+
+Audio recording is not supported, as there are other and better free tools to do that, like [Audacity](https://www.audacityteam.org/).
+
+The following pages might get you going:
+- https://manual.audacityteam.org/man/tutorial_recording_computer_playback_on_windows.html 
+- https://manual.audacityteam.org/man/recording_length.html
+
+See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44). 
+
 ### Screenshot:
 
 ![image](https://user-images.githubusercontent.com/2384545/124494125-c000db00-ddb6-11eb-816c-666142070a02.PNG)

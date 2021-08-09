@@ -194,8 +194,9 @@ dependencies = [
 
 [[package]]
 name = "cpal"
-version = "0.13.3"
-source = "git+https://github.com/RustAudio/cpal#508618d55821a311a0b7a6dffb54003f3f70f4b9"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98f45f0a21f617cd2c788889ef710b63f075c949259593ea09c826f1e47a2418"
 dependencies = [
  "alsa",
  "core-foundation-sys",
@@ -313,9 +314,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.1.8"
+version = "1.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71cbf5ffb0d816bdb3fe67bd559024d27b5a3ffb963a5644e8e66d6eb64e1708"
+checksum = "ee82581699ebc218b80eb23e6c999e4f304d45632336fcef07d3a592619d5b3b"
 dependencies = [
  "bitflags",
  "fltk-derive",
@@ -327,9 +328,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-derive"
-version = "1.1.8"
+version = "1.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97a395aeae844e24ebbb790b0342a9c49bad4845adc67d81e858d5a149ec76b1"
+checksum = "86ebc92d8a6b63d8011a47d644af7bbea495fff38e92a48c1ca933db797ca660"
 dependencies = [
  "quote",
  "syn",

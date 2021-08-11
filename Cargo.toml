@@ -39,7 +39,7 @@ xml-rs = "0.8.4"
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.11"
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.98"
+libc = "0.2.99"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

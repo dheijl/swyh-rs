@@ -15,31 +15,31 @@ readme = "README.md"
 winres = "0.1.11"
 
 [dependencies]
-bitflags = "1.2.1"
+bitflags = "1.3.2"
 chrono = "0.4.19"
 cpal = "0.13.4"
 crossbeam-channel = "0.5.1"
 dirs = "3.0.2"
-fltk = { version = "1.1.10", features = ["use-ninja"] }
+fltk = { version = "1.1.13", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 ifcfg = "0.1.2"
 lazy_static = "1.4.0"
 log = { version = "0.4.14", features = ["max_level_trace", "release_max_level_debug", "serde"] }
-parking_lot = "0.11.1"
-serde = { version = "1.0.127", features = ["derive"] }
+parking_lot = "0.11.2"
+serde = { version = "1.0.129", features = ["derive"] }
 simplelog = "0.10.0"
 strfmt = "0.1.6"
 stringreader = "0.1.1"
 tiny_http = "0.8.2"
 toml = "0.5.8"
-ureq = { version = "2.1.1", features = ["charset"] }
+ureq = { version = "2.2.0", features = ["charset"] }
 url = "2.2.2"
 xml-rs = "0.8.4"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.11"
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.99"
+libc = "0.2.101"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

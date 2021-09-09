@@ -20,13 +20,13 @@ chrono = "0.4.19"
 cpal = "0.13.4"
 crossbeam-channel = "0.5.1"
 dirs = "3.0.2"
-fltk = { version = "1.1.13", features = ["use-ninja"] }
+fltk = { version = "1.1.16", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 ifcfg = "0.1.2"
 lazy_static = "1.4.0"
 log = { version = "0.4.14", features = ["max_level_trace", "release_max_level_debug", "serde"] }
 parking_lot = "0.11.2"
-serde = { version = "1.0.129", features = ["derive"] }
+serde = { version = "1.0.130", features = ["derive"] }
 simplelog = "0.10.0"
 strfmt = "0.1.6"
 stringreader = "0.1.1"

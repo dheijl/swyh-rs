@@ -46,6 +46,21 @@ pub fn run_server(
                             debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr());
                         }
                     }
+                    let mut rangehdr:(bool, u64) = (false, 0);
+                    for header in rq.headers().iter() {
+                        if header.field.equiv("Range")  {
+                            let range_value = header.value.to_string();
+                            let byte_range: Vec<&str> = range_value.split('-').collect();
+                            if byte_range.len() > 1 {
+                               rangehdr = (true, byte_range[1].parse().unwrap());
+                            }
+                            break;
+                        }
+                    }
+                    if rangehdr.0 {
+                        debug!("Range request = {}", rangehdr.1);
+                    }
+
                     // get remote ip
                     let remote_addr = format!("{}", rq.remote_addr());
                     let mut remote_ip = remote_addr.clone();
@@ -58,6 +73,7 @@ pub fn run_server(
                             .unwrap();
                     let nm_hdr = Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap();
                     let cc_hdr = Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap();
+                    let rng_hdr = Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap();
                     // check url
                     if rq.url() != "/stream/swyh.wav" {
                         ui_log(format!(
@@ -158,6 +174,7 @@ pub fn run_server(
                             .with_header(ct_hdr)
                             .with_header(tm_hdr)
                             .with_header(srvr_hdr)
+                            .with_header(rng_hdr)
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
                             ui_log(format!(
@@ -190,6 +207,7 @@ pub fn run_server(
                             .with_header(ct_hdr)
                             .with_header(tm_hdr)
                             .with_header(srvr_hdr)
+                            .with_header(rng_hdr)
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
                             ui_log(format!(

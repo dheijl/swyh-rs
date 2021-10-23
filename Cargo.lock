@@ -314,9 +314,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.2.9"
+version = "1.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5f228f94ca9fac6d39552cb97a0ca296e3adf2ce1ee5bf59f5f1b5d3e781b37"
+checksum = "988a92b85419a5b3408a38aacdbdeb34b152561b7b2a8bab17bc735281a544ec"
 dependencies = [
  "bitflags",
  "fltk-sys",
@@ -783,9 +783,9 @@ checksum = "0a6dda33d67c26f0aac90d324ab2eb7239c819fc7b2552fe9faa4fe88441edc8"
 
 [[package]]
 name = "pkg-config"
-version = "0.3.20"
+version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c9b1041b4387893b91ee6746cddfc28516aff326a3519fb2adf820932c5e6cb"
+checksum = "10e2fcbb64ecbe64c8e040a386c3104d384583af58b956d870aaaf229df6e66d"
 
 [[package]]
 name = "proc-macro-crate"

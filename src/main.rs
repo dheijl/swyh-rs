@@ -139,15 +139,22 @@ fn main() {
     // configure simplelogger
     let loglevel = config.log_level;
     let logfile = Path::new(&config.log_dir()).join("log.txt");
-    let _ = CombinedLogger::init(vec![
-        TermLogger::new(
-            loglevel,
-            Config::default(),
-            simplelog::TerminalMode::Stderr,
-            ColorChoice::Auto,
-        ),
-        WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
-    ]);
+    // disable TermLogger if susbsystem Windows because it panics now
+    if cfg!(debug_assertions) {
+        let _ = CombinedLogger::init(vec![
+            TermLogger::new(
+                loglevel,
+                Config::default(),
+                simplelog::TerminalMode::Stderr,
+                ColorChoice::Auto,
+            ),
+            WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
+        ]);
+    } else {
+        let _ = CombinedLogger::init(vec![
+            WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
+        ]);
+    }
     info!("swyh-rs Logging started.");
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());

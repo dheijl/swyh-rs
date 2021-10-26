@@ -6,6 +6,12 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use tiny_http::{Header, Method, Response, Server};
 
+#[derive(Debug)]
+struct RangeHeader {
+    pub offset: u64,
+    pub size: u64,
+}
+
 /// run_server - run a tiny-http webserver to serve streaming requests from renderers
 ///
 /// all music is sent in audio/l16 PCM format (i16) with the sample rate of the source
@@ -46,21 +52,11 @@ pub fn run_server(
                             debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr());
                         }
                     }
-                    let mut rangehdr:(bool, u64) = (false, 0);
-                    for header in rq.headers().iter() {
-                        if header.field.equiv("Range")  {
-                            let range_value = header.value.to_string();
-                            let byte_range: Vec<&str> = range_value.split('-').collect();
-                            if byte_range.len() > 1 {
-                               rangehdr = (true, byte_range[1].parse().unwrap());
-                            }
-                            break;
-                        }
+                    // check for a Range header (Linn)
+                    let rhdr = get_range_hdr(&rq);
+                    if rhdr.is_some() {
+                        debug!("Range: {:?}", rhdr);
                     }
-                    if rangehdr.0 {
-                        debug!("Range request = {}", rangehdr.1);
-                    }
-
                     // get remote ip
                     let remote_addr = format!("{}", rq.remote_addr());
                     let mut remote_ip = remote_addr.clone();
@@ -235,5 +231,49 @@ pub fn run_server(
 
     for h in handles {
         h.join().unwrap();
+    }
+}
+
+fn get_range_hdr(rq: &tiny_http::Request) -> Option<RangeHeader> {
+    for header in rq.headers().iter() {
+        if header.field.equiv("Range") {
+            let range_value = header.value.to_string();
+            let byte_range: Vec<&str> = range_value.split('-').collect();
+            if byte_range.len() > 1 {
+                let offset: u64 = byte_range[0].parse().unwrap();
+                let size = if !byte_range[1].is_empty() {
+                    byte_range[1].parse().unwrap()
+                } else {
+                    2 * 1024 * 1024
+                };
+                let rhdr = Some(RangeHeader { offset, size });
+                return rhdr;
+            }
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::server::streaming_server::*;
+    #[test]
+
+    fn test_range() {
+        let range_value = "77-".to_string();
+        let byte_range: Vec<&str> = range_value.split('-').collect();
+        assert!(byte_range.len() > 1);
+        if byte_range.len() > 1 {
+            let offset: u64 = byte_range[0].parse().unwrap();
+            let size = if !byte_range[1].is_empty() {
+                byte_range[1].parse().unwrap()
+            } else {
+                2 * 1024 * 1024
+            };
+            let rhdr = Some(RangeHeader { offset, size });
+            let rh = rhdr.unwrap();
+            assert!(rh.offset == 77);
+            assert!(rh.size == 2 * 1024 * 1024);
+        }
     }
 }

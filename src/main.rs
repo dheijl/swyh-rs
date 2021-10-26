@@ -151,9 +151,11 @@ fn main() {
             WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
         ]);
     } else {
-        let _ = CombinedLogger::init(vec![
-            WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
-        ]);
+        let _ = CombinedLogger::init(vec![WriteLogger::new(
+            loglevel,
+            Config::default(),
+            File::create(logfile).unwrap(),
+        )]);
     }
     info!("swyh-rs Logging started.");
     if cfg!(debug_assertions) {

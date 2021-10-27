@@ -234,12 +234,13 @@ pub fn run_server(
     }
 }
 
+// decode the range header as present in Get requests from Linn devices
 fn decode_range(range_value: &str) -> Option<(u64, u64)> {
     let range: Vec<&str> = range_value.split_inclusive('=').collect();
     if range.len() > 1 && range[0] == "bytes=" {
         let byte_range: Vec<&str> = range[1].split('-').collect();
         if byte_range.len() > 1 {
-            let offset: u64 = byte_range[0].parse().unwrap();
+            let offset: u64 = byte_range[0].parse().unwrap_or_default();
             let size = if !byte_range[1].is_empty() {
                 byte_range[1].parse().unwrap()
             } else {
@@ -251,6 +252,8 @@ fn decode_range(range_value: &str) -> Option<(u64, u64)> {
     None
 }
 
+/// return a decoded the range header if present
+/// Linn devices use a range header and expect a 206 Partial Content response
 fn get_range_hdr(rq: &tiny_http::Request) -> Option<RangeHeader> {
     for header in rq.headers().iter() {
         if header.field.equiv("Range") {
@@ -283,5 +286,10 @@ mod tests {
         assert!(decode_range(range_value) == None);
         let range_value = "bytes=16";
         assert!(decode_range(range_value) == None);
+        // this is not correct according to RFC 7233
+        // but as we do not know the stream size ...
+        // I don't expect this hypothetical situation to happen 
+        let range_value = "bytes=-16";
+        assert!(decode_range(range_value) == Some((0, 16)));
     }
 }

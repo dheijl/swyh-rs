@@ -234,20 +234,33 @@ pub fn run_server(
     }
 }
 
+fn decode_range(range_value: &str) -> Option<(u64, u64)> {
+    let range: Vec<&str> = range_value.split_inclusive('=').collect();
+    if range.len() > 1 && range[0] == "bytes=" {
+        let byte_range: Vec<&str> = range[1].split('-').collect();
+        if byte_range.len() > 1 {
+            let offset: u64 = byte_range[0].parse().unwrap();
+            let size = if !byte_range[1].is_empty() {
+                byte_range[1].parse().unwrap()
+            } else {
+                2 * 1024 * 1024
+            };
+            return Some((offset, size));
+        }
+    }
+    None
+}
+
 fn get_range_hdr(rq: &tiny_http::Request) -> Option<RangeHeader> {
     for header in rq.headers().iter() {
         if header.field.equiv("Range") {
-            let range_value = header.value.to_string();
-            let byte_range: Vec<&str> = range_value.split('-').collect();
-            if byte_range.len() > 1 {
-                let offset: u64 = byte_range[0].parse().unwrap();
-                let size = if !byte_range[1].is_empty() {
-                    byte_range[1].parse().unwrap()
-                } else {
-                    2 * 1024 * 1024
-                };
-                let rhdr = Some(RangeHeader { offset, size });
-                return rhdr;
+            if let Some(range) = decode_range(header.value.as_str()) {
+                return Some(RangeHeader {
+                    offset: range.0,
+                    size: range.1,
+                });
+            } else {
+                return None;
             }
         }
     }
@@ -260,20 +273,15 @@ mod tests {
     #[test]
 
     fn test_range() {
-        let range_value = "77-".to_string();
-        let byte_range: Vec<&str> = range_value.split('-').collect();
-        assert!(byte_range.len() > 1);
-        if byte_range.len() > 1 {
-            let offset: u64 = byte_range[0].parse().unwrap();
-            let size = if !byte_range[1].is_empty() {
-                byte_range[1].parse().unwrap()
-            } else {
-                2 * 1024 * 1024
-            };
-            let rhdr = Some(RangeHeader { offset, size });
-            let rh = rhdr.unwrap();
-            assert!(rh.offset == 77);
-            assert!(rh.size == 2 * 1024 * 1024);
-        }
+        let range_value = "bytes=77-";
+        assert!(decode_range(range_value) == Some((77, 2 * 1024 * 1024)));
+        let range_value = "bytes=77-88";
+        assert!(decode_range(range_value) == Some((77, 88)));
+        let range_value = "xxx";
+        assert!(decode_range(range_value) == None);
+        let range_value = "bytes=";
+        assert!(decode_range(range_value) == None);
+        let range_value = "bytes=16";
+        assert!(decode_range(range_value) == None);
     }
 }

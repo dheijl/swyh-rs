@@ -1,3 +1,4 @@
+use std::time::Duration;
 use crate::{ui_log, ChannelStream, StreamerFeedBack, StreamingState, WavData, CLIENTS, CONFIG};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;
@@ -24,6 +25,9 @@ pub fn run_server(
     wd: WavData,
     feedback_tx: Sender<StreamerFeedBack>,
 ) {
+    // wait for the first SSDP discovery to complete
+    // in case a renderer should try to start streaming before SSDP has completed
+    std::thread::sleep(Duration::from_millis(3700));
     let addr = format!("{}:{}", local_addr, server_port);
     let logmsg = format!(
         "The streaming server is listening on http://{}/stream/swyh.wav",
@@ -69,7 +73,7 @@ pub fn run_server(
                             .unwrap();
                     let nm_hdr = Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap();
                     let cc_hdr = Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap();
-                    let rng_hdr = Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap();
+                    let acc_rng_hdr = Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap();
                     // check url
                     if rq.url() != "/stream/swyh.wav" {
                         ui_log(format!(
@@ -170,7 +174,7 @@ pub fn run_server(
                             .with_header(ct_hdr)
                             .with_header(tm_hdr)
                             .with_header(srvr_hdr)
-                            .with_header(rng_hdr)
+                            .with_header(acc_rng_hdr)
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
                             ui_log(format!(
@@ -203,7 +207,7 @@ pub fn run_server(
                             .with_header(ct_hdr)
                             .with_header(tm_hdr)
                             .with_header(srvr_hdr)
-                            .with_header(rng_hdr)
+                            .with_header(acc_rng_hdr)
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
                             ui_log(format!(
@@ -234,7 +238,7 @@ pub fn run_server(
     }
 }
 
-// decode the range header as present in Get requests from Linn devices
+/// decode the range header as present in Get requests from Linn devices
 fn decode_range(range_value: &str) -> Option<(u64, u64)> {
     let range: Vec<&str> = range_value.split_inclusive('=').collect();
     if range.len() > 1 && range[0] == "bytes=" {
@@ -288,7 +292,7 @@ mod tests {
         assert!(decode_range(range_value) == None);
         // this is not correct according to RFC 7233
         // but as we do not know the stream size ...
-        // I don't expect this hypothetical situation to happen 
+        // I don't expect this hypothetical situation to happen
         let range_value = "bytes=-16";
         assert!(decode_range(range_value) == Some((0, 16)));
     }

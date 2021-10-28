@@ -264,7 +264,6 @@ fn main() {
         .stack_size(4 * 1024 * 1024)
         .spawn(move || run_server(&local_addr, server_port, wd, feedback_tx))
         .unwrap();
-    std::thread::yield_now();
 
     // get the logreader channel
     let logreader = &LOGCHANNEL.read().1;

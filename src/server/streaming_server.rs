@@ -1,10 +1,10 @@
-use std::time::Duration;
 use crate::{ui_log, ChannelStream, StreamerFeedBack, StreamingState, WavData, CLIENTS, CONFIG};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;
 use log::debug;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tiny_http::{Header, Method, Response, Server};
 
 #[derive(Debug)]
@@ -167,15 +167,36 @@ pub fn run_server(
                             conf.disable_chunked,
                             rq.remote_addr()
                         ));
-                        let response = Response::empty(200)
-                            .with_data(channel_stream, streamsize)
-                            .with_chunked_threshold(chunked_threshold)
-                            .with_header(cc_hdr)
-                            .with_header(ct_hdr)
-                            .with_header(tm_hdr)
-                            .with_header(srvr_hdr)
-                            .with_header(acc_rng_hdr)
-                            .with_header(nm_hdr);
+                        let response = if rhdr.is_some() {
+                            // ranges enabled, disable chunking
+                            let chunked_threshold = usize::MAX;
+                            // build the Content-Range header, according to RFC8673 https://www.rfc-editor.org/rfc/rfc8673
+                            let offset = rhdr.unwrap().offset;
+                            let size = usize::MAX - 2;
+                            let content_range = format!("bytes {}-{}/*", offset, size);
+                            let ctr_hdr = Header::from_bytes(&b"Content-Range"[..], content_range.as_bytes()).unwrap();
+                            debug!("Adding Content-Range header: {:?}", ctr_hdr);
+                            Response::empty(206)
+                                .with_data(channel_stream, streamsize)
+                                .with_chunked_threshold(chunked_threshold)
+                                .with_header(ctr_hdr)
+                                .with_header(cc_hdr)
+                                .with_header(ct_hdr)
+                                .with_header(tm_hdr)
+                                .with_header(srvr_hdr)
+                                .with_header(acc_rng_hdr)
+                                .with_header(nm_hdr)
+                        } else {
+                            Response::empty(200)
+                                .with_data(channel_stream, streamsize)
+                                .with_chunked_threshold(chunked_threshold)
+                                .with_header(cc_hdr)
+                                .with_header(ct_hdr)
+                                .with_header(tm_hdr)
+                                .with_header(srvr_hdr)
+                                .with_header(acc_rng_hdr)
+                                .with_header(nm_hdr)
+                        };
                         if let Err(e) = rq.respond(response) {
                             ui_log(format!(
                                 "=>Http connection with {} terminated [{}]",

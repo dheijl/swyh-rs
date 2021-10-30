@@ -157,7 +157,7 @@ fn main() {
             File::create(logfile).unwrap(),
         )]);
     }
-    info!("swyh-rs Logging started.");
+    info!("swyh-rs V {} - Logging started.", APP_VERSION.to_string());
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
     }

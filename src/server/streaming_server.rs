@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tiny_http::{Header, Method, Response, Server};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct RangeHeader {
     pub offset: u64,
     pub size: u64,
@@ -58,9 +58,13 @@ pub fn run_server(
                     }
                     // check for a Range header (Linn)
                     let rhdr = get_range_hdr(&rq);
-                    if rhdr.is_some() {
+                    let (rg_offset, mut rg_size) = if rhdr.is_some() {
                         debug!("Range: {:?}", rhdr);
-                    }
+                        let r = rhdr.clone().unwrap();
+                        (r.offset, r.size)
+                    } else {
+                        (0, 0)
+                    };
                     // get remote ip
                     let remote_addr = format!("{}", rq.remote_addr());
                     let mut remote_ip = remote_addr.clone();
@@ -117,27 +121,31 @@ pub fn run_server(
                             rq.remote_addr()
                         ));
                         // set transfer encoding chunked unless disabled
-                        let (streamsize, chunked_threshold) = {
+                        let (mut streamsize, chunked_threshold) = {
                             if conf.disable_chunked {
                                 (Some(usize::MAX - 1), usize::MAX)
                             } else {
                                 (None, 8192)
                             }
                         };
-                        let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
-                        let channel_stream = ChannelStream::new(
-                            tx.clone(),
-                            rx.clone(),
-                            remote_ip.clone(),
-                            conf.use_wave_format,
-                            wd.sample_rate.0,
-                        );
-                        let nclients = {
-                            let mut clients = CLIENTS.write();
-                            clients.insert(remote_addr.clone(), channel_stream);
-                            clients.len()
-                        };
-                        debug!("Now have {} streaming clients", nclients);
+                        if rhdr.is_none() || (rhdr.is_some() && rg_size == 0) {
+                            let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
+                            let mut channel_stream = ChannelStream::new(
+                                tx,
+                                rx,
+                                remote_ip.clone(),
+                                conf.use_wave_format,
+                                wd.sample_rate.0,
+                            );
+                            channel_stream.create_silence(wd.sample_rate.0);
+                            let nclients = {
+                                let mut clients = CLIENTS.write();
+                                clients.insert(remote_addr.clone(), channel_stream);
+                                clients.len()
+                            };
+                            debug!("Now have {} streaming clients", nclients);
+                        }
+                        let channel_stream = CLIENTS.read().get(&remote_addr).unwrap().clone();
 
                         feedback_tx_c
                             .send(StreamerFeedBack {
@@ -146,14 +154,6 @@ pub fn run_server(
                             })
                             .unwrap();
                         std::thread::yield_now();
-                        let mut channel_stream = ChannelStream::new(
-                            tx,
-                            rx,
-                            remote_ip.clone(),
-                            conf.use_wave_format,
-                            wd.sample_rate.0,
-                        );
-                        channel_stream.create_silence(wd.sample_rate.0);
                         let streaming_format = if conf.use_wave_format {
                             "audio/wave;codec=1 (WAV)"
                         } else {
@@ -168,12 +168,23 @@ pub fn run_server(
                             rq.remote_addr()
                         ));
                         let response = if rhdr.is_some() {
+
+                            // todo: Connection: keep-alive header with content response
+                            //       content response when valid range request
+                            //       keep streaming client alive 
+
+
                             // ranges enabled, disable chunking
                             let chunked_threshold = usize::MAX;
                             // build the Content-Range header, according to RFC8673 https://www.rfc-editor.org/rfc/rfc8673
-                            let offset = rhdr.unwrap().offset;
-                            let size = usize::MAX - 2;
-                            let content_range = format!("bytes {}-{}/*", offset, size);
+                            // an empty range gets a zero content length and an infinite size range
+                            if rg_size == 0 {
+                                rg_size = u64::MAX - 1;
+                                streamsize = Some(0);
+                            } else {
+                                streamsize = Some((rg_size + 1) as usize);
+                            }
+                            let content_range = format!("bytes {}-{}/*", rg_offset, rg_size);
                             let ctr_hdr = Header::from_bytes(&b"Content-Range"[..], content_range.as_bytes()).unwrap();
                             debug!("Adding Content-Range header: {:?}", ctr_hdr);
                             Response::empty(206)
@@ -197,30 +208,34 @@ pub fn run_server(
                                 .with_header(acc_rng_hdr)
                                 .with_header(nm_hdr)
                         };
-                        if let Err(e) = rq.respond(response) {
+                        let e = rq.respond(response);
+                        if e.is_err() {
                             ui_log(format!(
-                                "=>Http connection with {} terminated [{}]",
+                                "=>Http connection with {} terminated [{:?}]",
                                 remote_addr, e
                             ));
                         }
-                        let nclients = {
-                            let mut clients = CLIENTS.write();
-                            clients.remove(&remote_addr);
-                            clients.len()
-                        };
-                        debug!("Now have {} streaming clients left", nclients);
-                        ui_log(format!("Streaming to {} has ended", remote_addr));
-                        // inform the main thread that this renderer has finished receiving
-                        // necessary if the connection close was not caused by our own GUI
-                        // so that we can update the corresponding button state
-                        feedback_tx_c
-                            .send(StreamerFeedBack {
-                                remote_ip,
-                                streaming_state: StreamingState::Ended,
-                            })
-                            .unwrap();
-                        app::awake();
-                        std::thread::yield_now();
+                        // do not drop the channelstream for Linn Range Requests
+                        if rhdr.is_none() || e.is_err() {
+                            let nclients = {
+                                let mut clients = CLIENTS.write();
+                                clients.remove(&remote_addr);
+                                clients.len()
+                            };
+                            debug!("Now have {} streaming clients left", nclients);
+                            ui_log(format!("Streaming to {} has ended", remote_addr));
+                            // inform the main thread that this renderer has finished receiving
+                            // necessary if the connection close was not caused by our own GUI
+                            // so that we can update the corresponding button state
+                            feedback_tx_c
+                                .send(StreamerFeedBack {
+                                    remote_ip,
+                                    streaming_state: StreamingState::Ended,
+                                })
+                                .unwrap();
+                            app::awake();
+                            std::thread::yield_now();
+                        }
                     } else if matches!(rq.method(), Method::Head) {
                         debug!("HEAD rq from {}", remote_addr);
                         let response = Response::empty(200)
@@ -269,7 +284,7 @@ fn decode_range(range_value: &str) -> Option<(u64, u64)> {
             let size = if !byte_range[1].is_empty() {
                 byte_range[1].parse().unwrap()
             } else {
-                2 * 1024 * 1024
+                0
             };
             return Some((offset, size));
         }
@@ -302,7 +317,7 @@ mod tests {
 
     fn test_range() {
         let range_value = "bytes=77-";
-        assert!(decode_range(range_value) == Some((77, 2 * 1024 * 1024)));
+        assert!(decode_range(range_value) == Some((77, 0)));
         let range_value = "bytes=77-88";
         assert!(decode_range(range_value) == Some((77, 88)));
         let range_value = "xxx";

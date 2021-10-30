@@ -17,6 +17,7 @@ use std::io::Result as IoResult;
 use std::time::Duration;
 
 /// Channelstream - used to transport the samples from the wave_reader to the http output wav stream
+#[derive(Clone)]
 pub struct ChannelStream {
     pub s: Sender<Vec<i16>>,
     pub r: Receiver<Vec<i16>>,

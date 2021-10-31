@@ -3,6 +3,11 @@
 - 1.3.20 (unreleased)
   - get rid of the ini file format in favour of toml, so that I can use serde (de)serialization instead of reading and writing individual values
   - automatically migrate an exisiting config.ini to config.toml
+  - update to Rust edition 2021
+  - wait for the first SSDP discovery to complete before starting the streaming server
+  - disable the terminal logger on Windows release build, as it panics with Rust 2021
+  - add an "Accept-Ranges : none" header to HTTP responses as HTTP ranges (Linn!) are not supported
+  - update dependencies
 
 - 1.3.19 (July 6 2021 dheijl)
   - rearrange UI

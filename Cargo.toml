@@ -20,7 +20,7 @@ chrono = "0.4.19"
 cpal = "0.13.4"
 crossbeam-channel = "0.5.1"
 dirs = "4.0.0"
-fltk = { version = "1.2.12", features = ["use-ninja"] }
+fltk = { version = "1.2.15", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 ifcfg = "0.1.2"
 lazy_static = "1.4.0"
@@ -43,7 +43,7 @@ xml-rs = "0.8.4"
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.106"
+libc = "0.2.107"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

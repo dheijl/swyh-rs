@@ -64,7 +64,7 @@ pub fn get_default_audio_output_device() -> Option<cpal::Device> {
 /// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16)
 pub fn capture_output_audio(
     device: &cpal::Device,
-    rms_sender: Sender<Vec<i16>>,
+    rms_sender: Sender<Vec<f32>>,
 ) -> Option<cpal::Stream> {
     ui_log(format!(
         "Capturing audio from: {}",
@@ -76,11 +76,11 @@ pub fn capture_output_audio(
         .default_output_config()
         .expect("No default output config found");
     ui_log(format!("Default audio {:?}", audio_cfg));
-    let mut i16_samples: Vec<i16> = Vec::with_capacity(16384);
+    let mut f32_samples: Vec<f32> = Vec::with_capacity(16384);
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             &audio_cfg.config(),
-            move |data, _: &_| wave_reader::<f32>(data, &mut i16_samples, rms_sender.clone()),
+            move |data, _: &_| wave_reader::<f32>(data, &mut f32_samples, rms_sender.clone()),
             capture_err_fn,
         ) {
             Ok(stream) => Some(stream),
@@ -92,7 +92,7 @@ pub fn capture_output_audio(
         cpal::SampleFormat::I16 => {
             match device.build_input_stream(
                 &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<i16>(data, &mut i16_samples, rms_sender.clone()),
+                move |data, _: &_| wave_reader::<i16>(data, &mut f32_samples, rms_sender.clone()),
                 capture_err_fn,
             ) {
                 Ok(stream) => Some(stream),
@@ -105,7 +105,7 @@ pub fn capture_output_audio(
         cpal::SampleFormat::U16 => {
             match device.build_input_stream(
                 &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<u16>(data, &mut i16_samples, rms_sender.clone()),
+                move |data, _: &_| wave_reader::<u16>(data, &mut f32_samples, rms_sender.clone()),
                 capture_err_fn,
             ) {
                 Ok(stream) => Some(stream),
@@ -128,7 +128,7 @@ fn capture_err_fn(err: cpal::StreamError) {
 /// writes the captured samples to all registered clients in the
 /// CLIENTS ChannnelStream hashmap
 /// also feeds the RMS monitor channel if the RMS option is set
-fn wave_reader<T>(samples: &[T], i16_samples: &mut Vec<i16>, rms_sender: Sender<Vec<i16>>)
+fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: Sender<Vec<f32>>)
 where
     T: cpal::Sample,
 {
@@ -136,12 +136,12 @@ where
     INITIALIZER.call_once(|| {
         ui_log("The wave_reader is now receiving samples".to_string());
     });
-    i16_samples.clear();
-    i16_samples.extend(samples.iter().map(|x| x.to_i16()));
+    f32_samples.clear();
+    f32_samples.extend(samples.iter().map(|x| x.to_f32()));
     for (_, v) in CLIENTS.read().iter() {
-        v.write(i16_samples);
+        v.write(f32_samples);
     }
     if CONFIG.read().monitor_rms {
-        rms_sender.send(i16_samples.to_vec()).unwrap();
+        rms_sender.send(f32_samples.to_vec()).unwrap();
     }
 }

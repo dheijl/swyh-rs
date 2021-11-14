@@ -55,6 +55,7 @@ use crate::utils::local_ip_address::*;
 use crate::utils::priority::raise_priority;
 use crate::utils::rwstream::ChannelStream;
 use cpal::traits::{DeviceTrait, StreamTrait};
+use cpal::Sample;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{
     app, dialog,
@@ -216,7 +217,7 @@ fn main() {
     raise_priority();
 
     // the rms monitor channel
-    let rms_channel: (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
+    let rms_channel: (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
 
     // capture system audio
     debug!("Try capturing system audio");
@@ -398,7 +399,7 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
 
 fn run_rms_monitor(
     wd: &WavData,
-    rms_receiver: Receiver<Vec<i16>>,
+    rms_receiver: Receiver<Vec<f32>>,
     mut rms_frame_l: Progress,
     mut rms_frame_r: Progress,
 ) {
@@ -410,10 +411,11 @@ fn run_rms_monitor(
     while let Ok(samples) = rms_receiver.recv() {
         for (n, sample) in samples.iter().enumerate() {
             nsamples += 1;
+            let i64sample = (*sample).to_i16() as i64;
             if n & 1 == 0 {
-                sum_l += *sample as i64 * *sample as i64;
+                sum_l += i64sample * i64sample;
             } else {
-                sum_r += *sample as i64 * *sample as i64;
+                sum_r += i64sample * i64sample;
             }
             if nsamples >= samples_per_update {
                 // compute rms value

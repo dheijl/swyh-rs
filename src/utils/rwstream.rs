@@ -9,6 +9,7 @@
 /// to the media Renderer
 ///
 */
+use cpal::Sample;
 use crossbeam_channel::{Receiver, Sender};
 use log::debug;
 use std::collections::VecDeque;
@@ -19,11 +20,11 @@ use std::time::Duration;
 /// Channelstream - used to transport the samples from the wave_reader to the http output wav stream
 #[derive(Clone)]
 pub struct ChannelStream {
-    pub s: Sender<Vec<i16>>,
-    pub r: Receiver<Vec<i16>>,
+    pub s: Sender<Vec<f32>>,
+    pub r: Receiver<Vec<f32>>,
     pub remote_ip: String,
-    fifo: VecDeque<i16>,
-    silence: Vec<i16>,
+    fifo: VecDeque<f32>,
+    silence: Vec<f32>,
     capture_timeout: Duration,
     silence_period: Duration,
     sending_silence: bool,
@@ -36,8 +37,8 @@ const SILENCE_PERIOD: u32 = 250; // milliseconds
 
 impl ChannelStream {
     pub fn new(
-        tx: Sender<Vec<i16>>,
-        rx: Receiver<Vec<i16>>,
+        tx: Sender<Vec<f32>>,
+        rx: Receiver<Vec<f32>>,
         remote_ip_addr: String,
         use_wave_format: bool,
         sample_rate: u32,
@@ -65,12 +66,12 @@ impl ChannelStream {
         const DIVISOR: u32 = 1000 / SILENCE_PERIOD;
         let size = ((sample_rate * 2) / DIVISOR) as usize;
         self.silence = Vec::with_capacity(size);
-        self.silence.resize(size, 0i16);
+        self.silence.resize(size, 0f32);
         // Hack for Bubble with Chromecast/Nest
         //self.fifo.extend(self.silence.clone());
     }
 
-    pub fn write(&self, samples: &[i16]) {
+    pub fn write(&self, samples: &[f32]) {
         self.s.send(samples.to_vec()).unwrap();
     }
 }
@@ -91,6 +92,7 @@ impl Read for ChannelStream {
         while i < buf.len() - 2 {
             match self.fifo.pop_front() {
                 Some(sample) => {
+                    let sample = sample.to_i16();
                     let b = if self.use_wave_format {
                         sample.to_le_bytes()
                     } else {
@@ -155,7 +157,7 @@ mod tests {
 
     fn test_silence() {
         const SAMPLE_RATE: u32 = 44100;
-        let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
+        let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
         let mut cs = ChannelStream::new(tx, rx, "192.168.0.254".to_string(), false, SAMPLE_RATE);
         cs.create_silence(SAMPLE_RATE);
         assert_eq!(

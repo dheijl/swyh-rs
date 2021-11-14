@@ -122,7 +122,7 @@ pub fn run_server(
                                 (None, 8192)
                             }
                         };
-                        let (tx, rx): (Sender<Vec<i16>>, Receiver<Vec<i16>>) = unbounded();
+                        let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
                         let mut channel_stream = ChannelStream::new(
                             tx,
                             rx,

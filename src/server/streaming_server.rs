@@ -102,7 +102,11 @@ pub fn run_server(
                     let ct_text = if conf.use_wave_format {
                         "audio/vnd.wave;codec=1".to_string()
                     } else {
-                        format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string())
+                        if conf.bits_per_sample == Some(16) {
+                            format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string()) 
+                        } else {
+                            format!("audio/L24;rate={};channels=2", wd.sample_rate.0.to_string()) 
+                        }
                     };
                     let ct_hdr = Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
                     let tm_hdr =
@@ -129,6 +133,7 @@ pub fn run_server(
                             remote_ip.clone(),
                             conf.use_wave_format,
                             wd.sample_rate.0,
+                            conf.bits_per_sample.unwrap(),
                         );
                         channel_stream.create_silence(wd.sample_rate.0);
                         let nclients = {
@@ -149,7 +154,11 @@ pub fn run_server(
                         let streaming_format = if conf.use_wave_format {
                             "audio/wave;codec=1 (WAV)"
                         } else {
-                            "audio/l16 (LPCM)"
+                            if conf.bits_per_sample == Some(16) {
+                                "audio/l16 (LPCM)"
+                            } else {
+                                "audio/l24 (LPCM)"
+                            }
                         };
                         ui_log(format!(
                             "Streaming {}, input sample format {:?}, channels=2, rate={}, disable chunked={} to {}",

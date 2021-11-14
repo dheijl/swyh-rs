@@ -305,12 +305,14 @@ fn main() {
                                     .iter()
                                     .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                                 {
+                                    let config = CONFIG.read().clone();
                                     let _ = r.play(
                                         &local_addr,
                                         server_port,
                                         &wd,
                                         &dummy_log,
-                                        CONFIG.read().use_wave_format,
+                                        config.use_wave_format,
+                                        config.bits_per_sample.unwrap(),
                                     );
                                 }
                             } else if button.is_set() {

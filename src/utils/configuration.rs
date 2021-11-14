@@ -36,6 +36,8 @@ pub struct Configuration {
     pub disable_chunked: bool,
     #[serde(rename(deserialize = "UseWaveFormat", serialize = "UseWaveFormat"))]
     pub use_wave_format: bool,
+    #[serde(rename(deserialize = "BitsPerSample", serialize = "BitsPerSample"))]
+    pub bits_per_sample: Option<u16>,
     #[serde(rename(deserialize = "MonitorRms", serialize = "MonitorRms"))]
     pub monitor_rms: bool,
     #[serde(rename(deserialize = "LastRenderer", serialize = "LastRenderer"))]
@@ -63,6 +65,7 @@ impl Configuration {
             auto_reconnect: false,
             disable_chunked: false,
             use_wave_format: false,
+            bits_per_sample: Some(16),
             monitor_rms: false,
             last_renderer: "None".to_string(),
             last_network: "None".to_string(),
@@ -104,6 +107,10 @@ impl Configuration {
         let mut config: Config = from_str(&s).unwrap();
         if config.configuration.ssdp_interval_mins < 0.5 {
             config.configuration.ssdp_interval_mins = 0.5;
+        }
+        match config.configuration.bits_per_sample {
+            Some(16 | 24) => {}
+            _ => config.configuration.bits_per_sample = Some(16),
         }
         config.configuration
     }

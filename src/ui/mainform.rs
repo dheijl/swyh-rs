@@ -353,6 +353,21 @@ impl MainForm {
             let _ = conf.update_config();
         });
         pconfig2.add(&use_wma);
+        // select 24 bit samples instead of 16 bit default
+        let mut b24_bit = CheckButton::new(0, 0, 0, 0, "24 bit");
+        if config.bits_per_sample.unwrap() == 24 {
+            b24_bit.set(true);
+        }
+        b24_bit.set_callback(move |b| {
+            let mut conf = CONFIG.write();
+            if b.is_set() {
+                conf.bits_per_sample = Some(24);
+            } else {
+                conf.bits_per_sample = Some(16);
+            }
+            let _ = conf.update_config();
+        });
+        pconfig2.add(&b24_bit);
         // HTTP server listen port
         let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
         listen_port.set_value(&CONFIG.read().server_port.to_string());
@@ -515,12 +530,14 @@ impl MainForm {
                     let _ = conf.update_config();
                     conf.use_wave_format
                 };
+                let config = CONFIG.read().clone();
                 let _ = newr_c.play(
                     &local_addr,
-                    CONFIG.read().server_port,
+                    config.server_port,
                     &wd,
                     &ui_log,
                     use_wav_format,
+                    config.bits_per_sample.unwrap(),
                 );
             } else {
                 let _ = newr_c.stop_play(&ui_log);

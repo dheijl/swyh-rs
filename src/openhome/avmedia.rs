@@ -70,6 +70,7 @@ static AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 
 /// didl protocolinfo
 static L16_PROT_INFO: &str = "http-get:*:audio/l16;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
+static L24_PROT_INFO: &str = "http-get:*:audio/l24;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
 static WAV_PROT_INFO: &str = "http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=03700000000000000000000000000000";
 
 /// didl metadata template
@@ -77,7 +78,7 @@ static DIDL_TEMPLATE: &str = "\
 <DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
 <item id=\"1\" parentID=\"0\" restricted=\"0\">\
 <dc:title>swyh-rs</dc:title>\
-<res bitsPerSample=\"16\" \
+<res bitsPerSample=\"{bits_per_sample}\" \
 nrAudioChannels=\"2\" \
 protocolInfo=\"{didl_prot_info}\" \
 sampleFrequency=\"{sample_rate}\" \
@@ -227,17 +228,32 @@ impl Renderer {
         wd: &WavData,
         log: &dyn Fn(String),
         use_wav_format: bool,
+        bits_per_sample: u16,
     ) -> Result<(), &str> {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            return self.oh_play(local_addr, server_port, wd, log, use_wav_format);
+            return self.oh_play(
+                local_addr,
+                server_port,
+                wd,
+                log,
+                use_wav_format,
+                bits_per_sample,
+            );
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            return self.av_play(local_addr, server_port, wd, log, use_wav_format);
+            return self.av_play(
+                local_addr,
+                server_port,
+                wd,
+                log,
+                use_wav_format,
+                bits_per_sample,
+            );
         } else {
             log("ERROR: play: no supported renderer protocol found".to_string());
         }
@@ -255,6 +271,7 @@ impl Renderer {
         wd: &WavData,
         log: &dyn Fn(String),
         use_wav_format: bool,
+        bits_per_sample: u16,
     ) -> Result<(), &str> {
         let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
@@ -276,13 +293,24 @@ impl Renderer {
         // create new playlist
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
+        vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
+        vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
+        vars.insert("duration".to_string(), "00:00:00".to_string());
         if use_wav_format {
             vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
-            vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());
+            if bits_per_sample == 16 {
+                vars.insert(
+                    "didl_prot_info".to_string(),
+                    strfmt(L16_PROT_INFO, &vars).unwrap(),
+                );
+            } else {
+                vars.insert(
+                    "didl_prot_info".to_string(),
+                    strfmt(L24_PROT_INFO, &vars).unwrap(),
+                );
+            }
         }
-        vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
-        vars.insert("duration".to_string(), "00:00:00".to_string());
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
@@ -331,6 +359,7 @@ impl Renderer {
         wd: &WavData,
         log: &dyn Fn(String),
         use_wav_format: bool,
+        bits_per_sample: u16,
     ) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
@@ -348,10 +377,15 @@ impl Renderer {
         // set AVTransportURI
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
+        vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
         if use_wav_format {
             vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
-            vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());
+            if bits_per_sample == 16 {
+                vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());
+            } else {
+                vars.insert("didl_prot_info".to_string(), L24_PROT_INFO.to_string());
+            }
         }
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         vars.insert("duration".to_string(), "00:00:00".to_string());

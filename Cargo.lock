@@ -314,9 +314,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.2.15"
+version = "1.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9480f6742b6ba50cbfb8e016c987f8d3e2faa79c0624e22f934d80c747c62e18"
+checksum = "06992d52808fdebc433fa0bc5b67c36a9b5f22b58f41f063fd3227280f4b1acf"
 dependencies = [
  "bitflags",
  "fltk-sys",
@@ -325,9 +325,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.2.14"
+version = "1.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6dc0e345a8288be36989fccd9796685b35dc63378c08fd7548100e1109a4ccb"
+checksum = "7be3973f4f1f1c7ecda0920822691750988bff5f8a4f41028ac08feebcc63721"
 dependencies = [
  "cmake",
 ]
@@ -909,9 +909,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustls"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b5ac6078ca424dc1d3ae2328526a76787fecc7f8011f520e3276730e711fc95"
+checksum = "dac4581f0fc0e0efd529d069e8189ec7b90b8e7680e21beb35141bdc45f36040"
 dependencies = [
  "log 0.4.14",
  "ring",
@@ -1195,9 +1195,9 @@ checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
 
 [[package]]
 name = "ureq"
-version = "2.3.0"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1dd912a3d096959150c4d71ac752e13f1683085922658c205b89b40fe8ebe07f"
+checksum = "c5c448dcb78ec38c7d59ec61f87f70a98ea19171e06c139357e012ee226fec90"
 dependencies = [
  "base64",
  "chunked_transfer",

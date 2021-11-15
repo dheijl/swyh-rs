@@ -302,12 +302,12 @@ impl Renderer {
             if bits_per_sample == 16 {
                 vars.insert(
                     "didl_prot_info".to_string(),
-                    strfmt(L16_PROT_INFO, &vars).unwrap(),
+                    strfmt(L16_PROT_INFO, &vars).unwrap_or_default(),
                 );
             } else {
                 vars.insert(
                     "didl_prot_info".to_string(),
-                    strfmt(L24_PROT_INFO, &vars).unwrap(),
+                    strfmt(L24_PROT_INFO, &vars).unwrap_or_default(),
                 );
             }
         }
@@ -382,9 +382,15 @@ impl Renderer {
             vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
         } else {
             if bits_per_sample == 16 {
-                vars.insert("didl_prot_info".to_string(), L16_PROT_INFO.to_string());
+                vars.insert(
+                    "didl_prot_info".to_string(),
+                    strfmt(L16_PROT_INFO, &vars).unwrap_or_default(),
+                );
             } else {
-                vars.insert("didl_prot_info".to_string(), L24_PROT_INFO.to_string());
+                vars.insert(
+                    "didl_prot_info".to_string(),
+                    strfmt(L24_PROT_INFO, &vars).unwrap_or_default(),
+                );
             }
         }
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());

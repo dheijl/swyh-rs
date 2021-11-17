@@ -173,10 +173,10 @@ mod tests {
     #[test]
 
     fn test_wav_hdr() {
-        let hdr = create_wav_hdr(44100, 24);
-        eprintln!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
-        let hdr = create_wav_hdr(44100, 16);
-        eprintln!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
+        let _hdr = create_wav_hdr(44100, 24);
+        //eprintln!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
+        let _hdr = create_wav_hdr(44100, 16);
+        //eprintln!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
     }
 
     #[test]

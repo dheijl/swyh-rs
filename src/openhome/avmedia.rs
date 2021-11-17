@@ -79,7 +79,7 @@ static DIDL_TEMPLATE: &str = "\
 <item id=\"1\" parentID=\"0\" restricted=\"0\">\
 <dc:title>swyh-rs</dc:title>\
 <res bitsPerSample=\"{bits_per_sample}\" \
-nrAudioChannels=\"2\" \
+nrAudioChannels=\"2\"\
 protocolInfo=\"{didl_prot_info}\" \
 sampleFrequency=\"{sample_rate}\" \
 duration=\"{duration}\" >{server_uri}</res>\
@@ -296,21 +296,25 @@ impl Renderer {
         vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         vars.insert("duration".to_string(), "00:00:00".to_string());
+        let mut didl_prot: String;
         if use_wav_format {
-            vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
+            didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
         } else {
             if bits_per_sample == 16 {
-                vars.insert(
-                    "didl_prot_info".to_string(),
-                    strfmt(L16_PROT_INFO, &vars).unwrap_or_default(),
-                );
+                didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
             } else {
-                vars.insert(
-                    "didl_prot_info".to_string(),
-                    strfmt(L24_PROT_INFO, &vars).unwrap_or_default(),
-                );
+                didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
+            }
+            match strfmt(&didl_prot, &vars) {
+                Ok(s) => didl_prot = s,
+                Err(e) => {
+                    didl_prot = format!("oh_play: error {} formatting didl_prot", e);
+                    log(didl_prot.clone());
+                    return Err(BAD_TEMPL);
+                }
             }
         }
+        vars.insert("didl_prot_info".to_string(), didl_prot);
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
@@ -380,18 +384,16 @@ impl Renderer {
         vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
         if use_wav_format {
             vars.insert("didl_prot_info".to_string(), WAV_PROT_INFO.to_string());
+        } else if bits_per_sample == 16 {
+            vars.insert(
+                "didl_prot_info".to_string(),
+                strfmt(L16_PROT_INFO, &vars).unwrap_or_default(),
+            );
         } else {
-            if bits_per_sample == 16 {
-                vars.insert(
-                    "didl_prot_info".to_string(),
-                    strfmt(L16_PROT_INFO, &vars).unwrap_or_default(),
-                );
-            } else {
-                vars.insert(
-                    "didl_prot_info".to_string(),
-                    strfmt(L24_PROT_INFO, &vars).unwrap_or_default(),
-                );
-            }
+            vars.insert(
+                "didl_prot_info".to_string(),
+                strfmt(L24_PROT_INFO, &vars).unwrap_or_default(),
+            );
         }
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         vars.insert("duration".to_string(), "00:00:00".to_string());

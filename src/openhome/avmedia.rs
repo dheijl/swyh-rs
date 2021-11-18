@@ -79,9 +79,9 @@ static DIDL_TEMPLATE: &str = "\
 <item id=\"1\" parentID=\"0\" restricted=\"0\">\
 <dc:title>swyh-rs</dc:title>\
 <res bitsPerSample=\"{bits_per_sample}\" \
-nrAudioChannels=\"2\"\
-protocolInfo=\"{didl_prot_info}\" \
+nrAudioChannels=\"2\" \
 sampleFrequency=\"{sample_rate}\" \
+protocolInfo=\"{didl_prot_info}\" \
 duration=\"{duration}\" >{server_uri}</res>\
 <upnp:class>object.item.audioItem.musicTrack</upnp:class>\
 </item>\

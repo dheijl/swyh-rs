@@ -93,7 +93,8 @@ impl Read for ChannelStream {
             buf[..i].copy_from_slice(&self.wav_hdr);
             self.wav_hdr.clear();
         }
-        while i < buf.len() - (self.bits_per_sample / 8) as usize {
+        let bytes_per_sample = (self.bits_per_sample / 8) as usize;
+        while i < buf.len() - bytes_per_sample {
             match self.fifo.pop_front() {
                 Some(f32sample) => {
                     if self.bits_per_sample == 16 {

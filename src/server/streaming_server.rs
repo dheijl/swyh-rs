@@ -152,9 +152,9 @@ pub fn run_server(
                         let streaming_format = if conf.use_wave_format {
                             "audio/wave;codec=1 (WAV)"
                         } else if conf.bits_per_sample == Some(16) {
-                            "audio/l16 (LPCM)"
+                            "audio/L16 (LPCM)"
                         } else {
-                            "audio/l24 (LPCM)"
+                            "audio/L24 (LPCM)"
                         };
                         ui_log(format!(
                             "Streaming {}, input sample format {:?}, channels=2, rate={}, disable chunked={} to {}",

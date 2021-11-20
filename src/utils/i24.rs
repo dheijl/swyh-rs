@@ -58,7 +58,7 @@ mod tests {
         i24_sample
     }
 
-    fn check_i24(s: I24, check: [u8;3]) {
+    fn check_i24(s: I24, check: [u8; 3]) {
         assert_eq!(s.b1, check[0], "f32: msb1 fails");
         assert_eq!(s.b2, check[1], "f32: lsb2 fails");
         assert_eq!(s.b3, check[2], "f32: lsb1 fails");

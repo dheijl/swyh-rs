@@ -105,7 +105,7 @@ pub fn run_server(
                         format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string()) 
                     } else {
                         format!("audio/L24;rate={};channels=2", wd.sample_rate.0.to_string()) 
-                        };
+                    };
                     let ct_hdr = Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
                     let tm_hdr =
                         Header::from_bytes(&b"TransferMode.DLNA.ORG"[..], &b"Streaming"[..]).unwrap();

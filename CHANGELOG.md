@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
-- 1.3.20 (unreleased)
+- 1.3.20 (Nov 24 2021 dheijl)
+  - (experimental) 24 bit LPCM (audio/L24) support
   - get rid of the ini file format in favour of toml, so that I can use serde (de)serialization instead of reading and writing individual values
   - automatically migrate an exisiting config.ini to config.toml
   - update to Rust edition 2021

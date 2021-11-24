@@ -8,7 +8,6 @@
   - wait for the first SSDP discovery to complete before starting the streaming server
   - disable the terminal logger on Windows release build, as it panics with Rust 2021
   - add an "Accept-Ranges : none" header to HTTP responses as HTTP ranges (Linn!) are not supported
-  - prepare for 24 bit (WAV RIFF/le and naked PCM be) support
   - update dependencies
 
 - 1.3.19 (July 6 2021 dheijl)

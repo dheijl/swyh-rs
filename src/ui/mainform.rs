@@ -358,6 +358,7 @@ impl MainForm {
         if config.bits_per_sample.unwrap() == 24 {
             b24_bit.set(true);
         }
+        let config_ch_flag = config_changed.clone();
         b24_bit.set_callback(move |b| {
             let mut conf = CONFIG.write();
             if b.is_set() {
@@ -366,6 +367,7 @@ impl MainForm {
                 conf.bits_per_sample = Some(16);
             }
             let _ = conf.update_config();
+            config_ch_flag.set(true);
         });
         pconfig2.add(&b24_bit);
         // HTTP server listen port

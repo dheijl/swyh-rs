@@ -26,7 +26,7 @@ If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and 
 
 I wrote this because I a) wanted to learn Rust and b) SWYH does not work on Linux, does not work well with Volumio (push streaming does not work), and has a substantial memory leak in the ancient Intel .Net UPNP/DLNA library it uses.
 
-Music is streamed in uncompressed 16 bit LPCM format (audio/l16, or optionally audio/wav with an "infinite length" WAV header) with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input).
+Music is streamed in uncompressed 16 bit LPCM format (audio/l16, audio/L24,  or optionally audio/wav with an "infinite length" WAV header) with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input).
 Since version 1.3.5 there is also support for streaming in in !uncompressed PCM WAV file format in case your renderer does not support "naked" uncompressed PCM streams.
 Note that libsndfile based renderers may not be able to decode the WAV format if they do not open the stram as a "pipe", because the stream is not "seekable".
 
@@ -71,12 +71,13 @@ The icon was designed by @numanair, thanks!
 - all media renderers are discoverded using SSDP on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen (so that on a multihomed Windows machine the most likely interface is selected). If necessary you can choose another network from the network dropdown, for instance if you use a VPN.
 - then a button is shown for every renderer found
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
-- audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source.
+- audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source, unless you enable 24 bit LPCM (see below).
 - some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "*Autoresume*" checkbox if you encounter this problem. But always try to disable the "*Chunked Transfer Encoding*" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
 - there is an "*Autoreconnect*" checkbox, if set the last used renderer will be automatically activated on program start
 - there is also a "*No Chunked Tr. Enc.*" checkbox, because some AV-Transport renderers do not support it properly (those based on the UPnP/1.0, Intel MicroStack in particular). You can safely disable chunked transfer, it's a HTTP/1.1 recommendation for streaming but it does not really matter if you do not use it.
 - there is (since 1.3.5) an "*Add WAV Hdr*" checkbox, that will prepend an infinite size MS "WAV" (RIFF) header to the stream for those renderers that do not support "naked" PCM streams. It may work or not (it will not work if your renderer uses libsndfile like Volumio, because the network stream is not "seekable" and this causes the decoding of the WAV header to fail). Apparently Sonos devices do not accept raw PCM, they need the WAV header.
-- there is (since 1.3.13) an input box to select the *HTTP listener port* for the streaming server. Default is 5901. If you use a firewall, this port should allow incoming HTTP connections.
+- there is (since 1.3.20) a check box "*24 bit*". It causes audio to be streamed in 24 bit LPCM format (audio/L24) with the sampling rate of the audio source. This does not work with older Mpd/Upmpdcli based streamers like Volumio 2.x. Not tested on Volumio 3.x yet. But BubbleUPNP correctly transcodes it to audio/L16.
+- there is (since 1.3.13) an input box to select the *HTTP listener port* for the streaming server. Default is 5901. If you use a firewall, this port should allow incoming HTTP connections from your renderer(s).
 - there is (since 1.3.6) an option to enable visualization of the RMS value (L+R channel) of the captured PCM audio signal. It will only add an insignificant amount of CPU use.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program tries to run at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary priviliges (renice).

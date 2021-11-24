@@ -35,8 +35,9 @@ pub fn run_server(
     );
     ui_log(logmsg);
     let logmsg = format!(
-        "Sample rate: {}, sample format: audio/l16 (PCM)",
+        "Sample rate: {}, sample format: audio/L{} (PCM)",
         wd.sample_rate.0.to_string(),
+        CONFIG.read().bits_per_sample.unwrap(),
     );
     ui_log(logmsg);
     let server = Arc::new(Server::http(addr).unwrap());

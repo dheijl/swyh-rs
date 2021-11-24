@@ -314,9 +314,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.2.16"
+version = "1.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06992d52808fdebc433fa0bc5b67c36a9b5f22b58f41f063fd3227280f4b1acf"
+checksum = "2e6a58fed8c3cf3601c170d3be3a1dba6d03377cd08d70ba820b033650cbe518"
 dependencies = [
  "bitflags",
  "fltk-sys",
@@ -325,9 +325,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.2.16"
+version = "1.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7be3973f4f1f1c7ecda0920822691750988bff5f8a4f41028ac08feebcc63721"
+checksum = "6e613582f74f6be3f9cd73dea559495303d8f55af112cc2e7bab9f6fe95ba5e3"
 dependencies = [
  "cmake",
 ]
@@ -625,9 +625,9 @@ dependencies = [
 
 [[package]]
 name = "ndk-sys"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c44922cb3dbb1c70b5e5f443d63b64363a898564d739ba5198e3a9138442868d"
+checksum = "e1bcdd74c20ad5d95aacd60ef9ba40fdf77f767051040541df557b7a9b2a2121"
 
 [[package]]
 name = "nix"
@@ -909,9 +909,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustls"
-version = "0.20.1"
+version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dac4581f0fc0e0efd529d069e8189ec7b90b8e7680e21beb35141bdc45f36040"
+checksum = "d37e5e2290f3e040b594b1a9e04377c2c671f1a1cfd9bfdef82106ac1c113f84"
 dependencies = [
  "log 0.4.14",
  "ring",
@@ -1036,7 +1036,7 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "swyh-rs"
-version = "1.3.20-beta3"
+version = "1.3.20"
 dependencies = [
  "bitflags",
  "chrono",

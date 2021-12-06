@@ -7,12 +7,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tiny_http::{Header, Method, Response, Server};
 
-#[derive(Debug, Clone)]
-struct RangeHeader {
-    pub offset: u64,
-    pub size: u64,
-}
-
 /// run_server - run a tiny-http webserver to serve streaming requests from renderers
 ///
 /// all music is sent in audio/l16 PCM format (i16) with the sample rate of the source
@@ -57,8 +51,6 @@ pub fn run_server(
                             debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr());
                         }
                     }
-                    // check for a Range header (Linn) but ignore it for now
-                    let _rhdr = get_range_hdr(&rq);
                     // get remote ip
                     let remote_addr = format!("{}", rq.remote_addr());
                     let mut remote_ip = remote_addr.clone();
@@ -234,65 +226,5 @@ pub fn run_server(
 
     for h in handles {
         h.join().unwrap();
-    }
-}
-
-/// decode the range header as present in Get requests from Linn devices
-fn decode_range(range_value: &str) -> Option<(u64, u64)> {
-    let range: Vec<&str> = range_value.split_inclusive('=').collect();
-    if range.len() > 1 && range[0] == "bytes=" {
-        let byte_range: Vec<&str> = range[1].split('-').collect();
-        if byte_range.len() > 1 {
-            let offset: u64 = byte_range[0].parse().unwrap_or_default();
-            let size = if !byte_range[1].is_empty() {
-                byte_range[1].parse().unwrap()
-            } else {
-                0
-            };
-            return Some((offset, size));
-        }
-    }
-    None
-}
-
-/// return a decoded the range header if present
-/// Linn devices use a range header and expect a 206 Partial Content response
-fn get_range_hdr(rq: &tiny_http::Request) -> Option<RangeHeader> {
-    for header in rq.headers().iter() {
-        if header.field.equiv("Range") {
-            if let Some(range) = decode_range(header.value.as_str()) {
-                return Some(RangeHeader {
-                    offset: range.0,
-                    size: range.1,
-                });
-            } else {
-                return None;
-            }
-        }
-    }
-    None
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::server::streaming_server::*;
-    #[test]
-
-    fn test_range() {
-        let range_value = "bytes=77-";
-        assert!(decode_range(range_value) == Some((77, 0)));
-        let range_value = "bytes=77-88";
-        assert!(decode_range(range_value) == Some((77, 88)));
-        let range_value = "xxx";
-        assert!(decode_range(range_value) == None);
-        let range_value = "bytes=";
-        assert!(decode_range(range_value) == None);
-        let range_value = "bytes=16";
-        assert!(decode_range(range_value) == None);
-        // this is not correct according to RFC 7233
-        // but as we do not know the stream size ...
-        // I don't expect this hypothetical situation to happen
-        let range_value = "bytes=-16";
-        assert!(decode_range(range_value) == Some((0, 16)));
     }
 }

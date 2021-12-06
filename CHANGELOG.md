@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.3.21-beta (unreleased)
+  - get rid of all remaining traces of Range Headers (Linn) code  
+
 - 1.3.20 (Nov 24 2021 dheijl)
   - (experimental) 24 bit LPCM (audio/L24) support
   - get rid of the ini file format in favour of toml, so that I can use serde (de)serialization instead of reading and writing individual values

@@ -105,6 +105,6 @@ The following pages might get you going:
 
 See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
-### Screenshot
+### Screenshot:
 
-![image](https://user-images.githubusercontent.com/2384545/124494125-c000db00-ddb6-11eb-816c-666142070a02.PNG)
+![Knipsel](https://user-images.githubusercontent.com/2384545/145233025-1c7145ac-abfc-4574-954a-b068036b43fe.PNG)

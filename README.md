@@ -59,6 +59,8 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - simultaneous streaming to multiple renderers is only limited by the number of renderer buttons that can be shown in the available space in the window.
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
 - streaming to Logitech Media Server does not work ([issue # 40]( https://github.com/dheijl/swyh-rs/issues/40))
+- streaming to Linn does not work
+- if for some reason your config file gets corrupted you can get a panic on startup when the config file is deserialized. The easy fix is to simply delete the config.ini (for older versions) or config.toml (for newer versions). You can find it in your home directory in the .swyh-rs folder.
 
 ### Artwork Credits
 

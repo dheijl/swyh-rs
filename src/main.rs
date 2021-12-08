@@ -263,7 +263,14 @@ fn main() {
     let _ = std::thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_server(&local_addr, server_port, wd, feedback_tx))
+        .spawn(move || {
+            run_server(
+                &local_addr,
+                server_port.unwrap_or_default(),
+                wd,
+                feedback_tx,
+            )
+        })
         .unwrap();
 
     // get the logreader channel
@@ -308,7 +315,7 @@ fn main() {
                                     let config = CONFIG.read().clone();
                                     let _ = r.play(
                                         &local_addr,
-                                        server_port,
+                                        server_port.unwrap_or_default(),
                                         &wd,
                                         &dummy_log,
                                         config.use_wave_format,

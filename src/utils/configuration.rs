@@ -21,7 +21,7 @@ struct Config {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Configuration {
     #[serde(rename(deserialize = "ServerPort", serialize = "ServerPort"))]
-    pub server_port: u16,
+    pub server_port: Option<u16>,
     #[serde(rename(deserialize = "AutoResume", serialize = "AutoResume"))]
     pub auto_resume: bool,
     #[serde(rename(deserialize = "SoundCard", serialize = "SoundCard"))]
@@ -57,7 +57,7 @@ impl Default for Configuration {
 impl Configuration {
     pub fn new() -> Configuration {
         Configuration {
-            server_port: SERVER_PORT,
+            server_port: Some(SERVER_PORT),
             auto_resume: false,
             sound_source: "None".to_string(),
             log_level: LevelFilter::Info,
@@ -107,6 +107,10 @@ impl Configuration {
         let mut config: Config = from_str(&s).unwrap();
         if config.configuration.ssdp_interval_mins < 0.5 {
             config.configuration.ssdp_interval_mins = 0.5;
+        }
+        match config.configuration.server_port {
+            Some(_u16) => {}
+            _ => config.configuration.server_port = Some(SERVER_PORT),
         }
         match config.configuration.bits_per_sample {
             Some(16 | 24) => {}

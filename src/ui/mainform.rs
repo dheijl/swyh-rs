@@ -372,18 +372,18 @@ impl MainForm {
         pconfig2.add(&b24_bit);
         // HTTP server listen port
         let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
-        listen_port.set_value(&CONFIG.read().server_port.to_string());
+        listen_port.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
         listen_port.set_maximum_size(5);
         let config_ch_flag = config_changed;
         listen_port.set_callback(move |lp| {
             let new_value: u32 = lp.value().parse().unwrap();
             if new_value > 65535 {
-                lp.set_value(&CONFIG.read().server_port.to_string());
+                lp.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
                 return;
             }
-            if new_value as u16 != CONFIG.read().server_port {
+            if new_value as u16 != CONFIG.read().server_port.unwrap_or_default() {
                 let mut conf = CONFIG.write();
-                conf.server_port = new_value as u16;
+                conf.server_port = Some(new_value as u16);
                 let _ = conf.update_config();
                 config_ch_flag.set(true);
             }
@@ -535,7 +535,7 @@ impl MainForm {
                 let config = CONFIG.read().clone();
                 let _ = newr_c.play(
                     &local_addr,
-                    config.server_port,
+                    config.server_port.unwrap_or_default(),
                     &wd,
                     &ui_log,
                     use_wav_format,

@@ -3,7 +3,7 @@ resolver = "2"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2021"
 name = "swyh-rs"
-version = "1.3.21"
+version = "1.3.22-beta"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -20,7 +20,7 @@ chrono = "0.4.19"
 cpal = "0.13.4"
 crossbeam-channel = "0.5.1"
 dirs = "4.0.0"
-fltk = { version = "1.2.19", features = ["use-ninja"] }
+fltk = { version = "1.2.20", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 ifcfg = "0.1.2"
 lazy_static = "1.4.0"
@@ -30,7 +30,7 @@ log = { version = "0.4.14", features = [
     "serde",
 ] }
 parking_lot = "0.11.2"
-serde = { version = "1.0.130", features = ["derive"] }
+serde = { version = "1.0.131", features = ["derive"] }
 simplelog = "0.11.1"
 strfmt = "0.1.6"
 stringreader = "0.1.1"

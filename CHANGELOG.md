@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.3.22 (unreleased)
+
 - 1.3.21 (Dec 8 2021 dheijl)
   - get rid of all remaining traces of Range Headers (Linn) code  
   - fix panic when reading config after upgrade from 1.3.12 or earlier (thanks @FinalSh4re)

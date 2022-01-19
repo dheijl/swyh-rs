@@ -18,9 +18,9 @@ winres = "0.1.12"
 bitflags = "1.3.2"
 chrono = "0.4.19"
 cpal = "0.13.4"
-crossbeam-channel = "0.5.1"
+crossbeam-channel = "0.5.2"
 dirs = "4.0.0"
-fltk = { version = "1.2.20", features = ["use-ninja"] }
+fltk = { version = "1.2.27", features = ["use-ninja"] }
 htmlescape = "0.3.1"
 ifcfg = "0.1.2"
 lazy_static = "1.4.0"
@@ -30,20 +30,20 @@ log = { version = "0.4.14", features = [
     "serde",
 ] }
 parking_lot = "0.11.2"
-serde = { version = "1.0.131", features = ["derive"] }
-simplelog = "0.11.1"
+serde = { version = "1.0.133", features = ["derive"] }
+simplelog = "0.11.2"
 strfmt = "0.1.6"
 stringreader = "0.1.1"
-tiny_http = "0.9.0"
+tiny_http = "0.10.0"
 toml = "0.5.8"
-ureq = { version = "2.3.1", features = ["charset"] }
+ureq = { version = "2.4.0", features = ["charset"] }
 url = "2.2.2"
 xml-rs = "0.8.4"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.109"
+libc = "0.2.112"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

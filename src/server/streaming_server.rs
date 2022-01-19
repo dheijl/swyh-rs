@@ -22,15 +22,12 @@ pub fn run_server(
     // wait for the first SSDP discovery to complete
     // in case a renderer should try to start streaming before SSDP has completed
     std::thread::sleep(Duration::from_millis(3700));
-    let addr = format!("{}:{}", local_addr, server_port);
-    let logmsg = format!(
-        "The streaming server is listening on http://{}/stream/swyh.wav",
-        addr,
-    );
+    let addr = format!("{local_addr}:{server_port}");
+    let logmsg = format!("The streaming server is listening on http://{addr}/stream/swyh.wav");
     ui_log(logmsg);
     let logmsg = format!(
         "Sample rate: {}, sample format: audio/L{} (PCM)",
-        wd.sample_rate.0.to_string(),
+        wd.sample_rate.0,
         CONFIG.read().bits_per_sample.unwrap(),
     );
     ui_log(logmsg);
@@ -78,8 +75,7 @@ pub fn run_server(
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
                             ui_log(format!(
-                                "=>Http POST connection with {} terminated [{}]",
-                                remote_addr, e
+                                "=>Http POST connection with {remote_addr} terminated [{e}]"
                             ));
                         }
                         return;
@@ -95,9 +91,9 @@ pub fn run_server(
                     let ct_text = if conf.use_wave_format {
                         "audio/vnd.wave;codec=1".to_string()
                     } else if conf.bits_per_sample == Some(16) {
-                        format!("audio/L16;rate={};channels=2", wd.sample_rate.0.to_string()) 
+                        format!("audio/L16;rate={};channels=2", wd.sample_rate.0) 
                     } else {
-                        format!("audio/L24;rate={};channels=2", wd.sample_rate.0.to_string()) 
+                        format!("audio/L24;rate={};channels=2", wd.sample_rate.0) 
                     };
                     let ct_hdr = Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
                     let tm_hdr =
@@ -150,8 +146,7 @@ pub fn run_server(
                             "audio/L24 (LPCM)"
                         };
                         ui_log(format!(
-                            "Streaming {}, input sample format {:?}, channels=2, rate={}, disable chunked={} to {}",
-                            streaming_format,
+                            "Streaming {streaming_format}, input sample format {:?}, channels=2, rate={}, disable chunked={} to {}",
                             wd.sample_format,
                             wd.sample_rate.0,
                             conf.disable_chunked,
@@ -169,8 +164,7 @@ pub fn run_server(
                         let e = rq.respond(response);
                         if e.is_err() {
                             ui_log(format!(
-                                "=>Http connection with {} terminated [{:?}]",
-                                remote_addr, e
+                                "=>Http connection with {remote_addr} terminated [{e:?}]"
                             ));
                         }
                         let nclients = {
@@ -179,7 +173,7 @@ pub fn run_server(
                             clients.len()
                         };
                         debug!("Now have {} streaming clients left", nclients);
-                        ui_log(format!("Streaming to {} has ended", remote_addr));
+                        ui_log(format!("Streaming to {remote_addr} has ended"));
                         // inform the main thread that this renderer has finished receiving
                         // necessary if the connection close was not caused by our own GUI
                         // so that we can update the corresponding button state
@@ -202,8 +196,7 @@ pub fn run_server(
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
                             ui_log(format!(
-                                "=>Http HEAD connection with {} terminated [{}]",
-                                remote_addr, e
+                                "=>Http HEAD connection with {remote_addr} terminated [{e}]"
                             ));
                         }
                     } else if matches!(rq.method(), Method::Post) {
@@ -214,8 +207,7 @@ pub fn run_server(
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
                             ui_log(format!(
-                                "=>Http POST connection with {} terminated [{}]",
-                                remote_addr, e
+                                "=>Http POST connection with {remote_addr} terminated [{e}]"
                             ));
                         }
                     }

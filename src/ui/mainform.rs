@@ -127,7 +127,7 @@ impl MainForm {
             if config.last_network != "None" {
                 format!("Active network: {}", config.last_network.clone())
             } else {
-                format!("Active network: {}", local_addr.to_string())
+                format!("Active network: {local_addr}")
             }
         };
         let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);
@@ -195,8 +195,7 @@ impl MainForm {
             }
             let name = audio_sources_c[i as usize].clone();
             ui_log(format!(
-                "*W*W*> Audio source changed to {}, restart required!!",
-                name
+                "*W*W*> Audio source changed to {name}, restart required!!"
             ));
             conf.sound_source = name;
             let _ = conf.update_config();
@@ -275,7 +274,7 @@ impl MainForm {
         pconfig1.add(&ssdp_interval);
 
         // show log level choice
-        let ll = format!("Log Level: {}", config.log_level.to_string());
+        let ll = format!("Log Level: {}", config.log_level);
         let mut log_level_choice = MenuButton::default().with_label(&ll);
         let log_levels = vec!["Info", "Debug"];
         for ll in log_levels.iter() {
@@ -304,7 +303,7 @@ impl MainForm {
             conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
             let _ = conf.update_config();
             config_ch_flag.set(true);
-            let ll = format!("Log Level: {}", conf.log_level.to_string());
+            let ll = format!("Log Level: {}", conf.log_level);
             b.set_label(&ll);
             app::awake();
             *recursion -= 1;

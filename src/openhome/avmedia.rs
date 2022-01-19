@@ -182,8 +182,7 @@ impl Renderer {
             }
             Err(e) => {
                 log(format!(
-                    "parse_url(): Error '{}' while parsing base url '{}'",
-                    e, dev_url
+                    "parse_url(): Error '{e}' while parsing base url '{dev_url}'"
                 ));
                 host = "0.0.0.0".to_string();
                 port = 0;
@@ -204,7 +203,7 @@ impl Renderer {
             .set("Connection", "close")
             .set("User-Agent", "swyh-rs-Rust/0.x")
             .set("Accept", "*/*")
-            .set("SOAPAction", &format!("\"{}\"", soap_action))
+            .set("SOAPAction", &format!("\"{soap_action}\""))
             .set("Content-Type", "text/xml; charset=\"utf-8\"")
             .send_string(body)
         {
@@ -275,13 +274,13 @@ impl Renderer {
     ) -> Result<(), &str> {
         let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
-            "OH Start playing on {} host={} port={} from {} using OpenHome Playlist",
-            self.dev_name, host, port, local_addr
+            "OH Start playing on {} host={host} port={port} from {local_addr} using OpenHome Playlist",
+            self.dev_name
         ));
-        let url = format!("http://{}:{}{}", host, port, self.oh_control_url);
-        let addr = format!("{}:{}", local_addr, server_port);
-        let local_url = format!("http://{}/stream/swyh.wav", addr);
-        debug!("OHPlaylist server URL: {}", local_url);
+        let url = format!("http://{host}:{port}{}", self.oh_control_url);
+        let addr = format!("{local_addr}:{server_port}");
+        let local_url = format!("http://{addr}/stream/swyh.wav");
+        debug!("OHPlaylist server URL: {local_url}");
         // delete current playlist
         let _resp = self
             .soap_request(
@@ -308,7 +307,7 @@ impl Renderer {
             match strfmt(&didl_prot, &vars) {
                 Ok(s) => didl_prot = s,
                 Err(e) => {
-                    didl_prot = format!("oh_play: error {} formatting didl_prot", e);
+                    didl_prot = format!("oh_play: error {e} formatting didl_prot");
                     log(didl_prot.clone());
                     return Err(BAD_TEMPL);
                 }
@@ -319,7 +318,7 @@ impl Renderer {
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
             Err(e) => {
-                didl_data = format!("oh_play: error {} formatting didl_data xml", e);
+                didl_data = format!("oh_play: error {e} formatting didl_data xml");
                 log(didl_data.clone());
                 return Err(BAD_TEMPL);
             }
@@ -329,7 +328,7 @@ impl Renderer {
         match strfmt(OH_INSERT_PL_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
             Err(e) => {
-                xmlbody = format!("oh_play: error {} formatting oh playlist xml", e);
+                xmlbody = format!("oh_play: error {e} formatting oh playlist xml");
                 log(xmlbody);
                 return Err(BAD_TEMPL);
             }
@@ -371,13 +370,13 @@ impl Renderer {
         // now send AVTransportURI with metadate(DIDL-Lite) and play requests
         let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
-            "AV Start playing on {} host={} port={} from {} using AvTransport Play",
-            self.dev_name, host, port, local_addr
+            "AV Start playing on {} host={host} port={port} from {local_addr} using AvTransport Play",
+            self.dev_name
         ));
-        let url = format!("http://{}:{}{}", host, port, self.av_control_url);
-        let addr = format!("{}:{}", local_addr, server_port);
-        let local_url = format!("http://{}/stream/swyh.wav", addr);
-        debug!("AvTransport server URL: {}", local_url);
+        let url = format!("http://{host}:{port}{}", self.av_control_url);
+        let addr = format!("{local_addr}:{server_port}");
+        let local_url = format!("http://{addr}/stream/swyh.wav");
+        debug!("AvTransport server URL: {local_url}");
         // set AVTransportURI
         let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
@@ -401,7 +400,7 @@ impl Renderer {
         match strfmt(&didl_data, &vars) {
             Ok(s) => didl_data = s,
             Err(e) => {
-                didl_data = format!("av_play: error {} formatting didl_data", e);
+                didl_data = format!("av_play: error {e} formatting didl_data");
                 log(didl_data.clone());
                 return Err(BAD_TEMPL);
             }
@@ -411,7 +410,7 @@ impl Renderer {
         match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
             Err(e) => {
-                xmlbody = format!("av_play: error {} formatting set transport uri", e);
+                xmlbody = format!("av_play: error {e} formatting set transport uri");
                 log(xmlbody);
                 return Err(BAD_TEMPL);
             }
@@ -457,10 +456,10 @@ impl Renderer {
     fn oh_stop_play(&self, log: &dyn Fn(String)) {
         let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
-            "OH Stop playing on {} host={} port={}",
-            self.dev_name, host, port
+            "OH Stop playing on {} host={host} port={port}",
+            self.dev_name
         ));
-        let url = format!("http://{}:{}{}", host, port, self.oh_control_url);
+        let url = format!("http://{host}:{port}{}", self.oh_control_url);
 
         // delete current playlist
         let _resp = self
@@ -476,10 +475,10 @@ impl Renderer {
     fn av_stop_play(&self, log: &dyn Fn(String)) {
         let (host, port) = self.parse_url(&self.dev_url, log);
         log(format!(
-            "AV Stop playing on {} host={} port={}",
-            self.dev_name, host, port
+            "AV Stop playing on {} host={host} port={port}",
+            self.dev_name
         ));
-        let url = format!("http://{}:{}{}", host, port, self.av_control_url);
+        let url = format!("http://{host}:{port}{}", self.av_control_url);
 
         // delete current playlist
         let _resp = self
@@ -600,7 +599,7 @@ pub fn discover(
             Err(e) => {
                 // ignore socket read timeout on Windows or EAGAIN on Linux
                 if !(e.to_string().contains("10060") || e.to_string().contains("os error 11")) {
-                    logger(format!("*E*E>Error reading SSDP M-SEARCH response: {}", e));
+                    logger(format!("*E*E>Error reading SSDP M-SEARCH response: {e}"));
                 }
             }
         }
@@ -653,7 +652,7 @@ pub fn discover(
                             url_base = url_base[0..pos].to_string();
                         }
                     }
-                    rend.dev_url = format!("http://{}/", url_base);
+                    rend.dev_url = format!("http://{url_base}/");
                 }
                 renderers.push(rend);
             }

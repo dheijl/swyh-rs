@@ -10,10 +10,9 @@ pub fn raise_priority() {
         let id = GetCurrentProcess() as HANDLE;
         if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS) == 0 {
             let e = GetLastError();
+            let p = GetCurrentProcessId();
             ui_log(format!(
-                "*E*E*>Failed to set process priority id={}, error={}",
-                GetCurrentProcessId(),
-                e
+                "*E*E*>Failed to set process priority id={p}, error={e}"
             ));
         }
     }
@@ -32,7 +31,7 @@ pub fn raise_priority() {
         if rc != 0 {
             ui_log("Sorry, but you don't have permissions to raise priority...".to_string());
         } else {
-            ui_log(format!("Now running at nice value {}", newpri));
+            ui_log(format!("Now running at nice value {newpri}"));
         }
     }
 }

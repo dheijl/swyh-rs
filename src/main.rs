@@ -130,7 +130,7 @@ fn main() {
         }
         conf.clone()
     };
-    ui_log(format!("{:?}", config));
+    ui_log(format!("{config:?}"));
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
     }

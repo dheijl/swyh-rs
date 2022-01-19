@@ -75,7 +75,7 @@ pub fn capture_output_audio(
     let audio_cfg = device
         .default_output_config()
         .expect("No default output config found");
-    ui_log(format!("Default audio {:?}", audio_cfg));
+    ui_log(format!("Default audio {audio_cfg:?}"));
     let mut f32_samples: Vec<f32> = Vec::with_capacity(16384);
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
@@ -85,7 +85,7 @@ pub fn capture_output_audio(
         ) {
             Ok(stream) => Some(stream),
             Err(e) => {
-                ui_log(format!("Error capturing f32 audio stream: {}", e));
+                ui_log(format!("Error capturing f32 audio stream: {e}"));
                 None
             }
         },
@@ -97,7 +97,7 @@ pub fn capture_output_audio(
             ) {
                 Ok(stream) => Some(stream),
                 Err(e) => {
-                    ui_log(format!("Error capturing i16 audio stream: {}", e));
+                    ui_log(format!("Error capturing i16 audio stream: {e}"));
                     None
                 }
             }
@@ -110,7 +110,7 @@ pub fn capture_output_audio(
             ) {
                 Ok(stream) => Some(stream),
                 Err(e) => {
-                    ui_log(format!("Error capturing u16 audio stream: {}", e));
+                    ui_log(format!("Error capturing u16 audio stream: {e}"));
                     None
                 }
             }
@@ -120,7 +120,7 @@ pub fn capture_output_audio(
 
 /// capture_err_fn - called whan it's impossible to build an audio input stream
 fn capture_err_fn(err: cpal::StreamError) {
-    ui_log(format!("Error {} building audio input stream", err));
+    ui_log(format!("Error {err} building audio input stream"));
 }
 
 /// wave_reader - the captured audio input stream reader

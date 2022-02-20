@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
-- 1.3.22 (unreleased)
+- 1.3.22 (Feb 20 2022 dheijl)
+  - restore ProtocolInfo element in the DIDL-Lite xml template, it somehow disappeared after 1.3.19. Thanks @MX10-AC2N.
 
 - 1.3.21 (Dec 8 2021 dheijl)
   - get rid of all remaining traces of Range Headers (Linn) code  

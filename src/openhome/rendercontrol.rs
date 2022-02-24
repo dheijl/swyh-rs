@@ -230,15 +230,15 @@ impl Renderer {
         bits_per_sample: u16,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
-        let mut vars = HashMap::new();
+        let mut fmt_vars = HashMap::new();
         let (host, port) = self.parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
         let addr = format!("{local_addr}:{server_port}");
         let local_url = format!("http://{addr}/stream/swyh.wav");
-        vars.insert("server_uri".to_string(), local_url);
-        vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
-        vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
-        vars.insert("duration".to_string(), "00:00:00".to_string());
+        fmt_vars.insert("server_uri".to_string(), local_url);
+        fmt_vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
+        fmt_vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
+        fmt_vars.insert("duration".to_string(), "00:00:00".to_string());
         let mut didl_prot: String;
         if use_wav_format {
             didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
@@ -248,7 +248,7 @@ impl Renderer {
             } else {
                 didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
             }
-            match strfmt(&didl_prot, &vars) {
+            match strfmt(&didl_prot, &fmt_vars) {
                 Ok(s) => didl_prot = s,
                 Err(e) => {
                     didl_prot = format!("oh_play: error {e} formatting didl_prot");
@@ -257,9 +257,9 @@ impl Renderer {
                 }
             }
         }
-        vars.insert("didl_prot_info".to_string(), didl_prot);
+        fmt_vars.insert("didl_prot_info".to_string(), didl_prot);
         let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
-        match strfmt(&didl_data, &vars) {
+        match strfmt(&didl_data, &fmt_vars) {
             Ok(s) => didl_data = s,
             Err(e) => {
                 didl_data = format!("oh_play: error {e} formatting didl_data xml");
@@ -267,7 +267,7 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         }
-        vars.insert("didl_data".to_string(), didl_data);
+        fmt_vars.insert("didl_data".to_string(), didl_data);
         // now send the start playing commands
         if self
             .supported_protocols
@@ -276,7 +276,7 @@ impl Renderer {
             log(format!(
             "OH Start playing on {} host={host} port={port} from {local_addr} using OpenHome Playlist",
             self.dev_name));
-            return self.oh_play(log, &url, vars);
+            return self.oh_play(log, &url, &fmt_vars);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
@@ -284,7 +284,7 @@ impl Renderer {
             log(format!(
             "AV Start playing on {} host={host} port={port} from {local_addr} using AvTransport Play",
             self.dev_name));
-            return self.av_play(log, &url, vars);
+            return self.av_play(log, &url, &fmt_vars);
         } else {
             log("ERROR: play: no supported renderer protocol found".to_string());
         }
@@ -299,11 +299,11 @@ impl Renderer {
         &self,
         log: &dyn Fn(String),
         url: &str,
-        vars: HashMap<String, String>,
+        fmt_vars: &HashMap<String, String>,
     ) -> Result<(), &str> {
         let xmlbody: String;
         // Send the InsertPlayList command with metadate(DIDL-Lite)
-        match strfmt(OH_INSERT_PL_TEMPLATE, &vars) {
+        match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
             Ok(s) => xmlbody = s,
             Err(e) => {
                 xmlbody = format!("oh_play: error {e} formatting oh playlist xml");
@@ -337,14 +337,14 @@ impl Renderer {
         &self,
         log: &dyn Fn(String),
         url: &str,
-        vars: HashMap<String, String>,
+        fmt_vars: &HashMap<String, String>,
     ) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(log);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
         let xmlbody: String;
-        match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, &vars) {
+        match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
             Ok(s) => xmlbody = s,
             Err(e) => {
                 xmlbody = format!("av_play: error {e} formatting set transport uri");

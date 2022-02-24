@@ -1,5 +1,5 @@
 ///
-/// avmedia.rs
+/// rendercontrol.rs
 ///
 /// controller for avmedia renderers (audio only) using OpenHome protocol
 ///
@@ -15,32 +15,6 @@ use strfmt::strfmt;
 use stringreader::StringReader;
 use url::Url;
 use xml::reader::{EventReader, XmlEvent};
-
-// some audio config info
-#[derive(Debug, Clone, Copy)]
-pub struct WavData {
-    pub sample_format: cpal::SampleFormat,
-    pub sample_rate: cpal::SampleRate,
-    pub channels: u16,
-}
-
-/// An UPNP/DLNA service desciption
-#[derive(Debug, Clone)]
-pub struct AvService {
-    service_id: String,
-    service_type: String,
-    control_url: String,
-}
-
-impl AvService {
-    fn new() -> AvService {
-        AvService {
-            service_id: String::new(),
-            service_type: String::new(),
-            control_url: String::new(),
-        }
-    }
-}
 
 /// OH insert playlist template
 static OH_INSERT_PL_TEMPLATE: &str = "\
@@ -132,6 +106,32 @@ static AV_STOP_PLAY_TEMPLATE: &str ="\
 
 /// Bad XML template error
 static BAD_TEMPL: &str = "Bad xml template (strfmt)";
+
+// some audio config info
+#[derive(Debug, Clone, Copy)]
+pub struct WavData {
+    pub sample_format: cpal::SampleFormat,
+    pub sample_rate: cpal::SampleRate,
+    pub channels: u16,
+}
+
+/// An UPNP/DLNA service desciption
+#[derive(Debug, Clone)]
+pub struct AvService {
+    service_id: String,
+    service_type: String,
+    control_url: String,
+}
+
+impl AvService {
+    fn new() -> AvService {
+        AvService {
+            service_id: String::new(),
+            service_type: String::new(),
+            control_url: String::new(),
+        }
+    }
+}
 
 bitflags! {
 /// supported UPNP/DLNA protocols
@@ -229,68 +229,12 @@ impl Renderer {
         use_wav_format: bool,
         bits_per_sample: u16,
     ) -> Result<(), &str> {
-        if self
-            .supported_protocols
-            .contains(SupportedProtocols::OPENHOME)
-        {
-            return self.oh_play(
-                local_addr,
-                server_port,
-                wd,
-                log,
-                use_wav_format,
-                bits_per_sample,
-            );
-        } else if self
-            .supported_protocols
-            .contains(SupportedProtocols::AVTRANSPORT)
-        {
-            return self.av_play(
-                local_addr,
-                server_port,
-                wd,
-                log,
-                use_wav_format,
-                bits_per_sample,
-            );
-        } else {
-            log("ERROR: play: no supported renderer protocol found".to_string());
-        }
-        Ok(())
-    }
-
-    /// oh_play - set up a playlist on this OpenHome renderer and tell it to play it
-    ///
-    /// the renderer will then try to get the audio from our built-in webserver
-    /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
-    fn oh_play(
-        &self,
-        local_addr: &IpAddr,
-        server_port: u16,
-        wd: &WavData,
-        log: &dyn Fn(String),
-        use_wav_format: bool,
-        bits_per_sample: u16,
-    ) -> Result<(), &str> {
+        // build the hashmap with the formatting vars for the OH and AV play templates
+        let mut vars = HashMap::new();
         let (host, port) = self.parse_url(&self.dev_url, log);
-        log(format!(
-            "OH Start playing on {} host={host} port={port} from {local_addr} using OpenHome Playlist",
-            self.dev_name
-        ));
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
         let addr = format!("{local_addr}:{server_port}");
         let local_url = format!("http://{addr}/stream/swyh.wav");
-        debug!("OHPlaylist server URL: {local_url}");
-        // delete current playlist
-        let _resp = self
-            .soap_request(
-                &url,
-                &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
-                &OH_DELETE_PL_TEMPLATE.to_string(),
-            )
-            .unwrap_or_else(String::new);
-        // create new playlist
-        let mut vars = HashMap::new();
         vars.insert("server_uri".to_string(), local_url);
         vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
         vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
@@ -324,7 +268,41 @@ impl Renderer {
             }
         }
         vars.insert("didl_data".to_string(), didl_data);
+        // now send the start playing commands
+        if self
+            .supported_protocols
+            .contains(SupportedProtocols::OPENHOME)
+        {
+            log(format!(
+            "OH Start playing on {} host={host} port={port} from {local_addr} using OpenHome Playlist",
+            self.dev_name));
+            return self.oh_play(log, &url, vars);
+        } else if self
+            .supported_protocols
+            .contains(SupportedProtocols::AVTRANSPORT)
+        {
+            log(format!(
+            "AV Start playing on {} host={host} port={port} from {local_addr} using AvTransport Play",
+            self.dev_name));
+            return self.av_play(log, &url, vars);
+        } else {
+            log("ERROR: play: no supported renderer protocol found".to_string());
+        }
+        Ok(())
+    }
+
+    /// oh_play - set up a playlist on this OpenHome renderer and tell it to play it
+    ///
+    /// the renderer will then try to get the audio from our built-in webserver
+    /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
+    fn oh_play(
+        &self,
+        log: &dyn Fn(String),
+        url: &str,
+        vars: HashMap<String, String>,
+    ) -> Result<(), &str> {
         let xmlbody: String;
+        // Send the InsertPlayList command with metadate(DIDL-Lite)
         match strfmt(OH_INSERT_PL_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
             Err(e) => {
@@ -335,15 +313,15 @@ impl Renderer {
         }
         let _resp = self
             .soap_request(
-                &url,
+                url,
                 &"urn:av-openhome-org:service:Playlist:1#Insert".to_string(),
                 &xmlbody,
             )
             .unwrap_or_else(String::new);
-        // send play command
+        // send the Play command
         let _resp = self
             .soap_request(
-                &url,
+                url,
                 &"urn:av-openhome-org:service:Playlist:1#Play".to_string(),
                 &OH_PLAY_PL_TEMPLATE.to_string(),
             )
@@ -357,61 +335,14 @@ impl Renderer {
     /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
     fn av_play(
         &self,
-        local_addr: &IpAddr,
-        server_port: u16,
-        wd: &WavData,
         log: &dyn Fn(String),
-        use_wav_format: bool,
-        bits_per_sample: u16,
+        url: &str,
+        vars: HashMap<String, String>,
     ) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(log);
-        // now send AVTransportURI with metadate(DIDL-Lite) and play requests
-        let (host, port) = self.parse_url(&self.dev_url, log);
-        log(format!(
-            "AV Start playing on {} host={host} port={port} from {local_addr} using AvTransport Play",
-            self.dev_name
-        ));
-        let url = format!("http://{host}:{port}{}", self.av_control_url);
-        let addr = format!("{local_addr}:{server_port}");
-        let local_url = format!("http://{addr}/stream/swyh.wav");
-        debug!("AvTransport server URL: {local_url}");
-        // set AVTransportURI
-        let mut vars = HashMap::new();
-        vars.insert("server_uri".to_string(), local_url);
-        vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
-        vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
-        vars.insert("duration".to_string(), "00:00:00".to_string());
-        let mut didl_prot: String;
-        if use_wav_format {
-            didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
-        } else {
-            if bits_per_sample == 16 {
-                didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
-            } else {
-                didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
-            }
-            match strfmt(&didl_prot, &vars) {
-                Ok(s) => didl_prot = s,
-                Err(e) => {
-                    didl_prot = format!("oh_play: error {e} formatting didl_prot");
-                    log(didl_prot.clone());
-                    return Err(BAD_TEMPL);
-                }
-            }
-        }
-        vars.insert("didl_prot_info".to_string(), didl_prot);
-        let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
-        match strfmt(&didl_data, &vars) {
-            Ok(s) => didl_data = s,
-            Err(e) => {
-                didl_data = format!("av_play: error {e} formatting didl_data");
-                log(didl_data.clone());
-                return Err(BAD_TEMPL);
-            }
-        }
-        vars.insert("didl_data".to_string(), didl_data);
+        // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
         let xmlbody: String;
         match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, &vars) {
             Ok(s) => xmlbody = s,
@@ -423,7 +354,7 @@ impl Renderer {
         }
         let _resp = self
             .soap_request(
-                &url,
+                url,
                 &"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI".to_string(),
                 &xmlbody,
             )
@@ -433,7 +364,7 @@ impl Renderer {
         // send play command
         let _resp = self
             .soap_request(
-                &url,
+                url,
                 &"urn:schemas-upnp-org:service:AVTransport:1#Play".to_string(),
                 &AV_PLAY_TEMPLATE.to_string(),
             )

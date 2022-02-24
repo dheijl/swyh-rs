@@ -44,7 +44,7 @@ mod server;
 mod ui;
 mod utils;
 
-use crate::openhome::avmedia::{discover, Renderer, WavData};
+use crate::openhome::rendercontrol::{discover, Renderer, WavData};
 use crate::server::streaming_server::run_server;
 use crate::ui::mainform::MainForm;
 use crate::utils::audiodevices::{

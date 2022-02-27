@@ -330,9 +330,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.2.31"
+version = "1.2.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c73fb6969f09976222ceb1f39d0381495a2168abffcc590002cc2b5b8372da85"
+checksum = "fb5e1f5774779d7d41ddda7c063de180a2e18778690ee1b18a1636b1748f16b2"
 dependencies = [
  "bitflags",
  "crossbeam-channel",
@@ -343,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.2.31"
+version = "1.2.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca7556e8a7a1b8eb44829a421d597f955de57f6d1edb8c49bfe38a9346ec1510"
+checksum = "b6f241c50490de04131e2e2b541ed1c137edc3fdbe0d2422eaa7f76653855c79"
 dependencies = [
  "cmake",
 ]
@@ -1199,9 +1199,9 @@ checksum = "25eb0ca3468fc0acc11828786797f6ef9aa1555e4a211a60d64cc8e4d1be47d6"
 
 [[package]]
 name = "tiny_http"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5f8734c6d6943ad6df6b588d228a87b4af184998bcffa268ceddf05c2055a8c"
+checksum = "e0d6ef4e10d23c1efb862eecad25c5054429a71958b4eeef85eb5e7170b477ca"
 dependencies = [
  "ascii",
  "chunked_transfer",
@@ -1236,9 +1236,9 @@ dependencies = [
 
 [[package]]
 name = "ttf-parser"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ccbe8381883510b6a2d8f1e32905bddd178c11caef8083086d0c0c9ab0ac281"
+checksum = "c74c96594835e10fa545e2a51e8709f30b173a092bfd6036ef2cec53376244f3"
 
 [[package]]
 name = "ucd-util"

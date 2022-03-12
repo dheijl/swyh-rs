@@ -301,31 +301,30 @@ impl Renderer {
         url: &str,
         fmt_vars: &HashMap<String, String>,
     ) -> Result<(), &str> {
-        let xmlbody: String;
         // Send the InsertPlayList command with metadate(DIDL-Lite)
-        match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
-            Ok(s) => xmlbody = s,
+        let xmlbody = match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
+            Ok(s) => s,
             Err(e) => {
-                xmlbody = format!("oh_play: error {e} formatting oh playlist xml");
-                log(xmlbody);
+                let errmsg = format!("oh_play: error {e} formatting oh playlist xml");
+                log(errmsg);
                 return Err(BAD_TEMPL);
             }
-        }
+        };
         let _resp = self
             .soap_request(
                 url,
-                &"urn:av-openhome-org:service:Playlist:1#Insert".to_string(),
+                "urn:av-openhome-org:service:Playlist:1#Insert",
                 &xmlbody,
             )
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
         // send the Play command
         let _resp = self
             .soap_request(
                 url,
-                &"urn:av-openhome-org:service:Playlist:1#Play".to_string(),
-                &OH_PLAY_PL_TEMPLATE.to_string(),
+                "urn:av-openhome-org:service:Playlist:1#Play",
+                OH_PLAY_PL_TEMPLATE,
             )
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
         Ok(())
     }
 
@@ -343,32 +342,31 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(log);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let xmlbody: String;
-        match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
-            Ok(s) => xmlbody = s,
+        let xmlbody = match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
+            Ok(s) => s,
             Err(e) => {
-                xmlbody = format!("av_play: error {e} formatting set transport uri");
-                log(xmlbody);
+                let errmsg = format!("av_play: error {e} formatting set transport uri");
+                log(errmsg);
                 return Err(BAD_TEMPL);
             }
-        }
+        };
         let _resp = self
             .soap_request(
                 url,
-                &"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI".to_string(),
+                "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
                 &xmlbody,
             )
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
         // the renderer will now send a head request first, so wait a bit
         std::thread::sleep(Duration::from_millis(100));
         // send play command
         let _resp = self
             .soap_request(
                 url,
-                &"urn:schemas-upnp-org:service:AVTransport:1#Play".to_string(),
-                &AV_PLAY_TEMPLATE.to_string(),
+                "urn:schemas-upnp-org:service:AVTransport:1#Play",
+                AV_PLAY_TEMPLATE,
             )
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
         Ok(())
     }
 
@@ -402,10 +400,10 @@ impl Renderer {
         let _resp = self
             .soap_request(
                 &url,
-                &"urn:av-openhome-org:service:Playlist:1#DeleteAll".to_string(),
-                &OH_DELETE_PL_TEMPLATE.to_string(),
+                "urn:av-openhome-org:service:Playlist:1#DeleteAll",
+                OH_DELETE_PL_TEMPLATE,
             )
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
     }
 
     /// av_stop_play - stop playing on the AV renderer
@@ -421,10 +419,10 @@ impl Renderer {
         let _resp = self
             .soap_request(
                 &url,
-                &"urn:schemas-upnp-org:service:AVTransport:1#Stop".to_string(),
-                &AV_STOP_PLAY_TEMPLATE.to_string(),
+                "urn:schemas-upnp-org:service:AVTransport:1#Stop",
+                AV_STOP_PLAY_TEMPLATE,
             )
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
     }
 }
 

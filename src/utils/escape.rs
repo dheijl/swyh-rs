@@ -10,10 +10,10 @@ impl FwSlashPipeEscape for String {
     fn fw_slash_pipe_escape(&self) -> String {
         let mut result: String = self.to_string();
         if result.contains('/') {
-            result = result.replace("/", "\\/");
+            result = result.replace('/', "\\/");
         }
         if result.contains('|') {
-            result = result.replace("|", "``");
+            result = result.replace('|', "``");
         }
         result
     }

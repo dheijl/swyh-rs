@@ -344,7 +344,7 @@ fn main() {
 }
 
 fn app_restart(mf: &MainForm) -> i32 {
-    let c = dialog::choice(
+    let c = dialog::choice2(
         mf.wind.width() as i32 / 2 - 100,
         mf.wind.height() as i32 / 2 - 50,
         "Configuration value changed!",
@@ -352,13 +352,15 @@ fn app_restart(mf: &MainForm) -> i32 {
         "Cancel",
         "",
     );
-    if c == 0 {
+    if c == Some(0) {
+        // restart
         std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
             .spawn()
             .expect("Unable to spawn myself!");
         std::process::exit(0);
     } else {
-        c
+        // cancel
+        1
     }
 }
 

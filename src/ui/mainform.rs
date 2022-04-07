@@ -62,17 +62,17 @@ impl MainForm {
         let title_color: Color = Color::from_u32(0xe6fff0);
         let app = app::App::default().with_scheme(app::Scheme::Gtk);
         app::background(247, 247, 247);
-        let ww = 660;
-        let wh = 660;
+        const WW: i32 = 660;
+        const WH: i32 = 660;
         let mut wind = DoubleWindow::default()
-            .with_size(ww, wh)
+            .with_size(WW, WH)
             .with_label(&format!(
                 "swyh-rs UPNP/DLNA Media Renderers V{}",
                 app_version
             ));
 
         wind.make_resizable(true);
-        wind.size_range(ww, wh * 2 / 3, 0, 0);
+        wind.size_range(WW, WH * 2 / 3, 0, 0);
 
         // set window icon
         //        if cfg!(never) {
@@ -98,19 +98,19 @@ impl MainForm {
             }
         });
 
-        let gw = 600;
-        let fw = 600;
-        let xpos = 30;
-        let ypos = 5;
+        const GW: i32 = 600;
+        const FW: i32 = 600;
+        const XPOS: i32 = 30;
+        const YPOS: i32 = 5;
 
-        let mut vpack = Pack::new(xpos, ypos, gw, wh - 10, "");
+        let mut vpack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
         vpack.make_resizable(false);
         vpack.set_spacing(15);
         vpack.end();
         wind.add(&vpack);
 
         // title frame
-        let mut p1 = Pack::new(0, 0, gw, 25, "");
+        let mut p1 = Pack::new(0, 0, GW, 25, "");
         p1.end();
         let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
         opt_frame.set_frame(FrameType::BorderBox);
@@ -122,7 +122,7 @@ impl MainForm {
         // show config option widgets
 
         // network selection
-        let mut pnw = Pack::new(0, 0, gw, 25, "");
+        let mut pnw = Pack::new(0, 0, GW, 25, "");
         pnw.end();
         let cur_nw = {
             if config.last_network != "None" {
@@ -168,7 +168,7 @@ impl MainForm {
         vpack.add(&pnw);
 
         // setup audio source choice
-        let mut pas = Pack::new(0, 0, gw, 25, "");
+        let mut pas = Pack::new(0, 0, GW, 25, "");
         pas.end();
         let cur_audio_src = format!("Audio Source: {}", config.sound_source);
         ui_log("Setup audio sources".to_string());
@@ -209,7 +209,7 @@ impl MainForm {
         vpack.add(&pas);
 
         // all other options
-        let mut pconfig1 = Pack::new(0, 0, gw, 20, "");
+        let mut pconfig1 = Pack::new(0, 0, GW, 20, "");
         pconfig1.set_spacing(10);
         pconfig1.set_type(PackType::Horizontal);
         pconfig1.end();
@@ -314,11 +314,11 @@ impl MainForm {
         pconfig1.make_resizable(false);
         vpack.add(&pconfig1);
         // spacer
-        let mut pspacer = Pack::new(0, 0, gw, 10, "");
+        let mut pspacer = Pack::new(0, 0, GW, 10, "");
         pspacer.make_resizable(false);
         vpack.add(&pspacer);
 
-        let mut pconfig2 = Pack::new(0, 0, gw, 20, "");
+        let mut pconfig2 = Pack::new(0, 0, GW, 20, "");
         pconfig2.set_spacing(10);
         pconfig2.set_type(PackType::Horizontal);
         pconfig2.end();
@@ -395,7 +395,7 @@ impl MainForm {
         vpack.add(&pconfig2);
 
         // RMS animation
-        let mut pconfig3 = Pack::new(0, 0, gw, 20, "");
+        let mut pconfig3 = Pack::new(0, 0, GW, 20, "");
         pconfig3.set_spacing(10);
         pconfig3.set_type(PackType::Horizontal);
         pconfig3.end();
@@ -433,7 +433,7 @@ impl MainForm {
         });
         pconfig3.add(&show_rms);
         // vertical pack for the RMS meters
-        let mut pconfig3_v = Pack::new(0, 0, gw, 25, "");
+        let mut pconfig3_v = Pack::new(0, 0, GW, 25, "");
         pconfig3_v.set_spacing(4);
         pconfig3_v.set_type(PackType::Vertical);
         pconfig3_v.end();
@@ -448,9 +448,9 @@ impl MainForm {
         vpack.add(&pconfig3);
 
         // show renderer buttons title with our local ip address
-        let mut pbuttons = Pack::new(0, 0, gw, 25, "");
+        let mut pbuttons = Pack::new(0, 0, GW, 25, "");
         pbuttons.end();
-        let mut frame = Frame::new(0, 0, fw, 25, "").with_align(Align::Center);
+        let mut frame = Frame::new(0, 0, FW, 25, "").with_align(Align::Center);
         frame.set_frame(FrameType::BorderBox);
         frame.set_label(&format!("UPNP rendering devices on network {}", local_addr));
         frame.set_color(title_color);
@@ -458,7 +458,7 @@ impl MainForm {
         vpack.add(&pbuttons);
 
         // setup feedback textbox at the bottom
-        let mut pfeedback = Pack::new(0, 0, gw, 156, "");
+        let mut pfeedback = Pack::new(0, 0, GW, 156, "");
         pfeedback.end();
         let buf = TextBuffer::default();
         let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);

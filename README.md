@@ -12,6 +12,7 @@ It allows you to stream the music you're currently playing on your PC (Windows a
 It has been tested with
 
 - Volumio devices (<https://volumio.org/>)
+- Moode audio 8.xx (<https://moodeaudio.org/>), with Moode configured as UPNP render in Openhome mode, and using the WAV header option 
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
 - Denon Heos devices
 - Sony AV streamers & Bravia TVs

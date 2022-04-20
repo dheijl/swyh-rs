@@ -301,6 +301,8 @@ impl Renderer {
         url: &str,
         fmt_vars: &HashMap<String, String>,
     ) -> Result<(), &str> {
+        // stop anything currently playing first, Moode needs it
+        self.oh_stop_play(log);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
         let xmlbody = match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
             Ok(s) => s,

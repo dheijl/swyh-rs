@@ -19,7 +19,7 @@ bitflags = "1.3.2"
 cpal = "0.13.5"
 crossbeam-channel = "0.5.4"
 dirs = "4.0.0"
-fltk = { version = "1.3.2", features = ["use-ninja"] }
+fltk = { version = "1.3.5", features = ["use-ninja"] }
 #fltk-flow = "0.1.4"
 htmlescape = "0.3.1"
 ifcfg = "0.1.2"
@@ -31,11 +31,11 @@ log = { version = "0.4.16", features = [
 ] }
 parking_lot = "0.12.0"
 serde = { version = "1.0.136", features = ["derive"] }
-simplelog = "0.11.2"
+simplelog = "0.12.0"
 strfmt = "0.1.6"
 stringreader = "0.1.1"
 tiny_http = "0.11.0"
-toml = "0.5.8"
+toml = "0.5.9"
 ureq = { version = "2.4.0", features = ["charset"] }
 url = "2.2.2"
 xml-rs = "0.8.4"
@@ -43,7 +43,7 @@ xml-rs = "0.8.4"
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.122"
+libc = "0.2.124"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

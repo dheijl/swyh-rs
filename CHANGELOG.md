@@ -1,7 +1,8 @@
 # swyh-rs Changelog
 
-- 1.3.24-beta (unreleased)
+- 1.3.24 (April 20 2022 dheijl)
   - refactor rendering control code (pull up common OH and AV play template generation)  
+  - explicit stop playing for Openhome renderers too before starting play, Moode needs it
 
 - 1.3.23 (Feb 22 2022 dheijl)
   - fix the broken AV transport "SetAVTransportUri" DIDL-Lite template, the error was introduced with 1.3.20. Thanks again @MX10-AC2N.

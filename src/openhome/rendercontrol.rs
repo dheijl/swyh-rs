@@ -232,7 +232,6 @@ impl Renderer {
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = HashMap::new();
         let (host, port) = self.parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.oh_control_url);
         let addr = format!("{local_addr}:{server_port}");
         let local_url = format!("http://{addr}/stream/swyh.wav");
         fmt_vars.insert("server_uri".to_string(), local_url);
@@ -273,6 +272,7 @@ impl Renderer {
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
+            let url = format!("http://{host}:{port}{}", self.oh_control_url);
             log(format!(
             "OH Start playing on {} host={host} port={port} from {local_addr} using OpenHome Playlist",
             self.dev_name));
@@ -281,6 +281,7 @@ impl Renderer {
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
+            let url = format!("http://{host}:{port}{}", self.av_control_url);
             log(format!(
             "AV Start playing on {} host={host} port={port} from {local_addr} using AvTransport Play",
             self.dev_name));

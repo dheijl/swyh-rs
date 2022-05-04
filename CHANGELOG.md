@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.3.25 (May 4 2022 dheijl)
+  - Fix broken AVTransport (again), fixes issue #59
+
 - 1.3.24 (April 20 2022 dheijl)
   - refactor rendering control code (pull up common OH and AV play template generation)  
   - explicit stop playing for Openhome renderers too before starting play, Moode needs it

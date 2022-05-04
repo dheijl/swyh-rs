@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.3.26-beta (unreleased)
+
 - 1.3.25 (May 4 2022 dheijl)
   - Fix broken AVTransport (again), fixes issue #59
 

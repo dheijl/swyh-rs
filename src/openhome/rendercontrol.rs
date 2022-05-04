@@ -272,20 +272,18 @@ impl Renderer {
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            let url = format!("http://{host}:{port}{}", self.oh_control_url);
             log(format!(
             "OH Start playing on {} host={host} port={port} from {local_addr} using OpenHome Playlist",
             self.dev_name));
-            return self.oh_play(log, &url, &fmt_vars);
+            return self.oh_play(log, &fmt_vars);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            let url = format!("http://{host}:{port}{}", self.av_control_url);
             log(format!(
             "AV Start playing on {} host={host} port={port} from {local_addr} using AvTransport Play",
             self.dev_name));
-            return self.av_play(log, &url, &fmt_vars);
+            return self.av_play(log, &fmt_vars);
         } else {
             log("ERROR: play: no supported renderer protocol found".to_string());
         }
@@ -299,7 +297,6 @@ impl Renderer {
     fn oh_play(
         &self,
         log: &dyn Fn(String),
-        url: &str,
         fmt_vars: &HashMap<String, String>,
     ) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
@@ -313,9 +310,11 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
+        let (host, port) = self.parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_control_url);
         let _resp = self
             .soap_request(
-                url,
+                &url,
                 "urn:av-openhome-org:service:Playlist:1#Insert",
                 &xmlbody,
             )
@@ -323,7 +322,7 @@ impl Renderer {
         // send the Play command
         let _resp = self
             .soap_request(
-                url,
+                &url,
                 "urn:av-openhome-org:service:Playlist:1#Play",
                 OH_PLAY_PL_TEMPLATE,
             )
@@ -338,7 +337,6 @@ impl Renderer {
     fn av_play(
         &self,
         log: &dyn Fn(String),
-        url: &str,
         fmt_vars: &HashMap<String, String>,
     ) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
@@ -353,9 +351,11 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
+        let (host, port) = self.parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_control_url);
         let _resp = self
             .soap_request(
-                url,
+                &url,
                 "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
                 &xmlbody,
             )
@@ -365,7 +365,7 @@ impl Renderer {
         // send play command
         let _resp = self
             .soap_request(
-                url,
+                &url,
                 "urn:schemas-upnp-org:service:AVTransport:1#Play",
                 AV_PLAY_TEMPLATE,
             )
@@ -393,11 +393,11 @@ impl Renderer {
     /// oh_stop_play - delete the playlist on the OpenHome renderer, so that it stops playing
     fn oh_stop_play(&self, log: &dyn Fn(String)) {
         let (host, port) = self.parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_control_url);
         log(format!(
             "OH Stop playing on {} host={host} port={port}",
             self.dev_name
         ));
-        let url = format!("http://{host}:{port}{}", self.oh_control_url);
 
         // delete current playlist
         let _resp = self
@@ -412,11 +412,11 @@ impl Renderer {
     /// av_stop_play - stop playing on the AV renderer
     fn av_stop_play(&self, log: &dyn Fn(String)) {
         let (host, port) = self.parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_control_url);
         log(format!(
             "AV Stop playing on {} host={host} port={port}",
             self.dev_name
         ));
-        let url = format!("http://{host}:{port}{}", self.av_control_url);
 
         // delete current playlist
         let _resp = self

@@ -19,17 +19,17 @@ bitflags = "1.3.2"
 cpal = "0.13.5"
 crossbeam-channel = "0.5.4"
 dirs = "4.0.0"
-fltk = { version = "1.3.7", features = ["use-ninja"] }
+fltk = { version = "1.3.8", features = ["use-ninja"] }
 #fltk-flow = "0.1.4"
 htmlescape = "0.3.1"
-ifcfg = "0.1.2"
+if-addrs = "0.7.0"
 lazy_static = "1.4.0"
 log = { version = "0.4.17", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",
 ] }
-parking_lot = "0.12.0"
+parking_lot = "0.12.1"
 serde = { version = "1.0.137", features = ["derive"] }
 simplelog = "0.12.0"
 strfmt = "0.1.6"

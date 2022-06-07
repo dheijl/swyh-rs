@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
-- 1.3.26-beta (unreleased)
+- 1.3.26 (June 7 2022 dheijl)
+  - Fix possible exposure to CVE-2021-45707 and CVE-2022-24713 by replacing ifcfg crate with if_addrs crate.
 
 - 1.3.25 (May 4 2022 dheijl)
   - Fix broken AVTransport (again), fixes issue #59

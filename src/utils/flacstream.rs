@@ -1,18 +1,11 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use flac_bound::{FlacEncoder, FlacEncoderConfig, WriteWrapper};
+use flac_bound::{FlacEncoder, WriteWrapper};
 use std::{
-    cell::{Ref, RefCell},
-    io::{Cursor, Read, Seek, SeekFrom, Write},
-    rc::Rc,
+    io::Write,
     sync::{
         atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
     },
-};
-
-use super::{
-    i24::{I24Sample, I24},
-    rwstream::ChannelStream,
 };
 
 #[derive(Clone)]
@@ -30,7 +23,7 @@ impl Write for FlacWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         match self.flac_s.send(buf.to_vec()) {
             Ok(()) => Ok(buf.len()),
-            Err(e) => Err(std::io::Error::new(
+            Err(_e) => Err(std::io::Error::new(
                 std::io::ErrorKind::ConnectionAborted,
                 "FlacWriter channel send error",
             )),
@@ -79,22 +72,20 @@ impl FlacChannel {
                     .unwrap();
                 while l_active.load(Relaxed) {
                     let f32_samples = l_samples.recv().unwrap();
-                    let mut left_samples: Vec<i32> = Vec::with_capacity(f32_samples.len() / 2);
-                    let mut right_samples: Vec<i32> = Vec::with_capacity(f32_samples.len() / 2);
-
-                    left_samples = f32_samples
+                    let left_samples = f32_samples
                         .iter()
                         .enumerate()
                         .filter(|&(i, _)| i % 2 == 0)
-                        .map(|(i, s)| to_i32_sample(*s))
+                        .map(|(_i, s)| to_i32_sample(*s))
                         .collect::<Vec<i32>>();
-                    right_samples = f32_samples
+                    let right_samples = f32_samples
                         .iter()
                         .enumerate()
                         .filter(|&(i, _)| i % 2 == 1)
-                        .map(|(i, s)| to_i32_sample(*s))
+                        .map(|(_i, s)| to_i32_sample(*s))
                         .collect::<Vec<i32>>();
-                    enc.process(&[left_samples.as_slice(), right_samples.as_slice()]);
+                    enc.process(&[left_samples.as_slice(), right_samples.as_slice()])
+                        .unwrap();
                 }
             })
             .unwrap();

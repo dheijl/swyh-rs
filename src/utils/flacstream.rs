@@ -72,19 +72,11 @@ impl FlacChannel {
                     .unwrap();
                 while l_active.load(Relaxed) {
                     let f32_samples = l_samples.recv().unwrap();
-                    let left_samples = f32_samples
+                    let samples = f32_samples
                         .iter()
-                        .enumerate()
-                        .filter(|&(i, _)| i % 2 == 0)
-                        .map(|(_i, s)| to_i32_sample(*s))
+                        .map(|s| to_i32_sample(*s))
                         .collect::<Vec<i32>>();
-                    let right_samples = f32_samples
-                        .iter()
-                        .enumerate()
-                        .filter(|&(i, _)| i % 2 == 1)
-                        .map(|(_i, s)| to_i32_sample(*s))
-                        .collect::<Vec<i32>>();
-                    enc.process(&[left_samples.as_slice(), right_samples.as_slice()])
+                    enc.process_interleaved(&samples.as_slice(), (samples.len() / 2) as u32)
                         .unwrap();
                 }
             })

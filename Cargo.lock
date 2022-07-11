@@ -301,7 +301,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "750099df417963398b7d52cfbdbda53aa20c64d553d33cacedc872fa30cb8a00"
 dependencies = [
  "flac-sys",
- "libflac-sys",
+ "libflac-sys 0.1.0",
 ]
 
 [[package]]
@@ -485,6 +485,16 @@ name = "libflac-sys"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a61ceca95af1d052a09dfa45ddb934b8744aeea6528221146a3a0bde0b485f8c"
+dependencies = [
+ "cmake",
+ "libc",
+]
+
+[[package]]
+name = "libflac-sys"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "358a7beee1a8a2b28876814d6dbf06126255b062a59f02779143ec68cb9e54e7"
 dependencies = [
  "cmake",
  "libc",
@@ -1003,6 +1013,7 @@ dependencies = [
  "if-addrs",
  "lazy_static",
  "libc",
+ "libflac-sys 0.2.2",
  "log",
  "parking_lot 0.12.1",
  "serde",

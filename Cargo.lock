@@ -297,18 +297,9 @@ dependencies = [
 [[package]]
 name = "flac-bound"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "750099df417963398b7d52cfbdbda53aa20c64d553d33cacedc872fa30cb8a00"
 dependencies = [
- "flac-sys",
- "libflac-sys 0.1.0",
+ "libflac-sys",
 ]
-
-[[package]]
-name = "flac-sys"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5ccca1896065c6c3927147467ab3d042565607c01194e36560e84344a02c5c0"
 
 [[package]]
 name = "flate2"
@@ -479,16 +470,6 @@ name = "libc"
 version = "0.2.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "349d5a591cd28b49e1d1037471617a32ddcda5731b99419008085f72d5a53836"
-
-[[package]]
-name = "libflac-sys"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a61ceca95af1d052a09dfa45ddb934b8744aeea6528221146a3a0bde0b485f8c"
-dependencies = [
- "cmake",
- "libc",
-]
 
 [[package]]
 name = "libflac-sys"
@@ -1013,7 +994,6 @@ dependencies = [
  "if-addrs",
  "lazy_static",
  "libc",
- "libflac-sys 0.2.2",
  "log",
  "parking_lot 0.12.1",
  "serde",

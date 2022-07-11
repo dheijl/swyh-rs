@@ -25,7 +25,7 @@ impl Write for FlacWriter {
             Ok(()) => Ok(buf.len()),
             Err(_e) => Err(std::io::Error::new(
                 std::io::ErrorKind::ConnectionAborted,
-                "FlacWriter channel send error",
+                "FlacWriter channel SendError",
             )),
         }
     }
@@ -54,11 +54,11 @@ impl FlacChannel {
     }
 
     pub fn run(&self) {
-        let l_active = self.active.clone();
         let l_samples = self.f32_r.clone();
         let mut l_writer = self.writer.clone();
-
-        let _ = std::thread::Builder::new()
+        self.active.store(true, Relaxed);
+        let l_active = self.active.clone();
+        let thr = std::thread::Builder::new()
             .name("flac_encoder".into())
             .stack_size(4 * 1024 * 1024)
             .spawn(move || {
@@ -89,10 +89,11 @@ impl FlacChannel {
                 }
             })
             .unwrap();
+        thr.join().unwrap();
     }
 
     pub fn stop(&self) {
-        self.active.store(true, Relaxed);
+        self.active.store(false, Relaxed);
     }
 }
 

@@ -108,9 +108,6 @@ impl Configuration {
         }
         let s = fs::read_to_string(&configfile).unwrap();
         let mut config: Config = from_str(&s).unwrap();
-        // <TEST>
-        config.configuration.streaming_format = Some(StreamingFormat::Flac);
-        // </TEST>
         if config.configuration.ssdp_interval_mins < 0.5 {
             config.configuration.ssdp_interval_mins = 0.5;
         }

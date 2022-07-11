@@ -2,6 +2,7 @@ use crate::ui_log;
 use crate::utils::escape::FwSlashPipeEscape;
 use crate::Configuration;
 use crate::Renderer;
+use crate::StreamingFormat;
 use crate::WavData;
 use crate::CONFIG;
 use fltk::{
@@ -34,7 +35,7 @@ pub struct MainForm {
     pub ssdp_interval: Counter,
     pub log_level_choice: MenuButton,
     pub disable_chunked: CheckButton,
-    pub use_wma: CheckButton,
+    //pub use_wma: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
@@ -338,6 +339,59 @@ impl MainForm {
             let _ = conf.update_config();
         });
         pconfig2.add(&disable_chunked);
+        // streaming format
+        let fmt = if let Some(format) = config.streaming_format {
+            format!("FMT: {}", format)
+        } else {
+            "FMT: LPCM".to_string()
+        };
+        let mut fmt_choice = MenuButton::default().with_label(&fmt);
+        let formats = vec![
+            StreamingFormat::Lpcm.to_string(),
+            StreamingFormat::Wav.to_string(),
+            StreamingFormat::Flac.to_string(),
+        ];
+        for fmt in formats.iter() {
+            fmt_choice.add_choice(fmt.as_str());
+        }
+        // apparently this event can recurse on very fast machines
+        // probably because it takes some time doing the file I/O, hence recursion lock
+        let rlock = Mutex::new(0);
+        let config_ch_flag = config_changed.clone();
+        fmt_choice.set_callback(move |b| {
+            let mut recursion = rlock.lock();
+            if *recursion > 0 {
+                return;
+            }
+            *recursion += 1;
+            let mut conf = CONFIG.write();
+            let i = b.value();
+            if i < 0 {
+                return;
+            }
+            let format = formats[i as usize].clone();
+            ui_log(format!(
+                "*W*W*> Streaming Format changed to {}, restart required!!",
+                format
+            ));
+            let newformat = match format.as_str() {
+                "LPCM" => StreamingFormat::Lpcm,
+                "WAV" => StreamingFormat::Wav,
+                "FLAC" => StreamingFormat::Flac,
+                _ => StreamingFormat::Lpcm,
+            };
+            conf.use_wave_format = newformat == StreamingFormat::Wav;
+            conf.streaming_format = Some(newformat);
+            let _ = conf.update_config();
+            config_ch_flag.set(true);
+            let fmt = format!("FMT: {}", format);
+            b.set_label(&fmt);
+            app::awake();
+            *recursion -= 1;
+        });
+        pconfig2.add(&fmt_choice);
+
+        /*
         // add a WAV format header instead of sending the "RAW" PCM stream
         let mut use_wma = CheckButton::new(0, 0, 0, 0, "Add WAV Hdr");
         if config.use_wave_format {
@@ -353,6 +407,8 @@ impl MainForm {
             let _ = conf.update_config();
         });
         pconfig2.add(&use_wma);
+        */
+
         // select 24 bit samples instead of 16 bit default
         let mut b24_bit = CheckButton::new(0, 0, 0, 0, "24 bit");
         if config.bits_per_sample.unwrap() == 24 {
@@ -479,7 +535,7 @@ impl MainForm {
             ssdp_interval,
             log_level_choice,
             disable_chunked,
-            use_wma,
+            //use_wma,
             show_rms,
             rms_mon_l,
             rms_mon_r,

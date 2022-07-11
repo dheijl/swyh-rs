@@ -456,7 +456,7 @@ pub fn discover(
     let local_addr = CONFIG.read().last_network.parse().unwrap();
     let bind_addr = SocketAddr::new(local_addr, 0);
     let socket = UdpSocket::bind(&bind_addr).unwrap();
-    let _ = socket.set_broadcast(true).unwrap();
+    socket.set_broadcast(true).unwrap();
 
     // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
     let mut oh_devices: Vec<(String, SocketAddr)> = Vec::new();
@@ -477,7 +477,7 @@ pub fn discover(
             break;
         }
         let max_wait_time = 3100 - duration;
-        let _ = socket
+        socket
             .set_read_timeout(Some(Duration::from_millis(max_wait_time)))
             .unwrap();
         let mut buf: [u8; 2048] = [0; 2048];

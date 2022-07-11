@@ -34,8 +34,9 @@ pub struct MainForm {
     pub auto_reconnect: CheckButton,
     pub ssdp_interval: Counter,
     pub log_level_choice: MenuButton,
+    pub fmt_choice: MenuButton,
+    pub b24_bit: CheckButton,
     pub disable_chunked: CheckButton,
-    //pub use_wma: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
@@ -391,25 +392,7 @@ impl MainForm {
         });
         pconfig2.add(&fmt_choice);
 
-        /*
-        // add a WAV format header instead of sending the "RAW" PCM stream
-        let mut use_wma = CheckButton::new(0, 0, 0, 0, "Add WAV Hdr");
-        if config.use_wave_format {
-            use_wma.set(true);
-        }
-        use_wma.set_callback(move |b| {
-            let mut conf = CONFIG.write();
-            if b.is_set() {
-                conf.use_wave_format = true;
-            } else {
-                conf.use_wave_format = false;
-            }
-            let _ = conf.update_config();
-        });
-        pconfig2.add(&use_wma);
-        */
-
-        // select 24 bit samples instead of 16 bit default
+        // checkbutton to select 24 bit samples instead of the 16 bit default
         let mut b24_bit = CheckButton::new(0, 0, 0, 0, "24 bit");
         if config.bits_per_sample.unwrap() == 24 {
             b24_bit.set(true);
@@ -534,8 +517,9 @@ impl MainForm {
             auto_reconnect,
             ssdp_interval,
             log_level_choice,
+            fmt_choice,
+            b24_bit,
             disable_chunked,
-            //use_wma,
             show_rms,
             rms_mon_l,
             rms_mon_r,
@@ -598,7 +582,7 @@ impl MainForm {
                     config.bits_per_sample.unwrap(),
                 );
             } else {
-                let _ = newr_c.stop_play(&ui_log);
+                newr_c.stop_play(&ui_log);
             }
         });
         // the pack for the new button

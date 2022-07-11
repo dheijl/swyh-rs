@@ -76,7 +76,7 @@ impl FlacChannel {
                         .iter()
                         .map(|s| to_i32_sample(*s))
                         .collect::<Vec<i32>>();
-                    enc.process_interleaved(&samples.as_slice(), (samples.len() / 2) as u32)
+                    enc.process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                         .unwrap();
                 }
             })

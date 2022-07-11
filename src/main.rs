@@ -65,6 +65,7 @@ use fltk::{
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn, LevelFilter};
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -88,7 +89,7 @@ pub enum StreamingState {
     Ended,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StreamingFormat {
     Lpcm,
     Wav,

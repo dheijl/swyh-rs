@@ -65,9 +65,11 @@ use fltk::{
 use lazy_static::lazy_static;
 use log::{debug, error, info, warn, LevelFilter};
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::File;
 use std::net::IpAddr;
 use std::path::Path;
@@ -81,15 +83,26 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const SERVER_PORT: u16 = 5901;
 
 /// streaming state
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum StreamingState {
     Started,
     Ended,
 }
 
-impl PartialEq for StreamingState {
-    fn eq(&self, other: &Self) -> bool {
-        self == other
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum StreamingFormat {
+    Lpcm,
+    Wav,
+    Flac,
+}
+
+impl fmt::Display for StreamingFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StreamingFormat::Lpcm => write!(f, "LPCM"),
+            StreamingFormat::Wav => write!(f, "WAV"),
+            StreamingFormat::Flac => write!(f, "FLAC"),
+        }
     }
 }
 
@@ -320,6 +333,7 @@ fn main() {
                                         &dummy_log,
                                         config.use_wave_format,
                                         config.bits_per_sample.unwrap(),
+                                        config.streaming_format.as_ref().unwrap(),
                                     );
                                 }
                             } else if button.is_set() {

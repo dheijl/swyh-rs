@@ -1,4 +1,7 @@
-use crate::{ui_log, ChannelStream, StreamerFeedBack, StreamingState, WavData, CLIENTS, CONFIG};
+use crate::{
+    ui_log, ChannelStream, StreamerFeedBack, StreamingFormat, StreamingState, WavData, CLIENTS,
+    CONFIG,
+};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;
 use log::debug;
@@ -88,12 +91,17 @@ pub fn run_server(
                     }
                     // prpare streaming headers
                     let conf = CONFIG.read().clone();
-                    let ct_text = if conf.use_wave_format {
+                    let format = conf.streaming_format.unwrap();
+                    let ct_text = if format == StreamingFormat::Flac {
+                        "audio/flac".to_string()
+                    } else if conf.use_wave_format {
                         "audio/vnd.wave;codec=1".to_string()
-                    } else if conf.bits_per_sample == Some(16) {
-                        format!("audio/L16;rate={};channels=2", wd.sample_rate.0) 
-                    } else {
-                        format!("audio/L24;rate={};channels=2", wd.sample_rate.0) 
+                    } else { // LPCM
+                        if conf.bits_per_sample == Some(16) {
+                            format!("audio/L16;rate={};channels=2", wd.sample_rate.0) 
+                        } else {
+                            format!("audio/L24;rate={};channels=2", wd.sample_rate.0) 
+                        }
                     };
                     let ct_hdr = Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
                     let tm_hdr =
@@ -121,7 +129,11 @@ pub fn run_server(
                             conf.use_wave_format,
                             wd.sample_rate.0,
                             conf.bits_per_sample.unwrap(),
+                            conf.streaming_format.unwrap(),
                         );
+                        if channel_stream.streaming_format == StreamingFormat::Flac {
+                            channel_stream.start_flac_encoder();
+                        }
                         channel_stream.create_silence(wd.sample_rate.0);
                         let nclients = {
                             let mut clients = CLIENTS.write();
@@ -138,12 +150,16 @@ pub fn run_server(
                             })
                             .unwrap();
                         std::thread::yield_now();
-                        let streaming_format = if conf.use_wave_format {
+                        let streaming_format = if format == StreamingFormat::Flac {
+                            "audio/FLAC"
+                        } else if format == StreamingFormat::Wav {
                             "audio/wave;codec=1 (WAV)"
-                        } else if conf.bits_per_sample == Some(16) {
-                            "audio/L16 (LPCM)"
-                        } else {
-                            "audio/L24 (LPCM)"
+                        } else { // LPCM
+                            if conf.bits_per_sample == Some(16) {
+                                "audio/L16 (LPCM)"
+                            } else {
+                                "audio/L24 (LPCM)"
+                            }
                         };
                         ui_log(format!(
                             "Streaming {streaming_format}, input sample format {:?}, channels=2, rate={}, disable chunked={} to {}",
@@ -169,6 +185,8 @@ pub fn run_server(
                         }
                         let nclients = {
                             let mut clients = CLIENTS.write();
+                            let chs = clients.get(&remote_addr).unwrap();
+                            chs.stop_flac_encoder();
                             clients.remove(&remote_addr);
                             clients.len()
                         };

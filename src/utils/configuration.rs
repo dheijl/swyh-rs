@@ -1,4 +1,4 @@
-use crate::SERVER_PORT;
+use crate::{StreamingFormat, SERVER_PORT};
 use log::{debug, LevelFilter};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -38,6 +38,8 @@ pub struct Configuration {
     pub use_wave_format: bool,
     #[serde(rename(deserialize = "BitsPerSample", serialize = "BitsPerSample"))]
     pub bits_per_sample: Option<u16>,
+    #[serde(rename(deserialize = "StreamingFormat", serialize = "StreamingFormat"))]
+    pub streaming_format: Option<StreamingFormat>,
     #[serde(rename(deserialize = "MonitorRms", serialize = "MonitorRms"))]
     pub monitor_rms: bool,
     #[serde(rename(deserialize = "LastRenderer", serialize = "LastRenderer"))]
@@ -66,6 +68,7 @@ impl Configuration {
             disable_chunked: false,
             use_wave_format: false,
             bits_per_sample: Some(16),
+            streaming_format: Some(StreamingFormat::Lpcm),
             monitor_rms: false,
             last_renderer: "None".to_string(),
             last_network: "None".to_string(),

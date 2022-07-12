@@ -580,6 +580,7 @@ impl MainForm {
                     &ui_log,
                     use_wav_format,
                     config.bits_per_sample.unwrap(),
+                    config.streaming_format.as_ref().unwrap(),
                 );
             } else {
                 newr_c.stop_play(&ui_log);

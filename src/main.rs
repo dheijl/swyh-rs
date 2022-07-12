@@ -333,6 +333,7 @@ fn main() {
                                         &dummy_log,
                                         config.use_wave_format,
                                         config.bits_per_sample.unwrap(),
+                                        config.streaming_format.as_ref().unwrap(),
                                     );
                                 }
                             } else if button.is_set() {

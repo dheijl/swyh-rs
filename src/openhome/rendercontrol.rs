@@ -6,7 +6,7 @@
 /// Only tested with Volumio streamers (https://volumio.org/)
 ///
 ///
-use crate::CONFIG;
+use crate::{StreamingFormat, CONFIG};
 use log::{debug, error, info};
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
@@ -46,7 +46,6 @@ static AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 static L16_PROT_INFO: &str = "http-get:*:audio/L16;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
 static L24_PROT_INFO: &str = "http-get:*:audio/L24;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
 static WAV_PROT_INFO: &str = "http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=03700000000000000000000000000000";
-#[allow(dead_code)]
 static FLAC_PROT_INFO: &str = "http-get:*:audio/flac:DLNA.ORG_PN=FLAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
 
 /// didl metadata template
@@ -230,6 +229,7 @@ impl Renderer {
         log: &dyn Fn(String),
         use_wav_format: bool,
         bits_per_sample: u16,
+        format: &StreamingFormat,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = HashMap::new();
@@ -241,21 +241,25 @@ impl Renderer {
         fmt_vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
         fmt_vars.insert("duration".to_string(), "00:00:00".to_string());
         let mut didl_prot: String;
-        if use_wav_format {
-            didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
+        if *format == StreamingFormat::Flac {
+            didl_prot = htmlescape::encode_minimal(FLAC_PROT_INFO);
         } else {
-            if bits_per_sample == 16 {
-                didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
+            if use_wav_format {
+                didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
             } else {
-                didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
-            }
-            match strfmt(&didl_prot, &fmt_vars) {
-                Ok(s) => didl_prot = s,
-                Err(e) => {
-                    didl_prot = format!("oh_play: error {e} formatting didl_prot");
-                    log(didl_prot.clone());
-                    return Err(BAD_TEMPL);
+                if bits_per_sample == 16 {
+                    didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
+                } else {
+                    didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
                 }
+            }
+        }
+        match strfmt(&didl_prot, &fmt_vars) {
+            Ok(s) => didl_prot = s,
+            Err(e) => {
+                didl_prot = format!("oh_play: error {e} formatting didl_prot");
+                log(didl_prot.clone());
+                return Err(BAD_TEMPL);
             }
         }
         fmt_vars.insert("didl_prot_info".to_string(), didl_prot);

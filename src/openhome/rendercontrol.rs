@@ -243,16 +243,12 @@ impl Renderer {
         let mut didl_prot: String;
         if *format == StreamingFormat::Flac {
             didl_prot = htmlescape::encode_minimal(FLAC_PROT_INFO);
+        } else if use_wav_format {
+            didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
+        } else if bits_per_sample == 16 {
+            didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
         } else {
-            if use_wav_format {
-                didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
-            } else {
-                if bits_per_sample == 16 {
-                    didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
-                } else {
-                    didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
-                }
-            }
+            didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
         }
         match strfmt(&didl_prot, &fmt_vars) {
             Ok(s) => didl_prot = s,

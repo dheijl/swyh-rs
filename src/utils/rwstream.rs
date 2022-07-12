@@ -108,12 +108,18 @@ impl ChannelStream {
     }
 
     pub fn write(&self, samples: &[f32]) {
-        self.s.send(samples.to_vec()).unwrap();
+        if self.flac_channel.is_some() {
+            //eprintln!("ChannelStream.write: {0} samples", samples.len());
+            self.s.send(samples.to_vec()).unwrap();
+        } else {
+            self.s.send(samples.to_vec()).unwrap();
+        }
     }
 }
 
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        //eprintln!("ChannelStream read request, buflen = {0}", buf.len());
         if self.flac_channel.is_none() {
             // naked LPCM or WAV LPCM
             let mut time_out = if self.sending_silence {
@@ -173,6 +179,7 @@ impl Read for ChannelStream {
                     buf[i] = flacbyte;
                     i += 1;
                 } else if let Ok(chunk) = flac_in.recv() {
+                    //eprintln!("ChannelStream Read: flac_in received {0} samples", chunk.len());
                     self.flac_fifo.extend(chunk);
                 }
             }

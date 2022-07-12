@@ -1,3 +1,4 @@
+use crate::StreamingFormat;
 /*
 ///
 /// rwstream.rs
@@ -18,13 +19,17 @@ use std::io::Read;
 use std::io::Result as IoResult;
 use std::time::Duration;
 
+use super::flacstream::FlacChannel;
+
 /// Channelstream - used to transport the samples from the wave_reader to the http output wav stream
 #[derive(Clone)]
 pub struct ChannelStream {
     pub s: Sender<Vec<f32>>,
     pub r: Receiver<Vec<f32>>,
     pub remote_ip: String,
+    pub streaming_format: StreamingFormat,
     fifo: VecDeque<f32>,
+    flac_fifo: VecDeque<u8>,
     silence: Vec<f32>,
     capture_timeout: Duration,
     silence_period: Duration,
@@ -32,6 +37,7 @@ pub struct ChannelStream {
     wav_hdr: Vec<u8>,
     use_wave_format: bool,
     bits_per_sample: u16,
+    flac_channel: Option<FlacChannel>,
 }
 
 const CAPTURE_TIMEOUT: u32 = 2; // seconds
@@ -45,11 +51,23 @@ impl ChannelStream {
         use_wave_format: bool,
         sample_rate: u32,
         bits_per_sample: u16,
+        streaming_format: StreamingFormat,
     ) -> ChannelStream {
+        let flac_channel = if streaming_format == StreamingFormat::Flac {
+            Some(FlacChannel::new(
+                rx.clone(),
+                sample_rate,
+                bits_per_sample as u32,
+                2,
+            ))
+        } else {
+            None
+        };
         ChannelStream {
             s: tx,
             r: rx,
             fifo: VecDeque::with_capacity(16384),
+            flac_fifo: VecDeque::with_capacity(16384),
             silence: Vec::new(),
             capture_timeout: Duration::new(CAPTURE_TIMEOUT as u64, 0), // silence kicks in after CAPTURE_TIMEOUT seconds
             silence_period: Duration::from_millis(SILENCE_PERIOD as u64), // send SILENCE_PERIOD msec of silence every SILENCE_PERIOD msec
@@ -62,6 +80,8 @@ impl ChannelStream {
             },
             use_wave_format,
             bits_per_sample,
+            streaming_format,
+            flac_channel,
         }
     }
 
@@ -75,6 +95,18 @@ impl ChannelStream {
         //self.fifo.extend(self.silence.clone());
     }
 
+    pub fn start_flac_encoder(&self) {
+        if self.flac_channel.is_some() {
+            self.flac_channel.as_ref().unwrap().run();
+        }
+    }
+
+    pub fn stop_flac_encoder(&self) {
+        if self.flac_channel.is_some() {
+            self.flac_channel.as_ref().unwrap().stop();
+        }
+    }
+
     pub fn write(&self, samples: &[f32]) {
         self.s.send(samples.to_vec()).unwrap();
     }
@@ -82,21 +114,22 @@ impl ChannelStream {
 
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        let mut time_out = if self.sending_silence {
-            self.silence_period
-        } else {
-            self.capture_timeout
-        };
-        let mut i = 0;
-        if self.use_wave_format && !self.wav_hdr.is_empty() {
-            i = self.wav_hdr.len();
-            buf[..i].copy_from_slice(&self.wav_hdr);
-            self.wav_hdr.clear();
-        }
-        let bytes_per_sample = (self.bits_per_sample / 8) as usize;
-        while i < buf.len() - bytes_per_sample {
-            match self.fifo.pop_front() {
-                Some(f32sample) => {
+        if self.flac_channel.is_none() {
+            // naked LPCM or WAV LPCM
+            let mut time_out = if self.sending_silence {
+                self.silence_period
+            } else {
+                self.capture_timeout
+            };
+            let mut i = 0;
+            if self.use_wave_format && !self.wav_hdr.is_empty() {
+                i = self.wav_hdr.len();
+                buf[..i].copy_from_slice(&self.wav_hdr);
+                self.wav_hdr.clear();
+            }
+            let bytes_per_sample = (self.bits_per_sample / 8) as usize;
+            while i < buf.len() - bytes_per_sample {
+                if let Some(f32sample) = self.fifo.pop_front() {
                     if self.bits_per_sample == 16 {
                         let sample = f32sample.to_i16();
                         let b = if self.use_wave_format {
@@ -120,22 +153,31 @@ impl Read for ChannelStream {
                         }
                         i += 3;
                     }
+                } else if let Ok(chunk) = self.r.recv_timeout(time_out) {
+                    self.fifo.extend(chunk);
+                    self.sending_silence = false;
+                    time_out = self.capture_timeout;
+                } else {
+                    self.fifo.extend(self.silence.clone());
+                    self.sending_silence = true;
+                    time_out = self.silence_period;
                 }
-                None => match self.r.recv_timeout(time_out) {
-                    Ok(chunk) => {
-                        self.fifo.extend(chunk);
-                        self.sending_silence = false;
-                        time_out = self.capture_timeout;
-                    }
-                    Err(_) => {
-                        self.fifo.extend(self.silence.clone());
-                        self.sending_silence = true;
-                        time_out = self.silence_period;
-                    }
-                },
             }
+            Ok(i)
+        } else {
+            // FLAC
+            let flac_in = self.flac_channel.as_ref().unwrap().flac_in.clone();
+            let mut i: usize = 0;
+            while i < buf.len() {
+                if let Some(flacbyte) = self.flac_fifo.pop_front() {
+                    buf[i] = flacbyte;
+                    i += 1;
+                } else if let Ok(chunk) = flac_in.recv() {
+                    self.flac_fifo.extend(chunk);
+                }
+            }
+            Ok(i)
         }
-        Ok(i)
     }
 }
 
@@ -184,8 +226,15 @@ mod tests {
     fn test_silence() {
         const SAMPLE_RATE: u32 = 44100;
         let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
-        let mut cs =
-            ChannelStream::new(tx, rx, "192.168.0.254".to_string(), false, SAMPLE_RATE, 16);
+        let mut cs = ChannelStream::new(
+            tx,
+            rx,
+            "192.168.0.254".to_string(),
+            false,
+            SAMPLE_RATE,
+            16,
+            None,
+        );
         cs.create_silence(SAMPLE_RATE);
         assert_eq!(
             cs.silence.len(),

@@ -1,4 +1,7 @@
-use crate::{ui_log, ChannelStream, StreamerFeedBack, StreamingState, WavData, CLIENTS, CONFIG};
+use crate::{
+    ui_log, ChannelStream, StreamerFeedBack, StreamingFormat, StreamingState, WavData, CLIENTS,
+    CONFIG,
+};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;
 use log::debug;
@@ -121,7 +124,11 @@ pub fn run_server(
                             conf.use_wave_format,
                             wd.sample_rate.0,
                             conf.bits_per_sample.unwrap(),
+                            conf.streaming_format.unwrap(),
                         );
+                        if channel_stream.streaming_format == StreamingFormat::Flac {
+                            channel_stream.start_flac_encoder();
+                        }
                         channel_stream.create_silence(wd.sample_rate.0);
                         let nclients = {
                             let mut clients = CLIENTS.write();
@@ -169,6 +176,8 @@ pub fn run_server(
                         }
                         let nclients = {
                             let mut clients = CLIENTS.write();
+                            let chs = clients.get(&remote_addr).unwrap();
+                            chs.stop_flac_encoder();
                             clients.remove(&remote_addr);
                             clients.len()
                         };

@@ -12,7 +12,7 @@ It allows you to stream the music you're currently playing on your PC (Windows a
 It has been tested with
 
 - Volumio devices (<https://volumio.org/>)
-- Moode audio 8.xx (<https://moodeaudio.org/>), with Moode configured as UPNP render in Openhome mode, and using the WAV header option 
+- Moode audio 8.xx (<https://moodeaudio.org/>), with Moode configured as UPNP render in Openhome mode, and using WAV or FLAC format 
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
 - Denon Heos devices
 - Sony AV streamers & Bravia TVs
@@ -21,22 +21,26 @@ It has been tested with
 - Kef Wireless LS50 II (thanks @Turbomortel via Twitter)
 - Xbox 360, using Foobar2000 and entering the streaming url in foo_upnp (thanks @instinctualjealousy)
 - iEast Audiocast M5 using the WAV format header (thanks @Katharsas)
-  
-but will probably support any streamer that supports the OpenHome or AVTransport (DLNA) protocol.
+
+but any OpenHome/DLNA streamer that supports FLAC will probably work (since version 1.4.0).
+
 If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and the DLNA AVTransport endpoint is ignored.
 
 I wrote this because I a) wanted to learn Rust and b) SWYH does not work on Linux, does not work well with Volumio (push streaming does not work), and has a substantial memory leak in the ancient Intel .Net UPNP/DLNA library it uses.
 
-Music is streamed in uncompressed 16 bit LPCM format (audio/l16, audio/L24,  or optionally audio/wav with an "infinite length" WAV header) with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input).
-Since version 1.3.5 there is also support for streaming in in !uncompressed PCM WAV file format in case your renderer does not support "naked" uncompressed PCM streams.
-Note that libsndfile based renderers may not be able to decode the WAV format if they do not open the stram as a "pipe", because the stream is not "seekable".
+Music is streamed with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input). 
+Supported audio streaming formats:
+    - uncompressed 16 bit LPCM format (audio/l16)
+    - audio/wav (16 bit) with an "infinite length" WAV header, available since version 1.3.5
+    - FLAC 16 bit or 24 bit (lossless, with the lowest compression mode for performance and latency reasons), available since 1.4.0
+Note that libsndfile based renderers may not be able to decode the WAV format, because the stream is not "seekable".
 
 Audio is captured using the excellent Rust cpal (<https://github.com/RustAudio/cpal>) library.
 Fltk-rs (<https://github.com/MoAlyousef/fltk-rs>) is used for the GUI, as it's easy to use, is small, is cross-platform, is fast and works well.
 
 Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/Hifi-Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
 
-Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 3 MB).
+Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 4 MB).
 
 ### Where to get it and how to install
 
@@ -78,8 +82,8 @@ The icon was designed by @numanair, thanks!
 - some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "*Autoresume*" checkbox if you encounter this problem. But always try to disable the "*Chunked Transfer Encoding*" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
 - there is an "*Autoreconnect*" checkbox, if set the last used renderer will be automatically activated on program start
 - there is also a "*No Chunked Tr. Enc.*" checkbox, because some AV-Transport renderers do not support it properly (those based on the UPnP/1.0, Intel MicroStack in particular). You can safely disable chunked transfer, it's a HTTP/1.1 recommendation for streaming but it does not really matter if you do not use it.
-- there is (since 1.3.5) an "*Add WAV Hdr*" checkbox, that will prepend an infinite size MS "WAV" (RIFF) header to the stream for those renderers that do not support "naked" PCM streams. It may work or not (it will not work if your renderer uses libsndfile like Volumio, because the network stream is not "seekable" and this causes the decoding of the WAV header to fail). Apparently Sonos devices do not accept raw PCM, they need the WAV header.
-- there is (since 1.3.20) a check box "*24 bit*". It causes audio to be streamed in 24 bit LPCM format (audio/L24) with the sampling rate of the audio source. This does not work with older Mpd/Upmpdcli based streamers like Volumio 2.x. Not tested on Volumio 3.x yet. But BubbleUPNP correctly transcodes it to audio/L16.
+- since 1.4.0 you can choose between FLAC, LPCM or WAV format. Preferred format is FLAC. WAV or LPCM should only be used if FLAC does not work. Also, only FLAC will work with 24 bit. 
+- there is (since 1.3.20) a check box "*24 bit*". It causes audio to be streamed in 24 bit LPCM format (audio/L24) with the sampling rate of the audio source. It only works reliably with the FLAC format. 24 bit works with Bubble/UPNP too with LPCM, but not with hardware streamers.
 - there is (since 1.3.13) an input box to select the *HTTP listener port* for the streaming server. Default is 5901. If you use a firewall, this port should allow incoming HTTP connections from your renderer(s).
 - there is (since 1.3.6) an option to enable visualization of the RMS value (L+R channel) of the captured PCM audio signal. It will only add an insignificant amount of CPU use.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio: <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running

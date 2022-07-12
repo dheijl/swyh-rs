@@ -108,12 +108,15 @@ impl ChannelStream {
     }
 
     pub fn write(&self, samples: &[f32]) {
+        self.s.send(samples.to_vec()).unwrap();
+        /*
         if self.flac_channel.is_some() {
-            //eprintln!("ChannelStream.write: {0} samples", samples.len());
+            eprintln!("ChannelStream.write: {0} FLAC samples", samples.len());
             self.s.send(samples.to_vec()).unwrap();
         } else {
             self.s.send(samples.to_vec()).unwrap();
         }
+        */
     }
 }
 

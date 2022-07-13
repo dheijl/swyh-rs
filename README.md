@@ -29,10 +29,12 @@ If a device supports both OpenHome and DLNA, the OpenHome endpoint is used, and 
 I wrote this because I a) wanted to learn Rust and b) SWYH does not work on Linux, does not work well with Volumio (push streaming does not work), and has a substantial memory leak in the ancient Intel .Net UPNP/DLNA library it uses.
 
 Music is streamed with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input). 
+
 Supported audio streaming formats:
-    - uncompressed 16 bit LPCM format (audio/l16)
-    - audio/wav (16 bit) with an "infinite length" WAV header, available since version 1.3.5
-    - FLAC 16 bit or 24 bit (lossless, with the lowest compression mode for performance and latency reasons), available since 1.4.0
+- uncompressed 16 bit LPCM format (audio/l16)
+- audio/wav (16 bit) with an "infinite length" WAV header, available since version 1.3.5
+- FLAC 16 bit or 24 bit (lossless, with the lowest compression mode for performance and latency reasons), available since 1.4.0
+
 Note that libsndfile based renderers may not be able to decode the WAV format, because the stream is not "seekable".
 
 Audio is captured using the excellent Rust cpal (<https://github.com/RustAudio/cpal>) library.
@@ -112,4 +114,4 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
 ### Screenshot
 
-![Knipsel](https://user-images.githubusercontent.com/2384545/145233025-1c7145ac-abfc-4574-954a-b068036b43fe.PNG)
+![Knipsel](https://user-images.githubusercontent.com/2384545/178578830-1370f9bf-a006-4139-a4a2-1f7b535575e0.PNG)

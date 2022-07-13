@@ -1,3 +1,4 @@
+use crate::openhome::rendercontrol::StreamInfo;
 use crate::ui_log;
 use crate::utils::escape::FwSlashPipeEscape;
 use crate::Configuration;
@@ -566,21 +567,22 @@ impl MainForm {
                 if b.is_set() { "ON" } else { "OFF" }
             );
             if b.is_set() {
-                let use_wav_format = {
+                {
                     let mut conf = CONFIG.write();
                     conf.last_renderer = b.label();
                     let _ = conf.update_config();
-                    conf.use_wave_format
-                };
+                }
                 let config = CONFIG.read().clone();
+                let streaminfo = StreamInfo {
+                    sample_rate: wd.sample_rate.0,
+                    bits_per_sample: config.bits_per_sample.unwrap(),
+                    streaming_format: config.streaming_format.unwrap(),
+                };
                 let _ = newr_c.play(
                     &local_addr,
                     config.server_port.unwrap_or_default(),
-                    &wd,
                     &ui_log,
-                    use_wav_format,
-                    config.bits_per_sample.unwrap(),
-                    config.streaming_format.as_ref().unwrap(),
+                    streaminfo,
                 );
             } else {
                 newr_c.stop_play(&ui_log);

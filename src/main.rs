@@ -44,7 +44,7 @@ mod server;
 mod ui;
 mod utils;
 
-use crate::openhome::rendercontrol::{discover, Renderer, WavData};
+use crate::openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData};
 use crate::server::streaming_server::run_server;
 use crate::ui::mainform::MainForm;
 use crate::utils::audiodevices::{
@@ -326,14 +326,16 @@ fn main() {
                                     .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                                 {
                                     let config = CONFIG.read().clone();
+                                    let streaminfo = StreamInfo {
+                                        sample_rate: wd.sample_rate.0,
+                                        bits_per_sample: config.bits_per_sample.unwrap(),
+                                        streaming_format: config.streaming_format.unwrap(),
+                                    };
                                     let _ = r.play(
                                         &local_addr,
                                         server_port.unwrap_or_default(),
-                                        &wd,
                                         &dummy_log,
-                                        config.use_wave_format,
-                                        config.bits_per_sample.unwrap(),
-                                        config.streaming_format.as_ref().unwrap(),
+                                        streaminfo,
                                     );
                                 }
                             } else if button.is_set() {

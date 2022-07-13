@@ -116,6 +116,12 @@ pub struct WavData {
     pub channels: u16,
 }
 
+pub struct StreamInfo {
+    pub sample_rate: u32,
+    pub bits_per_sample: u16,
+    pub streaming_format: StreamingFormat,
+}
+
 /// An UPNP/DLNA service desciption
 #[derive(Debug, Clone)]
 pub struct AvService {
@@ -225,27 +231,31 @@ impl Renderer {
         &self,
         local_addr: &IpAddr,
         server_port: u16,
-        wd: &WavData,
         log: &dyn Fn(String),
-        use_wav_format: bool,
-        bits_per_sample: u16,
-        format: &StreamingFormat,
+        streaminfo: StreamInfo,
     ) -> Result<(), &str> {
+        let use_wav_format = streaminfo.streaming_format == StreamingFormat::Wav;
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = HashMap::new();
         let (host, port) = self.parse_url(&self.dev_url, log);
         let addr = format!("{local_addr}:{server_port}");
         let local_url = format!("http://{addr}/stream/swyh.wav");
         fmt_vars.insert("server_uri".to_string(), local_url);
-        fmt_vars.insert("bits_per_sample".to_string(), bits_per_sample.to_string());
-        fmt_vars.insert("sample_rate".to_string(), wd.sample_rate.0.to_string());
+        fmt_vars.insert(
+            "bits_per_sample".to_string(),
+            streaminfo.bits_per_sample.to_string(),
+        );
+        fmt_vars.insert(
+            "sample_rate".to_string(),
+            streaminfo.sample_rate.to_string(),
+        );
         fmt_vars.insert("duration".to_string(), "00:00:00".to_string());
         let mut didl_prot: String;
-        if *format == StreamingFormat::Flac {
+        if streaminfo.streaming_format == StreamingFormat::Flac {
             didl_prot = htmlescape::encode_minimal(FLAC_PROT_INFO);
         } else if use_wav_format {
             didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
-        } else if bits_per_sample == 16 {
+        } else if streaminfo.bits_per_sample == 16 {
             didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
         } else {
             didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);

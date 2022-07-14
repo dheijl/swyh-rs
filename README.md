@@ -6,6 +6,8 @@
 
 A "Stream-What-You-Hear" implementation written in Rust.
 
+Current release: 1.4.0 with **FLAC** support
+
 **swyh-rs** implements the idea behind the original SWYH (see <https://www.streamwhatyouhear.com/>, source repo <https://github.com/StreamWhatYouHear/SWYH>) in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows and Linux supported) to an UPNP/DLNA/OPenHome compatible music player (a "Renderer").
 
@@ -31,14 +33,17 @@ I wrote this because I a) wanted to learn Rust and b) SWYH does not work on Linu
 Music is streamed with the sample rate of the music source (the chosen audio output device, I personally use VBAudio HiFi Cable Input). 
 
 Supported audio streaming formats:
-- uncompressed 16 bit LPCM format (audio/l16)
-- audio/wav (16 bit) with an "infinite length" WAV header, available since version 1.3.5
-- FLAC 16 bit or 24 bit (lossless, with the lowest compression mode for performance and latency reasons), available since 1.4.0
+
+- uncompressed 16 bit **LPCM** format (audio/l16)
+- audio/wav (16 bit) with an "infinite length" **WAV** header, available since version 1.3.5
+- **FLAC** 16 bit or 24 bit (lossless compression, using the lowest compression level for performance and latency reasons). It is available since version 1.4.0
 
 Note that libsndfile based renderers may not be able to decode the WAV format, because the stream is not "seekable".
 
-Audio is captured using the excellent Rust cpal (<https://github.com/RustAudio/cpal>) library.
-Fltk-rs (<https://github.com/MoAlyousef/fltk-rs>) is used for the GUI, as it's easy to use, is small, is cross-platform, is fast and works well.
+Audio is captured using the excellent Rust cpal library (<https://github.com/RustAudio/cpal>).
+Fltk-rs (<https://github.com/MoAlyousef/fltk-rs>) is used for the GUI, as it's easy to use, and it's small, cross-platform, fast and works well.
+For FLAC encoding I use flac-bound (<https://github.com/nabijaczleweli/flac-bound>) as a very easy to use abstraction layer for the libflac-sys  Rust bindings (<https://github.com/mgeier/libflac-sys/blob/master/src/bindings.rs>).
+This allows me to link libflac (<https://github.com/xiph/flac>) statically in the swyh-rs binary, no dlls needed!
 
 Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/Hifi-Berry based Volumio devices. I don't have access to a Mac, so I don't know if this also works.
 

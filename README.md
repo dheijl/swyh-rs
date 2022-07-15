@@ -123,4 +123,4 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
 ### Screenshot
 
-![Knipsel](https://user-images.githubusercontent.com/2384545/178578830-1370f9bf-a006-4139-a4a2-1f7b535575e0.PNG)
+![Knipsel](https://user-images.githubusercontent.com/2384545/179241258-13cce495-3875-4e1d-9115-94f80a34644a.PNG)

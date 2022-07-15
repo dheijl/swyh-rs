@@ -24,7 +24,6 @@ impl FlacWriter {
 
 impl Write for FlacWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        //eprintln!("FlacWriter writing {0} bytes", buf.len());
         match self.flac_out.send(buf.to_vec()) {
             Ok(()) => Ok(buf.len()),
             Err(_e) => Err(std::io::Error::new(
@@ -82,7 +81,6 @@ impl FlacChannel {
         let l_active = self.active.clone();
         // fire up thread
         self.active.store(true, Relaxed);
-        //eprintln!("Starting FLAC encoder thread");
         let _thr = std::thread::Builder::new()
             .name("flac_encoder".into())
             .stack_size(4 * 1024 * 1024)
@@ -103,7 +101,6 @@ impl FlacChannel {
                 let shift = if bps == 24 { 8u8 } else { 16u8 };
                 while l_active.load(Relaxed) {
                     if let Ok(f32_samples) = samples_in.recv_timeout(t) {
-                        //eprintln!("Flac encoder received {0} samples", f32_samples.len());
                         let samples = f32_samples
                             .iter()
                             .map(|s| to_i32_sample(*s) >> shift)
@@ -113,7 +110,6 @@ impl FlacChannel {
                     }
                 }
                 let _ = enc.finish();
-                //eprintln!("FLAC encoder thread stopped");
             })
             .unwrap();
     }

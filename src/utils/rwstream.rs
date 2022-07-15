@@ -21,7 +21,8 @@ use std::time::Duration;
 
 use super::flacstream::FlacChannel;
 
-/// Channelstream - used to transport the samples from the wave_reader to the http output wav stream
+/// Channelstream - used to transport the f32 samples from the wave_reader
+/// to the http output stream in LPCM/WAV/FLAC format
 #[derive(Clone)]
 pub struct ChannelStream {
     pub s: Sender<Vec<f32>>,
@@ -91,38 +92,39 @@ impl ChannelStream {
         let size = ((sample_rate * 2) / DIVISOR) as usize;
         self.silence = Vec::with_capacity(size);
         self.silence.resize(size, 0f32);
-        // Hack for Bubble with Chromecast/Nest
-        //self.fifo.extend(self.silence.clone());
     }
 
+    // the flac encoder runs in a seperate thread
     pub fn start_flac_encoder(&self) {
         if self.flac_channel.is_some() {
             self.flac_channel.as_ref().unwrap().run();
         }
     }
 
+    // stop the flac encoder thread
     pub fn stop_flac_encoder(&self) {
         if self.flac_channel.is_some() {
             self.flac_channel.as_ref().unwrap().stop();
         }
     }
 
+    // called by the wave_reader to write the f32 samples to the input channel
     pub fn write(&self, samples: &[f32]) {
         self.s.send(samples.to_vec()).unwrap();
-        /*
-        if self.flac_channel.is_some() {
-            eprintln!("ChannelStream.write: {0} FLAC samples", samples.len());
-            self.s.send(samples.to_vec()).unwrap();
-        } else {
-            self.s.send(samples.to_vec()).unwrap();
-        }
-        */
     }
 }
 
+/// implement the Read trait for the HTTP writer
+///
+/// for LPCM/WAV the f32 samples are read from the f32 input channel and pushed
+/// on the fifo VecDeque that is then read for conversion to LPCM and transmission
+///
+/// for FLAC the f32 samples have already been encoded to FLAC and written to the
+/// flac_out channel of the FlacChannel encoder.
+/// the flac_in channel of the FlacChannel is read here and pushed on the flac_fifo VecDeque
+/// for transmission  
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        //eprintln!("ChannelStream read request, buflen = {0}", buf.len());
         if self.flac_channel.is_none() {
             // naked LPCM or WAV LPCM
             let mut time_out = if self.sending_silence {
@@ -182,7 +184,6 @@ impl Read for ChannelStream {
                     buf[i] = flacbyte;
                     i += 1;
                 } else if let Ok(chunk) = flac_in.recv() {
-                    //eprintln!("ChannelStream Read: flac_in received {0} samples", chunk.len());
                     self.flac_fifo.extend(chunk);
                 }
             }
@@ -250,40 +251,5 @@ mod tests {
             cs.silence.len(),
             ((SAMPLE_RATE * 2) / (1000 / SILENCE_PERIOD)) as usize
         );
-        /*
-        let mut i = 0;
-        for sample in cs.silence {
-            if i == 15 {
-                eprint!("{}\r\n", sample);
-                i = 0;
-            } else {
-                eprint!("{} ", sample);
-                i += 1;
-            }
-        }
-        */
     }
-
-    /*
-    // near-silent 440 Hz tone (attenuation 32)
-    use std::f64::consts::PI;
-    self.silence = Vec::with_capacity((sample_rate * 2) as usize);
-    let incr = (2.0 * PI) / (sample_rate as f64 / 440.0);
-    let min_value: f64 = 0.0;
-    let max_value: f64 = 2.0 * PI;
-    let mut i = 0;
-    loop {
-        let mut input_value = min_value;
-        while input_value <= max_value {
-            let sample = (32.0 * input_value.sin()) as i16;
-            self.silence.push(sample); // left channel
-            self.silence.push(sample); // right channel
-            input_value += incr;
-            i += 1;
-            if i == sample_rate {
-                return;
-            }
-        }
-    }
-    */
 }

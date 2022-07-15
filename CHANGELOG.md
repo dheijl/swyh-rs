@@ -1,7 +1,11 @@
 # swyh-rs Changelog
 
+- 1.4.1 (July 15 2022 dheijl)
+  - some code cleanup and comments, and document that libflac-sys does not build on 32 bit, so no more 32 bit support
+  - small ui change
+
 - 1.4.0 (July 12 2022 dheijl)
-  - add 16 bit and 24 bit FLAC support, using Flac-bound and libflac-sys 
+  - add 16 bit and 24 bit FLAC support, using Flac-bound and libflac-sys
   
 - 1.3.26 (June 7 2022 dheijl)
   - Fix possible exposure to CVE-2021-45707 and CVE-2022-24713 by replacing ifcfg crate with if_addrs crate.

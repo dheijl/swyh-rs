@@ -6,12 +6,17 @@
 
 A "Stream-What-You-Hear" implementation written in Rust.
 
-Current release: 1.4.0 with **FLAC** support
+Current release: 1.4.1 with **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OPenHome compatible music player (a "Renderer").
 
-I wrote this because I a) wanted to learn Rust and b) SWYH does not work on Linux, did not work well with Volumio (push streaming did not work), and has a substantial memory leak due to the use of the old and unmaintained Intel .Net UPNP/DLNA library it uses.
+I wrote this because
+
+- I wanted to learn Rust
+- SWYH does not work on Linux
+- SWYH did not work well with Volumio (push streaming did not work)
+- SWYH has a substantial memory leak due to the use of an old and unmaintained Intel .Net UPNP/DLNA library it uses.
 
 It has been tested with
 

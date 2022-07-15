@@ -326,21 +326,6 @@ impl MainForm {
         pconfig2.set_type(PackType::Horizontal);
         pconfig2.end();
 
-        // disable chunked transfer (for AVTransport renderers that can't handle chunkeed transfer)
-        let mut disable_chunked = CheckButton::new(0, 0, 0, 0, "No Chunked Tr. Enc.");
-        if config.disable_chunked {
-            disable_chunked.set(true);
-        }
-        disable_chunked.set_callback(move |b| {
-            let mut conf = CONFIG.write();
-            if b.is_set() {
-                conf.disable_chunked = true;
-            } else {
-                conf.disable_chunked = false;
-            }
-            let _ = conf.update_config();
-        });
-        pconfig2.add(&disable_chunked);
         // streaming format
         let fmt = if let Some(format) = config.streaming_format {
             format!("FMT: {}", format)
@@ -430,6 +415,23 @@ impl MainForm {
         });
 
         pconfig2.add(&listen_port);
+
+        // disable chunked transfer (for AVTransport renderers that can't handle chunkeed transfer)
+        let mut disable_chunked = CheckButton::new(0, 0, 0, 0, "No Chunked Tr. Enc.");
+        if config.disable_chunked {
+            disable_chunked.set(true);
+        }
+        disable_chunked.set_callback(move |b| {
+            let mut conf = CONFIG.write();
+            if b.is_set() {
+                conf.disable_chunked = true;
+            } else {
+                conf.disable_chunked = false;
+            }
+            let _ = conf.update_config();
+        });
+        pconfig2.add(&disable_chunked);
+
         pconfig2.auto_layout();
         pconfig2.make_resizable(false);
         vpack.add(&pconfig2);

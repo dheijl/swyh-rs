@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.4.2 (July 18 2022 dheijl)
+  - use latest flac-bound git master to build libflac-sys without OGG
+  
 - 1.4.1 (July 15 2022 dheijl)
   - some code cleanup and comments, and document that libflac-sys does not build on 32 bit, so no more 32 bit support
   - small ui change

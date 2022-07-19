@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.4.3-beta (unreleased)
+  - update flac-bound to official 0.3.0
+
 - 1.4.2 (July 18 2022 dheijl)
   - use latest flac-bound git master to build libflac-sys without OGG
   

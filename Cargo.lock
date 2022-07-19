@@ -296,8 +296,9 @@ dependencies = [
 
 [[package]]
 name = "flac-bound"
-version = "0.2.0"
-source = "git+https://github.com/nabijaczleweli/flac-bound#8f54daa8b3176333cd4d46624cf2c7381dec2dc3"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d438dc79612e982e62d0d86a1fd434b4f536cddf156ce02063cd56fc3d8d426c"
 dependencies = [
  "libflac-sys",
 ]

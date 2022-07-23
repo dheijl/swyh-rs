@@ -62,8 +62,8 @@ use fltk::{
     misc::Progress,
     prelude::{ButtonExt, WidgetExt},
 };
-use lazy_static::lazy_static;
 use log::{debug, error, info, warn, LevelFilter};
+use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
@@ -113,14 +113,15 @@ pub struct StreamerFeedBack {
     streaming_state: StreamingState,
 }
 
-lazy_static! {
-    // streaming clients of the webserver
-    static ref CLIENTS: RwLock<HashMap<String, ChannelStream>> = RwLock::new(HashMap::new());
-    // the global GUI logger textbox channel used by all threads
-    static ref LOGCHANNEL: RwLock<(Sender<String>, Receiver<String>)> = RwLock::new(unbounded());
-    // the global configuration state
-    static ref CONFIG: RwLock<Configuration> = RwLock::new(Configuration::read_config());
-}
+// streaming clients of the webserver
+static CLIENTS: Lazy<RwLock<HashMap<String, ChannelStream>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
+// the global GUI logger textbox channel used by all threads
+static LOGCHANNEL: Lazy<RwLock<(Sender<String>, Receiver<String>)>> =
+    Lazy::new(|| RwLock::new(unbounded()));
+// the global configuration state
+static CONFIG: Lazy<RwLock<Configuration>> =
+    Lazy::new(|| RwLock::new(Configuration::read_config()));
 
 /// swyh-rs
 ///

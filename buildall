@@ -2,6 +2,6 @@
 echo "Build all"
 
 cargo fmt --all
-cargo update && cargo upgrade
+cargo update && cargo upgrade --to-lockfile
 cargo build && cargo build --release 
 #cargo build --target=i686-pc-windows-msvc && cargo build --target=i686-pc-windows-msvc --release

@@ -28,11 +28,15 @@ pub fn run_server(
     let addr = format!("{local_addr}:{server_port}");
     let logmsg = format!("The streaming server is listening on http://{addr}/stream/swyh.wav");
     ui_log(logmsg);
-    let logmsg = format!(
-        "Sample rate: {}, sample format: audio/L{} (PCM)",
-        wd.sample_rate.0,
-        CONFIG.read().bits_per_sample.unwrap(),
-    );
+    let logmsg = {
+        let cfg = CONFIG.read();
+        format!(
+            "Streaming sample rate: {}, bits per sample: {}, format: {}",
+            wd.sample_rate.0,
+            cfg.bits_per_sample.unwrap(),
+            cfg.streaming_format.unwrap(),
+        )
+    };
     ui_log(logmsg);
     let server = Arc::new(Server::http(addr).unwrap());
     let mut handles = Vec::new();

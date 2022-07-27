@@ -252,7 +252,7 @@ fn main() {
     let mut renderers: Vec<Renderer> = Vec::new();
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     ui_log("Starting SSDP discovery".to_string());
-    let ssdp_int = CONFIG.read().ssdp_interval_mins;
+    let ssdp_int = config.ssdp_interval_mins;
     let _ = std::thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 1024 * 1024)
@@ -273,7 +273,7 @@ fn main() {
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
-    let server_port = CONFIG.read().server_port;
+    let server_port = config.server_port;
     let _ = std::thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)

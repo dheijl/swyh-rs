@@ -9,6 +9,10 @@ use std::{
     time::Duration,
 };
 
+use crate::ui_log;
+
+use super::rwstream::{CAPTURE_TIMEOUT, SILENCE_PERIOD};
+
 // the flacwriter receives the data from the encoder
 // and writes them to the flac output channel
 #[derive(Clone)]
@@ -50,6 +54,7 @@ pub struct FlacChannel {
     sample_rate: u32,
     bits_per_sample: u32,
     channels: u32,
+    silence: Vec<f32>,
 }
 
 impl FlacChannel {
@@ -58,6 +63,7 @@ impl FlacChannel {
         sample_rate: u32,
         bits_per_sample: u32,
         channels: u32,
+        silence: Vec<f32>,
     ) -> FlacChannel {
         let (flac_out, flac_in): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = unbounded();
         FlacChannel {
@@ -68,6 +74,7 @@ impl FlacChannel {
             sample_rate,
             bits_per_sample,
             channels,
+            silence,
         }
     }
 
@@ -79,6 +86,7 @@ impl FlacChannel {
         let bps = self.bits_per_sample;
         let sr = self.sample_rate;
         let l_active = self.active.clone();
+        let silence = self.silence.clone();
         // fire up thread
         self.active.store(true, Relaxed);
         let _thr = std::thread::Builder::new()
@@ -97,16 +105,39 @@ impl FlacChannel {
                     .init_write(&mut outw)
                     .unwrap();
                 // read captured samples and encode
-                let t = Duration::from_millis(100);
                 let shift = if bps == 24 { 8u8 } else { 16u8 };
+                let mut sending_silence = false;
                 while l_active.load(Relaxed) {
+                    let t = if sending_silence {
+                        Duration::from_millis(SILENCE_PERIOD + 1)
+                    } else {
+                        Duration::new(CAPTURE_TIMEOUT, 0)
+                    };
                     if let Ok(f32_samples) = samples_in.recv_timeout(t) {
+                        sending_silence = false;
                         let samples = f32_samples
                             .iter()
                             .map(|s| to_i32_sample(*s) >> shift)
                             .collect::<Vec<i32>>();
                         enc.process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                             .unwrap();
+                    } else {
+                        sending_silence = true;
+                        if l_active.load(Relaxed) {
+                            let samples = silence
+                                .clone()
+                                .iter()
+                                .map(|s| to_i32_sample(*s) >> shift)
+                                .collect::<Vec<i32>>();
+                            let res = enc.process_interleaved(
+                                samples.as_slice(),
+                                (samples.len() / 2) as u32,
+                            );
+                            if let Err(e) = res {
+                                ui_log(format!("Flac encoding error caused by silence {:?}", e));
+                                break;
+                            }
+                        }
                     }
                 }
                 let _ = enc.finish();

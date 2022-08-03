@@ -41,8 +41,8 @@ pub struct ChannelStream {
     flac_channel: Option<FlacChannel>,
 }
 
-const CAPTURE_TIMEOUT: u32 = 2; // seconds
-const SILENCE_PERIOD: u32 = 250; // milliseconds
+pub const CAPTURE_TIMEOUT: u64 = 2; // seconds
+pub const SILENCE_PERIOD: u64 = 250; // milliseconds
 
 impl ChannelStream {
     pub fn new(
@@ -60,18 +60,19 @@ impl ChannelStream {
                 sample_rate,
                 bits_per_sample as u32,
                 2,
+                get_silence_buffer(sample_rate),
             ))
         } else {
             None
         };
-        ChannelStream {
+        let chs = ChannelStream {
             s: tx,
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             flac_fifo: VecDeque::with_capacity(16384),
-            silence: Vec::new(),
-            capture_timeout: Duration::new(CAPTURE_TIMEOUT as u64, 0), // silence kicks in after CAPTURE_TIMEOUT seconds
-            silence_period: Duration::from_millis(SILENCE_PERIOD as u64), // send SILENCE_PERIOD msec of silence every SILENCE_PERIOD msec
+            silence: get_silence_buffer(sample_rate),
+            capture_timeout: Duration::new(CAPTURE_TIMEOUT, 0), // silence kicks in after CAPTURE_TIMEOUT seconds
+            silence_period: Duration::from_millis(SILENCE_PERIOD), // send SILENCE_PERIOD msec of silence every SILENCE_PERIOD msec
             sending_silence: false,
             remote_ip: remote_ip_addr,
             wav_hdr: if !use_wave_format {
@@ -83,19 +84,15 @@ impl ChannelStream {
             bits_per_sample,
             streaming_format,
             flac_channel,
+        };
+        if chs.streaming_format == StreamingFormat::Flac {
+            chs.start_flac_encoder();
         }
-    }
-
-    // create a 250 msec silence
-    pub fn create_silence(&mut self, sample_rate: u32) {
-        const DIVISOR: u32 = 1000 / SILENCE_PERIOD;
-        let size = ((sample_rate * 2) / DIVISOR) as usize;
-        self.silence = Vec::with_capacity(size);
-        self.silence.resize(size, 0f32);
+        chs
     }
 
     // the flac encoder runs in a seperate thread
-    pub fn start_flac_encoder(&self) {
+    fn start_flac_encoder(&self) {
         if self.flac_channel.is_some() {
             self.flac_channel.as_ref().unwrap().run();
         }
@@ -218,6 +215,14 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr[40..44].copy_from_slice(&subchunksize.to_le_bytes()); // SubChunk2Size
     debug!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
     hdr.to_vec()
+}
+
+pub fn get_silence_buffer(sample_rate: u32) -> Vec<f32> {
+    const DIVISOR: u64 = 1000 / SILENCE_PERIOD;
+    let size = ((sample_rate * 2) / DIVISOR as u32) as usize;
+    let mut silence = Vec::with_capacity(size);
+    silence.resize(size, 0f32);
+    silence
 }
 
 #[cfg(test)]

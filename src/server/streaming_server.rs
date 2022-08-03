@@ -126,7 +126,7 @@ pub fn run_server(
                             }
                         };
                         let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
-                        let mut channel_stream = ChannelStream::new(
+                        let channel_stream = ChannelStream::new(
                             tx,
                             rx,
                             remote_ip.clone(),
@@ -135,10 +135,6 @@ pub fn run_server(
                             conf.bits_per_sample.unwrap(),
                             conf.streaming_format.unwrap(),
                         );
-                        if channel_stream.streaming_format == StreamingFormat::Flac {
-                            channel_stream.start_flac_encoder();
-                        }
-                        channel_stream.create_silence(wd.sample_rate.0);
                         let nclients = {
                             let mut clients = CLIENTS.write();
                             clients.insert(remote_addr.clone(), channel_stream);

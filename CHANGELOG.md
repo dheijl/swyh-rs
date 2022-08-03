@@ -1,7 +1,8 @@
 # swyh-rs Changelog
 
-- 1.4.3-beta (unreleased)
+- 1.4.3 (Aug 3 2022 dheijl)
   - update flac-bound to official 0.3.0
+  - implement "silence" sending for FLAC too, but it introduces a considerable delay due to FLAC compressing silence so well :) (issue #65) 
 
 - 1.4.2 (July 18 2022 dheijl)
   - use latest flac-bound git master to build libflac-sys without OGG

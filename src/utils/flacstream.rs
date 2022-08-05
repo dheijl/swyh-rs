@@ -55,7 +55,6 @@ pub struct FlacChannel {
     sample_rate: u32,
     bits_per_sample: u32,
     channels: u32,
-    //silence: Vec<f32>,
 }
 
 impl FlacChannel {
@@ -64,7 +63,6 @@ impl FlacChannel {
         sample_rate: u32,
         bits_per_sample: u32,
         channels: u32,
-        //silence: Vec<f32>,
     ) -> FlacChannel {
         let (flac_out, flac_in): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = unbounded();
         FlacChannel {
@@ -75,7 +73,6 @@ impl FlacChannel {
             sample_rate,
             bits_per_sample,
             channels,
-            //silence,
         }
     }
 
@@ -87,7 +84,6 @@ impl FlacChannel {
         let bps = self.bits_per_sample;
         let sr = self.sample_rate;
         let l_active = self.active.clone();
-        //let silence = self.silence.clone();
         // fire up thread
         self.active.store(true, Relaxed);
         let _thr = std::thread::Builder::new()
@@ -108,6 +104,7 @@ impl FlacChannel {
                 // read captured samples and encode
                 let shift = if bps == 24 { 8u8 } else { 16u8 };
                 let mut sending_silence = false;
+                // create the random generatir for the white noise
                 let mut rng = StdRng::seed_from_u64(79);
                 while l_active.load(Relaxed) {
                     let t = if sending_silence {

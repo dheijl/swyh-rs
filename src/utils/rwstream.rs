@@ -60,7 +60,6 @@ impl ChannelStream {
                 sample_rate,
                 bits_per_sample as u32,
                 2,
-                //get_noise_buffer(sample_rate),
             ))
         } else {
             None

@@ -41,8 +41,8 @@ pub struct ChannelStream {
     flac_channel: Option<FlacChannel>,
 }
 
-pub const CAPTURE_TIMEOUT: u64 = 2; // seconds
-pub const SILENCE_PERIOD: u64 = 250; // milliseconds
+const CAPTURE_TIMEOUT: u64 = 2; // seconds
+const SILENCE_PERIOD: u64 = 250; // milliseconds
 
 impl ChannelStream {
     pub fn new(
@@ -60,7 +60,7 @@ impl ChannelStream {
                 sample_rate,
                 bits_per_sample as u32,
                 2,
-                get_silence_buffer(sample_rate),
+                //get_noise_buffer(sample_rate),
             ))
         } else {
             None

@@ -1,5 +1,6 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use flac_bound::{FlacEncoder, WriteWrapper};
+use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::{
     io::Write,
     sync::{
@@ -11,7 +12,7 @@ use std::{
 
 use crate::ui_log;
 
-use super::rwstream::{CAPTURE_TIMEOUT, SILENCE_PERIOD};
+const NOISE_PERIOD: u64 = 250;
 
 // the flacwriter receives the data from the encoder
 // and writes them to the flac output channel
@@ -54,7 +55,7 @@ pub struct FlacChannel {
     sample_rate: u32,
     bits_per_sample: u32,
     channels: u32,
-    silence: Vec<f32>,
+    //silence: Vec<f32>,
 }
 
 impl FlacChannel {
@@ -63,7 +64,7 @@ impl FlacChannel {
         sample_rate: u32,
         bits_per_sample: u32,
         channels: u32,
-        silence: Vec<f32>,
+        //silence: Vec<f32>,
     ) -> FlacChannel {
         let (flac_out, flac_in): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = unbounded();
         FlacChannel {
@@ -74,7 +75,7 @@ impl FlacChannel {
             sample_rate,
             bits_per_sample,
             channels,
-            silence,
+            //silence,
         }
     }
 
@@ -86,7 +87,7 @@ impl FlacChannel {
         let bps = self.bits_per_sample;
         let sr = self.sample_rate;
         let l_active = self.active.clone();
-        let silence = self.silence.clone();
+        //let silence = self.silence.clone();
         // fire up thread
         self.active.store(true, Relaxed);
         let _thr = std::thread::Builder::new()
@@ -107,11 +108,12 @@ impl FlacChannel {
                 // read captured samples and encode
                 let shift = if bps == 24 { 8u8 } else { 16u8 };
                 let mut sending_silence = false;
+                let mut rng = StdRng::seed_from_u64(79);
                 while l_active.load(Relaxed) {
                     let t = if sending_silence {
-                        Duration::from_millis(SILENCE_PERIOD + 1)
+                        Duration::from_millis(NOISE_PERIOD + 1)
                     } else {
-                        Duration::new(CAPTURE_TIMEOUT, 0)
+                        Duration::from_millis(NOISE_PERIOD * 4)
                     };
                     if let Ok(f32_samples) = samples_in.recv_timeout(t) {
                         sending_silence = false;
@@ -124,8 +126,7 @@ impl FlacChannel {
                     } else {
                         sending_silence = true;
                         if l_active.load(Relaxed) {
-                            let samples = silence
-                                .clone()
+                            let samples = get_noise_buffer(sr, &mut rng)
                                 .iter()
                                 .map(|s| to_i32_sample(*s) >> shift)
                                 .collect::<Vec<i32>>();
@@ -161,4 +162,15 @@ fn to_i32_sample(mut f32_sample: f32) -> i32 {
     } else {
         ((-f32_sample as f64 * i32::MIN as f64) - 0.5) as i32
     }
+}
+
+fn get_noise_buffer(sample_rate: u32, rng: &mut StdRng) -> Vec<f32> {
+    const DIVISOR: u64 = 1000 / NOISE_PERIOD;
+    let size = ((sample_rate * 2) / DIVISOR as u32) as usize;
+    let mut noise = Vec::with_capacity(size);
+    let amplitude: f32 = 0.001;
+    for _ in 0..size {
+        noise.push(((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude);
+    }
+    noise
 }

@@ -5,9 +5,7 @@ use crate::{
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;
 use log::debug;
-use std::net::IpAddr;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{net::IpAddr, sync::Arc, time::Duration};
 use tiny_http::{Header, Method, Response, Server};
 
 /// run_server - run a tiny-http webserver to serve streaming requests from renderers

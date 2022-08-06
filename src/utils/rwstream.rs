@@ -14,10 +14,11 @@ use crate::utils::i24::I24Sample;
 use cpal::Sample;
 use crossbeam_channel::{Receiver, Sender};
 use log::debug;
-use std::collections::VecDeque;
-use std::io::Read;
-use std::io::Result as IoResult;
-use std::time::Duration;
+use std::{
+    collections::VecDeque,
+    io::{Read, Result as IoResult},
+    time::Duration,
+};
 
 use super::flacstream::FlacChannel;
 

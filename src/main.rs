@@ -44,18 +44,24 @@ mod server;
 mod ui;
 mod utils;
 
-use crate::openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData};
-use crate::server::streaming_server::run_server;
-use crate::ui::mainform::MainForm;
-use crate::utils::audiodevices::{
-    capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+use crate::{
+    openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
+    server::streaming_server::run_server,
+    ui::mainform::MainForm,
+    utils::{
+        audiodevices::{
+            capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+        },
+        configuration::Configuration,
+        local_ip_address::*,
+        priority::raise_priority,
+        rwstream::ChannelStream,
+    },
 };
-use crate::utils::configuration::Configuration;
-use crate::utils::local_ip_address::*;
-use crate::utils::priority::raise_priority;
-use crate::utils::rwstream::ChannelStream;
-use cpal::traits::{DeviceTrait, StreamTrait};
-use cpal::Sample;
+use cpal::{
+    traits::{DeviceTrait, StreamTrait},
+    Sample,
+};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{
     app, dialog,
@@ -67,14 +73,10 @@ use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
-use std::cell::Cell;
-use std::collections::HashMap;
-use std::fmt;
-use std::fs::File;
-use std::net::IpAddr;
-use std::path::Path;
-use std::rc::Rc;
-use std::time::Duration;
+use std::{
+    cell::Cell, collections::HashMap, fmt, fs::File, net::IpAddr, path::Path, rc::Rc, thread,
+    time::Duration,
+};
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -253,7 +255,7 @@ fn main() {
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     ui_log("Starting SSDP discovery".to_string());
     let ssdp_int = config.ssdp_interval_mins;
-    let _ = std::thread::Builder::new()
+    let _ = thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 1024 * 1024)
         .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
@@ -263,7 +265,7 @@ fn main() {
     let rms_receiver = rms_channel.1;
     let mon_l = mf.rms_mon_l.clone();
     let mon_r = mf.rms_mon_r.clone();
-    let _ = std::thread::Builder::new()
+    let _ = thread::Builder::new()
         .name("rms_monitor".into())
         .stack_size(4 * 1024 * 1024)
         .spawn(move || run_rms_monitor(&wd.clone(), rms_receiver, mon_l, mon_r))
@@ -274,7 +276,7 @@ fn main() {
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
     let server_port = config.server_port;
-    let _ = std::thread::Builder::new()
+    let _ = thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)
         .spawn(move || {
@@ -286,6 +288,8 @@ fn main() {
             )
         })
         .unwrap();
+    // give the webserver a chance to start
+    thread::yield_now();
 
     // get the logreader channel
     let logreader = &LOGCHANNEL.read().1;
@@ -411,7 +415,7 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
             if !rmap.contains_key(&r.remote_addr) {
                 let _ = ssdp_tx.send(r.clone());
                 app::awake();
-                std::thread::yield_now();
+                thread::yield_now();
                 info!(
                     "Found new renderer {} {}  at {}",
                     r.dev_name, r.dev_model, r.remote_addr
@@ -419,7 +423,7 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
                 rmap.insert(r.remote_addr.clone(), r.clone());
             }
         }
-        std::thread::sleep(Duration::from_millis(
+        thread::sleep(Duration::from_millis(
             (ssdp_interval_mins * 60.0 * 1000.0) as u64,
         ));
     }

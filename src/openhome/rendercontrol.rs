@@ -8,9 +8,11 @@
 ///
 use crate::{StreamingFormat, CONFIG};
 use log::{debug, error, info};
-use std::collections::HashMap;
-use std::net::{IpAddr, SocketAddr, UdpSocket};
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, SocketAddr, UdpSocket},
+    time::{Duration, Instant},
+};
 use strfmt::strfmt;
 use stringreader::StringReader;
 use url::Url;

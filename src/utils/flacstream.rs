@@ -106,13 +106,19 @@ impl FlacChannel {
                 let mut sending_silence = false;
                 // create the random generatir for the white noise
                 let mut rng = StdRng::seed_from_u64(79);
+                // preallocate the noise buffer
+                const DIVISOR: u64 = 1000 / NOISE_PERIOD;
+                let size = ((sr * 2) / DIVISOR as u32) as usize;
+                let mut noise: Vec<f32> = Vec::with_capacity(size);
+                noise.resize(size, 0.0);
+                // read and FLAC encode samples
                 while l_active.load(Relaxed) {
-                    let t = if sending_silence {
-                        Duration::from_millis(NOISE_PERIOD + 1)
+                    let time_out = if sending_silence {
+                        Duration::from_millis(NOISE_PERIOD)
                     } else {
                         Duration::from_millis(NOISE_PERIOD * 4)
                     };
-                    if let Ok(f32_samples) = samples_in.recv_timeout(t) {
+                    if let Ok(f32_samples) = samples_in.recv_timeout(time_out) {
                         sending_silence = false;
                         let samples = f32_samples
                             .iter()
@@ -121,9 +127,11 @@ impl FlacChannel {
                         enc.process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                             .unwrap();
                     } else {
+                        // if no samples for a certain time: send a faint white noise
                         sending_silence = true;
                         if l_active.load(Relaxed) {
-                            let samples = get_noise_buffer(sr, &mut rng)
+                            fill_noise_buffer(&mut rng, &mut noise);
+                            let samples = noise
                                 .iter()
                                 .map(|s| to_i32_sample(*s) >> shift)
                                 .collect::<Vec<i32>>();
@@ -161,13 +169,12 @@ fn to_i32_sample(mut f32_sample: f32) -> i32 {
     }
 }
 
-fn get_noise_buffer(sample_rate: u32, rng: &mut StdRng) -> Vec<f32> {
-    const DIVISOR: u64 = 1000 / NOISE_PERIOD;
-    let size = ((sample_rate * 2) / DIVISOR as u32) as usize;
-    let mut noise = Vec::with_capacity(size);
+///
+/// fille the pre-allocated noise buffer with a very faint white noise (-60db)
+///
+fn fill_noise_buffer(rng: &mut StdRng, noise: &mut [f32]) {
     let amplitude: f32 = 0.001;
-    for _ in 0..size {
-        noise.push(((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude);
+    for sample in noise.iter_mut() {
+        *sample = ((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude;
     }
-    noise
 }

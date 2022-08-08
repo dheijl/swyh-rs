@@ -228,7 +228,6 @@ pub fn get_silence_buffer(sample_rate: u32) -> Vec<f32> {
 #[cfg(test)]
 mod tests {
     use crate::utils::rwstream::*;
-    use crossbeam_channel::{unbounded, Receiver, Sender};
     #[test]
 
     fn test_wav_hdr() {
@@ -241,20 +240,10 @@ mod tests {
     #[test]
     fn test_silence() {
         const SAMPLE_RATE: u32 = 44100;
-        let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
-        let mut cs = ChannelStream::new(
-            tx,
-            rx,
-            "192.168.0.254".to_string(),
-            false,
-            SAMPLE_RATE,
-            16,
-            None,
-        );
-        cs.create_silence(SAMPLE_RATE);
+        let sb = get_silence_buffer(SAMPLE_RATE);
         assert_eq!(
-            cs.silence.len(),
-            ((SAMPLE_RATE * 2) / (1000 / SILENCE_PERIOD)) as usize
+            sb.len(),
+            ((SAMPLE_RATE * 2) as u64 / (1000 / SILENCE_PERIOD)) as usize
         );
     }
 }

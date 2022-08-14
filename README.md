@@ -6,7 +6,7 @@
 
 A "Stream-What-You-Hear" implementation written in Rust.
 
-Current release: 1.4.2 with **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
+Current release: 1.4.3 with **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OPenHome compatible music player (a "Renderer").
@@ -43,13 +43,13 @@ Supported audio streaming formats:
 - audio/wav (16 bit) with an "infinite length" **WAV** header, available since version 1.3.5
 - uncompressed 16 bit **LPCM** format (audio/l16)
 
-Note that libsndfile based renderers may not be able to decode the WAV format, because the stream is not "seekable".
+Note that older libsndfile based renderers may not be able to decode the WAV format, because the stream is not "seekable".
 
 Audio is captured using the excellent Rust [cpal library](https://github.com/RustAudio/cpal).
 [fltk-rs](https://github.com/MoAlyousef/fltk-rs) is used for the GUI, as it's easy to use, and it's small, cross-platform, fast and works well.
 For FLAC encoding the of use [flac-bound](https://github.com/nabijaczleweli/flac-bound) made adding FLAC encoding using the [libflac-sys Rust bindings](https://github.com/mgeier/libflac-sys/blob/master/src/bindings.rs) a breeze. This allowed me to link [libflac](https://github.com/xiph/flac) statically in the swyh-rs binary, no dlls needed!
 
-Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi/Hifi-Berry based devices, currently running MoodeAudio 8.x. I don't have access to a Mac, so I don't know if this also works.
+Tested on Windows 10 and on Ubuntu 20.04 LTS (Mint 20) and 22.04 LTS (Mint 21) with Raspberry Pi/Hifi-Berry based devices, currently running MoodeAudio 8.x. I don't have access to a Mac, so I don't know if this also works.
 
 Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 4 MB).
 

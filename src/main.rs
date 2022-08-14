@@ -109,7 +109,7 @@ impl fmt::Display for StreamingFormat {
 }
 
 /// streaming state feedback for a client
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StreamerFeedBack {
     remote_ip: String,
     streaming_state: StreamingState,

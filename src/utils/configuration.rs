@@ -26,6 +26,8 @@ pub struct Configuration {
     pub auto_resume: bool,
     #[serde(rename(deserialize = "SoundCard", serialize = "SoundCard"))]
     pub sound_source: String,
+    #[serde(rename(deserialize = "SoundCardIndex", serialize = "SoundCardIndex"))]
+    pub sound_source_index: Option<i32>,
     #[serde(rename(deserialize = "LogLevel", serialize = "LogLevel"))]
     pub log_level: LevelFilter,
     #[serde(rename(deserialize = "SSDPIntervalMins", serialize = "SSDPIntervalMins"))]
@@ -62,6 +64,7 @@ impl Configuration {
             server_port: Some(SERVER_PORT),
             auto_resume: false,
             sound_source: "None".to_string(),
+            sound_source_index: None,
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 1.0,
             auto_reconnect: false,

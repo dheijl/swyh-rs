@@ -183,13 +183,22 @@ fn main() {
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices().unwrap();
     let mut source_names: Vec<String> = Vec::new();
+    let mut index: i32 = 0;
     for adev in audio_devices {
         let devname = adev.name().unwrap();
-        if devname == config.sound_source {
-            audio_output_device = adev;
-            info!("Selected audio source: {}", devname);
+        if config.sound_source_index.is_none() {
+            if devname == config.sound_source {
+                audio_output_device = adev;
+                info!("Selected audio source: {}", devname);
+            }
+        } else {
+            if devname == config.sound_source && config.sound_source_index.unwrap() == index {
+                audio_output_device = adev;
+                info!("Selected audio source: {}", devname);
+            }
         }
         source_names.push(devname);
+        index += 1;
     }
 
     // get the default network that connects to the internet

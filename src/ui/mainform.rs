@@ -202,6 +202,7 @@ impl MainForm {
                 "*W*W*> Audio source changed to {name}, restart required!!"
             ));
             conf.sound_source = name;
+            conf.sound_source_index = Some(i);
             let _ = conf.update_config();
             b.set_label(&format!("New Audio Source: {}", conf.sound_source));
             config_ch_flag.set(true);

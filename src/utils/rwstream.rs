@@ -1,4 +1,4 @@
-use crate::StreamingFormat;
+use crate::{StreamingFormat, CONFIG};
 /*
 ///
 /// rwstream.rs
@@ -14,6 +14,7 @@ use crate::utils::i24::I24Sample;
 use cpal::Sample;
 use crossbeam_channel::{Receiver, Sender};
 use log::debug;
+use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::{
     collections::VecDeque,
     io::{Read, Result as IoResult},
@@ -34,16 +35,12 @@ pub struct ChannelStream {
     flac_fifo: VecDeque<u8>,
     silence: Vec<f32>,
     capture_timeout: Duration,
-    silence_period: Duration,
     sending_silence: bool,
     wav_hdr: Vec<u8>,
     use_wave_format: bool,
     bits_per_sample: u16,
     flac_channel: Option<FlacChannel>,
 }
-
-const CAPTURE_TIMEOUT: u64 = 2; // seconds
-const SILENCE_PERIOD: u64 = 250; // milliseconds
 
 impl ChannelStream {
     pub fn new(
@@ -65,14 +62,14 @@ impl ChannelStream {
         } else {
             None
         };
+        let capture_timout = CONFIG.read().capture_timeout.unwrap() as u64;
         let chs = ChannelStream {
             s: tx,
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             flac_fifo: VecDeque::with_capacity(16384),
-            silence: get_silence_buffer(sample_rate),
-            capture_timeout: Duration::new(CAPTURE_TIMEOUT, 0), // silence kicks in after CAPTURE_TIMEOUT seconds
-            silence_period: Duration::from_millis(SILENCE_PERIOD), // send SILENCE_PERIOD msec of silence every SILENCE_PERIOD msec
+            silence: get_noise_buffer(sample_rate, capture_timout),
+            capture_timeout: Duration::from_millis(capture_timout), // silence kicks in after CAPTURE_TIMEOUT seconds
             sending_silence: false,
             remote_ip: remote_ip_addr,
             wav_hdr: if !use_wave_format {
@@ -124,11 +121,7 @@ impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         if self.flac_channel.is_none() {
             // naked LPCM or WAV LPCM
-            let mut time_out = if self.sending_silence {
-                self.silence_period
-            } else {
-                self.capture_timeout
-            };
+            let time_out = self.capture_timeout;
             let mut i = 0;
             if self.use_wave_format && !self.wav_hdr.is_empty() {
                 i = self.wav_hdr.len();
@@ -164,11 +157,9 @@ impl Read for ChannelStream {
                 } else if let Ok(chunk) = self.r.recv_timeout(time_out) {
                     self.fifo.extend(chunk);
                     self.sending_silence = false;
-                    time_out = self.capture_timeout;
                 } else {
                     self.fifo.extend(self.silence.clone());
                     self.sending_silence = true;
-                    time_out = self.silence_period;
                 }
             }
             Ok(i)
@@ -217,12 +208,30 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr.to_vec()
 }
 
-pub fn get_silence_buffer(sample_rate: u32) -> Vec<f32> {
-    const DIVISOR: u64 = 1000 / SILENCE_PERIOD;
-    let size = ((sample_rate * 2) / DIVISOR as u32) as usize;
+#[allow(dead_code)]
+fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
+    let divisor: u64 = 1000 / silence_period;
+    let size = ((sample_rate * 2) / divisor as u32) as usize;
     let mut silence = Vec::with_capacity(size);
     silence.resize(size, 0f32);
     silence
+}
+
+///
+/// fille the pre-allocated noise buffer with a very faint white noise (-60db)
+///
+fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
+    // create the random generator for the white noise
+    let mut rng = StdRng::seed_from_u64(79);
+    let divisor: u64 = 1000 / silence_period;
+    let size = ((sample_rate * 2) / divisor as u32) as usize;
+    let mut noise = Vec::with_capacity(size);
+    noise.resize(size, 0.0);
+    let amplitude: f32 = 0.001;
+    for sample in noise.iter_mut() {
+        *sample = ((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude;
+    }
+    noise
 }
 
 #[cfg(test)]
@@ -240,10 +249,7 @@ mod tests {
     #[test]
     fn test_silence() {
         const SAMPLE_RATE: u32 = 44100;
-        let sb = get_silence_buffer(SAMPLE_RATE);
-        assert_eq!(
-            sb.len(),
-            ((SAMPLE_RATE * 2) as u64 / (1000 / SILENCE_PERIOD)) as usize
-        );
+        let sb = get_silence_buffer(SAMPLE_RATE, 250);
+        assert_eq!(sb.len(), ((SAMPLE_RATE * 2) as u64 / (1000 / 250)) as usize);
     }
 }

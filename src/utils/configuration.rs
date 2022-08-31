@@ -44,6 +44,8 @@ pub struct Configuration {
     pub streaming_format: Option<StreamingFormat>,
     #[serde(rename(deserialize = "MonitorRms", serialize = "MonitorRms"))]
     pub monitor_rms: bool,
+    #[serde(rename(deserialize = "CaptureTimeout", serialize = "CaptureTimeout"))]
+    pub capture_timeout: Option<u32>,
     #[serde(rename(deserialize = "LastRenderer", serialize = "LastRenderer"))]
     pub last_renderer: String,
     #[serde(rename(deserialize = "LastNetwork", serialize = "LastNetwork"))]
@@ -73,6 +75,7 @@ impl Configuration {
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),
             monitor_rms: false,
+            capture_timeout: Some(250),
             last_renderer: "None".to_string(),
             last_network: "None".to_string(),
             config_dir: Self::get_config_dir(),
@@ -90,6 +93,7 @@ impl Configuration {
     }
 
     pub fn read_config() -> Configuration {
+        let mut force_update = false;
         let configfile = Self::get_config_path(CONFIGFILE);
         let old_configfile = Self::get_config_path("config.ini");
         if !Path::new(&configfile).exists() {
@@ -113,14 +117,28 @@ impl Configuration {
         let mut config: Config = from_str(&s).unwrap();
         if config.configuration.ssdp_interval_mins < 0.5 {
             config.configuration.ssdp_interval_mins = 0.5;
+            force_update = true;
         }
         match config.configuration.server_port {
             Some(_u16) => {}
-            _ => config.configuration.server_port = Some(SERVER_PORT),
+            _ => {
+                config.configuration.server_port = Some(SERVER_PORT);
+                force_update = true;
+            }
         }
         match config.configuration.bits_per_sample {
             Some(16 | 24) => {}
-            _ => config.configuration.bits_per_sample = Some(16),
+            _ => {
+                config.configuration.bits_per_sample = Some(16);
+                force_update = true;
+            }
+        }
+        if config.configuration.capture_timeout.is_none() {
+            config.configuration.capture_timeout = Some(250);
+            force_update = true;
+        }
+        if force_update {
+            config.configuration.update_config().unwrap();
         }
         config.configuration
     }

@@ -1,7 +1,8 @@
 # swyh-rs Changelog
 
-- 1.4.4-beta1 (Unreleased)
+- 1.4.4-beta2 (Unreleased)
   - handle duplicate sound card names by storing the index too (solves issue #70)
+  - send 250 msec of -60 db white noise when no sound is being captured after 250 msec for LPCM/WAV
 
 - 1.4.3 (Aug 3 2022 dheijl)
   - update flac-bound to official 0.3.0

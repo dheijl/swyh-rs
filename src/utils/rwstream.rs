@@ -68,7 +68,7 @@ impl ChannelStream {
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             flac_fifo: VecDeque::with_capacity(16384),
-            silence: get_noise_buffer(sample_rate, capture_timout),
+            silence: get_silence_buffer(sample_rate, capture_timout / 4),
             capture_timeout: Duration::from_millis(capture_timout), // silence kicks in after CAPTURE_TIMEOUT seconds
             sending_silence: false,
             remote_ip: remote_ip_addr,
@@ -208,7 +208,7 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr.to_vec()
 }
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     let divisor: u64 = 1000 / silence_period;
     let size = ((sample_rate * 2) / divisor as u32) as usize;
@@ -220,6 +220,7 @@ fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
 ///
 /// fille the pre-allocated noise buffer with a very faint white noise (-60db)
 ///
+#[allow(dead_code)]
 fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     // create the random generator for the white noise
     let mut rng = StdRng::seed_from_u64(79);

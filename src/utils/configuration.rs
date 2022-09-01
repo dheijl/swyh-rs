@@ -75,7 +75,7 @@ impl Configuration {
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),
             monitor_rms: false,
-            capture_timeout: Some(250),
+            capture_timeout: Some(2000),
             last_renderer: "None".to_string(),
             last_network: "None".to_string(),
             config_dir: Self::get_config_dir(),
@@ -134,7 +134,7 @@ impl Configuration {
             }
         }
         if config.configuration.capture_timeout.is_none() {
-            config.configuration.capture_timeout = Some(250);
+            config.configuration.capture_timeout = Some(2000);
             force_update = true;
         }
         if force_update {

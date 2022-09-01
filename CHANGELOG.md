@@ -1,8 +1,9 @@
 # swyh-rs Changelog
 
-- 1.4.4-beta2 (Unreleased)
+- 1.4.4 (Sep 1 2022 dheijl)
   - handle duplicate sound card names by storing the index too (solves issue #70)
-  - send 250 msec of -60 db white noise when no sound is being captured after 250 msec for LPCM/WAV
+  - make the CaptureTimeout for LPCM/WAV configurable in the config.toml, with a default of 2000 msec (as it was hardcoded before). If no sound is captured for a CaptureTimeout period, a block of slience of (CaptureTimeout / 4) msec length is sent to the receiver (was previously 250 msec hardcoded).  
+  - for some reason I can no longer compile fltk on Windows with MSVC, so fltk-bundled is used for now on Windows
 
 - 1.4.3 (Aug 3 2022 dheijl)
   - update flac-bound to official 0.3.0

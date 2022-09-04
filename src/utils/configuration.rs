@@ -46,6 +46,8 @@ pub struct Configuration {
     pub monitor_rms: bool,
     #[serde(rename(deserialize = "CaptureTimeout", serialize = "CaptureTimeout"))]
     pub capture_timeout: Option<u32>,
+    #[serde(rename(deserialize = "InjectSilence", serialize = "InjectSilence"))]
+    pub inject_silence: Option<bool>,
     #[serde(rename(deserialize = "LastRenderer", serialize = "LastRenderer"))]
     pub last_renderer: String,
     #[serde(rename(deserialize = "LastNetwork", serialize = "LastNetwork"))]
@@ -76,6 +78,7 @@ impl Configuration {
             streaming_format: Some(StreamingFormat::Lpcm),
             monitor_rms: false,
             capture_timeout: Some(2000),
+            inject_silence: Some(false),
             last_renderer: "None".to_string(),
             last_network: "None".to_string(),
             config_dir: Self::get_config_dir(),
@@ -135,6 +138,10 @@ impl Configuration {
         }
         if config.configuration.capture_timeout.is_none() {
             config.configuration.capture_timeout = Some(2000);
+            force_update = true;
+        }
+        if config.configuration.inject_silence.is_none() {
+            config.configuration.inject_silence = Some(false);
             force_update = true;
         }
         if force_update {

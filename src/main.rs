@@ -255,6 +255,15 @@ fn main() {
         }
     }
 
+    // If silence injector is on, start the "silence_injector" thread
+    if let Some(true) = CONFIG.read().inject_silence {
+        let _ = thread::Builder::new()
+            .name("silence_injector".into())
+            .stack_size(4 * 1024 * 1024)
+            .spawn(move || run_silence_injector(&audio_output_device))
+            .unwrap();
+    }
+
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
     ui_log("Discover networks".to_string());
@@ -469,5 +478,36 @@ fn run_rms_monitor(
                 sum_r = 0;
             }
         }
+    }
+}
+
+///
+/// inject silence into the audio stream to solve problems with Sonos when pusing audio
+/// contributed by @genekellyjr, see issue #71
+///
+fn run_silence_injector(audio_output_device: &cpal::Device) {
+    // straight up copied from cpal docs cause I don't know syntax or anything
+    let mut supported_configs_range = audio_output_device
+        .supported_output_configs()
+        .expect("error while querying configs");
+    let supported_config = supported_configs_range
+        .next()
+        .expect("no supported config?!")
+        .with_max_sample_rate();
+    let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
+    let config = supported_config.into();
+
+    fn write_silence<T: Sample>(data: &mut [T], _: &cpal::OutputCallbackInfo) {
+        for sample in data.iter_mut() {
+            *sample = Sample::from(&0.0);
+        }
+    }
+    let stream = audio_output_device
+        .build_output_stream(&config, write_silence::<f32>, err_fn)
+        .unwrap();
+    stream.play().unwrap();
+
+    loop {
+        thread::sleep(Duration::from_secs(1));
     }
 }

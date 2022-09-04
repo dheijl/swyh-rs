@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.4.5-beta (unreleased)
+  - optionally inject silence at the music source, contributed by by @genekellyjr (see issue #71), to solve Sonos problems when pausing music, with a new "InjectSilence" boolean flag in the config.toml (not exposed in the GUI). For this to work you have to check that swyh-rs uses the same output as your music source in the Windows soundmixer.
+
 - 1.4.4 (Sep 1 2022 dheijl)
   - handle duplicate sound card names by storing the index too (solves issue #70)
   - make the CaptureTimeout for LPCM/WAV configurable in the config.toml, with a default of 2000 msec (as it was hardcoded before). If no sound is captured for a CaptureTimeout period, a block of slience of (CaptureTimeout / 4) msec length is sent to the receiver (was previously 250 msec hardcoded).  

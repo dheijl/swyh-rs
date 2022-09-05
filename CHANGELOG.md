@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.4.5-beta (unreleased)
+- 1.4.5 (unreleased)
   - optionally inject silence at the music source, contributed by by @genekellyjr (see issue #71), to solve Sonos problems when pausing music, with a new "InjectSilence" boolean flag in the config.toml (not exposed in the GUI). For this to work you have to check that swyh-rs uses the same output as your music source in the Windows soundmixer.
 
 - 1.4.4 (Sep 1 2022 dheijl)

@@ -6,7 +6,10 @@
 
 A "Stream-What-You-Hear" implementation written in Rust.
 
-Current release: 1.4.5 with **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit) and Sonos fix for pausing audio.
+The current release is 1.4.5 with
+    - **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
+    - support for multiple identically named soundcards
+    - Sonos fix for pausing audio
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OPenHome compatible music player (a "Renderer").

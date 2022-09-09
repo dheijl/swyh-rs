@@ -1,7 +1,9 @@
 # swyh-rs Changelog
 
+- 1.4.6-beta (unreleased)
+
 - 1.4.5 (Sep 8 2022 dheijl)
-  - fix for pausing music with Sonos causing the Sonos to close the connection. This optionally injects silence at the music source, contributed by by @genekellyjr (see issue #71), with a new "InjectSilence" boolean flag in the config.toml (not exposed in the GUI). For this to work you have to 
+  - fix for pausing music with Sonos causing the Sonos to close the connection. This optionally injects silence at the music source, contributed by by @genekellyjr (see issue #71), with a new "InjectSilence" boolean flag in the config.toml (not exposed in the GUI). For this to work you have to
     - check that swyh-rs uses the same output as your music source in the Windows soundmixer
     - edit your config.toml and change the InjectSilence flag from _false_ to _true_
   - flt-sys 1.3.14 builds again on Windows with MSVC, so we no longer need to use the _fltk-bundled_ feature
@@ -152,7 +154,6 @@
 - 1.1.0 (Dec 7 2020 dheijl)
   - use good practice for Cargo.toml and Cargo.lock files (thanks @Boscop)
   - option to disable chunked transfer encoding in cases where the (AVTransport) renderer has problems with it
-  (*__Note__: I had to use a patched fork of tiny_http to let this work, as per [this pull request](https://github.com/tiny-http/tiny-http/pull/183)*)
 
 - 1.0.8 (Nov 27 2020 dheijl)
   - switch to parking_lot Mutex and Once, and use Ninja-Build for fltk to speed up CMake in the fltk build

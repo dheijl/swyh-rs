@@ -39,7 +39,10 @@ strfmt = "0.2.2"
 stringreader = "0.1.1"
 tiny_http = "0.11.0"
 toml = "0.5.9"
-ureq = { version = "2.5.0", features = ["charset"] }
+ureq = { version = "2.5.0", default-features = false, features = [
+    "charset",
+    "gzip",
+] }
 url = "2.3.1"
 xml-rs = "0.8.4"
 [target.'cfg(windows)'.dependencies]

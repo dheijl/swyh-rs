@@ -30,9 +30,9 @@ log = { version = "0.4.17", features = [
     "release_max_level_debug",
     "serde",
 ] }
-once_cell = "1.14.0"
+once_cell = "1.15.0"
 parking_lot = "0.12.1"
-serde = { version = "1.0.144", features = ["derive"] }
+serde = { version = "1.0.145", features = ["derive"] }
 simplelog = "0.12.0"
 rand = "0.8.5"
 strfmt = "0.2.2"
@@ -46,12 +46,12 @@ ureq = { version = "2.5.0", default-features = false, features = [
 url = "2.3.1"
 xml-rs = "0.8.4"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.3.14", features = ["use-ninja"] }
+fltk = { version = "1.3.15", features = ["use-ninja"] }
 winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.3.14", features = ["use-ninja"] }
-libc = "0.2.132"
+fltk = { version = "1.3.15", features = ["use-ninja"] }
+libc = "0.2.133"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

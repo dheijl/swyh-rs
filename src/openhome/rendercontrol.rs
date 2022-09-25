@@ -319,8 +319,7 @@ impl Renderer {
         let xmlbody = match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                let errmsg = format!("oh_play: error {e} formatting oh playlist xml");
-                log(errmsg);
+                log(format!("oh_play: error {e} formatting oh playlist xml"));
                 return Err(BAD_TEMPL);
             }
         };
@@ -360,8 +359,7 @@ impl Renderer {
         let xmlbody = match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                let errmsg = format!("av_play: error {e} formatting set transport uri");
-                log(errmsg);
+                log(format!("av_play: error {e} formatting set transport uri"));
                 return Err(BAD_TEMPL);
             }
         };

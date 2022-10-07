@@ -50,11 +50,11 @@ pub fn run_server(
                     if cfg!(debug_assertions) {
                         debug!("<== Incoming {:?}", rq);
                         for hdr in rq.headers() {
-                            debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr());
+                            debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr().unwrap());
                         }
                     }
                     // get remote ip
-                    let remote_addr = format!("{}", rq.remote_addr());
+                    let remote_addr = format!("{}", rq.remote_addr().unwrap());
                     let mut remote_ip = remote_addr.clone();
                     if let Some(i) = remote_ip.find(':') {
                         remote_ip.truncate(i);
@@ -72,7 +72,7 @@ pub fn run_server(
                         ui_log(format!(
                             "Unrecognized request '{}' from {}'",
                             rq.url(),
-                            rq.remote_addr()
+                            rq.remote_addr().unwrap()
                         ));
                         let response = Response::empty(404)
                             .with_header(cc_hdr)
@@ -86,7 +86,7 @@ pub fn run_server(
                         return;
                     }
                     // get remote ip
-                    let remote_addr = format!("{}", rq.remote_addr());
+                    let remote_addr = format!("{}", rq.remote_addr().unwrap());
                     let mut remote_ip = remote_addr.clone();
                     if let Some(i) = remote_ip.find(':') {
                         remote_ip.truncate(i);
@@ -113,7 +113,7 @@ pub fn run_server(
                         ui_log(format!(
                             "Received request {} from {}",
                             rq.url(),
-                            rq.remote_addr()
+                            rq.remote_addr().unwrap()
                         ));
                         // set transfer encoding chunked unless disabled
                         let (streamsize, chunked_threshold) = {
@@ -164,7 +164,7 @@ pub fn run_server(
                             wd.sample_format,
                             wd.sample_rate.0,
                             conf.disable_chunked,
-                            rq.remote_addr()
+                            rq.remote_addr().unwrap()
                         ));
                         let response = Response::empty(200)
                             .with_data(channel_stream, streamsize)

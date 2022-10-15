@@ -1,6 +1,10 @@
 # swyh-rs Changelog
 
+- 1.5.0 (unreleased)
+  - added the possibility of having multiple configurations. This allows you to run multiple instances of swyh-rs (using an optional commandline switch:  -c  config_id or --configuration config_id), where each configuration can use a different audio source. Suggested by @cavadias, see issue #82. Each configuration gets its own config file and log file in the .swyh-rs folder in your HOME directory.
+
 - 1.4.6-beta (unreleased)
+  - appimage for Ubuntu 20.04 LTS and later
 
 - 1.4.5 (Sep 8 2022 dheijl)
   - fix for pausing music with Sonos causing the Sonos to close the connection. This optionally injects silence at the music source, contributed by by @genekellyjr (see issue #71), with a new "InjectSilence" boolean flag in the config.toml (not exposed in the GUI). For this to work you have to

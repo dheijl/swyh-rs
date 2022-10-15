@@ -155,7 +155,9 @@ fn main() {
 
     // configure simplelogger
     let loglevel = config.log_level;
-    let logfile = Path::new(&config.log_dir()).join("log.txt");
+    let config_id = config.config_id.clone().unwrap();
+    let logfilename = "log{}.txt".replace("{}", &config_id);
+    let logfile = Path::new(&config.log_dir()).join(logfilename);
     // disable TermLogger on susbsystem Windows because it panics now with Rust edition 2021
     if cfg!(debug_assertions) || cfg!(target_os = "linux") {
         let _ = CombinedLogger::init(vec![

@@ -3,7 +3,7 @@ resolver = "2"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2021"
 name = "swyh-rs"
-version = "1.4.6-beta"
+version = "1.5.0"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -25,6 +25,7 @@ flac-bound = { version = "0.3.0", default-features = false, features = [
 #fltk-flow = "0.1.4"
 htmlescape = "0.3.1"
 if-addrs = "0.7.0"
+lexopt = "0.2.1"
 log = { version = "0.4.17", features = [
     "max_level_trace",
     "release_max_level_debug",
@@ -51,7 +52,7 @@ winapi = { version = "0.3.9", features = ["winuser", "std"] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.3.16", features = ["use-ninja"] }
-libc = "0.2.134"
+libc = "0.2.135"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

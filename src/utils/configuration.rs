@@ -1,4 +1,5 @@
 use crate::{StreamingFormat, SERVER_PORT};
+use lexopt::{prelude::*, Parser};
 use log::{debug, LevelFilter};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -9,7 +10,7 @@ use std::{
 };
 use toml::*;
 
-const CONFIGFILE: &str = "config.toml";
+const CONFIGFILE: &str = "config{}.toml";
 const PKGNAME: &str = env!("CARGO_PKG_NAME");
 
 // the configuration struct, read from and saved in config.ini
@@ -54,6 +55,8 @@ pub struct Configuration {
     pub last_network: String,
     #[serde(rename(deserialize = "ConfigDir", serialize = "ConfigDir"))]
     config_dir: PathBuf,
+    #[serde(rename(deserialize = "ConfigId", serialize = "ConfigId"))]
+    pub config_id: Option<String>,
 }
 
 impl Default for Configuration {
@@ -82,6 +85,7 @@ impl Configuration {
             last_renderer: "None".to_string(),
             last_network: "None".to_string(),
             config_dir: Self::get_config_dir(),
+            config_id: Some(Self::get_config_id()),
         }
     }
 
@@ -144,6 +148,10 @@ impl Configuration {
             config.configuration.inject_silence = Some(false);
             force_update = true;
         }
+        if config.configuration.config_id.is_none() {
+            config.configuration.config_id = Some("".to_string());
+            force_update = true;
+        }
         if force_update {
             config.configuration.update_config().unwrap();
         }
@@ -190,8 +198,26 @@ impl Configuration {
     }
 
     fn get_config_path(filename: &str) -> PathBuf {
+        let id = Self::get_config_id();
+        let configfilename = filename.replace("{}", &id);
         let config_dir = Self::get_config_dir();
-        Path::new(&config_dir).join(filename)
+        Path::new(&config_dir).join(configfilename)
+    }
+
+    fn get_config_id() -> String {
+        let mut config_id = "".to_string();
+        let mut argparser = Parser::from_env();
+        while let Some(arg) = argparser.next().unwrap() {
+            match arg {
+                Short('c') | Long("configuration") => {
+                    if let Ok(id) = argparser.value() {
+                        config_id = id.into_string().unwrap()
+                    };
+                }
+                _ => (),
+            };
+        }
+        config_id
     }
 
     fn migrate_config_to_toml(old_config: &Path, new_config: &Path) {

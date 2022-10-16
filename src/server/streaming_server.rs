@@ -5,7 +5,7 @@ use crate::{
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;
 use log::debug;
-use std::{net::IpAddr, sync::Arc, time::Duration};
+use std::{net::IpAddr, sync::Arc};
 use tiny_http::{Header, Method, Response, Server};
 
 /// run_server - run a tiny-http webserver to serve streaming requests from renderers
@@ -20,9 +20,6 @@ pub fn run_server(
     wd: WavData,
     feedback_tx: Sender<StreamerFeedBack>,
 ) {
-    // wait for the first SSDP discovery to complete
-    // in case a renderer should try to start streaming before SSDP has completed
-    std::thread::sleep(Duration::from_millis(3700));
     let addr = format!("{local_addr}:{server_port}");
     let logmsg = format!("The streaming server is listening on http://{addr}/stream/swyh.wav");
     ui_log(logmsg);

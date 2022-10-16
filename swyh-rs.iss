@@ -2,7 +2,7 @@
 
 [Setup]
 AppName=swyh-rs
-AppVersion=1.5.0
+AppVersion=1.5.1
 WizardStyle=modern
 DefaultDirName={autopf}\swyh-rs
 DefaultGroupName=swyh-rs

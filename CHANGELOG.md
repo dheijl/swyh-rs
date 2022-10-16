@@ -1,7 +1,8 @@
 # swyh-rs Changelog
 
-- 1.5.0 (unreleased)
+- 1.5.1 (Oct 16 2022 dheijl)
   - added the possibility of having multiple configurations. This allows you to run multiple instances of swyh-rs (using an optional commandline switch:  -c  config_id or --configuration config_id), where each configuration can use a different audio source. Suggested by @cavadias, see issue #82. Each configuration gets its own config file and log file in the .swyh-rs folder in your HOME directory.
+  - removed the delay when starting the streaming server as it can interfere with autoreconnect.
 
 - 1.4.6-beta (unreleased)
   - appimage for Ubuntu 20.04 LTS and later

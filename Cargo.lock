@@ -93,9 +93,9 @@ checksum = "ec8a7b6a70fde80372154c65702f00a0f56f3e1c36abbc6c440484be248856db"
 
 [[package]]
 name = "cc"
-version = "1.0.73"
+version = "1.0.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fff2a6927b3bb87f9595d67196a70493f627687a71d87a0d692242c33f58c11"
+checksum = "581f5dba903aac52ea3feb5ec4810848460ee833876f1f9b0fdeab1f19091574"
 dependencies = [
  "jobserver",
 ]
@@ -140,9 +140,9 @@ dependencies = [
 
 [[package]]
 name = "cmake"
-version = "0.1.48"
+version = "0.1.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8ad8cef104ac57b68b89df3208164d228503abbdce70f6880ffa3d970e7443a"
+checksum = "db34956e100b30725f2eb215f90d4871051239535632f84fea3bc92722c66b7c"
 dependencies = [
  "cc",
 ]
@@ -297,9 +297,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.3.18"
+version = "1.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a3f4780d61dced5f8409e02f56689b400b2e3715965df3fee87ec7a677ae183"
+checksum = "15f33ddcced14e40e8d717fe2da1e4703f20062301b8977d176628bf5eba4b2e"
 dependencies = [
  "bitflags",
  "crossbeam-channel",
@@ -310,9 +310,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.3.17"
+version = "1.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "462d997a0d67739923a2af81e11f1f41c2461aeb43899dce064ed5190b25609d"
+checksum = "c85a1067521a3be81ec93693053542e819a68c2df8ef917238e25b4ed2815b7e"
 dependencies = [
  "cmake",
 ]
@@ -685,9 +685,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.15.0"
+version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e82dad04139b71a90c080c8463fe0dc7902db5192d939bd0950f074d014339e1"
+checksum = "86f0b0d4bf799edbc74508c1e8bf170ff5f41238e5f8225603ca7caaae2b7860"
 
 [[package]]
 name = "parking_lot"
@@ -744,9 +744,9 @@ checksum = "6ac9a59f73473f1b8d852421e59e64809f025994837ef743615c6d0c5b305160"
 
 [[package]]
 name = "ppv-lite86"
-version = "0.2.16"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb9f9e6e233e5c4a35559a617bf40a4ec447db2e84c20b55a6f83167b7e57872"
+checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
 name = "proc-macro-crate"

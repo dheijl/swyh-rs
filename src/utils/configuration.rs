@@ -226,9 +226,9 @@ impl Configuration {
             old_config.display(),
             new_config.display()
         );
-        let oldf = File::open(&old_config).unwrap();
+        let oldf = File::open(old_config).unwrap();
         let r = BufReader::new(&oldf);
-        let newf = File::create(&new_config).unwrap();
+        let newf = File::create(new_config).unwrap();
         let mut w = BufWriter::new(&newf);
         for line in r.lines() {
             let mut s = line.unwrap();
@@ -245,6 +245,6 @@ impl Configuration {
         }
         w.flush().unwrap();
         drop(oldf);
-        fs::remove_file(&old_config).unwrap();
+        fs::remove_file(old_config).unwrap();
     }
 }

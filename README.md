@@ -109,7 +109,6 @@ The icon was designed by @numanair, thanks!
 - Since version 1.2.2, swyh-rs will send silence to connected renderers if no sound is being captured because no audio is currently being played. This prevents some renderers from disconnecting because they have not received any sound for some time (Bubble UPNP Server with Chromecast/Nest Audio). Apparently sending silence keeps them happy. I did not implement this "silence" for FLAC streaming.
 - Since version 1.5 you can have multiple instances running where each instance uses a different configuration file. An optional command line parameter _-c config_ or _--configuration config_ has been added to enable this (using a shortcut or starting swyh-rs from the command line). This _config_ parameter is then used as part of the config.toml filename for the swyh-rs instance. The default _config_ is empty. Examples: _swyh-rs -c 1_ or _swyh-rs --configuration vb-audio_. This way you can **stream different audio sources** to different receivers simultaneously.
 
-
 ### Audio quality and Windows WasApi Loopback capture
 
 If you want maximum audio quality on Windows, there are a number of concerns:

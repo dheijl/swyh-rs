@@ -465,7 +465,7 @@ pub fn discover(
     // get the address of the selected interface
     let local_addr = CONFIG.read().last_network.parse().unwrap();
     let bind_addr = SocketAddr::new(local_addr, 0);
-    let socket = UdpSocket::bind(&bind_addr).unwrap();
+    let socket = UdpSocket::bind(bind_addr).unwrap();
     socket.set_broadcast(true).unwrap();
 
     // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
@@ -475,9 +475,9 @@ pub fn discover(
     //  SSDP UDP broadcast address
     let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", OH_DEVICE);
-    socket.send_to(msg.as_bytes(), &broadcast_address).unwrap();
+    socket.send_to(msg.as_bytes(), broadcast_address).unwrap();
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", AV_DEVICE);
-    socket.send_to(msg.as_bytes(), &broadcast_address).unwrap();
+    socket.send_to(msg.as_bytes(), broadcast_address).unwrap();
     // collect the responses and remeber all new renderers
     let start = Instant::now();
     loop {

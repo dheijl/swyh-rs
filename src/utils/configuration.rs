@@ -208,13 +208,10 @@ impl Configuration {
         let mut config_id = "".to_string();
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
-            match arg {
-                Short('c') | Long("configuration") => {
-                    if let Ok(id) = argparser.value() {
-                        config_id = id.into_string().unwrap()
-                    };
-                }
-                _ => (),
+            if let Short('c') | Long("configuration") = arg {
+                if let Ok(id) = argparser.value() {
+                    config_id = id.into_string().unwrap_or_default()
+                };
             };
         }
         config_id

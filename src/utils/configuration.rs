@@ -126,19 +126,16 @@ impl Configuration {
             config.configuration.ssdp_interval_mins = 0.5;
             force_update = true;
         }
-        match config.configuration.server_port {
-            Some(_u16) => {}
-            _ => {
-                config.configuration.server_port = Some(SERVER_PORT);
-                force_update = true;
-            }
+        // replace missing values from old configs with reasonable defaults
+        if let Some(_u16) = config.configuration.server_port {
+        } else {
+            config.configuration.server_port = Some(SERVER_PORT);
+            force_update = true;
         }
-        match config.configuration.bits_per_sample {
-            Some(16 | 24) => {}
-            _ => {
-                config.configuration.bits_per_sample = Some(16);
-                force_update = true;
-            }
+        if let Some(16 | 24) = config.configuration.bits_per_sample {
+        } else {
+            config.configuration.bits_per_sample = Some(16);
+            force_update = true;
         }
         if config.configuration.capture_timeout.is_none() {
             config.configuration.capture_timeout = Some(2000);

@@ -461,12 +461,14 @@ pub fn discover(
 
     const OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
     const AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
+    const DEFAULT_SEARCH_TTL: u32 = 2;
 
     // get the address of the selected interface
     let local_addr = CONFIG.read().last_network.parse().unwrap();
     let bind_addr = SocketAddr::new(local_addr, 0);
     let socket = UdpSocket::bind(bind_addr).unwrap();
     socket.set_broadcast(true).unwrap();
+    socket.set_multicast_ttl_v4(DEFAULT_SEARCH_TTL).unwrap();
 
     // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
     let mut oh_devices: Vec<(String, SocketAddr)> = Vec::new();

@@ -2,8 +2,7 @@ use crate::ui_log;
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
-    use windows::Win32::Foundation::GetLastError;
-    use windows::Win32::System::Threading::*;
+    use windows::Win32::{Foundation::GetLastError, System::Threading::*};
     unsafe {
         let id = GetCurrentProcess();
         if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS).as_bool() {

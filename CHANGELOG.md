@@ -1,5 +1,9 @@
 # swyh-rs Changelog
 
+- 1.6.0-beta (unreleased)
+  - migrated from winapi to windows-rs (following cpal)
+  - set the SSDP socket TTL to 2 seconds per UPNP spec
+
 - 1.5.1 (Oct 16 2022 dheijl)
   - added the possibility of having multiple configurations. This allows you to run multiple instances of swyh-rs (using an optional commandline switch:  -c  config_id or --configuration config_id), where each configuration can use a different audio source. Suggested by @cavadias, see issue #82. Each configuration gets its own config file and log file in the .swyh-rs folder in your HOME directory.
   - removed the delay when starting the streaming server as it can interfere with autoreconnect.

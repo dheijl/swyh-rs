@@ -1059,7 +1059,7 @@ dependencies = [
  "toml",
  "ureq",
  "url",
- "winapi",
+ "windows",
  "winres",
  "xml-rs",
 ]

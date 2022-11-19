@@ -2,17 +2,16 @@ use crate::ui_log;
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
-    use std::os::windows::raw::HANDLE;
-    use winapi::um::errhandlingapi::GetLastError;
-    use winapi::um::processthreadsapi::{GetCurrentProcess, GetCurrentProcessId, SetPriorityClass};
+    use windows::Win32::Foundation::GetLastError;
+    use windows::Win32::System::Threading::*;
     unsafe {
-        const ABOVE_NORMAL_PRIORITY_CLASS: u32 = 32768;
-        let id = GetCurrentProcess() as HANDLE;
-        if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS) == 0 {
+        let id = GetCurrentProcess();
+        if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS).as_bool() {
             let e = GetLastError();
             let p = GetCurrentProcessId();
             ui_log(format!(
-                "*E*E*>Failed to set process priority id={p}, error={e}"
+                "*E*E*>Failed to set process priority id={p}, error={:?}",
+                e
             ));
         }
     }

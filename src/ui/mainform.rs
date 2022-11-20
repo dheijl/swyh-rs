@@ -1,11 +1,7 @@
-use crate::openhome::rendercontrol::StreamInfo;
-use crate::ui_log;
-use crate::utils::escape::FwSlashPipeEscape;
-use crate::Configuration;
-use crate::Renderer;
-use crate::StreamingFormat;
-use crate::WavData;
-use crate::CONFIG;
+use crate::{
+    openhome::rendercontrol::StreamInfo, ui_log, utils::escape::FwSlashPipeEscape, Configuration,
+    Renderer, StreamingFormat, WavData, CONFIG,
+};
 use fltk::{
     app,
     button::{CheckButton, LightButton},
@@ -24,10 +20,7 @@ use fltk::{
 //use fltk_flow::Flow;
 use log::{debug, LevelFilter};
 use parking_lot::Mutex;
-use std::cell::Cell;
-use std::collections::HashMap;
-use std::net::IpAddr;
-use std::rc::Rc;
+use std::{cell::Cell, collections::HashMap, net::IpAddr, rc::Rc};
 
 pub struct MainForm {
     pub wind: DoubleWindow,

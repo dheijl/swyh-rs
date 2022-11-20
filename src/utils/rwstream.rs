@@ -1,4 +1,3 @@
-use crate::{StreamingFormat, CONFIG};
 /*
 ///
 /// rwstream.rs
@@ -10,7 +9,7 @@ use crate::{StreamingFormat, CONFIG};
 /// to the media Renderer
 ///
 */
-use crate::utils::i24::I24Sample;
+use crate::{utils::i24::I24Sample, StreamingFormat, CONFIG};
 use cpal::Sample;
 use crossbeam_channel::{Receiver, Sender};
 use log::debug;

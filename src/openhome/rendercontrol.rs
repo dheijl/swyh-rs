@@ -234,7 +234,7 @@ impl Renderer {
         local_addr: &IpAddr,
         server_port: u16,
         log: &dyn Fn(String),
-        streaminfo: StreamInfo,
+        streaminfo: &StreamInfo,
     ) -> Result<(), &str> {
         let use_wav_format = streaminfo.streaming_format == StreamingFormat::Wav;
         // build the hashmap with the formatting vars for the OH and AV play templates

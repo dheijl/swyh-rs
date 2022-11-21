@@ -358,7 +358,7 @@ fn main() {
                                         &local_addr,
                                         server_port.unwrap_or_default(),
                                         &dummy_log,
-                                        streaminfo,
+                                        &streaminfo,
                                     );
                                 }
                             } else if button.is_set() {

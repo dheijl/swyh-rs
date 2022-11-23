@@ -89,15 +89,15 @@ impl ChannelStream {
 
     // the flac encoder runs in a seperate thread
     fn start_flac_encoder(&self) {
-        if self.flac_channel.is_some() {
-            self.flac_channel.as_ref().unwrap().run();
+        if let Some(flac_channel) = &self.flac_channel {
+            flac_channel.run();
         }
     }
 
     // stop the flac encoder thread
     pub fn stop_flac_encoder(&self) {
-        if self.flac_channel.is_some() {
-            self.flac_channel.as_ref().unwrap().stop();
+        if let Some(flac_channel) = &self.flac_channel {
+            flac_channel.stop();
         }
     }
 

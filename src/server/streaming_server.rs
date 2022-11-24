@@ -180,9 +180,7 @@ pub fn run_server(
                         }
                         let nclients = {
                             let mut clients = CLIENTS.write();
-                            let chs = clients.get(&remote_addr).unwrap();
-                            chs.stop_flac_encoder();
-                            clients.remove(&remote_addr);
+                            if let Some(chs) = clients.remove(&remote_addr) { chs.stop_flac_encoder() };
                             clients.len()
                         };
                         debug!("Now have {} streaming clients left", nclients);

@@ -132,11 +132,10 @@ pub fn run_server(
                         );
                         let nclients = {
                             let mut clients = CLIENTS.write();
-                            clients.insert(remote_addr.clone(), channel_stream);
+                            clients.insert(remote_addr.clone(), channel_stream.clone());
                             clients.len()
                         };
                         debug!("Now have {} streaming clients", nclients);
-                        let channel_stream = CLIENTS.read().get(&remote_addr).unwrap().clone();
 
                         feedback_tx_c
                             .send(StreamerFeedBack {

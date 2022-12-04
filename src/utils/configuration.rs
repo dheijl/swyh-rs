@@ -1,9 +1,9 @@
 use crate::{StreamingFormat, SERVER_PORT};
 use lexopt::{prelude::*, Parser};
-use log::{debug, LevelFilter};
+use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::{
-    f64, file, format_args, fs,
+    f64, fs,
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
@@ -105,7 +105,7 @@ impl Configuration {
         let old_configfile = Self::get_config_path("config.ini");
         if !Path::new(&configfile).exists() {
             if !Path::new(&old_configfile).exists() {
-                debug!("Creating a new default config {}", configfile.display());
+                println!("Creating a new default config {}", configfile.display());
                 let config = Configuration::new();
                 let configuration = Config {
                     configuration: config,
@@ -113,15 +113,25 @@ impl Configuration {
                 let f = File::create(&configfile).unwrap();
                 let s = toml::to_string(&configuration).unwrap();
                 let mut w = BufWriter::new(f);
-                debug!("New default CONFIG: {}", s);
+                println!("New default CONFIG: {}", s);
                 w.write_all(s.as_bytes()).unwrap();
                 w.flush().unwrap();
             } else {
                 Self::migrate_config_to_toml(&old_configfile, &configfile);
             }
         }
-        let s = fs::read_to_string(&configfile).unwrap();
-        let mut config: Config = from_str(&s).unwrap();
+        println!("Loading config from {}", configfile.display());
+        let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
+            eprintln!("Unable to read config file: {}", error);
+            "".to_string()
+        });
+        let mut config: Config = from_str(&s).unwrap_or_else(|error| {
+            eprintln!("Unable to deserialize config: {}", error);
+            let config = Configuration::new();
+            Config {
+                configuration: config,
+            }
+        });
         if config.configuration.ssdp_interval_mins < 0.5 {
             config.configuration.ssdp_interval_mins = 0.5;
             force_update = true;
@@ -163,10 +173,8 @@ impl Configuration {
         };
         let s = toml::to_string(&conf).unwrap();
         let mut w = BufWriter::new(f);
-        debug!("Updated CONFIG: {}", s);
         w.write_all(s.as_bytes()).unwrap();
         w.flush().unwrap();
-
         Ok(())
     }
 
@@ -211,11 +219,14 @@ impl Configuration {
                 };
             };
         }
+        if config_id.is_empty() {
+            println!("Running config id {}", config_id);
+        }
         config_id
     }
 
     fn migrate_config_to_toml(old_config: &Path, new_config: &Path) {
-        debug!(
+        println!(
             "Migrating {} to {}",
             old_config.display(),
             new_config.display()

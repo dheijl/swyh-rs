@@ -316,6 +316,11 @@ impl Renderer {
         // stop anything currently playing first, Moode needs it
         self.oh_stop_play(log);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
+        let (host, port) = self.parse_url(&self.dev_url, log);
+        log(format!(
+            "OH Inserting new playlist on {} host={host} port={port}",
+            self.dev_name
+        ));
         let xmlbody = match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
             Ok(s) => s,
             Err(e) => {
@@ -323,7 +328,6 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
-        let (host, port) = self.parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
         let _resp = self
             .soap_request(
@@ -333,6 +337,10 @@ impl Renderer {
             )
             .unwrap_or_default();
         // send the Play command
+        log(format!(
+            "OH Play on {} host={host} port={port}",
+            self.dev_name
+        ));
         let _resp = self
             .soap_request(
                 &url,
@@ -407,7 +415,7 @@ impl Renderer {
         let (host, port) = self.parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
         log(format!(
-            "OH Stop playing on {} host={host} port={port}",
+            "OH Deleting current playlist on {} host={host} port={port}",
             self.dev_name
         ));
 

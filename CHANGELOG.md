@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.6.1-beta (unreleased)
+
 - 1.6.0 (Nov 6 2022 dheijl)
   - migrated from winapi to windows-rs (following cpal)
   - set the SSDP socket TTL to 2 seconds per UPNP spec

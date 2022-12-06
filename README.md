@@ -83,7 +83,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
 - streaming to Logitech Media Server does not work ([issue # 40]( https://github.com/dheijl/swyh-rs/issues/40))
 - streaming to Linn devices does not work
-- if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panicking when deserializing.
+- if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panic-ing when deserializing.
 
 ### Artwork Credits
 

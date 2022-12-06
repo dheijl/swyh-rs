@@ -76,12 +76,13 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 ### Known problems
 
+- make sure that your firewall or anti-virus do not block the default incoming HTTP port 5901 for streaming requests (or the port number you configured in the UI if not the default)
 - resizing a window in fltk 1.4 is not ideal, but thanks to @MoAlyousef it is now usable in swyh-rs. But if you resize vertically to a very small window you risk losing the horizontal scrollbar in the textbox at the bottom.
 - simultaneous streaming to multiple renderers is only limited by the number of renderer buttons that can be shown in the available space in the window.
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
 - streaming to Logitech Media Server does not work ([issue # 40]( https://github.com/dheijl/swyh-rs/issues/40))
-- streaming to Linn does not work
-- if for some reason your config file gets corrupted you can get a panic on startup when the config file is deserialized. The easy fix is to simply delete the config.ini (for older versions) or config.toml (for newer versions). You can find it in your home directory in the .swyh-rs folder.
+- streaming to Linn devices does not work
+- if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panicking when deserializing.
 
 ### Artwork Credits
 

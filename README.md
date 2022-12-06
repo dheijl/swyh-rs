@@ -12,7 +12,7 @@ The current release is 1.6.0 with
 - support for multiple identically named soundcards
 - Sonos fix for pausing audio
 - support for multiple configurations with a _-c_ commandline switch. Useful if you have multiple audiosources (suggestion by @cavadias).
-- fix for panicking at startup when the config file is invalid or corrupt
+- fix for panic-ing at startup when the config file is invalid or corrupt
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OPenHome compatible music player (a "Renderer").

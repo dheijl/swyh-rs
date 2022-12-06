@@ -219,9 +219,6 @@ impl Configuration {
                 };
             };
         }
-        if config_id.is_empty() {
-            println!("Running config id {}", config_id);
-        }
         config_id
     }
 

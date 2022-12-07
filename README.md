@@ -12,7 +12,7 @@ The current release is 1.6.0 with
 - support for multiple identically named soundcards
 - Sonos fix for pausing audio
 - support for multiple configurations with a _-c_ commandline switch. Useful if you have multiple audiosources (suggestion by @cavadias).
-- fix for panicking at startup when the config file is invalid or corrupt
+- fix for panic-ing at startup when the config file is invalid or corrupt
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OPenHome compatible music player (a "Renderer").
@@ -83,7 +83,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
 - streaming to Logitech Media Server does not work ([issue # 40]( https://github.com/dheijl/swyh-rs/issues/40))
 - streaming to Linn devices does not work
-- if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panicking when deserializing.
+- if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panic-ing when deserializing.
 
 ### Artwork Credits
 

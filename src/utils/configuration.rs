@@ -73,9 +73,9 @@ impl Configuration {
             sound_source: "None".to_string(),
             sound_source_index: None,
             log_level: LevelFilter::Info,
-            ssdp_interval_mins: 1.0,
+            ssdp_interval_mins: 10.0,
             auto_reconnect: false,
-            disable_chunked: false,
+            disable_chunked: true,
             use_wave_format: false,
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),
@@ -156,7 +156,7 @@ impl Configuration {
             force_update = true;
         }
         if config.configuration.config_id.is_none() {
-            config.configuration.config_id = Some("".to_string());
+            config.configuration.config_id = Some(String::new());
             force_update = true;
         }
         if force_update {
@@ -210,7 +210,7 @@ impl Configuration {
     }
 
     fn get_config_id() -> String {
-        let mut config_id = "".to_string();
+        let mut config_id = String::new();
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
             if let Short('c') | Long("configuration") = arg {

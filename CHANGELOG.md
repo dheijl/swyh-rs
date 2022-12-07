@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
 - 1.6.1-beta (unreleased)
+  - changed SSDP interval default from 1 to 10 minutes
+  - changed chunked transfer default from true to false
 
 - 1.6.0 (Nov 6 2022 dheijl)
   - migrated from winapi to windows-rs (following cpal)

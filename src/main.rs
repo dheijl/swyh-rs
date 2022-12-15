@@ -389,8 +389,8 @@ fn main() {
 
 fn app_restart(mf: &MainForm) -> i32 {
     let c = dialog::choice2(
-        mf.wind.width() as i32 / 2 - 100,
-        mf.wind.height() as i32 / 2 - 50,
+        mf.wind.width() / 2 - 100,
+        mf.wind.height() / 2 - 50,
         "Configuration value changed!",
         "Restart",
         "Cancel",

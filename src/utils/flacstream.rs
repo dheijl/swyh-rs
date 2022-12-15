@@ -175,11 +175,7 @@ impl FlacChannel {
 }
 
 fn to_i32_sample(mut f32_sample: f32) -> i32 {
-    if f32_sample > 1.0 {
-        f32_sample = 1.0;
-    } else if f32_sample < -1.0 {
-        f32_sample = -1.0;
-    }
+    f32_sample = f32_sample.clamp(-1.0, 1.0);
     if f32_sample >= 0.0 {
         ((f32_sample as f64 * i32::MAX as f64) + 0.5) as i32
     } else {

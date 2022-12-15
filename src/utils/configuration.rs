@@ -167,7 +167,7 @@ impl Configuration {
 
     pub fn update_config(&self) -> std::io::Result<()> {
         let configfile = Self::get_config_path(CONFIGFILE);
-        let f = File::create(&configfile).unwrap();
+        let f = File::create(configfile).unwrap();
         let conf = Config {
             configuration: self.clone(),
         };
@@ -188,7 +188,7 @@ impl Configuration {
             let old_config_file = Path::new(&old_config_dir).join("config.ini");
             if Path::new(&old_config_file).exists() {
                 let config_file = Path::new(&config_dir).join("config.ini");
-                fs::copy(&old_config_file, &config_file).unwrap();
+                fs::copy(old_config_file, config_file).unwrap();
                 fs::remove_dir_all(&old_config_dir).unwrap();
                 // update the ConfigDir value in the config file
                 let conf = Configuration::read_config();

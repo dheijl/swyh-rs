@@ -17,11 +17,7 @@ impl I24Sample for f32 {
     #[inline]
     fn to_i24(&self) -> I24 {
         let mut sample = *self;
-        if sample > 1.0 {
-            sample = 1.0;
-        } else if sample < -1.0 {
-            sample = -1.0;
-        }
+        sample = sample.clamp(-1.0, 1.0);
         let tmp_i32 = {
             if sample >= 0.0 {
                 ((sample as f64 * i32::MAX as f64) + 0.5) as i32

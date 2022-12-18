@@ -92,7 +92,7 @@ The icon was designed by @numanair, thanks!
 ### How does it work?
 
 - audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac), but you can choose any audio source you want. Changing the sound source needs a restart of the app to take effect.
-- On Windows you can check in the soundmixer that the audio device you're capturing is the device that is actually playing audio. On Linux you can use [pavucontrol](http://0pointer.de/lennart/projects/pavucontrol/) to enable the audio monitor for the audio device you are capturing.
+- On Windows you can check in the soundmixer that the audio device you're capturing is the device that is actually playing audio. On Linux you can use [pavucontrol](https://freedesktop.org/software/pulseaudio/pavucontrol/) to enable the audio monitor for the audio device you are capturing.
 - a built-in audio streaming web server is started on port 5901.
 - all media renderers are discoverded using SSDP on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen (so that on a multihomed Windows machine the most likely interface is selected). If necessary you can choose another network from the network dropdown, for instance if you use a VPN.
 - then a button is shown for every renderer found

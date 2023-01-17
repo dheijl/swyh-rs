@@ -215,7 +215,7 @@ impl Configuration {
         while let Some(arg) = argparser.next().unwrap() {
             if let Short('c') | Long("configuration") = arg {
                 if let Ok(id) = argparser.value() {
-                    config_id = id.into_string().unwrap_or_default()
+                    config_id = id.string().unwrap_or_default();
                 };
             };
         }

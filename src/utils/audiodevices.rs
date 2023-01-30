@@ -1,6 +1,10 @@
 use crate::{ui_log, CLIENTS, CONFIG};
-use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::{
+    traits::{DeviceTrait, HostTrait},
+    Sample,
+};
 use crossbeam_channel::Sender;
+use dasp_sample::ToSample;
 use log::debug;
 use parking_lot::Once;
 
@@ -82,6 +86,7 @@ pub fn capture_output_audio(
             &audio_cfg.config(),
             move |data, _: &_| wave_reader::<f32>(data, &mut f32_samples, rms_sender.clone()),
             capture_err_fn,
+            None,
         ) {
             Ok(stream) => Some(stream),
             Err(e) => {
@@ -94,6 +99,7 @@ pub fn capture_output_audio(
                 &audio_cfg.config(),
                 move |data, _: &_| wave_reader::<i16>(data, &mut f32_samples, rms_sender.clone()),
                 capture_err_fn,
+                None,
             ) {
                 Ok(stream) => Some(stream),
                 Err(e) => {
@@ -107,6 +113,7 @@ pub fn capture_output_audio(
                 &audio_cfg.config(),
                 move |data, _: &_| wave_reader::<u16>(data, &mut f32_samples, rms_sender.clone()),
                 capture_err_fn,
+                None,
             ) {
                 Ok(stream) => Some(stream),
                 Err(e) => {
@@ -115,6 +122,7 @@ pub fn capture_output_audio(
                 }
             }
         }
+        _ => None,
     }
 }
 
@@ -130,14 +138,14 @@ fn capture_err_fn(err: cpal::StreamError) {
 /// also feeds the RMS monitor channel if the RMS option is set
 fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: Sender<Vec<f32>>)
 where
-    T: cpal::Sample,
+    T: Sample + ToSample<f32>,
 {
     static INITIALIZER: Once = Once::new();
     INITIALIZER.call_once(|| {
         ui_log("The wave_reader is now receiving samples".to_string());
     });
     f32_samples.clear();
-    f32_samples.extend(samples.iter().map(|x| x.to_f32()));
+    f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
     for (_, v) in CLIENTS.read().iter() {
         v.write(f32_samples);
     }

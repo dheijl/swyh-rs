@@ -10,8 +10,8 @@
 ///
 */
 use crate::{utils::i24::I24Sample, StreamingFormat, CONFIG};
-use cpal::Sample;
 use crossbeam_channel::{Receiver, Sender};
+use dasp_sample::Sample;
 use log::debug;
 use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::{
@@ -131,7 +131,8 @@ impl Read for ChannelStream {
             while i < buf.len() - bytes_per_sample {
                 if let Some(f32sample) = self.fifo.pop_front() {
                     if self.bits_per_sample == 16 {
-                        let sample = f32sample.to_i16();
+                        //let sample: i16 = f32sample.to_i16();
+                        let sample = i16::from_sample(f32sample);
                         let b = if self.use_wave_format {
                             sample.to_le_bytes()
                         } else {

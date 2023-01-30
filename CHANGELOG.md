@@ -3,6 +3,10 @@
 - 1.6.1-beta (unreleased)
   - changed SSDP interval default from 1 to 10 minutes
   - changed chunked transfer default from true to false
+  - upgrade to rust 1.67
+  - upgrade lexopt to latest version
+  - upgrade Cpal to 0.15 & dasp_sample
+  - clippy fixes
 
 - 1.6.0 (Nov 6 2022 dheijl)
   - migrated from winapi to windows-rs (following cpal)
@@ -18,7 +22,7 @@
   - appimage for Ubuntu 20.04 LTS and later
 
 - 1.4.5 (Sep 8 2022 dheijl)
-  - fix for pausing music with Sonos causing the Sonos to close the connection. This optionally injects silence at the music source, contributed by by @genekellyjr (see issue #71), with a new "InjectSilence" boolean flag in the config.toml (not exposed in the GUI). For this to work you have to
+  - fix for pausing music with Sonos causing the Sonos to close the connection. This optionally injects silence at the music source, contributed by @genekellyjr (see issue #71), with a new "InjectSilence" boolean flag in the config.toml (not exposed in the GUI). For this to work you have to
     - check that swyh-rs uses the same output as your music source in the Windows soundmixer
     - edit your config.toml and change the InjectSilence flag from _false_ to _true_
   - flt-sys 1.3.14 builds again on Windows with MSVC, so we no longer need to use the _fltk-bundled_ feature

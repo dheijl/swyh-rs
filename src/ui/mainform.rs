@@ -62,10 +62,7 @@ impl MainForm {
         const WH: i32 = 660;
         let mut wind = DoubleWindow::default()
             .with_size(WW, WH)
-            .with_label(&format!(
-                "swyh-rs UPNP/DLNA Media Renderers V{}",
-                app_version
-            ));
+            .with_label(&format!("swyh-rs UPNP/DLNA Media Renderers V{app_version}"));
 
         wind.make_resizable(true);
         wind.size_range(WW, WH * 2 / 3, 0, 0);
@@ -150,8 +147,7 @@ impl MainForm {
             }
             let name = networks_c[i as usize].clone();
             ui_log(format!(
-                "*W*W*> Network changed to {}, restart required!!",
-                name
+                "*W*W*> Network changed to {name}, restart required!!"
             ));
             conf.last_network = name;
             let _ = conf.update_config();
@@ -295,8 +291,7 @@ impl MainForm {
             }
             let level = log_levels[i as usize];
             ui_log(format!(
-                "*W*W*> Log level changed to {}, restart required!!",
-                level
+                "*W*W*> Log level changed to {level}, restart required!!"
             ));
             conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
             let _ = conf.update_config();
@@ -322,7 +317,7 @@ impl MainForm {
 
         // streaming format
         let fmt = if let Some(format) = config.streaming_format {
-            format!("FMT: {}", format)
+            format!("FMT: {format}")
         } else {
             "FMT: LPCM".to_string()
         };
@@ -352,8 +347,7 @@ impl MainForm {
             }
             let format = formats[i as usize].clone();
             ui_log(format!(
-                "*W*W*> Streaming Format changed to {}, restart required!!",
-                format
+                "*W*W*> Streaming Format changed to {format}, restart required!!"
             ));
             let newformat = match format.as_str() {
                 "LPCM" => StreamingFormat::Lpcm,
@@ -365,7 +359,7 @@ impl MainForm {
             conf.streaming_format = Some(newformat);
             let _ = conf.update_config();
             config_ch_flag.set(true);
-            let fmt = format!("FMT: {}", format);
+            let fmt = format!("FMT: {format}");
             b.set_label(&fmt);
             app::awake();
             *recursion -= 1;
@@ -488,7 +482,7 @@ impl MainForm {
         pbuttons.end();
         let mut frame = Frame::new(0, 0, FW, 25, "").with_align(Align::Center);
         frame.set_frame(FrameType::BorderBox);
-        frame.set_label(&format!("UPNP rendering devices on network {}", local_addr));
+        frame.set_label(&format!("UPNP rendering devices on network {local_addr}"));
         frame.set_color(title_color);
         pbuttons.add(&frame);
         vpack.add(&pbuttons);

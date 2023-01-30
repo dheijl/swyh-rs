@@ -9,8 +9,7 @@ pub fn raise_priority() {
             let e = GetLastError();
             let p = GetCurrentProcessId();
             ui_log(format!(
-                "*E*E*>Failed to set process priority id={p}, error={:?}",
-                e
+                "*E*E*>Failed to set process priority id={p}, error={e:?}"
             ));
         }
     }

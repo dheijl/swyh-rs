@@ -113,7 +113,7 @@ impl Configuration {
                 let f = File::create(&configfile).unwrap();
                 let s = toml::to_string(&configuration).unwrap();
                 let mut w = BufWriter::new(f);
-                println!("New default CONFIG: {}", s);
+                println!("New default CONFIG: {s}");
                 w.write_all(s.as_bytes()).unwrap();
                 w.flush().unwrap();
             } else {
@@ -122,11 +122,11 @@ impl Configuration {
         }
         println!("Loading config from {}", configfile.display());
         let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
-            eprintln!("Unable to read config file: {}", error);
+            eprintln!("Unable to read config file: {error}");
             "".to_string()
         });
         let mut config: Config = from_str(&s).unwrap_or_else(|error| {
-            eprintln!("Unable to deserialize config: {}", error);
+            eprintln!("Unable to deserialize config: {error}");
             let config = Configuration::new();
             Config {
                 configuration: config,

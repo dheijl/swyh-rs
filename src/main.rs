@@ -148,7 +148,7 @@ fn main() {
     };
     if let Some(config_id) = &config.config_id {
         if !config_id.is_empty() {
-            ui_log(format!("Loaded configuration -c {}", config_id));
+            ui_log(format!("Loaded configuration -c {config_id}"));
         }
     }
     ui_log(format!("{config:?}"));
@@ -466,7 +466,7 @@ fn run_rms_monitor(
     while let Ok(samples) = rms_receiver.recv() {
         for (n, sample) in samples.iter().enumerate() {
             nsamples += 1;
-            let i64sample = (*sample).to_i16() as i64;
+            let i64sample: i64 = i16::from_sample(*sample) as i64;
             if n & 1 == 0 {
                 sum_l += i64sample * i64sample;
             } else {
@@ -501,16 +501,18 @@ fn run_silence_injector(audio_output_device: &cpal::Device) {
         .next()
         .expect("no supported config?!")
         .with_max_sample_rate();
-    let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
+    let err_fn = |err| eprintln!("an error occurred on the output audio stream: {err}");
     let config = supported_config.into();
 
+    // CPAL 0.15 switched to dasp_sample:
+    // see https://github.com/RustAudio/cpal/commit/85d773d59f1725b25002c6f04aa2eb9b43a75b76#diff-babb62f9985b4798a655658e440a565984ce15b25e63a82fc4b3cc0b54fd2a02
     fn write_silence<T: Sample>(data: &mut [T], _: &cpal::OutputCallbackInfo) {
         for sample in data.iter_mut() {
-            *sample = Sample::from(&0.0);
+            *sample = Sample::EQUILIBRIUM;
         }
     }
     let stream = audio_output_device
-        .build_output_stream(&config, write_silence::<f32>, err_fn)
+        .build_output_stream(&config, write_silence::<f32>, err_fn, None)
         .unwrap();
     stream.play().unwrap();
 

@@ -3,10 +3,11 @@
 - 1.6.1-beta (unreleased)
   - changed SSDP interval default from 1 to 10 minutes
   - changed chunked transfer default from true to false
-  - upgrade to rust 1.67
+  - upgrade to rust 1.67.1
   - upgrade lexopt to latest version
   - upgrade Cpal to 0.15 & dasp_sample
   - clippy fixes
+  - cope with Yamaha WXAD-10 having an invalid UrlBase port number in the service description (issue #89)
 
 - 1.6.0 (Nov 6 2022 dheijl)
   - migrated from winapi to windows-rs (following cpal)

@@ -603,7 +603,8 @@ pub fn discover(
                 }
                 rend.remote_addr = s;
                 // check for an absent URLBase in the description
-                if rend.dev_url.is_empty() {
+                // or devices like Yamaha WXAD-10 with bad URLBase port number
+                if rend.dev_url.is_empty() || !dev.contains(&rend.dev_url) {
                     let mut url_base = dev;
                     if url_base.contains("http://") {
                         url_base = url_base["http://".to_string().len()..].to_string();

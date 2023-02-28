@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.6.1-beta (unreleased)
+- 1.6.1 (Feb 28 2023 dheijl)
   - changed SSDP interval default from 1 to 10 minutes
   - changed chunked transfer default from true to false
   - upgrade to rust 1.67.1

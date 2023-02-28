@@ -133,4 +133,6 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
 ### Screenshot
 
-![Knipsel](https://user-images.githubusercontent.com/2384545/179241258-13cce495-3875-4e1d-9115-94f80a34644a.PNG)
+![Knipsel](https://user-images.githubusercontent.com/2384545/221954945-d2ec2d57-1915-4dc8-bd7f-47e1342b53b7.PNG)
+
+

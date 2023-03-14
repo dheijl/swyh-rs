@@ -224,8 +224,7 @@ fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
 fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     // create the random generator for the white noise
     let mut rng = StdRng::seed_from_u64(79);
-    let divisor: u64 = 1000 / silence_period;
-    let size = ((sample_rate * 2) / divisor as u32) as usize;
+    let size = ((sample_rate * 2 * silence_period as u32) / 1000) as usize;
     let mut noise = Vec::with_capacity(size);
     noise.resize(size, 0.0);
     let amplitude: f32 = 0.001;

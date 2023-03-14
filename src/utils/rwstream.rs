@@ -210,8 +210,8 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
 
 //#[allow(dead_code)]
 fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
-    let divisor: u64 = 1000 / silence_period;
-    let size = ((sample_rate * 2) / divisor as u32) as usize;
+    // silence_period is in msecs (capture_timeout / 4), sample rate is per second, 2 channels for stereo
+    let size = ((sample_rate * 2 * silence_period as u32) / 1000) as usize;
     let mut silence = Vec::with_capacity(size);
     silence.resize(size, 0f32);
     silence

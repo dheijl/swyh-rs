@@ -144,11 +144,12 @@ impl AvService {
 
 bitflags! {
 /// supported UPNP/DLNA protocols
+#[derive(Debug, Clone)]
 pub struct SupportedProtocols: u32 {
         const NONE        = 0b0000;
         const OPENHOME    = 0b0001;
         const AVTRANSPORT = 0b0010;
-        const ALL = Self::OPENHOME.bits | Self::AVTRANSPORT.bits;
+        const ALL = Self::OPENHOME.bits() | Self::AVTRANSPORT.bits();
     }
 }
 

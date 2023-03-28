@@ -2,7 +2,7 @@
 
 - 1.6.2-beta (unreleased)
   - fix shaky silence buffer generation
-  - update dependencies, update rust to 1.68
+  - update dependencies, update rust to 1.68.2
   - upgrade bitflags to 2.x
   
 - 1.6.1 (Feb 28 2023 dheijl)

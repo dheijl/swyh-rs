@@ -1,12 +1,16 @@
-use crate::{
-    ui_log, ChannelStream, StreamerFeedBack, StreamingFormat, StreamingState, WavData, CLIENTS,
-    CONFIG,
-};
+use crate::{ui_log, ChannelStream, StreamingFormat, StreamingState, WavData, CLIENTS, CONFIG};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;
 use log::debug;
 use std::{net::IpAddr, sync::Arc};
 use tiny_http::{Header, Method, Response, Server};
+
+/// streaming state feedback for a client
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct StreamerFeedBack {
+    pub remote_ip: String,
+    pub streaming_state: StreamingState,
+}
 
 /// run_server - run a tiny-http webserver to serve streaming requests from renderers
 ///

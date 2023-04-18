@@ -48,7 +48,7 @@ mod utils;
 use crate::{
     enums::enums::{StreamingFormat, StreamingState},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
-    server::streaming_server::run_server,
+    server::streaming_server::{run_server, StreamerFeedBack},
     ui::mainform::MainForm,
     utils::{
         audiodevices::{
@@ -85,13 +85,6 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
-
-/// streaming state feedback for a client
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct StreamerFeedBack {
-    remote_ip: String,
-    streaming_state: StreamingState,
-}
 
 // streaming clients of the webserver
 static CLIENTS: Lazy<RwLock<HashMap<String, ChannelStream>>> =

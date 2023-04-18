@@ -15,9 +15,9 @@ readme = "README.md"
 winres = "0.1.12"
 
 [dependencies]
-bitflags = "2.0.2"
+bitflags = "2.1.0"
 cpal = "0.15.2"
-crossbeam-channel = "0.5.7"
+crossbeam-channel = "0.5.8"
 dasp_sample = "0.11.0"
 dirs = "5.0.0"
 flac-bound = { version = "0.3.0", default-features = false, features = [
@@ -34,7 +34,7 @@ log = { version = "0.4.17", features = [
 ] }
 once_cell = "1.17.1"
 parking_lot = "0.12.1"
-serde = { version = "1.0.159", features = ["derive"] }
+serde = { version = "1.0.160", features = ["derive"] }
 simplelog = "0.12.1"
 rand = "0.8.5"
 strfmt = "0.2.4"
@@ -48,15 +48,15 @@ ureq = { version = "2.6.2", default-features = false, features = [
 url = "2.3.1"
 xml-rs = "0.8.4"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.4.0", features = ["use-ninja"] }
+fltk = { version = "1.4.1", features = ["use-ninja"] }
 windows = { version = "0.48.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.4.0", features = ["use-ninja"] }
-libc = "0.2.140"
+fltk = { version = "1.4.1", features = ["use-ninja"] }
+libc = "0.2.141"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

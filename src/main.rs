@@ -39,12 +39,14 @@ SOFTWARE.
 #[macro_use]
 extern crate bitflags;
 
+mod enums;
 mod openhome;
 mod server;
 mod ui;
 mod utils;
 
 use crate::{
+    enums::enums::{StreamingFormat, StreamingState},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::run_server,
     ui::mainform::MainForm,
@@ -58,6 +60,7 @@ use crate::{
         rwstream::ChannelStream,
     },
 };
+
 use cpal::{
     traits::{DeviceTrait, StreamTrait},
     Sample,
@@ -71,10 +74,9 @@ use fltk::{
 use log::{debug, error, info, warn, LevelFilter};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use std::{
-    cell::Cell, collections::HashMap, fmt, fs::File, net::IpAddr, path::Path, rc::Rc, thread,
+    cell::Cell, collections::HashMap, fs::File, net::IpAddr, path::Path, rc::Rc, thread,
     time::Duration,
 };
 
@@ -83,30 +85,6 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
-
-/// streaming state
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum StreamingState {
-    Started,
-    Ended,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
-pub enum StreamingFormat {
-    Lpcm,
-    Wav,
-    Flac,
-}
-
-impl fmt::Display for StreamingFormat {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            StreamingFormat::Lpcm => write!(f, "LPCM"),
-            StreamingFormat::Wav => write!(f, "WAV"),
-            StreamingFormat::Flac => write!(f, "FLAC"),
-        }
-    }
-}
 
 /// streaming state feedback for a client
 #[derive(Debug, Clone, Eq, PartialEq)]

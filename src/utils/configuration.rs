@@ -1,4 +1,4 @@
-use crate::{StreamingFormat, SERVER_PORT};
+use crate::{enums::streaming::StreamingFormat, globals::statics::SERVER_PORT};
 use lexopt::{prelude::*, Parser};
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};

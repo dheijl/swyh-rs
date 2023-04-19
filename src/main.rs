@@ -40,13 +40,15 @@ SOFTWARE.
 extern crate bitflags;
 
 mod enums;
+mod globals;
 mod openhome;
 mod server;
 mod ui;
 mod utils;
 
 use crate::{
-    enums::enums::{StreamingFormat, StreamingState},
+    enums::streaming::{StreamingFormat, StreamingState},
+    globals::statics::{APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
     ui::mainform::MainForm,
@@ -72,29 +74,11 @@ use fltk::{
     prelude::{ButtonExt, WidgetExt},
 };
 use log::{debug, error, info, warn, LevelFilter};
-use once_cell::sync::Lazy;
-use parking_lot::RwLock;
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use std::{
     cell::Cell, collections::HashMap, fs::File, net::IpAddr, path::Path, rc::Rc, thread,
     time::Duration,
 };
-
-/// app version
-pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// the HTTP server port
-pub const SERVER_PORT: u16 = 5901;
-
-// streaming clients of the webserver
-static CLIENTS: Lazy<RwLock<HashMap<String, ChannelStream>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
-// the global GUI logger textbox channel used by all threads
-static LOGCHANNEL: Lazy<RwLock<(Sender<String>, Receiver<String>)>> =
-    Lazy::new(|| RwLock::new(unbounded()));
-// the global configuration state
-static CONFIG: Lazy<RwLock<Configuration>> =
-    Lazy::new(|| RwLock::new(Configuration::read_config()));
 
 /// swyh-rs
 ///

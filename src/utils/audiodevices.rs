@@ -1,4 +1,7 @@
-use crate::{ui_log, CLIENTS, CONFIG};
+use crate::{
+    globals::statics::{CLIENTS, CONFIG},
+    ui_log,
+};
 use cpal::{
     traits::{DeviceTrait, HostTrait},
     Sample,

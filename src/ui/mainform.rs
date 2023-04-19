@@ -1,6 +1,9 @@
 use crate::{
-    openhome::rendercontrol::StreamInfo, ui_log, utils::escape::FwSlashPipeEscape, Configuration,
-    Renderer, StreamingFormat, WavData, CONFIG,
+    enums::streaming::StreamingFormat,
+    globals::statics::CONFIG,
+    openhome::rendercontrol::{Renderer, StreamInfo, WavData},
+    ui_log,
+    utils::{configuration::Configuration, escape::FwSlashPipeEscape},
 };
 use fltk::{
     app,

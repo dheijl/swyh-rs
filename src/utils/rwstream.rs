@@ -9,7 +9,7 @@
 /// to the media Renderer
 ///
 */
-use crate::{utils::i24::I24Sample, StreamingFormat, CONFIG};
+use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG, utils::i24::I24Sample};
 use crossbeam_channel::{Receiver, Sender};
 use dasp_sample::Sample;
 use log::debug;

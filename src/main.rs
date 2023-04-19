@@ -56,10 +56,8 @@ use crate::{
         audiodevices::{
             capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
         },
-        configuration::Configuration,
         local_ip_address::*,
         priority::raise_priority,
-        rwstream::ChannelStream,
     },
 };
 

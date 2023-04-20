@@ -2,8 +2,7 @@ use crate::{
     enums::streaming::StreamingFormat,
     globals::statics::CONFIG,
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
-    ui_log,
-    utils::{configuration::Configuration, escape::FwSlashPipeEscape},
+    utils::{configuration::Configuration, escape::FwSlashPipeEscape, log::ui_log},
 };
 use fltk::{
     app,

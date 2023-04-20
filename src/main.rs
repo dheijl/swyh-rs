@@ -48,7 +48,7 @@ mod utils;
 
 use crate::{
     enums::streaming::{StreamingFormat, StreamingState},
-    globals::statics::{APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
+    globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
     ui::mainform::MainForm,
@@ -57,6 +57,7 @@ use crate::{
             capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
         },
         local_ip_address::*,
+        log::ui_log,
         priority::raise_priority,
     },
 };
@@ -71,7 +72,7 @@ use fltk::{
     misc::Progress,
     prelude::{ButtonExt, WidgetExt},
 };
-use log::{debug, error, info, warn, LevelFilter};
+use log::{debug, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use std::{
     cell::Cell, collections::HashMap, fs::File, net::IpAddr, path::Path, rc::Rc, thread,
@@ -134,7 +135,11 @@ fn main() {
             File::create(logfile).unwrap(),
         )]);
     }
-    info!("swyh-rs V {} - Logging started.", APP_VERSION.to_string());
+    info!(
+        "{} V {} - Logging started.",
+        APP_NAME.to_string(),
+        APP_VERSION.to_string()
+    );
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
     }
@@ -359,19 +364,6 @@ fn app_restart(mf: &MainForm) -> i32 {
         // cancel
         1
     }
-}
-
-/// ui_log - send a logmessage to the textbox on the Crossbeam LOGCHANNEL
-fn ui_log(s: String) {
-    let cat: &str = &s[..2];
-    match cat {
-        "*W" => warn!("tb_log: {}", s),
-        "*E" => error!("tb_log: {}", s),
-        _ => info!("tb_log: {}", s),
-    };
-    let logger = &LOGCHANNEL.read().0;
-    logger.send(s).unwrap();
-    app::awake();
 }
 
 /// a dummy_log is used during AV transport autoresume

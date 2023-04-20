@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
@@ -20,3 +21,5 @@ pub static LOGCHANNEL: Lazy<RwLock<(Sender<String>, Receiver<String>)>> =
 // the global configuration state
 pub static CONFIG: Lazy<RwLock<Configuration>> =
     Lazy::new(|| RwLock::new(Configuration::read_config()));
+// UI or CLI
+pub static HAVE_UI: Lazy<bool> = Lazy::new(|| APP_NAME == "swyh-rs");

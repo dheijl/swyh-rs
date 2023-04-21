@@ -2,8 +2,7 @@ use crate::{
     enums::streaming::{StreamingFormat, StreamingState},
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
-    ui_log,
-    utils::rwstream::ChannelStream,
+    utils::{rwstream::ChannelStream, ui_logger::ui_log},
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::app;

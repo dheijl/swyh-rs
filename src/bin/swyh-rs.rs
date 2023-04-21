@@ -35,19 +35,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-
-#[macro_use]
-extern crate bitflags;
-
-mod enums;
-mod globals;
-mod openhome;
-mod server;
-mod ui;
-mod utils;
-
-use crate::{
-    enums::streaming::{StreamingFormat, StreamingState},
+use swyh_rs::{
+    enums::streaming::StreamingState,
     globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
@@ -57,8 +46,8 @@ use crate::{
             capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
         },
         local_ip_address::*,
-        log::ui_log,
         priority::raise_priority,
+        ui_logger::ui_log,
     },
 };
 

@@ -7,7 +7,7 @@ use std::{collections::HashMap, sync::atomic::AtomicBool};
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const APP_NAME: &str = env!("CARGO_BIN_NAME");
+pub const APP_NAME: &str = "swyh-rs"; //env!("CARGO_BIN_NAME");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;

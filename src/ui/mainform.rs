@@ -5,7 +5,7 @@ use crate::{
     utils::{
         configuration::Configuration,
         escape::FwSlashPipeEscape,
-        log::{enable_ui_log, ui_log},
+        ui_logger::{enable_ui_log, ui_log},
     },
 };
 use fltk::{

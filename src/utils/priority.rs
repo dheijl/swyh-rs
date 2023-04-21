@@ -1,4 +1,4 @@
-use crate::ui_log;
+use crate::utils::ui_logger::ui_log;
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {

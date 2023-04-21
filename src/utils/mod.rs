@@ -4,6 +4,6 @@ pub mod escape;
 pub mod flacstream;
 pub mod i24;
 pub mod local_ip_address;
-pub mod log;
+pub mod ui_logger;
 pub mod priority;
 pub mod rwstream;

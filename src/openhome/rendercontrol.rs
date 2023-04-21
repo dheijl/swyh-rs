@@ -6,7 +6,8 @@
 /// Only tested with Volumio streamers (https://volumio.org/)
 ///
 ///
-use crate::{StreamingFormat, CONFIG};
+use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
+use bitflags::bitflags;
 use log::{debug, error, info};
 use std::{
     collections::HashMap,

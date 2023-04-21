@@ -2,7 +2,11 @@ use crate::{
     enums::streaming::StreamingFormat,
     globals::statics::CONFIG,
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
-    utils::{configuration::Configuration, escape::FwSlashPipeEscape, log::ui_log},
+    utils::{
+        configuration::Configuration,
+        escape::FwSlashPipeEscape,
+        log::{enable_ui_log, ui_log},
+    },
 };
 use fltk::{
     app,
@@ -57,6 +61,7 @@ impl MainForm {
         wd: &WavData,
         app_version: String,
     ) -> MainForm {
+        enable_ui_log();
         let title_color: Color = Color::from_u32(0xe6fff0);
         let app = app::App::default().with_scheme(app::Scheme::Gtk);
         app::background(247, 247, 247);

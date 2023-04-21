@@ -3,7 +3,7 @@ use crate::utils::{configuration::Configuration, rwstream::ChannelStream};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::atomic::AtomicBool};
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -22,4 +22,4 @@ pub static LOGCHANNEL: Lazy<RwLock<(Sender<String>, Receiver<String>)>> =
 pub static CONFIG: Lazy<RwLock<Configuration>> =
     Lazy::new(|| RwLock::new(Configuration::read_config()));
 // UI or CLI
-pub static HAVE_UI: Lazy<bool> = Lazy::new(|| APP_NAME == "swyh-rs");
+pub static HAVE_UI: AtomicBool = AtomicBool::new(true);

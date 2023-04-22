@@ -1,4 +1,7 @@
-use crate::{enums::streaming::StreamingFormat, globals::statics::SERVER_PORT};
+use crate::{
+    enums::streaming::StreamingFormat,
+    globals::statics::{HAVE_UI, SERVER_PORT},
+};
 use lexopt::{prelude::*, Parser};
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
@@ -7,6 +10,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
+    sync::atomic::Ordering::Relaxed,
 };
 use toml::*;
 
@@ -74,7 +78,7 @@ impl Configuration {
             sound_source_index: None,
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 10.0,
-            auto_reconnect: false,
+            auto_reconnect: !HAVE_UI.load(Relaxed),
             disable_chunked: true,
             use_wave_format: false,
             bits_per_sample: Some(16),
@@ -218,6 +222,9 @@ impl Configuration {
                     config_id = id.string().unwrap_or_default();
                 };
             };
+        }
+        if config_id.is_empty() && !HAVE_UI.load(Relaxed) {
+            config_id = "_cli".to_string();
         }
         config_id
     }

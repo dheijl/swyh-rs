@@ -32,6 +32,5 @@ pub fn ui_log(s: String) {
             "*E" => error!("{s}"),
             _ => info!("{s}"),
         };
-        println!("{s}");
     }
 }

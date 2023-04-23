@@ -1,4 +1,5 @@
 pub mod audiodevices;
+pub mod commandline;
 pub mod configuration;
 pub mod escape;
 pub mod flacstream;

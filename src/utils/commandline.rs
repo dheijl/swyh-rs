@@ -66,7 +66,7 @@ Recognized options:
     -u (--use_wav) : use_wav_format [false]
     -b (--bits) u16 : bits_per_sample [16]
     -f (--format) string : streaming_format [LPCM]
-    -p (--player) string : the player [last used renderer]
+    -o (--player) string : the player [last used renderer]
     -c (--config_id) string : config_id [_cli]
 "#
                     );
@@ -94,8 +94,8 @@ Recognized options:
                     }
                 }
                 Short('s') | Long("sound_source_index") => {
-                    if let Ok(port) = argparser.value() {
-                        self.server_port = Some(port.parse().unwrap());
+                    if let Ok(ssi) = argparser.value() {
+                        self.sound_source_index = Some(ssi.parse().unwrap());
                     }
                 }
                 Short('l') | Long("log_level") => {
@@ -106,14 +106,39 @@ Recognized options:
                             "debug" | "Debug" | "DEBUG" => {
                                 self.log_level = Some(LevelFilter::Debug)
                             }
-                            _ => (),
-                        };
-                    };
+                            _ => println!("log_level not info or debug"),
+                        }
+                    }
                 }
-                Short('p') | Long("player") => {
+                Short('i') | Long("ssdp_interval") => {
+                    if let Ok(interval) = argparser.value() {
+                        self.ssdp_interval_mins = Some(interval.parse().unwrap());
+                    }
+                }
+                Short('d') | Long("disable_chunked") => {
+                    if let Ok(dc) = argparser.value() {
+                        self.disable_chunked = Some(dc.parse().unwrap());
+                    }
+                }
+                Short('u') | Long("use_wav") => {
+                    if let Ok(use_wav) = argparser.value() {
+                        self.use_wave_format = Some(use_wav.parse().unwrap());
+                    }
+                }
+                Short('b') | Long("bits_per_sample") => {
+                    if let Ok(bps) = argparser.value() {
+                        let n: u16 = bps.parse().unwrap();
+                        if let 16 | 24 = n {
+                            self.bits_per_sample = Some(n);
+                        } else {
+                            println!("bits_per_sample not 16 or 24");
+                        }
+                    }
+                }
+                Short('o') | Long("player") => {
                     if let Ok(player) = argparser.value() {
                         self.player = Some(player.string().unwrap_or_default());
-                    };
+                    }
                 }
                 _ => (),
             }

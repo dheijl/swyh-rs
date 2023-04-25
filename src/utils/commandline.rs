@@ -6,6 +6,7 @@ use log::LevelFilter;
 
 use crate::enums::streaming::StreamingFormat;
 
+#[derive(Clone, Debug)]
 pub struct Args {
     pub server_port: Option<u16>,
     pub auto_resume: Option<bool>,
@@ -17,6 +18,7 @@ pub struct Args {
     pub use_wave_format: Option<bool>,
     pub bits_per_sample: Option<u16>,
     pub streaming_format: Option<StreamingFormat>,
+    pub player: Option<String>,
     pub config_id: Option<String>,
 }
 
@@ -39,24 +41,13 @@ impl Args {
             use_wave_format: None,
             bits_per_sample: None,
             streaming_format: None,
+            player: None,
             config_id: None,
         }
     }
 
-    // commandline:
-    // -h (--help) : print usage
-    // -p (--server_port) u16 : server_port
-    // -r (--auto_resume) : auto_resume
-    // -s (--sound_source) string : sound_source
-    // -l (--log_level) string : log_level
-    // -i (--ssdp_interval) i32 : ssdp_interval_mins
-    // -d (--disable_chunked) : disable_chunked
-    // -u (--use_wav) : use_wav_format
-    // -b (--bits) u16 : bits_per_sample
-    // -f (--format) string : streaming_format
-    // -c (--configuration) string : config_id
-
-    pub fn parse_args(&mut self) {
+    // parse commandline arguments
+    pub fn parse(&mut self) -> Args {
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
             match arg {
@@ -65,31 +56,69 @@ impl Args {
                         r#"
 Recognized options:
     -h (--help) : print usage 
-    -p (--server_port) u16 : server_port
-    -r (--auto_resume) : auto_resume
-    -s (--sound_source) string : sound_source
-    -l (--log_level) string : log_level
-    -i (--ssdp_interval) i32 : ssdp_interval_mins
-    -d (--disable_chunked) : disable_chunked
-    -u (--use_wav) : use_wav_format
-    -b (--bits) u16 : bits_per_sample
-    -f (--format) string : streaming_format
-    -c (--configuration) string : config_id
+    -p (--server_port) u16 : server_port [5901]
+    -a (--auto_reconnect) bool : auto reconnect [true]
+    -r (--auto_resume) bool : auto_resume [false]
+    -s (--sound_source) u16 : sound_source index [os default]
+    -l (--log_level) string : log_level [info]
+    -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
+    -d (--disable_chunked) bool : disable_chunked encoding [true]
+    -u (--use_wav) : use_wav_format [false]
+    -b (--bits) u16 : bits_per_sample [16]
+    -f (--format) string : streaming_format [LPCM]
+    -p (--player) string : the player [last used renderer]
+    -c (--config_id) string : config_id [_cli]
 "#
                     );
+                    println!("{:?}", self);
+                    std::process::exit(0);
                 }
-                Short('c') | Long("configuration") => {
+                Short('c') | Long("config_id") => {
                     if let Ok(id) = argparser.value() {
                         self.config_id = Some(id.string().unwrap_or_default());
                     };
                 }
-                Short('p') | Long("port") => {
+                Short('p') | Long("server_port") => {
                     if let Ok(port) = argparser.value() {
                         self.server_port = Some(port.parse().unwrap());
                     }
                 }
+                Short('a') | Long("auto_reconnect") => {
+                    if let Ok(auto_reconnect) = argparser.value() {
+                        self.auto_reconnect = Some(auto_reconnect.parse().unwrap());
+                    }
+                }
+                Short('r') | Long("auto_resume") => {
+                    if let Ok(auto_resume) = argparser.value() {
+                        self.auto_resume = Some(auto_resume.parse().unwrap());
+                    }
+                }
+                Short('s') | Long("sound_source_index") => {
+                    if let Ok(port) = argparser.value() {
+                        self.server_port = Some(port.parse().unwrap());
+                    }
+                }
+                Short('l') | Long("log_level") => {
+                    if let Ok(level) = argparser.value() {
+                        let loglevel = level.string().unwrap_or_default();
+                        match loglevel.as_str() {
+                            "info" | "Info" | "INFO" => self.log_level = Some(LevelFilter::Info),
+                            "debug" | "Debug" | "DEBUG" => {
+                                self.log_level = Some(LevelFilter::Debug)
+                            }
+                            _ => (),
+                        };
+                    };
+                }
+                Short('p') | Long("player") => {
+                    if let Ok(player) = argparser.value() {
+                        self.player = Some(player.string().unwrap_or_default());
+                    };
+                }
                 _ => (),
             }
         }
+        println!("{:?}\n", self);
+        self.clone()
     }
 }

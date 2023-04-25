@@ -16,6 +16,7 @@ use swyh_rs::{
         audiodevices::{
             capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
         },
+        commandline::Args,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::{disable_ui_log, ui_log},
@@ -25,6 +26,7 @@ use swyh_rs::{
 fn main() {
     // tell everyone we're running without UI
     disable_ui_log();
+    let args = Args::new().parse();
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let mut audio_output_device =
         get_default_audio_output_device().expect("No default audio device");

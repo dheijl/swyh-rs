@@ -46,16 +46,13 @@ impl Args {
         }
     }
 
-    // parse commandline arguments
-    pub fn parse(&mut self) -> Args {
-        let mut argparser = Parser::from_env();
-        while let Some(arg) = argparser.next().unwrap() {
-            match arg {
-                Short('h') | Long("help") => {
-                    println!(
-                        r#"
+    // print usage & bail out
+    fn usage(&self) {
+        println!(
+            r#"
 Recognized options:
     -h (--help) : print usage 
+    -c (--config_id) string : config_id [_cli]
     -p (--server_port) u16 : server_port [5901]
     -a (--auto_reconnect) bool : auto reconnect [true]
     -r (--auto_resume) bool : auto_resume [false]
@@ -63,15 +60,22 @@ Recognized options:
     -l (--log_level) string : log_level [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -d (--disable_chunked) bool : disable_chunked encoding [true]
-    -u (--use_wav) : use_wav_format [false]
     -b (--bits) u16 : bits_per_sample [16]
     -f (--format) string : streaming_format [LPCM]
     -o (--player) string : the player [last used renderer]
-    -c (--config_id) string : config_id [_cli]
 "#
-                    );
-                    println!("{:?}", self);
-                    std::process::exit(0);
+        );
+        println!("{:?}", self);
+        std::process::exit(0);
+    }
+
+    // parse commandline arguments
+    pub fn parse(&mut self) -> Args {
+        let mut argparser = Parser::from_env();
+        while let Some(arg) = argparser.next().unwrap() {
+            match arg {
+                Short('h') | Long("help") => {
+                    self.usage();
                 }
                 Short('c') | Long("config_id") => {
                     if let Ok(id) = argparser.value() {
@@ -106,7 +110,10 @@ Recognized options:
                             "debug" | "Debug" | "DEBUG" => {
                                 self.log_level = Some(LevelFilter::Debug)
                             }
-                            _ => println!("log_level not info or debug"),
+                            _ => {
+                                println!("log_level not info or debug");
+                                self.usage();
+                            }
                         }
                     }
                 }
@@ -120,11 +127,6 @@ Recognized options:
                         self.disable_chunked = Some(dc.parse().unwrap());
                     }
                 }
-                Short('u') | Long("use_wav") => {
-                    if let Ok(use_wav) = argparser.value() {
-                        self.use_wave_format = Some(use_wav.parse().unwrap());
-                    }
-                }
                 Short('b') | Long("bits_per_sample") => {
                     if let Ok(bps) = argparser.value() {
                         let n: u16 = bps.parse().unwrap();
@@ -132,6 +134,28 @@ Recognized options:
                             self.bits_per_sample = Some(n);
                         } else {
                             println!("bits_per_sample not 16 or 24");
+                            self.usage();
+                        }
+                    }
+                }
+                Short('f') | Long("format") => {
+                    if let Ok(fmt) = argparser.value() {
+                        let streaming_format = fmt.string().unwrap_or_default();
+                        match streaming_format.as_str() {
+                            "WAV" | "wav" | "Wav" => {
+                                self.streaming_format = Some(StreamingFormat::Wav);
+                                self.use_wave_format = Some(true);
+                            }
+                            "LPCM" | "lpcm" | "Lpcm" => {
+                                self.streaming_format = Some(StreamingFormat::Lpcm)
+                            }
+                            "FLAC" | "flac" | "Flac" => {
+                                self.streaming_format = Some(StreamingFormat::Flac)
+                            }
+                            _ => {
+                                println!("streaming_format not LPCM, WAV or FLAC");
+                                self.usage();
+                            }
                         }
                     }
                 }

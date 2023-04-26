@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use lexopt::{
     Arg::{Long, Short},
     Parser, ValueExt,
@@ -8,6 +10,7 @@ use crate::enums::streaming::StreamingFormat;
 
 #[derive(Clone, Debug)]
 pub struct Args {
+    pub config_id: Option<String>,
     pub server_port: Option<u16>,
     pub auto_resume: Option<bool>,
     pub sound_source_index: Option<i32>,
@@ -19,7 +22,7 @@ pub struct Args {
     pub bits_per_sample: Option<u16>,
     pub streaming_format: Option<StreamingFormat>,
     pub player: Option<String>,
-    pub config_id: Option<String>,
+    pub ip_address: Option<String>,
 }
 
 impl Default for Args {
@@ -31,6 +34,7 @@ impl Default for Args {
 impl Args {
     pub fn new() -> Args {
         Args {
+            config_id: None,
             server_port: None,
             auto_resume: None,
             sound_source_index: None,
@@ -42,7 +46,7 @@ impl Args {
             bits_per_sample: None,
             streaming_format: None,
             player: None,
-            config_id: None,
+            ip_address: None,
         }
     }
 
@@ -57,12 +61,13 @@ Recognized options:
     -a (--auto_reconnect) bool : auto reconnect [true]
     -r (--auto_resume) bool : auto_resume [false]
     -s (--sound_source) u16 : sound_source index [os default]
-    -l (--log_level) string : log_level [info]
+    -l (--log_level) string : log_level (info/debug) [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -d (--disable_chunked) bool : disable_chunked encoding [true]
-    -b (--bits) u16 : bits_per_sample [16]
-    -f (--format) string : streaming_format [LPCM]
+    -b (--bits) u16 : bits_per_sample (16/24) [16]
+    -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
     -o (--player) string : the player [last used renderer]
+    -e (--ip_address) string : ip address of the network interface [last used]
 "#
         );
         println!("{:?}", self);
@@ -153,7 +158,7 @@ Recognized options:
                                 self.streaming_format = Some(StreamingFormat::Flac)
                             }
                             _ => {
-                                println!("streaming_format not LPCM, WAV or FLAC");
+                                println!("invalid streaming_format {streaming_format}");
                                 self.usage();
                             }
                         }
@@ -162,6 +167,17 @@ Recognized options:
                 Short('o') | Long("player") => {
                     if let Ok(player) = argparser.value() {
                         self.player = Some(player.string().unwrap_or_default());
+                    }
+                }
+                Short('e') | Long("ip_address") => {
+                    if let Ok(ip) = argparser.value() {
+                        let ip = ip.string().unwrap_or_default();
+                        if let Ok(_addr) = ip.parse::<IpAddr>() {
+                            self.ip_address = Some(ip);
+                        } else {
+                            println!("invalid ip address {ip}");
+                            self.usage();
+                        }
                     }
                 }
                 _ => (),

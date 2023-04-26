@@ -26,6 +26,7 @@ use swyh_rs::{
 fn main() {
     // tell everyone we're running without UI
     disable_ui_log();
+    // collect command line arguments
     let args = Args::new().parse();
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let mut audio_output_device =
@@ -47,6 +48,10 @@ fn main() {
     }
     config.monitor_rms = false;
     ui_log(format!("{config:?}"));
+    // set args loglevel
+    if args.log_level.is_some() {
+        config.log_level = args.log_level.unwrap();
+    }
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
     }
@@ -75,6 +80,10 @@ fn main() {
     }
     info!("Config: {:?}", config);
 
+    // set args soundsource index
+    if args.sound_source_index.is_some() {
+        config.sound_source_index = args.sound_source_index;
+    }
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices().unwrap();
     let mut source_names: Vec<String> = Vec::new();
@@ -83,21 +92,30 @@ fn main() {
         ui_log(format!(
             "Found Audio Source: index = {index}, name = {devname}"
         ));
-        if config.sound_source_index.is_none() {
-            if devname == config.sound_source {
-                audio_output_device = adev;
-                info!("Selected audio source: {}", devname);
-            }
-        } else if devname == config.sound_source
-            && config.sound_source_index.unwrap() == index as i32
+        if config.sound_source_index.is_some() && config.sound_source_index.unwrap() == index as i32
         {
             audio_output_device = adev;
-            info!("Selected audio source: {}[#{}]", devname, index);
+            config.sound_source = devname.clone();
+            ui_log(format!("Selected audio source: {}[#{}]", devname, index));
+        } else {
+            if devname == config.sound_source {
+                audio_output_device = adev;
+                ui_log(format!("Selected audio source: {}", devname));
+            }
         }
         source_names.push(devname);
     }
 
-    // get the default network that connects to the internet
+    // get the list of available networks
+    let networks = get_interfaces();
+    for ip in networks.iter() {
+        ui_log(format!("Found network: {ip}"));
+    }
+    // args: ip_address
+    if args.ip_address.is_some() {
+        config.last_network = args.ip_address.unwrap().parse().unwrap();
+    }
+    // get the network that connects to the internet
     let local_addr: IpAddr = {
         if config.last_network == "None" {
             let addr = get_local_addr().expect("Could not obtain local address.");
@@ -109,9 +127,6 @@ fn main() {
             config.last_network.parse().unwrap()
         }
     };
-
-    // get the list of available networks
-    let networks = get_interfaces();
 
     // we need to pass some audio config data to the play function
     let audio_cfg = &audio_output_device
@@ -164,6 +179,10 @@ fn main() {
         .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
         .unwrap();
 
+    // set args server port
+    if args.server_port.is_some() {
+        config.server_port = args.server_port;
+    }
     // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
@@ -194,6 +213,9 @@ fn main() {
         ));
         n += 1;
     }
+
+    // update config with new args data
+    let _ = config.update_config();
 
     // get the logreader channel
     let logreader = &LOGCHANNEL.read().1;

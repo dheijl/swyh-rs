@@ -76,9 +76,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
-version = "2.1.0"
+version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c70beb79cbb5ce9c4f8e20849978f34225931f665bb49efa6982875a4d5facb3"
+checksum = "24a6904aef64d73cf10ab17ebace7befb918b82164785cb89907993be7f83813"
 
 [[package]]
 name = "bumpalo"
@@ -309,7 +309,7 @@ version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80e46e853afdd96fcf53086320813a532e17298b80a7abb94540c75518219eba"
 dependencies = [
- "bitflags 2.1.0",
+ "bitflags 2.2.1",
  "crossbeam-channel",
  "fltk-sys",
  "paste",
@@ -922,7 +922,7 @@ checksum = "913e7b03d63752f6cdd2df77da36749d82669904798fe8944b9ec3d23f159905"
 name = "swyh-rs"
 version = "1.6.2-beta"
 dependencies = [
- "bitflags 2.1.0",
+ "bitflags 2.2.1",
  "cpal",
  "crossbeam-channel",
  "dasp_sample",

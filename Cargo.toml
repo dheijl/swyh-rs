@@ -15,7 +15,7 @@ readme = "README.md"
 winres = "0.1.12"
 
 [dependencies]
-bitflags = "2.1.0"
+bitflags = "2.2.1"
 cpal = "0.15.2"
 crossbeam-channel = "0.5.8"
 dasp_sample = "0.11.0"

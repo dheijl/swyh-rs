@@ -97,11 +97,9 @@ fn main() {
             audio_output_device = adev;
             config.sound_source = devname.clone();
             ui_log(format!("Selected audio source: {}[#{}]", devname, index));
-        } else {
-            if devname == config.sound_source {
-                audio_output_device = adev;
-                ui_log(format!("Selected audio source: {}", devname));
-            }
+        } else if devname == config.sound_source {
+            audio_output_device = adev;
+            ui_log(format!("Selected audio source: {}", devname));
         }
         source_names.push(devname);
     }
@@ -218,7 +216,7 @@ fn main() {
         ));
         n += 1;
     }
-    if renderers.len() == 0 {
+    if renderers.is_empty() {
         error!("No renderers found!!!");
         std::process::exit(-1);
     }
@@ -233,7 +231,7 @@ fn main() {
     config.last_renderer = pl_ip.clone();
     for renderer in renderers.iter() {
         if pl_ip == renderer.remote_addr {
-            player = &renderer;
+            player = renderer;
             break;
         }
     }

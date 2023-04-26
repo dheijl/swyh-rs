@@ -21,7 +21,7 @@ pub struct Args {
     pub use_wave_format: Option<bool>,
     pub bits_per_sample: Option<u16>,
     pub streaming_format: Option<StreamingFormat>,
-    pub player: Option<String>,
+    pub player_ip: Option<String>,
     pub ip_address: Option<String>,
 }
 
@@ -45,7 +45,7 @@ impl Args {
             use_wave_format: None,
             bits_per_sample: None,
             streaming_format: None,
-            player: None,
+            player_ip: None,
             ip_address: None,
         }
     }
@@ -66,7 +66,7 @@ Recognized options:
     -d (--disable_chunked) bool : disable_chunked encoding [true]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
     -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
-    -o (--player) string : the player [last used renderer]
+    -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
 "#
         );
@@ -166,7 +166,7 @@ Recognized options:
                 }
                 Short('o') | Long("player") => {
                     if let Ok(player) = argparser.value() {
-                        self.player = Some(player.string().unwrap_or_default());
+                        self.player_ip = Some(player.string().unwrap_or_default());
                     }
                 }
                 Short('e') | Long("ip_address") => {

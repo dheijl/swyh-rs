@@ -5,10 +5,10 @@ use cpal::{
     Sample,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use log::{debug, info, LevelFilter};
+use log::{debug, error, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use swyh_rs::{
-    enums::streaming::StreamingState,
+    enums::streaming::{StreamingFormat::Wav, StreamingState},
     globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
@@ -166,6 +166,11 @@ fn main() {
             .unwrap();
     }
 
+    // set args ssdp_interval
+    if args.ssdp_interval_mins.is_some() {
+        config.ssdp_interval_mins = args.ssdp_interval_mins.unwrap();
+    }
+
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
     ui_log("Discover networks".to_string());
@@ -208,10 +213,49 @@ fn main() {
     while let Ok(newr) = ssdp_rx.try_recv() {
         renderers.push(newr.clone());
         ui_log(format!(
-            "Renderer #{n}: {} at {}",
+            "Available renderer #{n}: {} at {}",
             newr.dev_name, newr.remote_addr
         ));
         n += 1;
+    }
+    if renderers.len() == 0 {
+        error!("No renderers found!!!");
+        std::process::exit(-1);
+    }
+    // default = first player
+    let mut player = &renderers[0];
+    // set args player
+    let pl_ip = if args.player_ip.is_some() {
+        args.player_ip.unwrap()
+    } else {
+        "None".to_string()
+    };
+    config.last_renderer = pl_ip.clone();
+    for renderer in renderers.iter() {
+        if pl_ip == renderer.remote_addr {
+            player = &renderer;
+            break;
+        }
+    }
+
+    // set args streaming format
+    if args.auto_resume.is_some() {
+        config.auto_resume = args.auto_resume.unwrap();
+    }
+    if args.auto_reconnect.is_some() {
+        config.auto_reconnect = args.auto_reconnect.unwrap();
+    }
+    if args.bits_per_sample.is_some() {
+        config.bits_per_sample = args.bits_per_sample;
+    }
+    if args.streaming_format.is_some() {
+        config.streaming_format = args.streaming_format;
+    }
+    if config.streaming_format == Some(Wav) {
+        config.use_wave_format = true;
+    }
+    if args.disable_chunked.is_some() {
+        config.disable_chunked = args.disable_chunked.unwrap();
     }
 
     // update config with new args data
@@ -219,6 +263,24 @@ fn main() {
 
     // get the logreader channel
     let logreader = &LOGCHANNEL.read().1;
+
+    // prepare for playing
+    let wd = WavData {
+        sample_format: audio_cfg.sample_format(),
+        sample_rate: audio_cfg.sample_rate(),
+        channels: audio_cfg.channels(),
+    };
+    let streaminfo = StreamInfo {
+        sample_rate: wd.sample_rate.0,
+        bits_per_sample: config.bits_per_sample.unwrap(),
+        streaming_format: config.streaming_format.unwrap(),
+    };
+    let _ = player.play(
+        &local_addr,
+        config.server_port.unwrap_or_default(),
+        &ui_log,
+        &streaminfo,
+    );
 
     loop {
         while let Ok(streamer_feedback) = feedback_rx.try_recv() {

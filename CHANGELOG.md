@@ -1,10 +1,10 @@
 # swyh-rs Changelog
 
-- 1.6.2-beta (unreleased)
+- 1.7.0-beta (Apr 26 2023 dheijl)
   - fix shaky silence buffer generation
   - update dependencies, update rust to 1.69
   - upgrade bitflags to 2.x
-  - split into a GUI binary and a CLI binary (WIP)
+  - split into a GUI binary and a CLI binary (see issue #93)
   
 - 1.6.1 (Feb 28 2023 dheijl)
   - changed SSDP interval default from 1 to 10 minutes

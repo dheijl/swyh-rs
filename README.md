@@ -6,14 +6,13 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.6.1 with
+The current release is 1.7.0 with
 
+- a new CLI binary, swyh-rs-cli, where the GUI is replaced with command line options
 - **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
 - support for multiple identically named soundcards
 - Sonos fix for pausing audio
 - support for multiple configurations with a _-c_ commandline switch. Useful if you have multiple audiosources (suggestion by @cavadias).
-- fix for panic-ing at startup when the config file is invalid or corrupt
-- fix for invalid URLBase in service description
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OpenHome compatible music player (a "Renderer").
@@ -113,6 +112,37 @@ The icon was designed by @numanair, thanks!
 - after a configuration change that needs a program restart, you get a "restart" popup dialog. Click "Restart" to restart the app, or "Cancel" to ignore.
 - Since version 1.2.2, swyh-rs will send silence to connected renderers if no sound is being captured because no audio is currently being played. This prevents some renderers from disconnecting because they have not received any sound for some time (Bubble UPNP Server with Chromecast/Nest Audio). Apparently sending silence keeps them happy. I did not implement this "silence" for FLAC streaming.
 - Since version 1.5 you can have multiple instances running where each instance uses a different configuration file. An optional command line parameter _-c config_ or _--configuration config_ has been added to enable this (using a shortcut or starting swyh-rs from the command line). This _config_ parameter is then used as part of the config.toml filename for the swyh-rs instance. The default _config_ is empty. Examples: _swyh-rs -c 1_ or _swyh-rs --configuration vb-audio_. This way you can **stream different audio sources** to different receivers simultaneously.
+
+### The CLI binary
+
+Since 1.7.0, there is a new binary, **swyh-rs-cli**. It has no GUI, but otherwise shares all code with swyh-rs.
+The GUI configuration options have all been replaced with a corresponding command line option.
+
+This is the "Usage message" (produced by the -h or --help option):
+
+```sh
+Recognized options:
+    -h (--help) : print usage
+    -c (--config_id) string : config_id [_cli]
+    -p (--server_port) u16 : server_port [5901]
+    -a (--auto_reconnect) bool : auto reconnect [true]
+    -r (--auto_resume) bool : auto_resume [false]
+    -s (--sound_source) u16 : sound_source index [os default]
+    -l (--log_level) string : log_level (info/debug) [info]
+    -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
+    -d (--disable_chunked) bool : disable_chunked encoding [true]
+    -b (--bits) u16 : bits_per_sample (16/24) [16]
+    -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
+    -o (--player_ip) string : the player ip address [last used player]
+    -e (--ip_address) string : ip address of the network interface [last used]
+```
+
+The default values for missing options are given between square brackets.  
+All options are saved in the config file, so once a config is working to your liking you no longer have to provide them.
+Streaming is started automatically, and you can suspend and restart streaming with the remote of your player as long as the app is running.
+The only way to stop the cli app is by killing it,  with "CONTROL C" or task manager or any other way you use to kill processes.
+You can run as many instances simultaneously as you like as long as you start each one with its own configuration id value (-c option).
+I suppose you could run it from the command line or as a scheduled task or as an autorun task in Windows or...
 
 ### Audio quality and Windows WasApi Loopback capture
 

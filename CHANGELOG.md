@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.7.1 (Apr 26 2023 dheijl)
+  - bugfix: update in memory shared config instance for other threads
+  
 - 1.7.0 (Apr 26 2023 dheijl)
   - fix shaky silence buffer generation
   - update dependencies, update rust to 1.69

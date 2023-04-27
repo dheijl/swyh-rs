@@ -217,7 +217,7 @@ fn main() {
             config.use_wave_format = false;
         }
     }
-    // update config with new args data for server thread
+    // update config with new args
     let _ = config.update_config();
     // update in_memory shared config for other threads
     {

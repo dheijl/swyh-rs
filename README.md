@@ -6,7 +6,7 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.7.0 with
+The current release is 1.7.1 with
 
 - a new CLI binary, swyh-rs-cli, where the GUI is replaced with command line options
 - **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
@@ -137,9 +137,9 @@ Recognized options:
     -e (--ip_address) string : ip address of the network interface [last used]
 ```
 
-The default values for missing options are given between square brackets.  
+The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.
 All options are saved in the config file, so once a config is working to your liking you no longer have to provide them.
-Streaming is started automatically, and you can suspend and restart streaming with the remote of your player as long as the app is running.
+Streaming is started automatically, and you can stop and restart streaming with the remote of your player as long as the app is running.
 The only way to stop the cli app is by killing it,  with "CONTROL C" or task manager or any other way you use to kill processes.
 You can run as many instances simultaneously as you like as long as you start each one with its own configuration id value (-c option).
 I suppose you could run it from the command line or as a scheduled task or as an autorun task in Windows or...

@@ -213,10 +213,17 @@ fn main() {
         config.streaming_format = args.streaming_format;
         if config.streaming_format == Some(Wav) {
             config.use_wave_format = true;
+        } else {
+            config.use_wave_format = false;
         }
     }
     // update config with new args data for server thread
     let _ = config.update_config();
+    // update in_memory shared config for other threads
+    {
+        let mut conf = CONFIG.write();
+        *conf = config.clone();
+    }
     // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =

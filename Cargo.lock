@@ -305,9 +305,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.1"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80e46e853afdd96fcf53086320813a532e17298b80a7abb94540c75518219eba"
+checksum = "4f8b550f22216bd317bc77db5e888200f0caf3789f8e4b2df126eccbaab3bbfd"
 dependencies = [
  "bitflags 2.2.1",
  "crossbeam-channel",
@@ -318,9 +318,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.1"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7292a228e1e0f367389106767940e92461053aa97d44706ff621d9a3cbdb001b"
+checksum = "8ada976a05b18bac0b880786e03fb6678f7d6176ab52c5761f726c732b5500f8"
 dependencies = [
  "cmake",
  "cty",
@@ -920,7 +920,7 @@ checksum = "913e7b03d63752f6cdd2df77da36749d82669904798fe8944b9ec3d23f159905"
 
 [[package]]
 name = "swyh-rs"
-version = "1.7.0-beta"
+version = "1.7.0"
 dependencies = [
  "bitflags 2.2.1",
  "cpal",
@@ -1102,9 +1102,9 @@ dependencies = [
 
 [[package]]
 name = "ttf-parser"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0609f771ad9c6155384897e1df4d948e692667cc0588548b68eb44d052b27633"
+checksum = "44dcf002ae3b32cd25400d6df128c5babec3927cd1eb7ce813cfff20eb6c3746"
 
 [[package]]
 name = "unicode-bidi"

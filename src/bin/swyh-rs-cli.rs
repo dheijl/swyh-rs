@@ -182,10 +182,41 @@ fn main() {
         .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
         .unwrap();
 
+    if args.disable_chunked.is_some() {
+        config.disable_chunked = args.disable_chunked.unwrap();
+    }
+    // set args player
+    let pl_ip = if args.player_ip.is_some() {
+        args.player_ip.unwrap()
+    } else {
+        config.last_renderer
+    };
+    config.last_renderer = pl_ip.clone();
     // set args server port
     if args.server_port.is_some() {
         config.server_port = args.server_port;
     }
+    // set args bits per sample
+    if args.bits_per_sample.is_some() {
+        config.bits_per_sample = args.bits_per_sample;
+    }
+    // set args streaming format
+    if args.auto_resume.is_some() {
+        config.auto_resume = args.auto_resume.unwrap();
+    }
+    // set args auto reconnect
+    if args.auto_reconnect.is_some() {
+        config.auto_reconnect = args.auto_reconnect.unwrap();
+    }
+    // set args streaming format
+    if args.streaming_format.is_some() {
+        config.streaming_format = args.streaming_format;
+        if config.streaming_format == Some(Wav) {
+            config.use_wave_format = true;
+        }
+    }
+    // update config with new args data for server thread
+    let _ = config.update_config();
     // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
@@ -222,42 +253,13 @@ fn main() {
     }
     // default = first player
     let mut player = &renderers[0];
-    // set args player
-    let pl_ip = if args.player_ip.is_some() {
-        args.player_ip.unwrap()
-    } else {
-        "None".to_string()
-    };
-    config.last_renderer = pl_ip.clone();
+    // but use the configured renderer if present
     for renderer in renderers.iter() {
         if pl_ip == renderer.remote_addr {
             player = renderer;
             break;
         }
     }
-
-    // set args streaming format
-    if args.auto_resume.is_some() {
-        config.auto_resume = args.auto_resume.unwrap();
-    }
-    if args.auto_reconnect.is_some() {
-        config.auto_reconnect = args.auto_reconnect.unwrap();
-    }
-    if args.bits_per_sample.is_some() {
-        config.bits_per_sample = args.bits_per_sample;
-    }
-    if args.streaming_format.is_some() {
-        config.streaming_format = args.streaming_format;
-    }
-    if config.streaming_format == Some(Wav) {
-        config.use_wave_format = true;
-    }
-    if args.disable_chunked.is_some() {
-        config.disable_chunked = args.disable_chunked.unwrap();
-    }
-
-    // update config with new args data
-    let _ = config.update_config();
 
     // get the logreader channel
     let logreader = &LOGCHANNEL.read().1;
@@ -320,7 +322,7 @@ fn main() {
         while let Ok(msg) = logreader.try_recv() {
             ui_log(msg);
         }
-        thread::sleep(Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(100));
     }
 }
 

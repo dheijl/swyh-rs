@@ -307,7 +307,6 @@ fn main() {
                                 .iter()
                                 .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                             {
-                                let config = CONFIG.read().clone();
                                 let streaminfo = StreamInfo {
                                     sample_rate: wd.sample_rate.0,
                                     bits_per_sample: config.bits_per_sample.unwrap(),

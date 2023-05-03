@@ -11,6 +11,39 @@ use dasp_sample::ToSample;
 use log::debug;
 use parking_lot::Once;
 
+// Log all supported stream configs for both input and output devices.
+fn log_stream_configs(
+    // Iterator returned by [cpal::Device::supported_input_configs] or [cpal::Device::supported_output_configs].
+    configs: Result<
+        impl Iterator<Item = cpal::SupportedStreamConfigRange>,
+        cpal::SupportedStreamConfigsError,
+    >,
+    // "output" or "input"
+    cfg_type: &str,
+    // Device index in relation to the iterator returned by [cpal::Host::devices]
+    device_index: usize,
+) {
+    match configs {
+        Ok(configs) => {
+            let mut configs = configs.peekable();
+            if configs.peek().is_some() {
+                debug!("    All supported {cfg_type} stream configs:");
+                for (config_index, config) in configs.enumerate() {
+                    debug!(
+                        "      {}.{}. {:?}",
+                        device_index + 1,
+                        config_index + 1,
+                        config
+                    );
+                }
+            }
+        }
+        Err(e) => {
+            debug!("Error retrieving {cfg_type} stream configs: {:?}", e);
+        }
+    };
+}
+
 pub fn get_output_audio_devices() -> Option<Vec<cpal::Device>> {
     let mut result: Vec<cpal::Device> = Vec::new();
     debug!("Supported hosts:\n  {:?}", cpal::ALL_HOSTS);
@@ -24,30 +57,16 @@ pub fn get_output_audio_devices() -> Option<Vec<cpal::Device>> {
         let default_out = host.default_output_device().map(|e| e.name().unwrap());
         debug!("  Default Output Device:\n    {:?}", default_out);
 
+        let default_in = host.default_input_device().and_then(|e| e.name().ok());
+        debug!("  Default Input Device:\n    {:?}", default_in);
+
         let devices = host.devices().unwrap();
         debug!("  Devices: ");
         for (device_index, device) in devices.enumerate() {
             debug!("  {}. \"{}\"", device_index + 1, device.name().unwrap());
-
-            // Output configs
-            let mut output_configs = match device.supported_output_configs() {
-                Ok(f) => f.peekable(),
-                Err(e) => {
-                    debug!("Error: {:?}", e);
-                    continue;
-                }
-            };
-            if output_configs.peek().is_some() {
-                debug!("    All supported output stream configs:");
-                for (config_index, config) in output_configs.enumerate() {
-                    debug!(
-                        "      {}.{}. {:?}",
-                        device_index + 1,
-                        config_index + 1,
-                        config
-                    );
-                }
-            }
+            // List all of the supported stream configs per device.
+            log_stream_configs(device.supported_output_configs(), "output", device_index);
+            log_stream_configs(device.supported_input_configs(), "input", device_index);
             // use only device with default config
             if let Ok(conf) = device.default_output_config() {
                 debug!("    Default output stream config:\n      {:?}", conf);

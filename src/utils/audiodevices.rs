@@ -11,6 +11,61 @@ use dasp_sample::ToSample;
 use log::debug;
 use parking_lot::Once;
 
+/// A [cpal::Device] with either a default input or default output config.
+pub enum Device {
+    Input(cpal::Device),
+    Output(cpal::Device),
+}
+
+impl Device {
+    // Construct a [Device] from a [cpal::Device].
+    //
+    // Devices may support both input and output.
+    // This defaults to output if both are present on one device.
+    fn from_device(device: cpal::Device) -> Option<Self> {
+        // Only use the default config for output or input
+        // Prefer output if a device supports both
+        if let Ok(conf) = device.default_output_config() {
+            debug!("    Default output stream config:\n      {:?}", conf);
+            Some(Self::Output(device))
+        } else if let Ok(conf) = device.default_input_config() {
+            debug!("    Default input stream config:\n      {:?}", conf);
+            Some(Self::Input(device))
+        } else {
+            None
+        }
+    }
+
+    /// Returns the default [cpal::SupportedStreamConfig] regardless of device type.
+    pub fn default_config_any(
+        &self,
+    ) -> Result<cpal::SupportedStreamConfig, cpal::DefaultStreamConfigError> {
+        match self {
+            Device::Input(device) => device.default_input_config(),
+            Device::Output(device) => device.default_output_config(),
+        }
+    }
+
+    /// Device name
+    pub fn name(&self) -> Result<String, cpal::DeviceNameError> {
+        // TODO/NOTES
+        // * Maybe the String returned by Device::name should be cached
+        match self {
+            Device::Input(device) => device.name(),
+            Device::Output(device) => device.name(),
+        }
+    }
+}
+
+impl AsRef<cpal::Device> for Device {
+    fn as_ref(&self) -> &cpal::Device {
+        match self {
+            Device::Input(device) => device,
+            Device::Output(device) => device,
+        }
+    }
+}
+
 // Log all supported stream configs for both input and output devices.
 fn log_stream_configs(
     // Iterator returned by [cpal::Device::supported_input_configs] or [cpal::Device::supported_output_configs].
@@ -44,8 +99,8 @@ fn log_stream_configs(
     };
 }
 
-pub fn get_output_audio_devices() -> Option<Vec<cpal::Device>> {
-    let mut result: Vec<cpal::Device> = Vec::new();
+pub fn get_output_audio_devices() -> Option<Vec<Device>> {
+    let mut result = Vec::new();
     debug!("Supported hosts:\n  {:?}", cpal::ALL_HOSTS);
     let available_hosts = cpal::available_hosts();
     debug!("Available hosts:\n  {:?}", available_hosts);
@@ -67,9 +122,7 @@ pub fn get_output_audio_devices() -> Option<Vec<cpal::Device>> {
             // List all of the supported stream configs per device.
             log_stream_configs(device.supported_output_configs(), "output", device_index);
             log_stream_configs(device.supported_input_configs(), "input", device_index);
-            // use only device with default config
-            if let Ok(conf) = device.default_output_config() {
-                debug!("    Default output stream config:\n      {:?}", conf);
+            if let Some(device) = Device::from_device(device) {
                 result.push(device);
             }
         }
@@ -78,29 +131,30 @@ pub fn get_output_audio_devices() -> Option<Vec<cpal::Device>> {
     Some(result)
 }
 
-pub fn get_default_audio_output_device() -> Option<cpal::Device> {
+pub fn get_default_audio_output_device() -> Option<Device> {
     // audio hosts
     let _available_hosts = cpal::available_hosts();
     let default_host = cpal::default_host();
-    default_host.default_output_device()
+    default_host.default_output_device().map(Device::Output)
 }
 
 /// capture_audio_output - capture the audio stream from the default audio output device
 ///
 /// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16)
 pub fn capture_output_audio(
-    device: &cpal::Device,
+    device_wrap: &Device,
     rms_sender: Sender<Vec<f32>>,
 ) -> Option<cpal::Stream> {
+    let device = device_wrap.as_ref();
     ui_log(format!(
         "Capturing audio from: {}",
         device
             .name()
             .expect("Could not get default audio device name")
     ));
-    let audio_cfg = device
-        .default_output_config()
-        .expect("No default output config found");
+    let audio_cfg = device_wrap
+        .default_config_any()
+        .expect("No default stream config found");
     ui_log(format!("Default audio {audio_cfg:?}"));
     let mut f32_samples: Vec<f32> = Vec::with_capacity(16384);
     match audio_cfg.sample_format() {

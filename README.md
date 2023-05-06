@@ -6,7 +6,7 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.8.0 with
+The current release is 1.8.1 with
 
 - the ability to stream from input devices, thanks to @joshuamegnauth54 (PR #95)
 - a new CLI binary, swyh-rs-cli, where the GUI is replaced with command line options

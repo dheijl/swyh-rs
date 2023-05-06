@@ -10,6 +10,7 @@ use crate::enums::streaming::StreamingFormat;
 
 #[derive(Clone, Debug)]
 pub struct Args {
+    pub dry_run: Option<bool>,
     pub config_id: Option<String>,
     pub server_port: Option<u16>,
     pub auto_resume: Option<bool>,
@@ -34,6 +35,7 @@ impl Default for Args {
 impl Args {
     pub fn new() -> Args {
         Args {
+            dry_run: None,
             config_id: None,
             server_port: None,
             auto_resume: None,
@@ -56,6 +58,7 @@ impl Args {
             r#"
 Recognized options:
     -h (--help) : print usage 
+    -n (--no_run) : dry-run, don't start streaming  
     -c (--config_id) string : config_id [_cli]
     -p (--server_port) u16 : server_port [5901]
     -a (--auto_reconnect) bool : auto reconnect [true]
@@ -81,6 +84,9 @@ Recognized options:
             match arg {
                 Short('h') | Long("help") => {
                     self.usage();
+                }
+                Short('n') | Long("no_run") => {
+                    self.dry_run = Some(true);
                 }
                 Short('c') | Long("config_id") => {
                     if let Ok(id) = argparser.value() {

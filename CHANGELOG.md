@@ -1,5 +1,9 @@
 # swyh-rs Changelog
 
+- 1.8.0 (May 6, dheijl and Joshua Megnauth @joshuamegnauth54)
+  - make input devices too available for streaming, see PR #95
+  - swyh-rs-cli: add a "-n" (--no-run) option. It enables a "dry-run" mode: the app exits where it would normally start streaming. Allows you to get the index of the sound sources and the ip addresses of the streamers that you need to pass as command line paremeters.
+
 - 1.7.1 (Apr 26 2023 dheijl)
   - bugfix: update in memory shared config instance for other threads
   

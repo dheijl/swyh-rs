@@ -23,9 +23,16 @@ use swyh_rs::{
     },
 };
 
-fn main() {
+fn main() -> Result<(), i32> {
     // tell everyone we're running without UI
     disable_ui_log();
+    // gracefully exit on Ctrl-C
+    ctrlc::set_handler(move || {
+        println!("Received Ctrl+C -> exiting.");
+        std::process::exit(0);
+    })
+    .expect("Error setting Ctrl-C handler");
+
     // collect command line arguments
     let args = Args::new().parse();
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
@@ -152,6 +159,7 @@ fn main() {
         }
         None => {
             ui_log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
+            return Err(-2);
         }
     }
 
@@ -254,10 +262,17 @@ fn main() {
         ));
         n += 1;
     }
+
     if renderers.is_empty() {
         error!("No renderers found!!!");
-        std::process::exit(-1);
+        return Err(-1);
     }
+
+    if args.dry_run.is_some() {
+        ui_log("dry-run - exiting...".to_string());
+        return Ok(());
+    }
+
     // default = first player
     let mut player = &renderers[0];
     // but use the configured renderer if present

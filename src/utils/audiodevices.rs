@@ -4,7 +4,7 @@ use crate::{
 };
 use cpal::{
     traits::{DeviceTrait, HostTrait},
-    Sample,
+    DefaultStreamConfigError, Sample,
 };
 use crossbeam_channel::Sender;
 use dasp_sample::ToSample;
@@ -12,9 +12,42 @@ use log::debug;
 use parking_lot::Once;
 
 /// A [cpal::Device] with either a default input or default output config.
-pub enum Device {
+///
+/// The internal device may be retrieved via [AsRef::as_ref].
+pub struct Device {
+    pub kind: DeviceKind,
+    name: String,
+}
+
+/// Type indicating whether a device is being treated as input or output.
+pub enum DeviceKind {
+    /// An input device such as S/PDIF in or a microphone.
     Input(cpal::Device),
+    /// An output device such as speakers.
     Output(cpal::Device),
+}
+
+impl AsRef<cpal::Device> for DeviceKind {
+    #[inline]
+    fn as_ref(&self) -> &cpal::Device {
+        match self {
+            Self::Input(device) => device,
+            Self::Output(device) => device,
+        }
+    }
+}
+
+impl DeviceKind {
+    /// Returns the default [cpal::SupportedStreamConfig] regardless of device type.
+    #[inline]
+    pub fn default_config_any(
+        &self,
+    ) -> Result<cpal::SupportedStreamConfig, cpal::DefaultStreamConfigError> {
+        match self {
+            DeviceKind::Input(device) => device.default_input_config(),
+            DeviceKind::Output(device) => device.default_output_config(),
+        }
+    }
 }
 
 impl Device {
@@ -22,47 +55,51 @@ impl Device {
     //
     // Devices may support both input and output.
     // This defaults to output if both are present on one device.
-    fn from_device(device: cpal::Device) -> Option<Self> {
+    pub fn from_device(device: cpal::Device) -> Result<Self, DefaultStreamConfigError> {
+        let name = device.name().unwrap_or_else(|e| {
+            debug!("Unable to retrieve device name due to:\n\t{e}");
+            "Unknown/unnamed".into()
+        });
+
         // Only use the default config for output or input
         // Prefer output if a device supports both
-        if let Ok(conf) = device.default_output_config() {
+        let kind = if let Ok(conf) = device.default_output_config() {
             debug!("    Default output stream config:\n      {:?}", conf);
-            Some(Self::Output(device))
-        } else if let Ok(conf) = device.default_input_config() {
-            debug!("    Default input stream config:\n      {:?}", conf);
-            Some(Self::Input(device))
+            DeviceKind::Output(device)
         } else {
-            None
-        }
+            // If there's no output AND no input then return the error.
+            let conf = device.default_input_config()?;
+            debug!("    Default input stream config:\n      {:?}", conf);
+            DeviceKind::Input(device)
+        };
+
+        Ok(Self { name, kind })
     }
 
-    /// Returns the default [cpal::SupportedStreamConfig] regardless of device type.
-    pub fn default_config_any(
-        &self,
-    ) -> Result<cpal::SupportedStreamConfig, cpal::DefaultStreamConfigError> {
-        match self {
-            Device::Input(device) => device.default_input_config(),
-            Device::Output(device) => device.default_output_config(),
-        }
-    }
-
-    /// Device name
-    pub fn name(&self) -> Result<String, cpal::DeviceNameError> {
-        // TODO/NOTES
-        // * Maybe the String returned by Device::name should be cached
-        match self {
-            Device::Input(device) => device.name(),
-            Device::Output(device) => device.name(),
-        }
+    /// Device name as reported by the operating system, or a reasonable default if the
+    /// name can't be retrieved.
+    #[inline(always)]
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
 
 impl AsRef<cpal::Device> for Device {
+    /// Reference to the internal [cpal::Device].
+    #[inline(always)]
     fn as_ref(&self) -> &cpal::Device {
-        match self {
-            Device::Input(device) => device,
-            Device::Output(device) => device,
-        }
+        self.kind.as_ref()
+    }
+}
+
+impl From<DeviceKind> for Device {
+    #[inline]
+    fn from(kind: DeviceKind) -> Self {
+        let name = kind
+            .as_ref()
+            .name()
+            .unwrap_or_else(|_| "Unknown/unnamed".into());
+        Self { kind, name }
     }
 }
 
@@ -122,8 +159,10 @@ pub fn get_output_audio_devices() -> Option<Vec<Device>> {
             // List all of the supported stream configs per device.
             log_stream_configs(device.supported_output_configs(), "output", device_index);
             log_stream_configs(device.supported_input_configs(), "input", device_index);
-            if let Some(device) = Device::from_device(device) {
+            if let Ok(device) = Device::from_device(device) {
                 result.push(device);
+            } else {
+                debug!("  Device seems to not support either input or output.");
             }
         }
     }
@@ -135,7 +174,9 @@ pub fn get_default_audio_output_device() -> Option<Device> {
     // audio hosts
     let _available_hosts = cpal::available_hosts();
     let default_host = cpal::default_host();
-    default_host.default_output_device().map(Device::Output)
+    default_host
+        .default_output_device()
+        .map(|device| DeviceKind::Output(device).into())
 }
 
 /// capture_audio_output - capture the audio stream from the default audio output device
@@ -153,6 +194,7 @@ pub fn capture_output_audio(
             .expect("Could not get default audio device name")
     ));
     let audio_cfg = device_wrap
+        .kind
         .default_config_any()
         .expect("No default stream config found");
     ui_log(format!("Default audio {audio_cfg:?}"));

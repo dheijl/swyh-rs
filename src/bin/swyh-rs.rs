@@ -84,7 +84,7 @@ fn main() {
     let mut config = {
         let mut conf = CONFIG.write();
         if conf.sound_source == "None" {
-            conf.sound_source = audio_output_device.name().unwrap();
+            conf.sound_source = audio_output_device.name().into();
             let _ = conf.update_config();
         }
         conf.clone()
@@ -138,7 +138,7 @@ fn main() {
     let audio_devices = get_output_audio_devices().unwrap();
     let mut source_names: Vec<String> = Vec::new();
     for (index, adev) in audio_devices.into_iter().enumerate() {
-        let devname = adev.name().unwrap();
+        let devname = adev.name().to_owned();
         if config.sound_source_index.is_none() {
             if devname == config.sound_source {
                 audio_output_device = adev;
@@ -171,6 +171,7 @@ fn main() {
 
     // we need to pass some audio config data to the play function
     let audio_cfg = &audio_output_device
+        .kind
         .default_config_any()
         .expect("No default input or output config found");
     let wd = WavData {
@@ -437,6 +438,7 @@ fn run_silence_injector(device: &Device) {
         .with_max_sample_rate();
     */
     let config = device
+        .kind
         .default_config_any()
         .expect("Error while querying stream configs for the silence injector");
     let sample_format = config.sample_format();

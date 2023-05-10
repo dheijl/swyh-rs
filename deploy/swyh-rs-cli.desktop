@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=swyh-rs-cli
+Exec=swyh-rs-cli
+Comment=
+Terminal=true
+Icon=n256
+Categories=Audio
+Type=Application

@@ -92,7 +92,7 @@ fn main() -> Result<(), i32> {
         config.sound_source_index = args.sound_source_index;
     }
     // get the output device from the config and get all available audio source names
-    let audio_devices = get_output_audio_devices().unwrap();
+    let audio_devices = get_output_audio_devices();
     let mut source_names: Vec<String> = Vec::new();
     for (index, adev) in audio_devices.into_iter().enumerate() {
         let devname = adev.name().to_owned();

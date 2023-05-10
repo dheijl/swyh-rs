@@ -15,7 +15,9 @@ use parking_lot::Once;
 ///
 /// The internal device may be retrieved via [AsRef::as_ref].
 pub struct Device {
+    /// Indicates if [cpal::Device] is primarily output or input.
     kind: DeviceKind,
+    /// Device name as reported by the backend.
     name: String,
     /// Default stream config based on [DeviceKind].
     stream_config: SupportedStreamConfig,
@@ -155,7 +157,7 @@ fn log_stream_configs(
     };
 }
 
-pub fn get_output_audio_devices() -> Option<Vec<Device>> {
+pub fn get_output_audio_devices() -> Vec<Device> {
     let mut result = Vec::new();
     debug!("Supported hosts:\n  {:?}", cpal::ALL_HOSTS);
     let available_hosts = cpal::available_hosts();
@@ -165,7 +167,7 @@ pub fn get_output_audio_devices() -> Option<Vec<Device>> {
         debug!("{}", host_id.name());
         let host = cpal::host_from_id(host_id).unwrap();
 
-        let default_out = host.default_output_device().map(|e| e.name().unwrap());
+        let default_out = host.default_output_device().and_then(|e| e.name().ok());
         debug!("  Default Output Device:\n    {:?}", default_out);
 
         let default_in = host.default_input_device().and_then(|e| e.name().ok());
@@ -174,7 +176,7 @@ pub fn get_output_audio_devices() -> Option<Vec<Device>> {
         let devices = host.devices().unwrap();
         debug!("  Devices: ");
         for (device_index, device) in devices.enumerate() {
-            debug!("  {}. \"{}\"", device_index + 1, device.name().unwrap());
+            debug!("  {}. \"{}\"", device_index + 1, device.name().unwrap_or_default());
             // List all of the supported stream configs per device.
             log_stream_configs(device.supported_output_configs(), "output", device_index);
             log_stream_configs(device.supported_input_configs(), "input", device_index);
@@ -186,7 +188,7 @@ pub fn get_output_audio_devices() -> Option<Vec<Device>> {
         }
     }
 
-    Some(result)
+    result
 }
 
 pub fn get_default_audio_output_device() -> Option<Device> {

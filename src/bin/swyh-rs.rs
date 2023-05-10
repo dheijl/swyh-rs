@@ -170,10 +170,7 @@ fn main() {
     let networks = get_interfaces();
 
     // we need to pass some audio config data to the play function
-    let audio_cfg = &audio_output_device
-        .kind
-        .default_config_any()
-        .expect("No default input or output config found");
+    let audio_cfg = audio_output_device.default_config();
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
@@ -437,10 +434,7 @@ fn run_silence_injector(device: &Device) {
         .expect("no supported config?!")
         .with_max_sample_rate();
     */
-    let config = device
-        .kind
-        .default_config_any()
-        .expect("Error while querying stream configs for the silence injector");
+    let config = device.default_config().clone();
     let sample_format = config.sample_format();
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {err}");
     let config = config.into();

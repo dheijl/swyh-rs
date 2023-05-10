@@ -4,7 +4,7 @@ use crate::{
 };
 use cpal::{
     traits::{DeviceTrait, HostTrait},
-    DefaultStreamConfigError, Sample,
+    DefaultStreamConfigError, Sample, SupportedStreamConfig,
 };
 use crossbeam_channel::Sender;
 use dasp_sample::ToSample;
@@ -15,8 +15,10 @@ use parking_lot::Once;
 ///
 /// The internal device may be retrieved via [AsRef::as_ref].
 pub struct Device {
-    pub kind: DeviceKind,
+    kind: DeviceKind,
     name: String,
+    /// Default stream config based on [DeviceKind].
+    stream_config: SupportedStreamConfig,
 }
 
 /// Type indicating whether a device is being treated as input or output.
@@ -63,17 +65,21 @@ impl Device {
 
         // Only use the default config for output or input
         // Prefer output if a device supports both
-        let kind = if let Ok(conf) = device.default_output_config() {
+        let (kind, stream_config) = if let Ok(conf) = device.default_output_config() {
             debug!("    Default output stream config:\n      {:?}", conf);
-            DeviceKind::Output(device)
+            (DeviceKind::Output(device), conf)
         } else {
             // If there's no output AND no input then return the error.
             let conf = device.default_input_config()?;
             debug!("    Default input stream config:\n      {:?}", conf);
-            DeviceKind::Input(device)
+            (DeviceKind::Input(device), conf)
         };
 
-        Ok(Self { name, kind })
+        Ok(Self {
+            name,
+            kind,
+            stream_config,
+        })
     }
 
     /// Device name as reported by the operating system, or a reasonable default if the
@@ -81,6 +87,12 @@ impl Device {
     #[inline(always)]
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Default stream config
+    #[inline(always)]
+    pub fn default_config(&self) -> &SupportedStreamConfig {
+        &self.stream_config
     }
 }
 
@@ -92,14 +104,21 @@ impl AsRef<cpal::Device> for Device {
     }
 }
 
-impl From<DeviceKind> for Device {
+impl TryFrom<DeviceKind> for Device {
+    type Error = DefaultStreamConfigError;
+
     #[inline]
-    fn from(kind: DeviceKind) -> Self {
+    fn try_from(kind: DeviceKind) -> Result<Self, Self::Error> {
         let name = kind
             .as_ref()
             .name()
             .unwrap_or_else(|_| "Unknown/unnamed".into());
-        Self { kind, name }
+        let stream_config = kind.default_config_any()?;
+        Ok(Self {
+            kind,
+            name,
+            stream_config,
+        })
     }
 }
 
@@ -176,7 +195,7 @@ pub fn get_default_audio_output_device() -> Option<Device> {
     let default_host = cpal::default_host();
     default_host
         .default_output_device()
-        .map(|device| DeviceKind::Output(device).into())
+        .and_then(|device| DeviceKind::Output(device).try_into().ok())
 }
 
 /// capture_audio_output - capture the audio stream from the default audio output device

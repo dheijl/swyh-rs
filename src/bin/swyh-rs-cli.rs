@@ -134,10 +134,7 @@ fn main() -> Result<(), i32> {
     };
 
     // we need to pass some audio config data to the play function
-    let audio_cfg = &audio_output_device
-        .kind
-        .default_config_any()
-        .expect("No default streaming config found");
+    let audio_cfg = audio_output_device.default_config().clone();
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
@@ -393,13 +390,10 @@ fn run_silence_injector(device: &Device) {
         .expect("no supported config?!")
         .with_max_sample_rate();
     */
-    let config = device
-        .kind
-        .default_config_any()
-        .expect("Error while querying stream configs for the silence injector");
+    let config = device.default_config();
     let sample_format = config.sample_format();
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {err}");
-    let config = config.into();
+    let config = config.clone().into();
 
     // CPAL 0.15 switched to dasp_sample:
     // see https://github.com/RustAudio/cpal/commit/85d773d59f1725b25002c6f04aa2eb9b43a75b76#diff-babb62f9985b4798a655658e440a565984ce15b25e63a82fc4b3cc0b54fd2a02

@@ -272,6 +272,8 @@ fn main() -> Result<(), i32> {
     if pl_ip != player.remote_addr {
         config.last_renderer = player.remote_addr.clone();
     }
+    ui_log(format!("Selected player with ip = {}", player.remote_addr));
+
     // update config with new args
     let _ = config.update_config();
     // update in_memory shared config for other threads

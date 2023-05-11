@@ -1,7 +1,11 @@
 # swyh-rs Changelog
 
 - 1.8.2-beta (unreleased)
-
+  - cli: handle player ip not found (use first renderer)
+  - Merge pull request #96 from joshuamegnauth54/cache_device_name:
+    - get rid of some unwraps preventing possible panics
+    - cache cpal sound device info
+  
 - 1.8.1 (May 6, dheijl and Joshua Megnauth @joshuamegnauth54)
   - make input devices too available for streaming, see PR #95
   - swyh-rs-cli: add a "-n" (--no-run) option. It enables a "dry-run" mode: the app exits where it would normally start streaming. Allows you to get the index of the sound sources and the ip addresses of the streamers that you need to pass as command line paremeters.

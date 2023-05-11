@@ -84,7 +84,7 @@ fn main() {
     let mut config = {
         let mut conf = CONFIG.write();
         if conf.sound_source == "None" {
-            conf.sound_source = audio_output_device.name().unwrap();
+            conf.sound_source = audio_output_device.name().into();
             let _ = conf.update_config();
         }
         conf.clone()
@@ -135,10 +135,10 @@ fn main() {
     info!("Config: {:?}", config);
 
     // get the output device from the config and get all available audio source names
-    let audio_devices = get_output_audio_devices().unwrap();
+    let audio_devices = get_output_audio_devices();
     let mut source_names: Vec<String> = Vec::new();
     for (index, adev) in audio_devices.into_iter().enumerate() {
-        let devname = adev.name().unwrap();
+        let devname = adev.name().to_owned();
         if config.sound_source_index.is_none() {
             if devname == config.sound_source {
                 audio_output_device = adev;
@@ -170,9 +170,7 @@ fn main() {
     let networks = get_interfaces();
 
     // we need to pass some audio config data to the play function
-    let audio_cfg = &audio_output_device
-        .default_config_any()
-        .expect("No default input or output config found");
+    let audio_cfg = audio_output_device.default_config();
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
@@ -436,9 +434,7 @@ fn run_silence_injector(device: &Device) {
         .expect("no supported config?!")
         .with_max_sample_rate();
     */
-    let config = device
-        .default_config_any()
-        .expect("Error while querying stream configs for the silence injector");
+    let config = device.default_config().clone();
     let sample_format = config.sample_format();
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {err}");
     let config = config.into();

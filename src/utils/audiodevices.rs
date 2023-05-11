@@ -176,7 +176,11 @@ pub fn get_output_audio_devices() -> Vec<Device> {
         let devices = host.devices().unwrap();
         debug!("  Devices: ");
         for (device_index, device) in devices.enumerate() {
-            debug!("  {}. \"{}\"", device_index + 1, device.name().unwrap_or_default());
+            debug!(
+                "  {}. \"{}\"",
+                device_index + 1,
+                device.name().unwrap_or_default()
+            );
             // List all of the supported stream configs per device.
             log_stream_configs(device.supported_output_configs(), "output", device_index);
             log_stream_configs(device.supported_input_configs(), "input", device_index);

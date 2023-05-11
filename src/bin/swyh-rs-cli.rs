@@ -223,13 +223,6 @@ fn main() -> Result<(), i32> {
             config.use_wave_format = false;
         }
     }
-    // update config with new args
-    let _ = config.update_config();
-    // update in_memory shared config for other threads
-    {
-        let mut conf = CONFIG.write();
-        *conf = config.clone();
-    }
     // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
@@ -266,11 +259,6 @@ fn main() -> Result<(), i32> {
         return Err(-1);
     }
 
-    if args.dry_run.is_some() {
-        ui_log("dry-run - exiting...".to_string());
-        return Ok(());
-    }
-
     // default = first player
     let mut player = &renderers[0];
     // but use the configured renderer if present
@@ -279,6 +267,23 @@ fn main() -> Result<(), i32> {
             player = renderer;
             break;
         }
+    }
+    // if specified player ip not found: use default player
+    if pl_ip != player.remote_addr {
+        config.last_renderer = player.remote_addr.clone();
+    }
+    // update config with new args
+    let _ = config.update_config();
+    // update in_memory shared config for other threads
+    {
+        let mut conf = CONFIG.write();
+        *conf = config.clone();
+    }
+
+    // exit here if dry-run
+    if args.dry_run.is_some() {
+        ui_log("dry-run - exiting...".to_string());
+        return Ok(());
     }
 
     // get the logreader channel

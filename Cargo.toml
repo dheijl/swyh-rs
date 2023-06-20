@@ -15,7 +15,7 @@ readme = "README.md"
 winres = "0.1.12"
 
 [dependencies]
-bitflags = "2.3.1"
+bitflags = "2.3.2"
 cpal = "0.15.2"
 crossbeam-channel = "0.5.8"
 ctrlc = { version = "3.4.0", features = ["termination"] }
@@ -28,7 +28,7 @@ flac-bound = { version = "0.3.0", default-features = false, features = [
 htmlescape = "0.3.1"
 if-addrs = "0.10.1"
 lexopt = "0.3.0"
-log = { version = "0.4.18", features = [
+log = { version = "0.4.19", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",
@@ -42,7 +42,7 @@ strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
 toml = "0.7.4"
-ureq = { version = "2.6.2", default-features = false, features = [
+ureq = { version = "2.7.1", default-features = false, features = [
     "charset",
     "gzip",
 ] }

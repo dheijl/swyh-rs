@@ -1,11 +1,11 @@
 # swyh-rs Changelog
 
-- 1.8.2-beta (prerelease)
+- 1.8.2 (Jun 26 2023 dheijl)
   - cli: handle player ip not found (use first renderer)
   - Merge pull request #96 from joshuamegnauth54/cache_device_name:
     - get rid of some unwraps preventing possible panics
     - cache cpal sound device info
-  - try to fix issue #99: don't use Openhome Playlist for QPlay devices, use AVTransport instead
+  - fix for issue #99: don't use Openhome Playlist for QPlay devices, use AVTransport instead
   
 - 1.8.1 (May 6, dheijl and Joshua Megnauth @joshuamegnauth54)
   - make input devices too available for streaming, see PR #95

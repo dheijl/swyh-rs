@@ -28,6 +28,7 @@ AppReadmeFile=Readme.md
 
 [Files]
 Source: "target\release\swyh-rs.exe"; DestDir: "{app}"; DestName: "swyh-rs.exe"
+Source: "target\release\swyh-rs-cli.exe"; DestDir: "{app}"; DestName: "swyh-rs-cli.exe"
 Source: "Readme.md"; DestDir: "{app}"; Flags: isreadme
 
 [Icons]

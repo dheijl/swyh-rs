@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.8.2-beta (unreleased)
+- 1.8.2-beta (prerelease)
   - cli: handle player ip not found (use first renderer)
   - Merge pull request #96 from joshuamegnauth54/cache_device_name:
     - get rid of some unwraps preventing possible panics

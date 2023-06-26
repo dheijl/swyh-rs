@@ -38,6 +38,7 @@ It has been tested with
 - Xbox 360, using Foobar2000 and entering the streaming url in foo_upnp (thanks @instinctualjealousy)
 - iEast Audiocast M5 using the WAV format header (thanks @Katharsas)
 - Yamaha WXAD-10 since 1.6.1 (see issue #89), and possibly other Yamaha devices?
+- for QPlay devices, like the Xiaomi S12, you need version 1.8.2 or later, see issue #99. Older versions wrongly try to use Openhome instead of AVTransport.
 
 but any OpenHome/DLNA streamer that supports FLAC (except Sonos) will probably work (since version 1.4.0).
 

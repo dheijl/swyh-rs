@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.8.3-beta (unreleased)
+  - log architecture and OS environment
+
 - 1.8.2 (Jun 26 2023 dheijl)
   - cli: handle player ip not found (use first renderer)
   - Merge pull request #96 from joshuamegnauth54/cache_device_name:

@@ -78,9 +78,12 @@ fn main() -> Result<(), i32> {
     ]);
 
     info!(
-        "{} V {} - Logging started.",
-        APP_NAME.to_string(),
-        APP_VERSION.to_string()
+        "{} V {} - Running on {}, {}, {} - Logging started.",
+        APP_NAME,
+        APP_VERSION,
+        std::env::consts::ARCH,
+        std::env::consts::FAMILY,
+        std::env::consts::OS
     );
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());

@@ -15,7 +15,7 @@ readme = "README.md"
 winres = "0.1.12"
 
 [dependencies]
-bitflags = "2.3.2"
+bitflags = "2.3.3"
 cpal = "0.15.2"
 crossbeam-channel = "0.5.8"
 ctrlc = { version = "3.4.0", features = ["termination"] }
@@ -49,14 +49,14 @@ ureq = { version = "2.7.1", default-features = false, features = [
 url = "2.4.0"
 xml-rs = "0.8.14"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.4.5", features = ["use-ninja"] }
+fltk = { version = "1.4.6", features = ["use-ninja"] }
 windows = { version = "0.48.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.4.5", features = ["use-ninja"] }
+fltk = { version = "1.4.6", features = ["use-ninja"] }
 libc = "0.2.147"
 
 [patch.crates-io]

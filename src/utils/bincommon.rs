@@ -1,29 +1,17 @@
 //! Tools common to both the swyh-rs GUI and CLI.
 
-use std::{thread, time::Duration};
-
 use cpal::{
     traits::{DeviceTrait, StreamTrait},
-    Sample, SampleFormat,
+    Sample, SampleFormat, Stream,
 };
 
 use super::audiodevices::Device;
 
-/// TODO: Dedup this code
-///
-/// inject silence into the audio stream to solve problems with Sonos when pusing audio
+/// Inject silence into the audio stream to solve problems with Sonos when pausing audio.
 /// contributed by @genekellyjr, see issue #71
 ///
-pub fn run_silence_injector(device: &Device) {
-    // straight up copied from cpal docs cause I don't know syntax or anything
-    /* let mut supported_configs_range = audio_output_device
-        .supported_output_configs()
-        .expect("error while querying configs");
-    let supported_config = supported_configs_range
-        .next()
-        .expect("no supported config?!")
-        .with_max_sample_rate();
-    */
+/// Streams are asynchronous, so the silence stream is just returned to keep the object alive.
+pub fn run_silence_injector(device: &Device) -> Stream {
     let config = device
         .default_config_any()
         .expect("Error while querying stream configs for the silence injector");
@@ -55,8 +43,5 @@ pub fn run_silence_injector(device: &Device) {
     stream
         .play()
         .expect("Unable to inject silence into the output stream");
-
-    loop {
-        thread::sleep(Duration::from_secs(1));
-    }
+    stream
 }

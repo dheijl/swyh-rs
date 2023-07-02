@@ -207,14 +207,13 @@ fn main() {
         }
     }
 
-    // If silence injector is on, start the "silence_injector" thread
-    if let Some(true) = CONFIG.read().inject_silence {
-        let _ = thread::Builder::new()
-            .name("silence_injector".into())
-            .stack_size(4 * 1024 * 1024)
-            .spawn(move || run_silence_injector(&audio_output_device))
-            .unwrap();
-    }
+    // If silence injector is on, create a silence injector stream.
+    let _silence_stream = if let Some(true) = CONFIG.read().inject_silence {
+        ui_log("Injecting silence into the output stream".to_owned());
+        Some(run_silence_injector(&audio_output_device))
+    } else {
+        None
+    };
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list

@@ -83,6 +83,9 @@ fn main() -> Result<(), i32> {
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
     }
+    if args.inject_silence.is_some() {
+        config.inject_silence = args.inject_silence;
+    }
     info!("Config: {:?}", config);
 
     // set args soundsource index
@@ -161,14 +164,13 @@ fn main() -> Result<(), i32> {
         }
     }
 
-    // If silence injector is on, start the "silence_injector" thread
-    if let Some(true) = CONFIG.read().inject_silence {
-        let _ = thread::Builder::new()
-            .name("silence_injector".into())
-            .stack_size(4 * 1024 * 1024)
-            .spawn(move || run_silence_injector(&audio_output_device))
-            .unwrap();
-    }
+    // If silence injector is on, create a silence injector stream.
+    let _silence_stream = if let Some(true) = CONFIG.read().inject_silence {
+        ui_log("Injecting silence into the output stream".to_string());
+        Some(run_silence_injector(&audio_output_device))
+    } else {
+        None
+    };
 
     // set args ssdp_interval
     if args.ssdp_interval_mins.is_some() {

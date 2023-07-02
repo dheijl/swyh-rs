@@ -24,6 +24,7 @@ pub struct Args {
     pub streaming_format: Option<StreamingFormat>,
     pub player_ip: Option<String>,
     pub ip_address: Option<String>,
+    pub inject_silence: Option<bool>,
 }
 
 impl Default for Args {
@@ -49,6 +50,7 @@ impl Args {
             streaming_format: None,
             player_ip: None,
             ip_address: None,
+            inject_silence: None,
         }
     }
 
@@ -57,8 +59,8 @@ impl Args {
         println!(
             r#"
 Recognized options:
-    -h (--help) : print usage 
-    -n (--no_run) : dry-run, don't start streaming  
+    -h (--help) : print usage
+    -n (--no_run) : dry-run, don't start streaming
     -c (--config_id) string : config_id [_cli]
     -p (--server_port) u16 : server_port [5901]
     -a (--auto_reconnect) bool : auto reconnect [true]
@@ -71,6 +73,7 @@ Recognized options:
     -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
     -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
+    -S (--inject_silence) string : inject silence into stream (y[es]/n[o]) [n]
 "#
         );
         println!("{:?}", self);
@@ -183,6 +186,19 @@ Recognized options:
                         } else {
                             println!("invalid ip address {ip}");
                             self.usage();
+                        }
+                    }
+                }
+                Short('I') | Long("inject_silence") => {
+                    if let Ok(inject) = argparser.value() {
+                        let inject = inject.to_str().unwrap_or("n");
+                        match inject {
+                            "y" | "yes" => self.inject_silence = Some(true),
+                            "n" | "no" => self.inject_silence = Some(false),
+                            _ => {
+                                println!("invalid inject option {inject}");
+                                self.usage();
+                            }
                         }
                     }
                 }

@@ -2,7 +2,7 @@
 
 [Setup]
 AppName=swyh-rs
-AppVersion=1.8.1
+AppVersion=1.8.3-beta
 WizardStyle=modern
 DefaultDirName={autopf}\swyh-rs
 DefaultGroupName=swyh-rs
@@ -28,6 +28,7 @@ AppReadmeFile=Readme.md
 
 [Files]
 Source: "target\release\swyh-rs.exe"; DestDir: "{app}"; DestName: "swyh-rs.exe"
+Source: "target\release\swyh-rs-cli.exe"; DestDir: "{app}"; DestName: "swyh-rs-cli.exe"
 Source: "Readme.md"; DestDir: "{app}"; Flags: isreadme
 
 [Icons]

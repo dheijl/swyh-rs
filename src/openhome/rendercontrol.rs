@@ -684,7 +684,9 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
             Ok(XmlEvent::EndElement { name }) => {
                 let end_elem = name.local_name;
                 if end_elem == "service" {
-                    if service.service_id.contains("Playlist") {
+                    if service.service_id.contains("Playlist")
+                        && service.service_id.contains("urn:av-openhome-org:service")
+                    {
                         renderer.oh_control_url = service.control_url.clone();
                         renderer.supported_protocols |= SupportedProtocols::OPENHOME;
                     } else if service.service_id.contains("AVTransport") {

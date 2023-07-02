@@ -41,7 +41,7 @@ fn main() -> Result<(), i32> {
     let mut config = {
         let mut conf = CONFIG.write();
         if conf.sound_source == "None" {
-            conf.sound_source = audio_output_device.name().unwrap();
+            conf.sound_source = audio_output_device.name().into();
             let _ = conf.update_config();
         }
         conf.clone()
@@ -76,9 +76,12 @@ fn main() -> Result<(), i32> {
     ]);
 
     info!(
-        "{} V {} - Logging started.",
-        APP_NAME.to_string(),
-        APP_VERSION.to_string()
+        "{} V {} - Running on {}, {}, {} - Logging started.",
+        APP_NAME,
+        APP_VERSION,
+        std::env::consts::ARCH,
+        std::env::consts::FAMILY,
+        std::env::consts::OS
     );
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
@@ -93,10 +96,10 @@ fn main() -> Result<(), i32> {
         config.sound_source_index = args.sound_source_index;
     }
     // get the output device from the config and get all available audio source names
-    let audio_devices = get_output_audio_devices().unwrap();
+    let audio_devices = get_output_audio_devices();
     let mut source_names: Vec<String> = Vec::new();
     for (index, adev) in audio_devices.into_iter().enumerate() {
-        let devname = adev.name().unwrap();
+        let devname = adev.name().to_owned();
         ui_log(format!(
             "Found Audio Source: index = {index}, name = {devname}"
         ));
@@ -135,9 +138,7 @@ fn main() -> Result<(), i32> {
     };
 
     // we need to pass some audio config data to the play function
-    let audio_cfg = &audio_output_device
-        .default_config_any()
-        .expect("No default streaming config found");
+    let audio_cfg = audio_output_device.default_config().clone();
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
@@ -225,13 +226,6 @@ fn main() -> Result<(), i32> {
             config.use_wave_format = false;
         }
     }
-    // update config with new args
-    let _ = config.update_config();
-    // update in_memory shared config for other threads
-    {
-        let mut conf = CONFIG.write();
-        *conf = config.clone();
-    }
     // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
@@ -268,11 +262,6 @@ fn main() -> Result<(), i32> {
         return Err(-1);
     }
 
-    if args.dry_run.is_some() {
-        ui_log("dry-run - exiting...".to_string());
-        return Ok(());
-    }
-
     // default = first player
     let mut player = &renderers[0];
     // but use the configured renderer if present
@@ -281,6 +270,25 @@ fn main() -> Result<(), i32> {
             player = renderer;
             break;
         }
+    }
+    // if specified player ip not found: use default player
+    if pl_ip != player.remote_addr {
+        config.last_renderer = player.remote_addr.clone();
+    }
+    ui_log(format!("Selected player with ip = {}", player.remote_addr));
+
+    // update config with new args
+    let _ = config.update_config();
+    // update in_memory shared config for other threads
+    {
+        let mut conf = CONFIG.write();
+        *conf = config.clone();
+    }
+
+    // exit here if dry-run
+    if args.dry_run.is_some() {
+        ui_log("dry-run - exiting...".to_string());
+        return Ok(());
     }
 
     // get the logreader channel

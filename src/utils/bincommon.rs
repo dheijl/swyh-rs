@@ -2,7 +2,7 @@
 
 use cpal::{
     traits::{DeviceTrait, StreamTrait},
-    Sample, SampleFormat, Stream,
+    Sample, SampleFormat, Stream, StreamConfig,
 };
 
 use super::audiodevices::Device;
@@ -12,12 +12,10 @@ use super::audiodevices::Device;
 ///
 /// Streams are asynchronous, so the silence stream is just returned to keep the object alive.
 pub fn run_silence_injector(device: &Device) -> Stream {
-    let config = device
-        .default_config_any()
-        .expect("Error while querying stream configs for the silence injector");
+    let config = device.default_config();
     let sample_format = config.sample_format();
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {err}");
-    let config = config.into();
+    let config: StreamConfig = config.clone().into();
 
     // CPAL 0.15 switched to dasp_sample:
     // see https://github.com/RustAudio/cpal/commit/85d773d59f1725b25002c6f04aa2eb9b43a75b76#diff-babb62f9985b4798a655658e440a565984ce15b25e63a82fc4b3cc0b54fd2a02

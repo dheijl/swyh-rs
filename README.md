@@ -6,8 +6,9 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.8.1 with
+The current release is 1.8.2 with
 
+- a fix for QPlay devices (issue #99) like the Xiaomi S12
 - the ability to stream from input devices, thanks to @joshuamegnauth54 (PR #95)
 - a new CLI binary, swyh-rs-cli, where the GUI is replaced with command line options
 - **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
@@ -38,6 +39,7 @@ It has been tested with
 - Xbox 360, using Foobar2000 and entering the streaming url in foo_upnp (thanks @instinctualjealousy)
 - iEast Audiocast M5 using the WAV format header (thanks @Katharsas)
 - Yamaha WXAD-10 since 1.6.1 (see issue #89), and possibly other Yamaha devices?
+- for QPlay devices, like the Xiaomi S12, you need version 1.8.2 or later, see issue #99. Older versions wrongly try to use Openhome instead of AVTransport.
 
 but any OpenHome/DLNA streamer that supports FLAC (except Sonos) will probably work (since version 1.4.0).
 
@@ -79,7 +81,8 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 ### Known problems
 
-- make sure that your firewall or anti-virus do not block the default incoming HTTP port 5901 for streaming requests (or the port number you configured in the UI if not the default)
+- On linux you may have to enable audio monitoring with pavucontrol to make audio capture work
+- make sure that your firewall or anti-virus do not block the default incoming HTTP port 5901 for streaming requests (or the port number you configured in the UI if not the default), and that outgoing UDP traffic is allowed for SSDP  
 - resizing a window in fltk 1.4 is not ideal, but thanks to @MoAlyousef it is now usable in swyh-rs. But if you resize vertically to a very small window you risk losing the horizontal scrollbar in the textbox at the bottom.
 - simultaneous streaming to multiple renderers is only limited by the number of renderer buttons that can be shown in the available space in the window.
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).

@@ -7,6 +7,7 @@ use lexopt::{
 use log::LevelFilter;
 
 use crate::enums::streaming::StreamingFormat;
+use crate::utils::traits::SanitizeArg;
 
 #[derive(Clone, Debug)]
 pub struct Args {
@@ -103,12 +104,26 @@ Recognized options:
                 }
                 Short('a') | Long("auto_reconnect") => {
                     if let Ok(auto_reconnect) = argparser.value() {
-                        self.auto_reconnect = Some(auto_reconnect.parse().unwrap());
+                        self.auto_reconnect = Some(
+                            auto_reconnect
+                                .string()
+                                .unwrap()
+                                .sanitize_bool()
+                                .parse()
+                                .unwrap(),
+                        );
                     }
                 }
                 Short('r') | Long("auto_resume") => {
                     if let Ok(auto_resume) = argparser.value() {
-                        self.auto_resume = Some(auto_resume.parse().unwrap());
+                        self.auto_resume = Some(
+                            auto_resume
+                                .string()
+                                .unwrap()
+                                .sanitize_bool()
+                                .parse()
+                                .unwrap(),
+                        );
                     }
                 }
                 Short('s') | Long("sound_source_index") => {
@@ -138,7 +153,8 @@ Recognized options:
                 }
                 Short('d') | Long("disable_chunked") => {
                     if let Ok(dc) = argparser.value() {
-                        self.disable_chunked = Some(dc.parse().unwrap());
+                        self.disable_chunked =
+                            Some(dc.string().unwrap().sanitize_bool().parse().unwrap());
                     }
                 }
                 Short('b') | Long("bits_per_sample") => {
@@ -191,7 +207,8 @@ Recognized options:
                 }
                 Short('S') | Long("inject_silence") => {
                     if let Ok(inject) = argparser.value() {
-                        self.inject_silence = Some(inject.parse().unwrap());
+                        self.inject_silence =
+                            Some(inject.string().unwrap().sanitize_bool().parse().unwrap());
                     }
                 }
                 _ => (),

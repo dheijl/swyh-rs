@@ -4,7 +4,7 @@ use crate::{
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{
         configuration::Configuration,
-        escape::FwSlashPipeEscape,
+        traits::FwSlashPipeEscape,
         ui_logger::{enable_ui_log, ui_log},
     },
 };

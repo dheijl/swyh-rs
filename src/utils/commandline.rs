@@ -189,7 +189,7 @@ Recognized options:
                         }
                     }
                 }
-                Short('I') | Long("inject_silence") => {
+                Short('S') | Long("inject_silence") => {
                     if let Ok(inject) = argparser.value() {
                         self.inject_silence = Some(inject.parse().unwrap());
                     }

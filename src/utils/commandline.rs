@@ -73,7 +73,7 @@ Recognized options:
     -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
     -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
-    -S (--inject_silence) string : inject silence into stream (y[es]/n[o]) [n]
+    -S (--inject_silence) bool : inject silence into stream (bool) [false]
 "#
         );
         println!("{:?}", self);
@@ -191,15 +191,7 @@ Recognized options:
                 }
                 Short('I') | Long("inject_silence") => {
                     if let Ok(inject) = argparser.value() {
-                        let inject = inject.to_str().unwrap_or("n");
-                        match inject {
-                            "y" | "yes" => self.inject_silence = Some(true),
-                            "n" | "no" => self.inject_silence = Some(false),
-                            _ => {
-                                println!("invalid inject option {inject}");
-                                self.usage();
-                            }
-                        }
+                        self.inject_silence = Some(inject.parse().unwrap());
                     }
                 }
                 _ => (),

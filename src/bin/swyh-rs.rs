@@ -43,18 +43,16 @@ use swyh_rs::{
     ui::mainform::MainForm,
     utils::{
         audiodevices::{
-            capture_output_audio, get_default_audio_output_device, get_output_audio_devices, Device,
+            capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
         },
+        bincommon::run_silence_injector,
         local_ip_address::*,
         priority::raise_priority,
         ui_logger::ui_log,
     },
 };
 
-use cpal::{
-    traits::{DeviceTrait, StreamTrait},
-    Sample, SampleFormat,
-};
+use cpal::{traits::StreamTrait, Sample};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use fltk::{
     app, dialog,
@@ -210,14 +208,13 @@ fn main() {
         }
     }
 
-    // If silence injector is on, start the "silence_injector" thread
-    if let Some(true) = CONFIG.read().inject_silence {
-        let _ = thread::Builder::new()
-            .name("silence_injector".into())
-            .stack_size(4 * 1024 * 1024)
-            .spawn(move || run_silence_injector(&audio_output_device))
-            .unwrap();
-    }
+    // If silence injector is on, create a silence injector stream.
+    let _silence_stream = if let Some(true) = CONFIG.read().inject_silence {
+        ui_log("Injecting silence into the output stream".to_owned());
+        Some(run_silence_injector(&audio_output_device))
+    } else {
+        None
+    };
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
@@ -420,54 +417,5 @@ fn run_rms_monitor(
                 sum_r = 0;
             }
         }
-    }
-}
-
-///
-/// inject silence into the audio stream to solve problems with Sonos when pusing audio
-/// contributed by @genekellyjr, see issue #71
-///
-fn run_silence_injector(device: &Device) {
-    // straight up copied from cpal docs cause I don't know syntax or anything
-    /* let mut supported_configs_range = audio_output_device
-        .supported_output_configs()
-        .expect("error while querying configs");
-    let supported_config = supported_configs_range
-        .next()
-        .expect("no supported config?!")
-        .with_max_sample_rate();
-    */
-    let config = device.default_config().clone();
-    let sample_format = config.sample_format();
-    let err_fn = |err| eprintln!("an error occurred on the output audio stream: {err}");
-    let config = config.into();
-
-    // CPAL 0.15 switched to dasp_sample:
-    // see https://github.com/RustAudio/cpal/commit/85d773d59f1725b25002c6f04aa2eb9b43a75b76#diff-babb62f9985b4798a655658e440a565984ce15b25e63a82fc4b3cc0b54fd2a02
-    fn write_silence<T: Sample>(data: &mut [T], _: &cpal::OutputCallbackInfo) {
-        for sample in data.iter_mut() {
-            *sample = Sample::EQUILIBRIUM;
-        }
-    }
-
-    let device = device.as_ref();
-    let stream = match sample_format {
-        SampleFormat::F32 => device
-            .build_output_stream(&config, write_silence::<f32>, err_fn, None)
-            .unwrap(),
-        SampleFormat::I16 => device
-            .build_output_stream(&config, write_silence::<i16>, err_fn, None)
-            .unwrap(),
-        SampleFormat::U16 => device
-            .build_output_stream(&config, write_silence::<u16>, err_fn, None)
-            .unwrap(),
-        format => panic!("Unsupported sample format: {format:?}"),
-    };
-    stream
-        .play()
-        .expect("Unable to inject silence into the output stream");
-
-    loop {
-        thread::sleep(Duration::from_secs(1));
     }
 }

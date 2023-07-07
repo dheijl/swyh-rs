@@ -172,4 +172,4 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
 ### Screenshot
 
-![Knipsel](https://user-images.githubusercontent.com/2384545/221954945-d2ec2d57-1915-4dc8-bd7f-47e1342b53b7.PNG)
+![Knipsel](https://github.com/dheijl/swyh-rs/assets/2384545/cecf214e-aa0b-4916-838e-fc900f4a0309)

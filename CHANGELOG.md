@@ -1,7 +1,9 @@
 # swyh-rs Changelog
 
-- 1.8.3-beta (unreleased)
+- 1.8.3 (Jul 7 2023 dheijl & joshuamegnauth54)
   - log architecture and OS environment
+  - remove unnecessary thread for silence injector
+  - expose the hitherto hidden "inject silence" configuration flag in the UI and in the cli commandline
 
 - 1.8.2 (Jun 26 2023 dheijl)
   - cli: handle player ip not found (use first renderer)

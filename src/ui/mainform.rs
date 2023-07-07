@@ -394,7 +394,7 @@ impl MainForm {
         let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
         listen_port.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
         listen_port.set_maximum_size(5);
-        let config_ch_flag = config_changed;
+        let config_ch_flag = config_changed.clone();
         listen_port.set_callback(move |lp| {
             let new_value: u32 = lp.value().parse().unwrap();
             if new_value > 65535 {
@@ -436,8 +436,26 @@ impl MainForm {
         pconfig3.set_spacing(10);
         pconfig3.set_type(PackType::Horizontal);
         pconfig3.end();
+        // inject continuous silence into audio stream checkbox
+        // to prevent Sonos to disconnect if no audio is being captured
+        let mut inj_silence = CheckButton::new(0, 0, 0, 0, "Inject silence");
+        if config.inject_silence.unwrap() {
+            inj_silence.set(true);
+        }
+        let config_ch_flag = config_changed;
+        inj_silence.set_callback(move |b| {
+            let mut conf = CONFIG.write();
+            if b.is_set() {
+                conf.inject_silence = Some(true);
+            } else {
+                conf.inject_silence = Some(false);
+            }
+            let _ = conf.update_config();
+            config_ch_flag.set(true);
+        });
+        pconfig3.add(&inj_silence);
         // RMS animation enable checkbox
-        let mut show_rms = CheckButton::new(0, 0, 0, 0, "Enable RMS Monitor");
+        let mut show_rms = CheckButton::new(0, 0, 0, 0, "RMS Monitor");
         if config.monitor_rms {
             show_rms.set(true);
         }

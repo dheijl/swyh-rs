@@ -6,14 +6,14 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.8.2 with
+The current release is 1.8.3 with
 
 - a fix for QPlay devices (issue #99) like the Xiaomi S12
 - the ability to stream from input devices, thanks to @joshuamegnauth54 (PR #95)
 - a new CLI binary, swyh-rs-cli, where the GUI is replaced with command line options
 - **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
 - support for multiple identically named soundcards
-- Sonos fix for pausing audio
+- Sonos fix for pausing audio with the "inject silence" config option
 - support for multiple configurations with a _-c_ commandline switch. Useful if you have multiple audiosources (suggestion by @cavadias).
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
@@ -34,7 +34,9 @@ It has been tested with
 - Denon Heos devices
 - Sony AV streamers & Bravia TVs
 - Chromecast devices defined as an OpenHome or DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)
-- **Sonos** speakers/soundbars but only using the **WAV** format (thanks @Cunkers !). FLAC does _not_ work. Sonos is limited to 48KHz 16 bit anyway. If you want to pause music without losing the connection you have to change the **InjectSilence** flag to _true_ and the **CaptureTimeout** to _250_ in your _{user_profile}/.swyh-rs/config.toml_ file. The InjectSilence flag is automatically added when you first start version 1.4.5 and defaults to _false_. Contributed by @genekellyjr, see issue #71, and @DanteDT.
+- **Sonos** speakers/soundbars but only using the **WAV** format (thanks @Cunkers !). FLAC does _not_ work. Sonos is limited to 48KHz 16 bit anyway.
+  - If you want to pause music without losing the connection you have to enable the  **Inject Silence** option,and make sure that the **CaptureTimeout** is set to to _250_ in your _{user_profile}/.swyh-rs/config.toml_ file. The InjectSilence flag is automatically added to the config file when you first start version 1.4.5 and defaults to _false_. Contributed by @genekellyjr, see issue #71, and @DanteDT.
+  - injecting silence will eat an negegible amount of cpu cycles.
 - Kef Wireless LS50 II (thanks @Turbomortel via Twitter)
 - Xbox 360, using Foobar2000 and entering the streaming url in foo_upnp (thanks @instinctualjealousy)
 - iEast Audiocast M5 using the WAV format header (thanks @Katharsas)

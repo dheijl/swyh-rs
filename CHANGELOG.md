@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.8.4 beta (unreleased)
+  - ?
+
 - 1.8.3 (Jul 7 2023 dheijl & joshuamegnauth54)
   - log architecture and OS environment
   - remove unnecessary thread for silence injector

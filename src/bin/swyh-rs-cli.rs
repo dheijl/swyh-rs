@@ -220,11 +220,7 @@ fn main() -> Result<(), i32> {
     // set args streaming format
     if args.streaming_format.is_some() {
         config.streaming_format = args.streaming_format;
-        if config.streaming_format == Some(Wav) {
-            config.use_wave_format = true;
-        } else {
-            config.use_wave_format = false;
-        }
+        config.use_wave_format = config.streaming_format == Some(Wav);
     }
     // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop

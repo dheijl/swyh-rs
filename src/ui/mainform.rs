@@ -221,11 +221,7 @@ impl MainForm {
         }
         auto_resume.set_callback(move |b| {
             let mut conf = CONFIG.write();
-            if b.is_set() {
-                conf.auto_resume = true;
-            } else {
-                conf.auto_resume = false;
-            }
+            conf.auto_resume = b.is_set();
             let _ = conf.update_config();
         });
         pconfig1.add(&auto_resume);
@@ -237,11 +233,7 @@ impl MainForm {
         }
         auto_reconnect.set_callback(move |b| {
             let mut conf = CONFIG.write();
-            if b.is_set() {
-                conf.auto_reconnect = true;
-            } else {
-                conf.auto_reconnect = false;
-            }
+            conf.auto_reconnect = b.is_set();
             let _ = conf.update_config();
         });
         pconfig1.add(&auto_reconnect);
@@ -418,11 +410,7 @@ impl MainForm {
         }
         disable_chunked.set_callback(move |b| {
             let mut conf = CONFIG.write();
-            if b.is_set() {
-                conf.disable_chunked = true;
-            } else {
-                conf.disable_chunked = false;
-            }
+            conf.disable_chunked = b.is_set();
             let _ = conf.update_config();
         });
         pconfig2.add(&disable_chunked);
@@ -445,11 +433,7 @@ impl MainForm {
         let config_ch_flag = config_changed;
         inj_silence.set_callback(move |b| {
             let mut conf = CONFIG.write();
-            if b.is_set() {
-                conf.inject_silence = Some(true);
-            } else {
-                conf.inject_silence = Some(false);
-            }
+            conf.inject_silence = Some(b.is_set());
             let _ = conf.update_config();
             config_ch_flag.set(true);
         });
@@ -477,11 +461,7 @@ impl MainForm {
         let mut mon_r = rms_mon_r.clone();
         show_rms.set_callback(move |b| {
             let mut conf = CONFIG.write();
-            if b.is_set() {
-                conf.monitor_rms = true;
-            } else {
-                conf.monitor_rms = false;
-            }
+            conf.monitor_rms = b.is_set();
             let _ = conf.update_config();
             mon_l.set_value(0.0);
             mon_r.set_value(0.0);

@@ -5,7 +5,7 @@ pub fn raise_priority() {
     use windows::Win32::{Foundation::GetLastError, System::Threading::*};
     unsafe {
         let id = GetCurrentProcess();
-        if !SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS).as_bool() {
+        if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS).is_err() {
             let e = GetLastError();
             let p = GetCurrentProcessId();
             ui_log(format!(

@@ -126,7 +126,7 @@ impl MainForm {
         pnw.end();
         let cur_nw = {
             if config.last_network != "None" {
-                format!("Active network: {}", config.last_network.clone())
+                format!("Active network: {}", &config.last_network)
             } else {
                 format!("Active network: {local_addr}")
             }
@@ -152,11 +152,11 @@ impl MainForm {
             if i as usize >= networks_c.len() {
                 i = (networks_c.len() - 1) as i32;
             }
-            let name = networks_c[i as usize].clone();
+            let name = &networks_c[i as usize];
             ui_log(format!(
                 "*W*W*> Network changed to {name}, restart required!!"
             ));
-            conf.last_network = name;
+            conf.last_network = name.to_string();
             let _ = conf.update_config();
             b.set_label(&format!("New Network: {}", conf.last_network));
             config_ch_flag.set(true);
@@ -193,11 +193,11 @@ impl MainForm {
             if i as usize >= audio_sources_c.len() {
                 i = (audio_sources_c.len() - 1) as i32;
             }
-            let name = audio_sources_c[i as usize].clone();
+            let name = &audio_sources_c[i as usize];
             ui_log(format!(
                 "*W*W*> Audio source changed to {name}, restart required!!"
             ));
-            conf.sound_source = name;
+            conf.sound_source = name.to_string();
             conf.sound_source_index = Some(i);
             let _ = conf.update_config();
             b.set_label(&format!("New Audio Source: {}", conf.sound_source));
@@ -241,27 +241,29 @@ impl MainForm {
         // SSDP interval counter
         let mut ssdp_interval = Counter::new(0, 0, 0, 0, "SSDP Interval (in minutes)");
         ssdp_interval.set_value(config.ssdp_interval_mins);
-        let config_ch_flag = config_changed.clone();
-        ssdp_interval.handle(move |b, ev| {
-            if b.value() < 0.5 {
-                b.set_value(0.5);
-            }
-            match ev {
-                Event::Leave | Event::Enter | Event::Unfocus => {
-                    let mut conf = CONFIG.write();
-                    if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
-                        conf.ssdp_interval_mins = b.value();
-                        ui_log(format!(
-                            "*W*W*> ssdp interval changed to {} minutes, restart required!!",
-                            conf.ssdp_interval_mins
-                        ));
-                        let _ = conf.update_config();
-                        config_ch_flag.set(true);
-                        app::awake();
-                    }
-                    true
+        ssdp_interval.handle({
+            let config_changed = config_changed.clone();
+            move |b, ev| {
+                if b.value() < 0.5 {
+                    b.set_value(0.5);
                 }
-                _ => false,
+                match ev {
+                    Event::Leave | Event::Enter | Event::Unfocus => {
+                        let mut conf = CONFIG.write();
+                        if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
+                            conf.ssdp_interval_mins = b.value();
+                            ui_log(format!(
+                                "*W*W*> ssdp interval changed to {} minutes, restart required!!",
+                                conf.ssdp_interval_mins
+                            ));
+                            let _ = conf.update_config();
+                            config_changed.set(true);
+                            app::awake();
+                        }
+                        true
+                    }
+                    _ => false,
+                }
             }
         });
         pconfig1.add(&ssdp_interval);
@@ -276,29 +278,31 @@ impl MainForm {
         // apparently this event can recurse on very fast machines
         // probably because it takes some time doing the file I/O, hence recursion lock
         let rlock = Mutex::new(0);
-        let config_ch_flag = config_changed.clone();
-        log_level_choice.set_callback(move |b| {
-            let mut recursion = rlock.lock();
-            if *recursion > 0 {
-                return;
+        log_level_choice.set_callback({
+            let config_changed = config_changed.clone();
+            move |b| {
+                let mut recursion = rlock.lock();
+                if *recursion > 0 {
+                    return;
+                }
+                *recursion += 1;
+                let mut conf = CONFIG.write();
+                let i = b.value();
+                if i < 0 {
+                    return;
+                }
+                let level = log_levels[i as usize];
+                ui_log(format!(
+                    "*W*W*> Log level changed to {level}, restart required!!"
+                ));
+                conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
+                let _ = conf.update_config();
+                config_changed.set(true);
+                let ll = format!("Log Level: {}", conf.log_level);
+                b.set_label(&ll);
+                app::awake();
+                *recursion -= 1;
             }
-            *recursion += 1;
-            let mut conf = CONFIG.write();
-            let i = b.value();
-            if i < 0 {
-                return;
-            }
-            let level = log_levels[i as usize];
-            ui_log(format!(
-                "*W*W*> Log level changed to {level}, restart required!!"
-            ));
-            conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
-            let _ = conf.update_config();
-            config_ch_flag.set(true);
-            let ll = format!("Log Level: {}", conf.log_level);
-            b.set_label(&ll);
-            app::awake();
-            *recursion -= 1;
         });
         pconfig1.add(&log_level_choice);
         pconfig1.auto_layout();
@@ -332,36 +336,38 @@ impl MainForm {
         // apparently this event can recurse on very fast machines
         // probably because it takes some time doing the file I/O, hence recursion lock
         let rlock = Mutex::new(0);
-        let config_ch_flag = config_changed.clone();
-        fmt_choice.set_callback(move |b| {
-            let mut recursion = rlock.lock();
-            if *recursion > 0 {
-                return;
+        fmt_choice.set_callback({
+            let config_changed = config_changed.clone();
+            move |b| {
+                let mut recursion = rlock.lock();
+                if *recursion > 0 {
+                    return;
+                }
+                *recursion += 1;
+                let mut conf = CONFIG.write();
+                let i = b.value();
+                if i < 0 {
+                    return;
+                }
+                let format = formats[i as usize].clone();
+                ui_log(format!(
+                    "*W*W*> Streaming Format changed to {format}, restart required!!"
+                ));
+                let newformat = match format.as_str() {
+                    "LPCM" => StreamingFormat::Lpcm,
+                    "WAV" => StreamingFormat::Wav,
+                    "FLAC" => StreamingFormat::Flac,
+                    _ => StreamingFormat::Lpcm,
+                };
+                conf.use_wave_format = newformat == StreamingFormat::Wav;
+                conf.streaming_format = Some(newformat);
+                let _ = conf.update_config();
+                config_changed.set(true);
+                let fmt = format!("FMT: {format}");
+                b.set_label(&fmt);
+                app::awake();
+                *recursion -= 1;
             }
-            *recursion += 1;
-            let mut conf = CONFIG.write();
-            let i = b.value();
-            if i < 0 {
-                return;
-            }
-            let format = formats[i as usize].clone();
-            ui_log(format!(
-                "*W*W*> Streaming Format changed to {format}, restart required!!"
-            ));
-            let newformat = match format.as_str() {
-                "LPCM" => StreamingFormat::Lpcm,
-                "WAV" => StreamingFormat::Wav,
-                "FLAC" => StreamingFormat::Flac,
-                _ => StreamingFormat::Lpcm,
-            };
-            conf.use_wave_format = newformat == StreamingFormat::Wav;
-            conf.streaming_format = Some(newformat);
-            let _ = conf.update_config();
-            config_ch_flag.set(true);
-            let fmt = format!("FMT: {format}");
-            b.set_label(&fmt);
-            app::awake();
-            *recursion -= 1;
         });
         pconfig2.add(&fmt_choice);
 
@@ -370,34 +376,38 @@ impl MainForm {
         if config.bits_per_sample.unwrap() == 24 {
             b24_bit.set(true);
         }
-        let config_ch_flag = config_changed.clone();
-        b24_bit.set_callback(move |b| {
-            let mut conf = CONFIG.write();
-            if b.is_set() {
-                conf.bits_per_sample = Some(24);
-            } else {
-                conf.bits_per_sample = Some(16);
+        b24_bit.set_callback({
+            let config_changed = config_changed.clone();
+            move |b| {
+                let mut conf = CONFIG.write();
+                if b.is_set() {
+                    conf.bits_per_sample = Some(24);
+                } else {
+                    conf.bits_per_sample = Some(16);
+                }
+                let _ = conf.update_config();
+                config_changed.set(true);
             }
-            let _ = conf.update_config();
-            config_ch_flag.set(true);
         });
         pconfig2.add(&b24_bit);
         // HTTP server listen port
         let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
         listen_port.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
         listen_port.set_maximum_size(5);
-        let config_ch_flag = config_changed.clone();
-        listen_port.set_callback(move |lp| {
-            let new_value: u32 = lp.value().parse().unwrap();
-            if new_value > 65535 {
-                lp.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
-                return;
-            }
-            if new_value as u16 != CONFIG.read().server_port.unwrap_or_default() {
-                let mut conf = CONFIG.write();
-                conf.server_port = Some(new_value as u16);
-                let _ = conf.update_config();
-                config_ch_flag.set(true);
+        listen_port.set_callback({
+            let config_changed = config_changed.clone();
+            move |lp| {
+                let new_value: u32 = lp.value().parse().unwrap();
+                if new_value > 65535 {
+                    lp.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
+                    return;
+                }
+                if new_value as u16 != CONFIG.read().server_port.unwrap_or_default() {
+                    let mut conf = CONFIG.write();
+                    conf.server_port = Some(new_value as u16);
+                    let _ = conf.update_config();
+                    config_changed.set(true);
+                }
             }
         });
 
@@ -430,12 +440,14 @@ impl MainForm {
         if config.inject_silence.unwrap() {
             inj_silence.set(true);
         }
-        let config_ch_flag = config_changed;
-        inj_silence.set_callback(move |b| {
-            let mut conf = CONFIG.write();
-            conf.inject_silence = Some(b.is_set());
-            let _ = conf.update_config();
-            config_ch_flag.set(true);
+        inj_silence.set_callback({
+            let config_changed = config_changed.clone();
+            move |b| {
+                let mut conf = CONFIG.write();
+                conf.inject_silence = Some(b.is_set());
+                let _ = conf.update_config();
+                config_changed.set(true);
+            }
         });
         pconfig3.add(&inj_silence);
         // RMS animation enable checkbox
@@ -457,14 +469,16 @@ impl MainForm {
         rms_mon_r.set_color(Color::White);
         rms_mon_r.set_selection_color(Color::Green);
         // rms checkbox callback
-        let mut mon_l = rms_mon_l.clone();
-        let mut mon_r = rms_mon_r.clone();
-        show_rms.set_callback(move |b| {
-            let mut conf = CONFIG.write();
-            conf.monitor_rms = b.is_set();
-            let _ = conf.update_config();
-            mon_l.set_value(0.0);
-            mon_r.set_value(0.0);
+        show_rms.set_callback({
+            let mut rms_mon_l = rms_mon_l.clone();
+            let mut rms_mon_r = rms_mon_r.clone();
+            move |b| {
+                let mut conf = CONFIG.write();
+                conf.monitor_rms = b.is_set();
+                let _ = conf.update_config();
+                rms_mon_l.set_value(0.0);
+                rms_mon_r.set_value(0.0);
+            }
         });
         pconfig3.add(&show_rms);
         // vertical pack for the RMS meters

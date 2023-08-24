@@ -271,7 +271,7 @@ impl MainForm {
         // show log level choice
         let ll = format!("Log Level: {}", config.log_level);
         let mut log_level_choice = MenuButton::default().with_label(&ll);
-        let log_levels = vec!["Info", "Debug"];
+        let log_levels = ["Info", "Debug"];
         for ll in log_levels.iter() {
             log_level_choice.add_choice(ll);
         }

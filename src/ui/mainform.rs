@@ -562,39 +562,40 @@ impl MainForm {
                 "{} {}",
                 new_renderer.dev_model, new_renderer.dev_name
             ));
-        // prepare for event handler closure
-        let newr_c = new_renderer.clone();
-        let bi = self.buttons.len();
-        let local_addr = self.local_addr;
-        let wd = self.wd;
-        but.set_callback(move |b| {
-            debug!(
-                "Pushed renderer #{} {} {}, state = {}",
-                bi,
-                newr_c.dev_model,
-                newr_c.dev_name,
-                if b.is_set() { "ON" } else { "OFF" }
-            );
-            if b.is_set() {
-                {
-                    let mut conf = CONFIG.write();
-                    conf.last_renderer = b.label();
-                    let _ = conf.update_config();
-                }
-                let config = CONFIG.read().clone();
-                let streaminfo = StreamInfo {
-                    sample_rate: wd.sample_rate.0,
-                    bits_per_sample: config.bits_per_sample.unwrap(),
-                    streaming_format: config.streaming_format.unwrap(),
-                };
-                let _ = newr_c.play(
-                    &local_addr,
-                    config.server_port.unwrap_or_default(),
-                    &ui_log,
-                    &streaminfo,
+        but.set_callback({
+            let newr_c = new_renderer.clone();
+            let bi = self.buttons.len();
+            let local_addr = self.local_addr;
+            let wd = self.wd;
+            move |b| {
+                debug!(
+                    "Pushed renderer #{} {} {}, state = {}",
+                    bi,
+                    newr_c.dev_model,
+                    newr_c.dev_name,
+                    if b.is_set() { "ON" } else { "OFF" }
                 );
-            } else {
-                newr_c.stop_play(&ui_log);
+                if b.is_set() {
+                    {
+                        let mut conf = CONFIG.write();
+                        conf.last_renderer = b.label();
+                        let _ = conf.update_config();
+                    }
+                    let config = CONFIG.read().clone();
+                    let streaminfo = StreamInfo {
+                        sample_rate: wd.sample_rate.0,
+                        bits_per_sample: config.bits_per_sample.unwrap(),
+                        streaming_format: config.streaming_format.unwrap(),
+                    };
+                    let _ = newr_c.play(
+                        &local_addr,
+                        config.server_port.unwrap_or_default(),
+                        &ui_log,
+                        &streaminfo,
+                    );
+                } else {
+                    newr_c.stop_play(&ui_log);
+                }
             }
         });
         // the pack for the new button

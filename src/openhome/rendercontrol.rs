@@ -559,8 +559,11 @@ pub fn discover(
                 }
             }
             Err(e) => {
-                // ignore socket read timeout on Windows or EAGAIN on Linux
-                if !(e.to_string().contains("10060") || e.to_string().contains("os error 11")) {
+                // ignore socket read timeout on Windows or EAGAIN/EWOULBLOCK on Linux/Unix/MacOS
+                if !(e.to_string().contains("10060")
+                    || e.to_string().contains("os error 11")
+                    || e.to_string().contains("os error 35"))
+                {
                     logger(format!("*E*E>Error reading SSDP M-SEARCH response: {e}"));
                 }
             }

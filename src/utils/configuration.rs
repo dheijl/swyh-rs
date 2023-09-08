@@ -163,6 +163,10 @@ impl Configuration {
             config.configuration.config_id = Some(String::new());
             force_update = true;
         }
+        if config.configuration.sound_source_index.is_none() {
+            config.configuration.sound_source_index = Some(0);
+            force_update = true;
+        }
         if force_update {
             config.configuration.update_config().unwrap();
         }

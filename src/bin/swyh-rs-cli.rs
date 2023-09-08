@@ -89,12 +89,14 @@ fn main() -> Result<(), i32> {
     if args.inject_silence.is_some() {
         config.inject_silence = args.inject_silence;
     }
-    info!("Config: {:?}", config);
-
     // set args soundsource index
     if args.sound_source_index.is_some() {
         config.sound_source_index = args.sound_source_index;
+    } else {
+        config.sound_source_index = Some(0);
     }
+    info!("Config: {:?}", config);
+
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices();
     let mut source_names: Vec<String> = Vec::new();

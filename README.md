@@ -9,7 +9,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 The current release is 1.8.5 with
 
 - a fix for issue #107
-- a butting to enable injecting silence (Sonos specific)
+- a new button to enable injecting silence (Sonos specific)
 - a fix for QPlay devices (issue #99) like the Xiaomi S12
 - the ability to stream from input devices, thanks to @joshuamegnauth54 (PR #95)
 - a new CLI binary, swyh-rs-cli, where the GUI is replaced with command line options

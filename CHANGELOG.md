@@ -1,7 +1,9 @@
 # swyh-rs Changelog
 
-- 1.8.4 beta (unreleased)
-  - ?
+- 1.8.5-beta (unreleased)
+
+- 1.8.4 (Sep 9 2023 dheijl)
+  - config: make sure SoundCardIndex defaults to 0 instead of None to prevent accidentally selecting the wrong device when there are duplicate names (issue #107)
 
 - 1.8.3 (Jul 7 2023 dheijl & joshuamegnauth54)
   - log architecture and OS environment

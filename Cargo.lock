@@ -332,9 +332,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.11"
+version = "1.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00a78ff4d3929ad70c0f6ee09206ffbe0e80ff326ac4aa081e56b67f978dda96"
+checksum = "83c50c6689670831ccf423415290f3ed4d07d19b57795281d141fdcd7d961b63"
 dependencies = [
  "bitflags 2.4.0",
  "crossbeam-channel",
@@ -345,9 +345,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.11"
+version = "1.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "921588ecdcee5e4be79c1896ee14394bd815b139dc831207e9acba13660f4243"
+checksum = "ccb7feec5d667c078d3597e055612fb4fd9fbb7430cfb714dae0884e9009a1d9"
 dependencies = [
  "cmake",
 ]
@@ -1008,7 +1008,7 @@ dependencies = [
  "strfmt",
  "stringreader",
  "tiny_http",
- "toml 0.7.7",
+ "toml 0.7.8",
  "ureq",
  "url",
  "windows 0.51.1",
@@ -1135,9 +1135,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.7.7"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de0a3ab2091e52d7299a39d098e200114a972df0a7724add02a273aa9aada592"
+checksum = "dd79e69d3b627db300ff956027cc6c3798cef26d22526befdfcd12feeb6d2257"
 dependencies = [
  "serde",
  "serde_spanned",
@@ -1522,6 +1522,6 @@ dependencies = [
 
 [[package]]
 name = "xml-rs"
-version = "0.8.17"
+version = "0.8.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1eee6bf5926be7cf998d7381a9a23d833fd493f6a8034658a9505a4dc4b20444"
+checksum = "bab77e97b50aee93da431f2cee7cd0f43b4d1da3c408042f2d7d164187774f0a"

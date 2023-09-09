@@ -75,7 +75,7 @@ impl Configuration {
             server_port: Some(SERVER_PORT),
             auto_resume: false,
             sound_source: "None".to_string(),
-            sound_source_index: None,
+            sound_source_index: Some(0),
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 10.0,
             auto_reconnect: !HAVE_UI.load(Relaxed),

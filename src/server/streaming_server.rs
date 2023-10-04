@@ -122,13 +122,7 @@ pub fn run_server(
                             rq.remote_addr().unwrap()
                         ));
                         // set transfer encoding chunked unless disabled
-                        let (streamsize, chunked_threshold) = {
-                            if conf.disable_chunked {
-                                (Some(usize::MAX), usize::MAX)
-                            } else {
-                                (None, 8192)
-                            }
-                        };
+                        let streamsize = Some(usize::MAX);
                         let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
                         let channel_stream = ChannelStream::new(
                             tx,
@@ -165,15 +159,13 @@ pub fn run_server(
                             }
                         };
                         ui_log(format!(
-                            "Streaming {streaming_format}, input sample format {:?}, channels=2, rate={}, disable chunked={} to {}",
+                            "Streaming {streaming_format}, input sample format {:?}, channels=2, rate={}, to {}",
                             wd.sample_format,
                             wd.sample_rate.0,
-                            conf.disable_chunked,
                             rq.remote_addr().unwrap()
                         ));
                         let response = Response::empty(200)
                             .with_data(channel_stream, streamsize)
-                            .with_chunked_threshold(chunked_threshold)
                             .with_header(cc_hdr)
                             .with_header(ct_hdr)
                             .with_header(tm_hdr)

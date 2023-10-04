@@ -193,9 +193,6 @@ fn main() -> Result<(), i32> {
         .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
         .unwrap();
 
-    if args.disable_chunked.is_some() {
-        config.disable_chunked = args.disable_chunked.unwrap();
-    }
     // set args player
     let pl_ip = if args.player_ip.is_some() {
         args.player_ip.unwrap()

@@ -20,46 +20,47 @@ const PKGNAME: &str = env!("CARGO_PKG_NAME");
 // the configuration struct, read from and saved in config.ini
 #[derive(Deserialize, Serialize, Clone, Debug)]
 struct Config {
-    #[serde(rename(deserialize = "Configuration", serialize = "Configuration"))]
+    #[serde(alias = "Configuration")]
     pub configuration: Configuration,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Configuration {
-    #[serde(rename(deserialize = "ServerPort", serialize = "ServerPort"))]
+    #[serde(alias = "ServerPort")]
     pub server_port: Option<u16>,
-    #[serde(rename(deserialize = "AutoResume", serialize = "AutoResume"))]
+    #[serde(alias = "AutoResume")]
     pub auto_resume: bool,
-    #[serde(rename(deserialize = "SoundCard", serialize = "SoundCard"))]
+    #[serde(alias = "SoundCard")]
     pub sound_source: String,
-    #[serde(rename(deserialize = "SoundCardIndex", serialize = "SoundCardIndex"))]
+    #[serde(alias = "SoundCardIndex")]
     pub sound_source_index: Option<i32>,
-    #[serde(rename(deserialize = "LogLevel", serialize = "LogLevel"))]
+    #[serde(alias = "LogLevel")]
     pub log_level: LevelFilter,
-    #[serde(rename(deserialize = "SSDPIntervalMins", serialize = "SSDPIntervalMins"))]
+    #[serde(alias = "SSDPIntervalMins")]
     pub ssdp_interval_mins: f64,
-    #[serde(rename(deserialize = "AutoReconnect", serialize = "AutoReconnect"))]
+    #[serde(alias = "AutoReconnect")]
     pub auto_reconnect: bool,
-    #[serde(rename(deserialize = "DisableChunked", serialize = "DisableChunked"))]
-    pub disable_chunked: bool,
-    #[serde(rename(deserialize = "UseWaveFormat", serialize = "UseWaveFormat"))]
+    // removed in 1.8.5
+    #[serde(alias = "DisableChunked", skip)]
+    _disable_chunked: bool,
+    #[serde(alias = "UseWaveFormat")]
     pub use_wave_format: bool,
-    #[serde(rename(deserialize = "BitsPerSample", serialize = "BitsPerSample"))]
+    #[serde(alias = "BitsPerSample")]
     pub bits_per_sample: Option<u16>,
-    #[serde(rename(deserialize = "StreamingFormat", serialize = "StreamingFormat"))]
+    #[serde(alias = "StreamingFormat")]
     pub streaming_format: Option<StreamingFormat>,
-    #[serde(rename(deserialize = "MonitorRms", serialize = "MonitorRms"))]
+    #[serde(alias = "MonitorRms")]
     pub monitor_rms: bool,
-    #[serde(rename(deserialize = "CaptureTimeout", serialize = "CaptureTimeout"))]
+    #[serde(alias = "CaptureTimeout")]
     pub capture_timeout: Option<u32>,
-    #[serde(rename(deserialize = "InjectSilence", serialize = "InjectSilence"))]
+    #[serde(alias = "InjectSilence")]
     pub inject_silence: Option<bool>,
-    #[serde(rename(deserialize = "LastRenderer", serialize = "LastRenderer"))]
+    #[serde(alias = "LastRenderer")]
     pub last_renderer: String,
-    #[serde(rename(deserialize = "LastNetwork", serialize = "LastNetwork"))]
+    #[serde(alias = "LastNetwork")]
     pub last_network: String,
-    #[serde(rename(deserialize = "ConfigDir", serialize = "ConfigDir"))]
+    #[serde(alias = "ConfigDir")]
     config_dir: PathBuf,
-    #[serde(rename(deserialize = "ConfigId", serialize = "ConfigId"))]
+    #[serde(alias = "ConfigId")]
     pub config_id: Option<String>,
 }
 
@@ -79,7 +80,7 @@ impl Configuration {
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 10.0,
             auto_reconnect: !HAVE_UI.load(Relaxed),
-            disable_chunked: true,
+            _disable_chunked: true,
             use_wave_format: false,
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),

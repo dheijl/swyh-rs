@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
-- 1.8.5-beta (unreleased)
+- 1.8.5 (Oct 4 2023 dheijl)
+  - remove "chunked transfer" config option and associated code, it's considered useless and removed from HTTP 2 anyway
 
 - 1.8.4 (Sep 9 2023 dheijl)
   - config: make sure SoundCardIndex defaults to 0 instead of None to prevent accidentally selecting the wrong device when there are duplicate names (issue #107)

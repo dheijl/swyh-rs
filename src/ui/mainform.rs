@@ -36,7 +36,6 @@ pub struct MainForm {
     pub log_level_choice: MenuButton,
     pub fmt_choice: MenuButton,
     pub b24_bit: CheckButton,
-    pub disable_chunked: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
@@ -412,28 +411,6 @@ impl MainForm {
         });
 
         pconfig2.add(&listen_port);
-
-        // disable chunked transfer (for AVTransport renderers that can't handle chunkeed transfer)
-        let mut disable_chunked = CheckButton::new(0, 0, 0, 0, "No Chunked Tr. Enc.");
-        if config.disable_chunked {
-            disable_chunked.set(true);
-        }
-        disable_chunked.set_callback(move |b| {
-            let mut conf = CONFIG.write();
-            conf.disable_chunked = b.is_set();
-            let _ = conf.update_config();
-        });
-        pconfig2.add(&disable_chunked);
-
-        pconfig2.auto_layout();
-        pconfig2.make_resizable(false);
-        vpack.add(&pconfig2);
-
-        // RMS animation
-        let mut pconfig3 = Pack::new(0, 0, GW, 20, "");
-        pconfig3.set_spacing(10);
-        pconfig3.set_type(PackType::Horizontal);
-        pconfig3.end();
         // inject continuous silence into audio stream checkbox
         // to prevent Sonos to disconnect if no audio is being captured
         let mut inj_silence = CheckButton::new(0, 0, 0, 0, "Inject silence");
@@ -449,7 +426,17 @@ impl MainForm {
                 config_changed.set(true);
             }
         });
-        pconfig3.add(&inj_silence);
+        pconfig2.add(&inj_silence);
+
+        pconfig2.auto_layout();
+        pconfig2.make_resizable(false);
+        vpack.add(&pconfig2);
+
+        // RMS animation
+        let mut pconfig3 = Pack::new(0, 0, GW, 20, "");
+        pconfig3.set_spacing(10);
+        pconfig3.set_type(PackType::Horizontal);
+        pconfig3.end();
         // RMS animation enable checkbox
         let mut show_rms = CheckButton::new(0, 0, 0, 0, "RMS Monitor");
         if config.monitor_rms {
@@ -529,7 +516,6 @@ impl MainForm {
             log_level_choice,
             fmt_choice,
             b24_bit,
-            disable_chunked,
             show_rms,
             rms_mon_l,
             rms_mon_r,

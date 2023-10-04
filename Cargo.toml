@@ -3,7 +3,7 @@ resolver = "2"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2021"
 name = "swyh-rs"
-version = "1.8.5-beta"
+version = "1.8.5"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -26,7 +26,7 @@ flac-bound = { version = "0.3.0", default-features = false, features = [
 ] }
 #fltk-flow = "0.1.4"
 htmlescape = "0.3.1"
-if-addrs = "0.10.1"
+if-addrs = "0.10.2"
 lexopt = "0.3.0"
 log = { version = "0.4.20", features = [
     "max_level_trace",

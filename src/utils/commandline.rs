@@ -19,7 +19,6 @@ pub struct Args {
     pub log_level: Option<LevelFilter>,
     pub ssdp_interval_mins: Option<f64>,
     pub auto_reconnect: Option<bool>,
-    pub disable_chunked: Option<bool>,
     pub use_wave_format: Option<bool>,
     pub bits_per_sample: Option<u16>,
     pub streaming_format: Option<StreamingFormat>,
@@ -45,7 +44,6 @@ impl Args {
             log_level: None,
             ssdp_interval_mins: None,
             auto_reconnect: None,
-            disable_chunked: None,
             use_wave_format: None,
             bits_per_sample: None,
             streaming_format: None,
@@ -69,7 +67,6 @@ Recognized options:
     -s (--sound_source) u16 : sound_source index [os default]
     -l (--log_level) string : log_level (info/debug) [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
-    -d (--disable_chunked) bool : disable_chunked encoding [true]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
     -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
     -o (--player_ip) string : the player ip address [last used player]
@@ -149,12 +146,6 @@ Recognized options:
                 Short('i') | Long("ssdp_interval") => {
                     if let Ok(interval) = argparser.value() {
                         self.ssdp_interval_mins = Some(interval.parse().unwrap());
-                    }
-                }
-                Short('d') | Long("disable_chunked") => {
-                    if let Ok(dc) = argparser.value() {
-                        self.disable_chunked =
-                            Some(dc.string().unwrap().sanitize_bool().parse().unwrap());
                     }
                 }
                 Short('b') | Long("bits_per_sample") => {

@@ -124,7 +124,7 @@ pub fn run_server(
                         // set transfer encoding chunked unless disabled
                         let (streamsize, chunked_threshold) = {
                             if conf.disable_chunked {
-                                (Some(usize::MAX - 1), usize::MAX)
+                                (Some(usize::MAX), usize::MAX)
                             } else {
                                 (None, 8192)
                             }

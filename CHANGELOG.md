@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.8.6-beta (unreleased)
+
 - 1.8.5 (Oct 4 2023 dheijl)
   - remove "chunked transfer" config option and associated code, it's considered useless and removed from HTTP 2 anyway
 

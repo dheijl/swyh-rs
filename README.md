@@ -6,9 +6,9 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.8.5 with
+The current release is 1.8.6 with
 
-- chunked encoding removed
+- chunked encoding option removed
 - a fix for issue #107
 - a new button to enable injecting silence (Sonos specific)
 - a fix for QPlay devices (issue #99) like the Xiaomi S12

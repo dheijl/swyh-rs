@@ -122,7 +122,7 @@ pub fn run_server(
                             rq.remote_addr().unwrap()
                         ));
                         // set transfer encoding chunked unless disabled
-                        let streamsize = Some(usize::MAX - 2);
+                        let streamsize = Some(usize::MAX - 1);
                         let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
                         let channel_stream = ChannelStream::new(
                             tx,

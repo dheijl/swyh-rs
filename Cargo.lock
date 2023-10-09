@@ -332,9 +332,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.13"
+version = "1.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bf66f25cd4ebfcbe87fcac1f2f00fa782dc2466246d9e3e1d3c58974182816c"
+checksum = "2cc74358ce995354829110b1e119e1debc6fec2beba204a6e8e7a92e08a303c8"
 dependencies = [
  "bitflags 2.4.0",
  "crossbeam-channel",
@@ -345,9 +345,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.13"
+version = "1.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "367668668c3fc86f1320657a1f7ab28bb7a9a310e7516ace118978747d3c5af3"
+checksum = "b2d24f5e030e9cc58933dc87345c4f351ac311fd5d6dc515407c5b3c5bb397b9"
 dependencies = [
  "cmake",
 ]
@@ -651,9 +651,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.16"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f30b0abd723be7e2ffca1272140fac1a2f084c77ec3e123c192b66af1ee9e6c2"
+checksum = "39e3200413f237f41ab11ad6d161bc7239c84dcb631773ccd7de3dfe4b5c267c"
 dependencies = [
  "autocfg",
 ]
@@ -788,9 +788,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.68"
+version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b1106fec09662ec6dd98ccac0f81cef56984d0b49f75c92d8cbad76e20c005c"
+checksum = "134c189feb4956b20f6f547d2cf727d4c0fe06722b20a0eec87ed445a97f92da"
 dependencies = [
  "unicode-ident",
 ]

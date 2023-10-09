@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
-- 1.8.6 (Oct 8 2023 dheijl)
+- 1.8.7-beta (unreleased)
+
+- 1.8.6 (Oct 9 2023 dheijl)
   - make sure that http-tiny does not use chunking this time
 
 - 1.8.5 (Oct 4 2023 dheijl)

@@ -181,23 +181,23 @@ impl Read for ChannelStream {
 }
 
 // create an "infinite size" wav hdr
-// note this may not work when streaming to a "libsndfile" based renderer
-// as libsndfile insists on a seekable WAV file depending on the open mode used
+// note this may not work when streaming to an older "libsndfile" based renderer
+// as it insists on a seekable WAV file depending on the open mode used
 /*
-PCM Data
+PCM Data (s16le)
 Field	        Length	Contents
-ckID	        4	    Chunk ID: RIFF
+ckID	        4	    Chunk ID: 'RIFF'
 cksize	        4	    Chunk size: 4 + 24 + (8 + M*Nc*Ns + (0 or 1)
-WAVEID	        4	    WAVE ID: WAVE
-ckID	        4	    Chunk ID: fmt
+WAVEID	        4	    WAVE ID: 'WAVE'
+ckID	        4	    Chunk ID: 'fmt '
 cksize	        4	    Chunk size: 16
-wFormatTag	    2	    WAVE_FORMAT_PCM
+wFormatTag	    2	    WAVE_FORMAT_PCM (0001)
 nChannels	    2	    Nc
 nSamplesPerSec	4	    F
 nAvgBytesPerSec	4	    F*M*Nc
 nBlockAlign	    2	    M*Nc
 wBitsPerSample	2	    rounds up to 8*M
-ckID	        4	    Chunk ID: data
+ckID	        4	    Chunk ID: 'data'
 cksize	        4	    Chunk size: M*Nc*Ns
 sampled data	M*Nc*Ns	Nc*Ns channel-interleaved M-byte samples
 pad byte	    0 or 1	Padding byte if M*Nc*Ns is odd

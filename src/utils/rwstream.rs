@@ -183,6 +183,25 @@ impl Read for ChannelStream {
 // create an "infinite size" wav hdr
 // note this may not work when streaming to a "libsndfile" based renderer
 // as libsndfile insists on a seekable WAV file depending on the open mode used
+/*
+PCM Data
+Field	        Length	Contents
+ckID	        4	    Chunk ID: RIFF
+cksize	        4	    Chunk size: 4 + 24 + (8 + M*Nc*Ns + (0 or 1)
+WAVEID	        4	    WAVE ID: WAVE
+ckID	        4	    Chunk ID: fmt
+cksize	        4	    Chunk size: 16
+wFormatTag	    2	    WAVE_FORMAT_PCM
+nChannels	    2	    Nc
+nSamplesPerSec	4	    F
+nAvgBytesPerSec	4	    F*M*Nc
+nBlockAlign	    2	    M*Nc
+wBitsPerSample	2	    rounds up to 8*M
+ckID	        4	    Chunk ID: data
+cksize	        4	    Chunk size: M*Nc*Ns
+sampled data	M*Nc*Ns	Nc*Ns channel-interleaved M-byte samples
+pad byte	    0 or 1	Padding byte if M*Nc*Ns is odd
+*/
 fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let mut hdr = [0u8; 44];
     let channels: u16 = 2;
@@ -190,7 +209,7 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let block_align: u16 = channels * bytes_per_sample;
     let byte_rate: u32 = sample_rate * block_align as u32;
     hdr[0..4].copy_from_slice(b"RIFF"); //ChunkId, little endian WAV
-    let chunksize: u32 = 4294967286; // max RIFF chunksize
+    let chunksize: u32 = 4294967284; // max RIFF chunksize
     let subchunksize: u32 = 4294967248; // max data chunksize signal value
     hdr[4..8].copy_from_slice(&chunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format

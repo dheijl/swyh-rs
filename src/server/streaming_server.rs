@@ -121,8 +121,6 @@ pub fn run_server(
                             rq.url(),
                             rq.remote_addr().unwrap()
                         ));
-                        // set transfer encoding chunked unless disabled
-                        let streamsize = Some((u32::MAX - 1) as usize);
                         let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
                         let channel_stream = ChannelStream::new(
                             tx,
@@ -164,9 +162,12 @@ pub fn run_server(
                             wd.sample_rate.0,
                             rq.remote_addr().unwrap()
                         ));
+                        // make sure that tiny-http does not use chunked encoding 
+                        let streamsize = Some((u32::MAX - 1) as usize);
+                        let chunksize = u32::MAX as usize;
                         let response = Response::empty(200)
                             .with_data(channel_stream, streamsize)
-                            .with_chunked_threshold(u32::MAX as usize)
+                            .with_chunked_threshold(chunksize)
                             .with_header(cc_hdr)
                             .with_header(ct_hdr)
                             .with_header(tm_hdr)

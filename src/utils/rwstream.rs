@@ -209,8 +209,8 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let block_align: u16 = channels * bytes_per_sample;
     let byte_rate: u32 = sample_rate * block_align as u32;
     hdr[0..4].copy_from_slice(b"RIFF"); //ChunkId, little endian WAV
-    let chunksize: u32 = 4294967284; // max RIFF chunksize
-    let subchunksize: u32 = 4294967248; // max data chunksize signal value
+    let chunksize: u32 = 4294967286; // RIFF chunksize
+    let subchunksize: u32 = 4294967250; // data chunksize signal value
     hdr[4..8].copy_from_slice(&chunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format
     hdr[12..16].copy_from_slice(b"fmt "); // SubChunk = Format

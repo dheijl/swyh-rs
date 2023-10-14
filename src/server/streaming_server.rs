@@ -67,7 +67,7 @@ pub fn run_server(
                     }
                     // default headers
                     let srvr_hdr =
-                        Header::from_bytes(&b"Server"[..], &b"UPnP/1.0 DLNADOC/1.50 LAB/1.0"[..])
+                        Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..])
                             .unwrap();
                     let nm_hdr = Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap();
                     let cc_hdr = Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap();
@@ -114,7 +114,7 @@ pub fn run_server(
                     };
                     let ct_hdr = Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
                     let tm_hdr =
-                        Header::from_bytes(&b"TransferMode.DLNA.ORG"[..], &b"Streaming"[..]).unwrap();
+                        Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..]).unwrap();
                     // handle response, streaming if GET, headers only otherwise
                     if matches!(rq.method(), Method::Get) {
                         ui_log(format!(
@@ -175,6 +175,13 @@ pub fn run_server(
                             .with_header(srvr_hdr)
                             .with_header(acc_rng_hdr)
                             .with_header(nm_hdr);
+                        if cfg!(debug_assertions) {
+                           debug!("==> Response:");
+                           debug!("==> Content-Length: {}", response.data_length().unwrap_or(0));
+                            for hdr in response.headers() {
+                              debug!(" ==> Response {:?} to {}", hdr, rq.remote_addr().unwrap());
+                            }
+                        }
                         let e = rq.respond(response);
                         if e.is_err() {
                             ui_log(format!(

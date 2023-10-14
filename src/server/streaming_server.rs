@@ -74,7 +74,8 @@ pub fn run_server(
                     // don't accept range headers (Linn) until I know how to handle them
                     let acc_rng_hdr = Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap();
                     // check url
-                    if rq.url() != "/stream/swyh.wav" {
+                    const VALID_URLS: [&str; 3] = ["/stream/swyh.wav", "/stream/swyh.raw", "/stream/swyh.flac"];
+                    if ! VALID_URLS.contains(&rq.url()) {
                         ui_log(format!(
                             "Unrecognized request '{}' from {}'",
                             rq.url(),

@@ -243,7 +243,12 @@ impl Renderer {
         let mut fmt_vars = HashMap::new();
         let (host, port) = self.parse_url(&self.dev_url, log);
         let addr = format!("{local_addr}:{server_port}");
-        let local_url = format!("http://{addr}/stream/swyh.wav");
+
+        let local_url = match streaminfo.streaming_format {
+            StreamingFormat::Wav => format!("http://{addr}/stream/swyh.wav"),
+            StreamingFormat::Lpcm => format!("http://{addr}/stream/swyh.raw"),
+            StreamingFormat::Flac => format!("http://{addr}/stream/swyh.flac"),
+        };
         fmt_vars.insert("server_uri".to_string(), local_url);
         fmt_vars.insert(
             "bits_per_sample".to_string(),

@@ -34,7 +34,7 @@ I wrote this because
 
 It has been tested with
 
-- [Moode audio 8](https://moodeaudio.org/) (with Moode configured as UPNP renderer in _Openhome_ mode, and using FLAC or WAV format)
+- [Moode audio 8](https://moodeaudio.org/), with Moode configured as UPNP renderer in _Openhome_ mode, and using FLAC (preferable) or LPCM (since 1.8.7) or WAV format.
 - [Volumio](https://volumio.org/)
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
 - Denon Heos devices
@@ -57,8 +57,8 @@ Music is streamed with the sample rate of the music source (the chosen audio out
 
 Supported audio streaming formats:
 
-- 16 bit or 24 bit **FLAC** (lossless compression, and I'm using the lowest compression level for performance and latency reasons). It is available since version 1.4.0
-- audio/wav (16 bit) with an "infinite length" **WAV** header, available since version 1.3.5
+- 16 bit or 24 bit **FLAC** (lossless compression, I'm using the lowest compression level for performance and latency reasons). It is available since version 1.4.0
+- audio/wav (16 bit) with a "maximum length" **WAV** header, available since version 1.3.5
 - uncompressed 16 bit **LPCM** format (audio/l16)
 
 Note that older libsndfile based renderers may not be able to decode the WAV format, because the stream is not "seekable".

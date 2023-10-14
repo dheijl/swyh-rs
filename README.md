@@ -6,8 +6,11 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.8.6 with
+The current release is 1.8.7 with
 
+- a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
+- make the WAV format more compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges which are unsupported and this leads to some extra HTTP requests.
+- reduce the HTTP response contentlength header from u64::MAX to u32::MAX. If this makes play stop after some 6 hours just enable autoresume.
 - chunked encoding option removed
 - a fix for issue #107
 - a new button to enable injecting silence (Sonos specific)
@@ -139,7 +142,6 @@ Recognized options:
     -s (--sound_source) u16 : sound_source index [os default]
     -l (--log_level) string : log_level (info/debug) [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
-    -d (--disable_chunked) bool : disable_chunked encoding [true]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
     -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
     -o (--player_ip) string : the player ip address [last used player]

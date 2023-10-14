@@ -1,6 +1,9 @@
 # swyh-rs Changelog
 
-- 1.8.7-beta (unreleased)
+- 1.8.7 (Oct 14 2023 dheijl)
+  - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
+  - make the WAV format header more correct/compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges (to parse the WAV header) which are unsupported and this leads to a couple of extra HTTP requests but it still plays the WAV.
+  - reduce the HTTP response contentlength header from u64::MAX to u32::MAX. If this makes play stop after some 6 hours just enable autoresume.
 
 - 1.8.6 (Oct 9 2023 dheijl)
   - make sure that http-tiny does not use chunking this time

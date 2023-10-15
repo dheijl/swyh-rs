@@ -479,7 +479,9 @@ pub fn discover(
     const DEFAULT_SEARCH_TTL: u32 = 2;
 
     // get the address of the selected interface
-    let local_addr = CONFIG.read().last_network.parse().unwrap();
+    let ip = CONFIG.read().last_network.clone();
+    info!("running SSDP on {ip}");
+    let local_addr: IpAddr = ip.parse().unwrap();
     let bind_addr = SocketAddr::new(local_addr, 0);
     let socket = UdpSocket::bind(bind_addr).unwrap();
     socket.set_broadcast(true).unwrap();

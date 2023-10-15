@@ -54,8 +54,8 @@ fn main() -> Result<(), i32> {
     config.monitor_rms = false;
     ui_log(format!("{config:?}"));
     // set args loglevel
-    if args.log_level.is_some() {
-        config.log_level = args.log_level.unwrap();
+    if let Some(level) = args.log_level {
+        config.log_level = level;
     }
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
@@ -122,18 +122,18 @@ fn main() -> Result<(), i32> {
         ui_log(format!("Found network: {ip}"));
     }
     // args: ip_address
-    if args.ip_address.is_some() {
-        config.last_network = args.ip_address.unwrap().parse().unwrap();
+    if let Some(ip) = args.ip_address {
+        config.last_network = ip.parse().unwrap();
     }
     // get the network that connects to the internet
     let local_addr: IpAddr = {
         if config.last_network == "None" {
             let addr = get_local_addr().expect("Could not obtain local address.");
-            let mut conf = CONFIG.write();
-            conf.last_network = addr.to_string();
-            let _ = conf.update_config();
+            config.last_network = addr.to_string();
+            info!("using network {}", config.last_network);
             addr
         } else {
+            info!("new network {}", config.last_network);
             config.last_network.parse().unwrap()
         }
     };
@@ -175,8 +175,16 @@ fn main() -> Result<(), i32> {
     };
 
     // set args ssdp_interval
-    if args.ssdp_interval_mins.is_some() {
-        config.ssdp_interval_mins = args.ssdp_interval_mins.unwrap();
+    if let Some(minutes) = args.ssdp_interval_mins {
+        config.ssdp_interval_mins = minutes;
+    }
+
+    // update config with new args
+    let _ = config.update_config();
+    // update in_memory shared config for other threads
+    {
+        let mut conf = CONFIG.write();
+        *conf = config.clone();
     }
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
@@ -208,8 +216,8 @@ fn main() -> Result<(), i32> {
         config.bits_per_sample = args.bits_per_sample;
     }
     // set args streaming format
-    if args.auto_resume.is_some() {
-        config.auto_resume = args.auto_resume.unwrap();
+    if let Some(autoresume) = args.auto_resume {
+        config.auto_resume = autoresume;
     }
     // set args auto reconnect
     if args.auto_reconnect.is_some() {
@@ -220,6 +228,15 @@ fn main() -> Result<(), i32> {
         config.streaming_format = args.streaming_format;
         config.use_wave_format = config.streaming_format == Some(Wav);
     }
+
+    // update config with new args
+    let _ = config.update_config();
+    // update in_memory shared config for other threads
+    {
+        let mut conf = CONFIG.write();
+        *conf = config.clone();
+    }
+
     // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =

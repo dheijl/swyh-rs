@@ -56,7 +56,7 @@ pub fn run_server(
                     if cfg!(debug_assertions) {
                         debug!("<== Incoming {:?}", rq);
                         for hdr in rq.headers() {
-                            debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr().unwrap());
+                            debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr().unwrap());
                         }
                     }
                     // get remote ip
@@ -177,9 +177,9 @@ pub fn run_server(
                             .with_header(nm_hdr);
                         if cfg!(debug_assertions) {
                            debug!("==> Response:");
-                           debug!("==> Content-Length: {}", response.data_length().unwrap_or(0));
+                           debug!(" ==> Content-Length: {}", response.data_length().unwrap_or(0));
                             for hdr in response.headers() {
-                              debug!(" ==> Response {:?} to {}", hdr, rq.remote_addr().unwrap());
+                              debug!(" ==> Response {:?} to {}", hdr, rq.remote_addr().unwrap());
                             }
                         }
                         let e = rq.respond(response);

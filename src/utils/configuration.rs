@@ -79,7 +79,7 @@ impl Configuration {
             sound_source_index: Some(0),
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 10.0,
-            auto_reconnect: !HAVE_UI.load(Relaxed),
+            auto_reconnect: false,
             _disable_chunked: true,
             use_wave_format: false,
             bits_per_sample: Some(16),

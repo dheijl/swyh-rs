@@ -95,7 +95,6 @@ fn main() -> Result<(), i32> {
     } else {
         config.sound_source_index = Some(0);
     }
-    info!("Config: {:?}", config);
 
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices();
@@ -279,6 +278,8 @@ fn main() -> Result<(), i32> {
         let mut conf = CONFIG.write();
         *conf = config.clone();
     }
+
+    info!("Config: {:?}", config);
 
     // exit here if dry-run
     if args.dry_run.is_some() {

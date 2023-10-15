@@ -209,9 +209,9 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let block_align: u16 = channels * bytes_per_sample;
     let byte_rate: u32 = sample_rate * block_align as u32;
     hdr[0..4].copy_from_slice(b"RIFF"); //ChunkId, little endian WAV
-    let chunksize: u32 = 4294967286; // RIFF chunksize
-    let subchunksize: u32 = 4294967250; // data chunksize signal value
-    hdr[4..8].copy_from_slice(&chunksize.to_le_bytes()); // RIFF ChunkSize
+    let riffchunksize: u32 = 4294967286; // RIFF chunksize
+    let datachunksize: u32 = riffchunksize - 36; // data chunksize
+    hdr[4..8].copy_from_slice(&riffchunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format
     hdr[12..16].copy_from_slice(b"fmt "); // SubChunk = Format
     hdr[16..20].copy_from_slice(&16u32.to_le_bytes()); // fmt chunksize for PCM
@@ -222,7 +222,7 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr[32..34].copy_from_slice(&block_align.to_le_bytes()); // BlockAlign
     hdr[34..36].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
     hdr[36..40].copy_from_slice(b"data"); // SubChunk = "data"
-    hdr[40..44].copy_from_slice(&subchunksize.to_le_bytes()); // data SubChunkSize
+    hdr[40..44].copy_from_slice(&datachunksize.to_le_bytes()); // data SubChunkSize
     debug!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
     hdr.to_vec()
 }

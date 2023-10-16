@@ -23,6 +23,11 @@ struct Config {
     #[serde(alias = "Configuration")]
     pub configuration: Configuration,
 }
+
+fn disable_chunked() -> bool {
+    true
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Configuration {
     #[serde(alias = "ServerPort")]
@@ -40,7 +45,7 @@ pub struct Configuration {
     #[serde(alias = "AutoReconnect")]
     pub auto_reconnect: bool,
     // removed in 1.8.5
-    #[serde(alias = "DisableChunked", skip)]
+    #[serde(alias = "DisableChunked", skip, default = "disable_chunked")]
     _disable_chunked: bool,
     #[serde(alias = "UseWaveFormat")]
     pub use_wave_format: bool,

@@ -52,7 +52,7 @@ fn main() -> Result<(), i32> {
         }
     }
     config.monitor_rms = false;
-    ui_log(format!("{config:?}"));
+    ui_log(format!("Current config: {config:?}"));
     // set args loglevel
     if let Some(level) = args.log_level {
         config.log_level = level;
@@ -296,7 +296,7 @@ fn main() -> Result<(), i32> {
         *conf = config.clone();
     }
 
-    info!("Config: {:?}", config);
+    info!("New config: {config:?}");
 
     // exit here if dry-run
     if args.dry_run.is_some() {

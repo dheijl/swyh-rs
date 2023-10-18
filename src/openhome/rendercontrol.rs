@@ -239,7 +239,6 @@ impl Renderer {
         log: &dyn Fn(String),
         streaminfo: &StreamInfo,
     ) -> Result<(), &str> {
-        let use_wav_format = streaminfo.streaming_format == StreamingFormat::Wav;
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = HashMap::new();
         let (host, port) = self.parse_url(&self.dev_url, log);
@@ -264,7 +263,9 @@ impl Renderer {
         let mut didl_prot: String;
         if streaminfo.streaming_format == StreamingFormat::Flac {
             didl_prot = htmlescape::encode_minimal(FLAC_PROT_INFO);
-        } else if use_wav_format {
+        } else if streaminfo.streaming_format == StreamingFormat::Wav
+            || streaminfo.streaming_format == StreamingFormat::Rf64
+        {
             didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
         } else if streaminfo.bits_per_sample == 16 {
             didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);

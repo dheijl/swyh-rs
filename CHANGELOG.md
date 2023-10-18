@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.9.1-beta (unreleased)
+  - use WAV didl protocol info for RF64 too (instead of LPCM), should be compatible
+
 - 1.9.0 (Oct 18 2023 dheijl)
   - some small fixes (cli and WAV format)
   - add support for **RF64** format, as it removes the 4 GB WAV limitation. All formats except WAV no longer have limits on the stream size.

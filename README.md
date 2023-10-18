@@ -6,8 +6,9 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.8.7 with
+The current release is 1.9.0 with
 
+- support for the RF64 audio format
 - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
 - make the WAV format more compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges which are unsupported and this leads to some extra HTTP requests.
 - reduce the HTTP response contentlength header from u64::MAX to u32::MAX. If this makes play stop after some 6 hours just enable autoresume.

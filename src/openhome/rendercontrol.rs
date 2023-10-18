@@ -46,6 +46,7 @@ static AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 </s:Envelope>";
 
 /// didl protocolinfo
+/// rf64 seems to work with L16, do we need a specific one?
 static L16_PROT_INFO: &str = "http-get:*:audio/L16;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
 static L24_PROT_INFO: &str = "http-get:*:audio/L24;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
 static WAV_PROT_INFO: &str = "http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=03700000000000000000000000000000";

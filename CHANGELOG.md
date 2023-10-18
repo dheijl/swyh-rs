@@ -1,10 +1,12 @@
 # swyh-rs Changelog
 
-- 1.9.0-beta (unreleased)
+- 1.9.0 (Oct 18 2023 dheijl)
+  - some small fixes (cli and WAV format)
+  - add support for **RF64** format, as it removes the 4 GB WAV limitation. All formats except WAV no longer have limits on the stream size.
 
 - 1.8.7 (Oct 14 2023 dheijl)
   - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
-  - make the WAV format header more correct/compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges (to parse the WAV header) which are unsupported and this leads to a couple of extra HTTP requests but it still plays the WAV.
+  - make the WAV format header more correct/compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges (to parse the WAV header) which are unsupported and this leads to an extra HTTP request but it still plays the WAV.
   - reduce the HTTP response contentlength header from u64::MAX to u32::MAX. If this makes play stop after some 6 hours just enable autoresume.
 
 - 1.8.6 (Oct 9 2023 dheijl)

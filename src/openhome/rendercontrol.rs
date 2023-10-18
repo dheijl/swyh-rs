@@ -248,6 +248,7 @@ impl Renderer {
             StreamingFormat::Wav => format!("http://{addr}/stream/swyh.wav"),
             StreamingFormat::Lpcm => format!("http://{addr}/stream/swyh.raw"),
             StreamingFormat::Flac => format!("http://{addr}/stream/swyh.flac"),
+            StreamingFormat::Rf64 => format!("http://{addr}/stream/swyh.rf64"),
         };
         fmt_vars.insert("server_uri".to_string(), local_url);
         fmt_vars.insert(

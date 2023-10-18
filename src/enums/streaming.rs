@@ -13,6 +13,7 @@ pub enum StreamingFormat {
     Lpcm,
     Wav,
     Flac,
+    Rf64,
 }
 
 impl fmt::Display for StreamingFormat {
@@ -21,6 +22,7 @@ impl fmt::Display for StreamingFormat {
             StreamingFormat::Lpcm => write!(f, "LPCM"),
             StreamingFormat::Wav => write!(f, "WAV"),
             StreamingFormat::Flac => write!(f, "FLAC"),
+            StreamingFormat::Rf64 => write!(f, "RF64"),
         }
     }
 }

@@ -71,10 +71,12 @@ impl ChannelStream {
             capture_timeout: Duration::from_millis(capture_timout), // silence kicks in after CAPTURE_TIMEOUT seconds
             sending_silence: false,
             remote_ip: remote_ip_addr,
-            wav_hdr: if !use_wave_format {
-                Vec::new()
-            } else {
+            wav_hdr: if streaming_format == StreamingFormat::Wav {
                 create_wav_hdr(sample_rate, bits_per_sample)
+            } else if streaming_format == StreamingFormat::Rf64 {
+                create_rf64_hdr(sample_rate, bits_per_sample)
+            } else {
+                Vec::new()
             },
             use_wave_format,
             bits_per_sample,
@@ -252,7 +254,7 @@ ckID	        4	72       Chunk ID: 'data'
 cksize	        4	76       dummy Chunk size -1 (0xffffffff)
 sampled data    ... 80
 */
-fn _create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
+fn create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let mut hdr = [0u8; 80];
     let channels: u16 = 2;
     let bytes_per_sample: u16 = bits_per_sample / 8;
@@ -284,7 +286,7 @@ fn _create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr[70..72].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
     hdr[72..76].copy_from_slice(b"data"); // SubChunk = "data"
     hdr[76..80].copy_from_slice(&datachunksize.to_le_bytes()); // data SubChunkSize
-    debug!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
+    debug!("RF64 Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
 
     hdr.to_vec()
 }

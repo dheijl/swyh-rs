@@ -328,6 +328,7 @@ impl MainForm {
             StreamingFormat::Lpcm.to_string(),
             StreamingFormat::Wav.to_string(),
             StreamingFormat::Flac.to_string(),
+            StreamingFormat::Rf64.to_string(),
         ];
         for fmt in formats.iter() {
             fmt_choice.add_choice(fmt.as_str());
@@ -356,6 +357,7 @@ impl MainForm {
                     "LPCM" => StreamingFormat::Lpcm,
                     "WAV" => StreamingFormat::Wav,
                     "FLAC" => StreamingFormat::Flac,
+                    "RF64" => StreamingFormat::Rf64,
                     _ => StreamingFormat::Lpcm,
                 };
                 conf.use_wave_format = newformat == StreamingFormat::Wav;

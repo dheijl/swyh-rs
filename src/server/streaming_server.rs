@@ -164,8 +164,11 @@ pub fn run_server(
                             rq.remote_addr().unwrap()
                         ));
                         // make sure that tiny-http does not use chunked encoding 
-                        let streamsize = Some((u32::MAX - 1) as usize);
-                        let chunksize = u32::MAX as usize;
+                        let (streamsize, chunksize) = if format == StreamingFormat::Wav {
+                             (Some((u32::MAX - 1) as usize), (u32::MAX) as usize)
+                         } else {
+                            (Some((i64::MAX - 1) as usize), i64::MAX as usize)
+                         };
                         let response = Response::empty(200)
                             .with_data(channel_stream, streamsize)
                             .with_chunked_threshold(chunksize)

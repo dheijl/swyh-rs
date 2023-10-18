@@ -227,6 +227,31 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr.to_vec()
 }
 
+// create an "infinite size RF64 header
+/*
+Field           Length      Meaning
+ckID            4           chunk ID 'RF64'
+ckSize          4           dummy chunksize -1 (0xffffffff)
+WAVEID          4           compatibility 'WAVE' ID
+ckID            4           chunk ID 'ds64'
+RIFFSize        8           size of RIFF chunk (data chunk size - 8)
+dataSize        8           size of data chunk
+sampleCount     8           number of samples
+tableLength     4           number of valid table array entries 0
+tableArray      0           not used
+ckID            4           chunk ID 'fmt '
+cksize	        4	        Chunk size: 16
+wFormatTag	    2	        WAVE_FORMAT_PCM (0001)
+nChannels	    2	        Nc
+nSamplesPerSec	4	        F
+nAvgBytesPerSec	4	        F*M*Nc
+nBlockAlign	    2	        M*Nc
+wBitsPerSample	2	        rounds up to 8*M
+ckID	        4	        Chunk ID: 'data'
+cksize	        4	        dummy Chunk size -1 (0xffffffff)
+sampled data
+*/
+
 //#[allow(dead_code)]
 fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     // silence_period is in msecs (capture_timeout / 4), sample rate is per second, 2 channels for stereo

@@ -229,28 +229,65 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
 
 // create an "infinite size RF64 header
 /*
-Field           Length      Meaning
-ckID            4           chunk ID 'RF64'
-ckSize          4           dummy chunksize -1 (0xffffffff)
-WAVEID          4           compatibility 'WAVE' ID
-ckID            4           chunk ID 'ds64'
-RIFFSize        8           size of RIFF chunk (data chunk size - 8)
-dataSize        8           size of data chunk
-sampleCount     8           number of samples
-tableLength     4           number of valid table array entries 0
-tableArray      0           not used
-ckID            4           chunk ID 'fmt '
-cksize	        4	        Chunk size: 16
-wFormatTag	    2	        WAVE_FORMAT_PCM (0001)
-nChannels	    2	        Nc
-nSamplesPerSec	4	        F
-nAvgBytesPerSec	4	        F*M*Nc
-nBlockAlign	    2	        M*Nc
-wBitsPerSample	2	        rounds up to 8*M
-ckID	        4	        Chunk ID: 'data'
-cksize	        4	        dummy Chunk size -1 (0xffffffff)
-sampled data
+Field           Len offset   Meaning
+ckID            4   0        chunk ID 'RF64'
+ckSize          4   4        dummy chunksize -1 (0xffffffff)
+WAVEID          4   8        compatibility 'WAVE' ID
+ckID            4   12       chunk ID 'ds64'
+ckSize          4   16       chunk size (28)
+RIFFSize        8   20       size of RIFF chunk (data chunk size - 8)
+dataSize        8   28       size of data chunk
+sampleCount     8   36       number of samples
+tableLength     4   44       number of valid table array entries 0
+tableArray      0            not used
+ckID            4   48       chunk ID 'fmt '
+cksize	        4	52       Chunk size: 16
+wFormatTag	    2	56       WAVE_FORMAT_PCM (0001)
+nChannels	    2	58       Nc
+nSamplesPerSec	4	60       F
+nAvgBytesPerSec	4	64       F*M*Nc
+nBlockAlign	    2	68       M*Nc
+wBitsPerSample	2	70       rounds up to 8*M
+ckID	        4	72       Chunk ID: 'data'
+cksize	        4	76       dummy Chunk size -1 (0xffffffff)
+sampled data    ... 80
 */
+fn _create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
+    let mut hdr = [0u8; 80];
+    let channels: u16 = 2;
+    let bytes_per_sample: u16 = bits_per_sample / 8;
+    let block_align: u16 = channels * bytes_per_sample;
+    let byte_rate: u32 = sample_rate * block_align as u32;
+    hdr[0..4].copy_from_slice(b"RF64"); //ChunkId, little endian WAV
+    let rf64chunksize: u32 = 0xffffffff; // dummy RIFF chunksize
+    let datachunksize: u32 = 0xffffffff; // dummy data chunksize
+    let ds64chunksize: u32 = 28;
+    let ds64riffsize: u64 = i64::MAX as u64 - 64;
+    let ds64datasize: u64 = ds64riffsize - 8u64;
+    let ds64nsamples: u64 = ds64datasize / bytes_per_sample as u64;
+    let ds64tablelength = 0u32;
+    hdr[4..8].copy_from_slice(&rf64chunksize.to_le_bytes()); // RIFF ChunkSize
+    hdr[8..12].copy_from_slice(b"WAVE"); // File Format
+    hdr[12..16].copy_from_slice(b"ds64"); // SubChunk = ds64
+    hdr[16..20].copy_from_slice(&ds64chunksize.to_le_bytes());
+    hdr[20..28].copy_from_slice(&ds64riffsize.to_le_bytes());
+    hdr[28..36].copy_from_slice(&ds64datasize.to_le_bytes());
+    hdr[36..44].copy_from_slice(&ds64nsamples.to_le_bytes());
+    hdr[44..48].copy_from_slice(&ds64tablelength.to_le_bytes());
+    hdr[48..52].copy_from_slice(b"fmt "); // SubChunk = Format
+    hdr[52..56].copy_from_slice(&16u32.to_le_bytes()); // fmt chunksize for PCM
+    hdr[56..58].copy_from_slice(&1u16.to_le_bytes()); // AudioFormat: uncompressed PCM
+    hdr[58..60].copy_from_slice(&channels.to_le_bytes()); // numchannels 2
+    hdr[60..64].copy_from_slice(&sample_rate.to_le_bytes()); // SampleRate
+    hdr[64..68].copy_from_slice(&byte_rate.to_le_bytes()); // ByteRate (Bps)
+    hdr[68..70].copy_from_slice(&block_align.to_le_bytes()); // BlockAlign
+    hdr[70..72].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
+    hdr[72..76].copy_from_slice(b"data"); // SubChunk = "data"
+    hdr[76..80].copy_from_slice(&datachunksize.to_le_bytes()); // data SubChunkSize
+    debug!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
+
+    hdr.to_vec()
+}
 
 //#[allow(dead_code)]
 fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {

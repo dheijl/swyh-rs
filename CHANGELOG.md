@@ -1,7 +1,8 @@
 # swyh-rs Changelog
 
-- 1.9.1-beta (unreleased)
+- 1.9.1 (unreleased)
   - use WAV didl protocol info for RF64 too (instead of LPCM), should be compatible
+  - add RF64 format to CLI binary too
 
 - 1.9.0 (Oct 18 2023 dheijl)
   - some small fixes (cli and WAV format)

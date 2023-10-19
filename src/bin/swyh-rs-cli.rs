@@ -5,7 +5,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::{debug, error, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use swyh_rs::{
-    enums::streaming::{StreamingFormat::Wav, StreamingState},
+    enums::streaming::{StreamingFormat::*, StreamingState},
     globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
@@ -226,7 +226,7 @@ fn main() -> Result<(), i32> {
     // set args streaming format
     if args.streaming_format.is_some() {
         config.streaming_format = args.streaming_format;
-        config.use_wave_format = config.streaming_format == Some(Wav);
+        config.use_wave_format = [Some(Wav), Some(Rf64)].contains(&config.streaming_format);
     }
 
     // update config with new args

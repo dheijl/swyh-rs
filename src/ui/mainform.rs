@@ -360,7 +360,8 @@ impl MainForm {
                     "RF64" => StreamingFormat::Rf64,
                     _ => StreamingFormat::Lpcm,
                 };
-                conf.use_wave_format = newformat == StreamingFormat::Wav;
+                conf.use_wave_format =
+                    [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&newformat);
                 conf.streaming_format = Some(newformat);
                 let _ = conf.update_config();
                 config_changed.set(true);

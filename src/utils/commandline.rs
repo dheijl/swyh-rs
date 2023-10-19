@@ -68,7 +68,7 @@ Recognized options:
     -l (--log_level) string : log_level (info/debug) [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
-    -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
+    -f (--format) string : streaming_format (lpcm/flac/wav/rf64) [LPCM]
     -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
     -S (--inject_silence) bool : inject silence into stream (bool) [false]
@@ -165,6 +165,10 @@ Recognized options:
                         match streaming_format.as_str() {
                             "WAV" | "wav" | "Wav" => {
                                 self.streaming_format = Some(StreamingFormat::Wav);
+                                self.use_wave_format = Some(true);
+                            }
+                            "RF64" | "rf64" | "Rf64" => {
+                                self.streaming_format = Some(StreamingFormat::Rf64);
                                 self.use_wave_format = Some(true);
                             }
                             "LPCM" | "lpcm" | "Lpcm" => {

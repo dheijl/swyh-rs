@@ -10,7 +10,7 @@ The current release is 1.9.1 with
 
 - support for the RF64 audio format
 - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
-- make the WAV format more compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges which are unsupported and this leads to some extra HTTP requests.
+- make the WAV format more compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges which are unsupported and this leads to an extra HTTP requests.
 - reduce the HTTP response contentlength header from u64::MAX to u32::MAX. If this makes play stop after some 6 hours just enable autoresume.
 - chunked encoding option removed
 - a fix for issue #107
@@ -59,8 +59,9 @@ Music is streamed with the sample rate of the music source (the chosen audio out
 Supported audio streaming formats:
 
 - 16 bit or 24 bit **FLAC** (lossless compression, I'm using the lowest compression level for performance and latency reasons). It is available since version 1.4.0
-- audio/wav (16 bit) with a "maximum length" **WAV** header, available since version 1.3.5
+- audio/wav (16 bit) with a "maximum length" (4 GB) **WAV** header, available since version 1.3.5
 - uncompressed 16 bit **LPCM** format (audio/l16)
+- audio/rf64 (16 bit) basically WAV with unlimited size since version 1.9.1.
 
 Note that older libsndfile based renderers may not be able to decode the WAV format, because the stream is not "seekable".
 

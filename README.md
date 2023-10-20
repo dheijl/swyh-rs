@@ -11,7 +11,7 @@ The current release is 1.9.1 with
 - support for the RF64 audio format
 - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
 - make the WAV format more compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges which are unsupported and this leads to an extra HTTP requests.
-- reduce the HTTP response contentlength header from u64::MAX to u32::MAX. If this makes play stop after some 6 hours just enable autoresume.
+- reduce the HTTP response contentlength header for the WAV format from u64::MAX to u32::MAX. If this makes play stop after some 6 hours just enable autoresume.
 - chunked encoding option removed
 - a fix for issue #107
 - a new button to enable injecting silence (Sonos specific)

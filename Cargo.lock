@@ -329,9 +329,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.14"
+version = "1.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cc74358ce995354829110b1e119e1debc6fec2beba204a6e8e7a92e08a303c8"
+checksum = "8d30baff5a3d1b10c0c7e8f25327dbe5fc8a8b5a846908bc9ee83bed0118a160"
 dependencies = [
  "bitflags 2.4.1",
  "crossbeam-channel",
@@ -342,9 +342,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.14"
+version = "1.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2d24f5e030e9cc58933dc87345c4f351ac311fd5d6dc515407c5b3c5bb397b9"
+checksum = "b911916ee205391540210439f9336bfa1349114896dae29d01c8dfe1cb562150"
 dependencies = [
  "cmake",
 ]
@@ -377,9 +377,9 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "hashbrown"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dfda62a12f55daeae5015f81b0baea145391cb4520f86c248fc615d72640d12"
+checksum = "f93e7192158dbcda357bdec5fb5788eebf8bbac027f3f33e719d29135ae84156"
 
 [[package]]
 name = "htmlescape"
@@ -988,7 +988,7 @@ checksum = "913e7b03d63752f6cdd2df77da36749d82669904798fe8944b9ec3d23f159905"
 
 [[package]]
 name = "swyh-rs"
-version = "1.9.1"
+version = "1.9.2-beta"
 dependencies = [
  "bitflags 2.4.1",
  "cpal",
@@ -1052,18 +1052,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.49"
+version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1177e8c6d7ede7afde3585fd2513e611227efd6481bd78d2e82ba1ce16557ed4"
+checksum = "f9a7210f5c9a7156bb50aa36aed4c95afb51df0df00713949448cf9e97d382d2"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.49"
+version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10712f02019e9288794769fba95cd6847df9874d49d871d062172f9dd41bc4cc"
+checksum = "266b2e40bc00e5a6c09c3584011e08b06f123c00362c92b975ba9843aaaa14b8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1184,9 +1184,9 @@ dependencies = [
 
 [[package]]
 name = "ttf-parser"
-version = "0.19.2"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49d64318d8311fc2668e48b63969f4343e0a85c4a109aa8460d6672e364b8bd1"
+checksum = "17f77d76d837a7830fe1d4f12b7b4ba4192c1888001c7164257e4bc6d21d96b4"
 
 [[package]]
 name = "unicode-bidi"

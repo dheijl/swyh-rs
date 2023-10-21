@@ -3,7 +3,7 @@ resolver = "2"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2021"
 name = "swyh-rs"
-version = "1.9.1"
+version = "1.9.2-beta"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -49,14 +49,14 @@ ureq = { version = "2.8.0", default-features = false, features = [
 url = "2.4.1"
 xml-rs = "0.8.19"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.4.14", features = ["use-ninja"] }
+fltk = { version = "1.4.15", features = ["use-ninja"] }
 windows = { version = "0.51.1", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.4.14", features = ["use-ninja"] }
+fltk = { version = "1.4.15", features = ["use-ninja"] }
 libc = "0.2.149"
 
 [patch.crates-io]

@@ -18,7 +18,6 @@ pub struct Args {
     pub sound_source_index: Option<i32>,
     pub log_level: Option<LevelFilter>,
     pub ssdp_interval_mins: Option<f64>,
-    pub auto_reconnect: Option<bool>,
     pub use_wave_format: Option<bool>,
     pub bits_per_sample: Option<u16>,
     pub streaming_format: Option<StreamingFormat>,
@@ -43,7 +42,6 @@ impl Args {
             sound_source_index: None,
             log_level: None,
             ssdp_interval_mins: None,
-            auto_reconnect: None,
             use_wave_format: None,
             bits_per_sample: None,
             streaming_format: None,
@@ -62,7 +60,6 @@ Recognized options:
     -n (--no_run) : dry-run, don't start streaming
     -c (--config_id) string : config_id [_cli]
     -p (--server_port) u16 : server_port [5901]
-    -a (--auto_reconnect) bool : auto reconnect [true]
     -r (--auto_resume) bool : auto_resume [false]
     -s (--sound_source) u16 : sound_source index [os default]
     -l (--log_level) string : log_level (info/debug) [info]
@@ -97,18 +94,6 @@ Recognized options:
                 Short('p') | Long("server_port") => {
                     if let Ok(port) = argparser.value() {
                         self.server_port = Some(port.parse().unwrap());
-                    }
-                }
-                Short('a') | Long("auto_reconnect") => {
-                    if let Ok(auto_reconnect) = argparser.value() {
-                        self.auto_reconnect = Some(
-                            auto_reconnect
-                                .string()
-                                .unwrap()
-                                .sanitize_bool()
-                                .parse()
-                                .unwrap(),
-                        );
                     }
                 }
                 Short('r') | Long("auto_resume") => {

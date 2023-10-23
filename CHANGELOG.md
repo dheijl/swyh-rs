@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
 - 1.9.2-beta (unreleased)
+  - some optimizations, use more iterators instead of loops, ...
+  - cli argument "autoreconnect" removed, it's de facto **ON** for cli
 
 - 1.9.1 (Oct 19 2023 dheijl)
   - use WAV didl protocol info for RF64 too (instead of LPCM), should be compatible

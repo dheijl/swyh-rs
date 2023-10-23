@@ -89,6 +89,8 @@ fn main() -> Result<(), i32> {
     if args.inject_silence.is_some() {
         config.inject_silence = args.inject_silence;
     }
+    // autoreconnect is ignored but effectively always on
+    config.auto_reconnect = true;
     // set args soundsource index
     if args.sound_source_index.is_some() {
         config.sound_source_index = args.sound_source_index;
@@ -201,12 +203,9 @@ fn main() -> Result<(), i32> {
         .unwrap();
 
     // set args player
-    let pl_ip = if args.player_ip.is_some() {
-        args.player_ip.unwrap()
-    } else {
-        config.last_renderer
-    };
-    config.last_renderer = pl_ip.clone();
+    config.last_renderer = args.player_ip.unwrap_or(config.last_renderer);
+    // set args streaming format
+    config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
     // set args server port
     if args.server_port.is_some() {
         config.server_port = args.server_port;
@@ -214,14 +213,6 @@ fn main() -> Result<(), i32> {
     // set args bits per sample
     if args.bits_per_sample.is_some() {
         config.bits_per_sample = args.bits_per_sample;
-    }
-    // set args streaming format
-    if let Some(autoresume) = args.auto_resume {
-        config.auto_resume = autoresume;
-    }
-    // set args auto reconnect
-    if args.auto_reconnect.is_some() {
-        config.auto_reconnect = args.auto_reconnect.unwrap();
     }
     // set args streaming format
     if args.streaming_format.is_some() {
@@ -278,12 +269,12 @@ fn main() -> Result<(), i32> {
     // but use the configured renderer if present
     if let Some(pl) = renderers
         .iter()
-        .find(|&renderer| renderer.remote_addr == pl_ip)
+        .find(|&renderer| renderer.remote_addr == config.last_renderer)
     {
         player = pl;
     }
     // if specified player ip not found: use default player
-    if pl_ip != player.remote_addr {
+    if config.last_renderer != player.remote_addr {
         config.last_renderer = player.remote_addr.clone();
     }
     ui_log(format!("Selected player with ip = {}", player.remote_addr));

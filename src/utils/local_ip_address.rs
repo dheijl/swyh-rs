@@ -25,7 +25,7 @@ pub fn get_interfaces() -> Vec<String> {
     let ifaces = if_addrs::get_if_addrs().expect("could not get interfaces");
     ifaces
         .iter()
-        .filter(|iface| matches!(iface.addr, IfAddr::V4(ref _if4addr)))
+        .filter(|iface| matches!(iface.addr, IfAddr::V4(..)))
         .for_each(|iface| interfaces.push(iface.addr.ip().to_string()));
     interfaces
 }

@@ -392,30 +392,39 @@ fn run_rms_monitor(
 ) {
     // compute # of samples needed to get a 10 Hz refresh rate
     let samples_per_update = ((wd.sample_rate.0 * wd.channels as u32) / 10) as i64;
-    let mut nsamples = 0i64;
-    let mut sum_l = 0i64;
-    let mut sum_r = 0i64;
+    let mut total_samples = 0i64;
+    let mut sum_l = 0f64;
+    let mut sum_r = 0f64;
     while let Ok(samples) = rms_receiver.recv() {
-        for (n, sample) in samples.iter().enumerate() {
-            nsamples += 1;
-            let i64sample: i64 = i16::from_sample(*sample) as i64;
-            if n & 1 == 0 {
-                sum_l += i64sample * i64sample;
-            } else {
-                sum_r += i64sample * i64sample;
-            }
-            if nsamples >= samples_per_update {
-                // compute rms value
-                let rms_l = ((sum_l / nsamples) as f64).sqrt();
-                rms_frame_l.set_value(rms_l);
-                let rms_r = ((sum_r / nsamples) as f64).sqrt();
-                rms_frame_r.set_value(rms_r);
-                app::awake();
-                //reset counters
-                nsamples = 0;
-                sum_l = 0;
-                sum_r = 0;
-            }
+        total_samples += samples.len() as i64;
+        sum_l += samples
+            .iter()
+            .step_by(2)
+            .map(|s| {
+                let v = i16::from_sample(*s) as f64;
+                v * v
+            })
+            .sum::<f64>();
+        // / nsamples) as f64).sqrt();
+        sum_r += samples
+            .iter()
+            .skip(1)
+            .step_by(2)
+            .map(|s| {
+                let v = i16::from_sample(*s) as f64;
+                v * v
+            })
+            .sum::<f64>();
+        // / nsamples) as f64).sqrt();
+        if total_samples >= samples_per_update {
+            let rms_l = (sum_l / total_samples as f64).sqrt();
+            let rms_r = (sum_r / total_samples as f64).sqrt();
+            total_samples = 0;
+            sum_l = 0.0;
+            sum_r = 0.0;
+            rms_frame_l.set_value(rms_l);
+            rms_frame_r.set_value(rms_r);
+            app::awake();
         }
     }
 }

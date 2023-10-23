@@ -289,9 +289,10 @@ where
     });
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
-    for (_, v) in CLIENTS.read().iter() {
-        v.write(f32_samples);
-    }
+    CLIENTS
+        .read()
+        .iter()
+        .for_each(|(_, client)| client.write(f32_samples));
     if CONFIG.read().monitor_rms {
         rms_sender.send(f32_samples.to_vec()).unwrap();
     }

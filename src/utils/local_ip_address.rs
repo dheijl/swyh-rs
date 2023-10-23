@@ -23,10 +23,9 @@ pub fn get_local_addr() -> Option<IpAddr> {
 pub fn get_interfaces() -> Vec<String> {
     let mut interfaces: Vec<String> = Vec::new();
     let ifaces = if_addrs::get_if_addrs().expect("could not get interfaces");
-    for iface in ifaces {
-        if let IfAddr::V4(ref _if4_addr) = iface.addr.clone() {
-            interfaces.push(iface.addr.ip().to_string())
-        }
-    }
+    ifaces
+        .iter()
+        .filter(|iface| matches!(iface.addr, IfAddr::V4(ref _if4addr)))
+        .for_each(|iface| interfaces.push(iface.addr.ip().to_string()));
     interfaces
 }

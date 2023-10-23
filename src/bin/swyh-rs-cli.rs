@@ -276,11 +276,11 @@ fn main() -> Result<(), i32> {
     // default = first player
     let mut player = &renderers[0];
     // but use the configured renderer if present
-    for renderer in renderers.iter() {
-        if pl_ip == renderer.remote_addr {
-            player = renderer;
-            break;
-        }
+    if let Some(pl) = renderers
+        .iter()
+        .find(|&renderer| renderer.remote_addr == pl_ip)
+    {
+        player = pl;
     }
     // if specified player ip not found: use default player
     if pl_ip != player.remote_addr {

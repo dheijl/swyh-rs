@@ -92,11 +92,7 @@ fn main() -> Result<(), i32> {
     // autoreconnect is ignored but effectively always on
     config.auto_reconnect = true;
     // set args soundsource index
-    if args.sound_source_index.is_some() {
-        config.sound_source_index = args.sound_source_index;
-    } else {
-        config.sound_source_index = Some(0);
-    }
+    config.sound_source_index = Some(args.sound_source_index.unwrap_or(0));
 
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices();
@@ -306,12 +302,12 @@ fn main() -> Result<(), i32> {
     };
     let streaminfo = StreamInfo {
         sample_rate: wd.sample_rate.0,
-        bits_per_sample: config.bits_per_sample.unwrap(),
-        streaming_format: config.streaming_format.unwrap(),
+        bits_per_sample: config.bits_per_sample.unwrap_or(16),
+        streaming_format: config.streaming_format.unwrap_or(Lpcm),
     };
     let _ = player.play(
         &local_addr,
-        config.server_port.unwrap_or_default(),
+        config.server_port.unwrap_or(5901),
         &ui_log,
         &streaminfo,
     );

@@ -391,12 +391,12 @@ fn run_rms_monitor(
     mut rms_frame_r: Progress,
 ) {
     // compute # of samples needed to get a 10 Hz refresh rate
-    let samples_per_update = ((wd.sample_rate.0 * wd.channels as u32) / 10) as i64;
-    let mut total_samples = 0i64;
+    let samples_per_update = ((wd.sample_rate.0 * wd.channels as u32) / 10) as usize;
+    let mut total_samples = 0usize;
     let mut sum_l = 0f64;
     let mut sum_r = 0f64;
     while let Ok(samples) = rms_receiver.recv() {
-        total_samples += samples.len() as i64;
+        total_samples += samples.len();
         sum_l += samples
             .iter()
             .step_by(2)
@@ -417,8 +417,8 @@ fn run_rms_monitor(
             .sum::<f64>();
         // / nsamples) as f64).sqrt();
         if total_samples >= samples_per_update {
-            let rms_l = (sum_l / total_samples as f64).sqrt();
-            let rms_r = (sum_r / total_samples as f64).sqrt();
+            let rms_l = (sum_l / (total_samples / wd.channels as usize) as f64).sqrt();
+            let rms_r = (sum_r / (total_samples / wd.channels as usize) as f64).sqrt();
             total_samples = 0;
             sum_l = 0.0;
             sum_r = 0.0;

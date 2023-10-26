@@ -472,7 +472,7 @@ impl MainForm {
         });
         pconfig3.add(&show_rms);
         // vertical pack for the RMS meters
-        let mut pconfig3_v = Pack::new(0, 0, GW, 25, "");
+        let mut pconfig3_v = Pack::new(0, 0, GW, 16, "");
         pconfig3_v.set_spacing(4);
         pconfig3_v.set_type(PackType::Vertical);
         pconfig3_v.end();

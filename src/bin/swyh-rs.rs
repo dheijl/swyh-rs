@@ -398,28 +398,20 @@ fn run_rms_monitor(
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
         // sum left channel samples
-        sum_l += samples
-            .iter()
-            .step_by(2)
-            .map(|s| {
-                let v = i16::from_sample(*s) as f64;
-                v * v
-            })
-            .sum::<f64>();
+        sum_l += samples.iter().step_by(2).fold(0f64, |acc, x| {
+            let v = i16::from_sample(*x) as f64;
+            acc + (v * v)
+        });
         // sum right channel samples
-        sum_r += samples
-            .iter()
-            .skip(1)
-            .step_by(2)
-            .map(|s| {
-                let v = i16::from_sample(*s) as f64;
-                v * v
-            })
-            .sum::<f64>();
+        sum_r += samples.iter().skip(1).step_by(2).fold(0f64, |acc, x| {
+            let v = i16::from_sample(*x) as f64;
+            acc + (v * v)
+        });
         // compute and show current RMS values if enough samples collected
         if total_samples >= samples_per_update {
-            let rms_l = (sum_l / (total_samples / wd.channels as usize) as f64).sqrt();
-            let rms_r = (sum_r / (total_samples / wd.channels as usize) as f64).sqrt();
+            let samples_per_channel = (total_samples / wd.channels as usize) as f64;
+            let rms_l = (sum_l / samples_per_channel).sqrt();
+            let rms_r = (sum_r / samples_per_channel).sqrt();
             total_samples = 0;
             sum_l = 0.0;
             sum_r = 0.0;

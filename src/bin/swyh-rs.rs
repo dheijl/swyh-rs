@@ -398,12 +398,12 @@ fn run_rms_monitor(
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
         // sum left channel samples
-        sum_l += samples.iter().step_by(2).fold(0f64, |acc, x| {
+        sum_l = samples.iter().step_by(2).fold(sum_l, |acc, x| {
             let v = i16::from_sample(*x) as f64;
             acc + (v * v)
         });
         // sum right channel samples
-        sum_r += samples.iter().skip(1).step_by(2).fold(0f64, |acc, x| {
+        sum_r = samples.iter().skip(1).step_by(2).fold(sum_r, |acc, x| {
             let v = i16::from_sample(*x) as f64;
             acc + (v * v)
         });

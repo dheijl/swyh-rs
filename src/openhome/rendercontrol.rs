@@ -220,7 +220,7 @@ impl Renderer {
             .send_string(body)
         {
             Ok(resp) => {
-                let xml = resp.into_string().unwrap();
+                let xml = resp.into_string().unwrap_or_default();
                 debug!("<=SOAP response: {}\r\n", xml);
                 Some(xml)
             }

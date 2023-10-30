@@ -1,5 +1,5 @@
 use crate::{
-    enums::streaming::{StreamingFormat, StreamingState},
+    enums::streaming::{StreamingFormat, StreamingFormat::*, StreamingState},
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
@@ -37,8 +37,8 @@ pub fn run_server(
         format!(
             "Streaming sample rate: {}, bits per sample: {}, format: {}",
             wd.sample_rate.0,
-            cfg.bits_per_sample.unwrap(),
-            cfg.streaming_format.unwrap(),
+            cfg.bits_per_sample.unwrap_or(16),
+            cfg.streaming_format.unwrap_or(Flac),
         )
     };
     ui_log(logmsg);
@@ -129,8 +129,8 @@ pub fn run_server(
                             remote_ip.clone(),
                             conf.use_wave_format,
                             wd.sample_rate.0,
-                            conf.bits_per_sample.unwrap(),
-                            conf.streaming_format.unwrap(),
+                            conf.bits_per_sample.unwrap_or(16),
+                            conf.streaming_format.unwrap_or(Flac),
                         );
                         let nclients = {
                             let mut clients = CLIENTS.write();

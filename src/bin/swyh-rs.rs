@@ -36,7 +36,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 use swyh_rs::{
-    enums::streaming::StreamingState,
+    enums::streaming::{StreamingFormat::*, StreamingState},
     globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
@@ -146,7 +146,7 @@ fn main() {
                 info!("Selected audio source: {}", devname);
             }
         } else if devname == config.sound_source
-            && config.sound_source_index.unwrap() == index as i32
+            && config.sound_source_index.unwrap_or_default() == index as i32
         {
             audio_output_device = adev;
             info!("Selected audio source: {}[#{}]", devname, index);
@@ -301,8 +301,8 @@ fn main() {
                                     let config = CONFIG.read().clone();
                                     let streaminfo = StreamInfo {
                                         sample_rate: wd.sample_rate.0,
-                                        bits_per_sample: config.bits_per_sample.unwrap(),
-                                        streaming_format: config.streaming_format.unwrap(),
+                                        bits_per_sample: config.bits_per_sample.unwrap_or(16),
+                                        streaming_format: config.streaming_format.unwrap_or(Flac),
                                     };
                                     let _ = r.play(
                                         &local_addr,

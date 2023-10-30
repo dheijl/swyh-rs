@@ -102,7 +102,8 @@ fn main() -> Result<(), i32> {
         ui_log(format!(
             "Found Audio Source: index = {index}, name = {devname}"
         ));
-        if config.sound_source_index.is_some() && config.sound_source_index.unwrap() == index as i32
+        if config.sound_source_index.is_some()
+            && config.sound_source_index.unwrap_or_default() == index as i32
         {
             audio_output_device = adev;
             config.sound_source = devname.clone();
@@ -332,8 +333,8 @@ fn main() -> Result<(), i32> {
                             {
                                 let streaminfo = StreamInfo {
                                     sample_rate: wd.sample_rate.0,
-                                    bits_per_sample: config.bits_per_sample.unwrap(),
-                                    streaming_format: config.streaming_format.unwrap(),
+                                    bits_per_sample: config.bits_per_sample.unwrap_or(16),
+                                    streaming_format: config.streaming_format.unwrap_or(Flac),
                                 };
                                 let _ = r.play(
                                     &local_addr,

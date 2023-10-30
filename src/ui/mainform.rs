@@ -1,5 +1,5 @@
 use crate::{
-    enums::streaming::StreamingFormat,
+    enums::streaming::{StreamingFormat, StreamingFormat::*},
     globals::statics::CONFIG,
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{
@@ -375,7 +375,7 @@ impl MainForm {
 
         // checkbutton to select 24 bit samples instead of the 16 bit default
         let mut b24_bit = CheckButton::new(0, 0, 0, 0, "24 bit");
-        if config.bits_per_sample.unwrap() == 24 {
+        if config.bits_per_sample.unwrap_or(16) == 24 {
             b24_bit.set(true);
         }
         b24_bit.set_callback({
@@ -573,8 +573,8 @@ impl MainForm {
                     let config = CONFIG.read().clone();
                     let streaminfo = StreamInfo {
                         sample_rate: wd.sample_rate.0,
-                        bits_per_sample: config.bits_per_sample.unwrap(),
-                        streaming_format: config.streaming_format.unwrap(),
+                        bits_per_sample: config.bits_per_sample.unwrap_or(16),
+                        streaming_format: config.streaming_format.unwrap_or(Flac),
                     };
                     let _ = newr_c.play(
                         &local_addr,

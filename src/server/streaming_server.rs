@@ -193,10 +193,12 @@ pub fn run_server(
                         }
                         let nclients = {
                             let mut clients = CLIENTS.write();
-                            if let Some(chs) = clients.remove(&remote_addr) { chs.stop_flac_encoder() };
+                            if let Some(chs) = clients.remove(&remote_addr) { 
+                                chs.stop_flac_encoder() 
+                            };
                             clients.len()
                         };
-                        debug!("Now have {} streaming clients left", nclients);
+                        debug!("Now have {nclients} streaming clients left");
                         ui_log(format!("Streaming to {remote_addr} has ended"));
                         // inform the main thread that this renderer has finished receiving
                         // necessary if the connection close was not caused by our own GUI

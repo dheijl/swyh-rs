@@ -544,7 +544,7 @@ pub fn discover(
                             _ => None,
                         }
                     });
-                    let mut dev_url: String = String::new();
+                    let mut dev_url = String::new();
                     let mut oh_device = false;
                     let mut av_device = false;
                     for (header, value) in iter {
@@ -560,20 +560,21 @@ pub fn discover(
                     }
                     if oh_device {
                         oh_devices.push((dev_url.clone(), from));
-                        debug!("SSDP Discovery: OH renderer: {}", dev_url);
+                        debug!("SSDP Discovery: OH renderer: {dev_url}");
                     }
                     if av_device {
                         av_devices.push((dev_url.clone(), from));
-                        debug!("SSDP Discovery: AV renderer: {}", dev_url);
+                        debug!("SSDP Discovery: AV renderer: {dev_url}");
                     }
                 }
             }
             Err(e) => {
                 // ignore socket read timeout on Windows or EAGAIN/EWOULBLOCK on Linux/Unix/MacOS
-                if !(e.to_string().contains("10060")
-                    || e.to_string().contains("os error 11")
-                    || e.to_string().contains("os error 35"))
-                {
+                let error_text = e.to_string();
+                let to_ignore = ["10060", "os error 11", "os error 35"]
+                    .iter()
+                    .any(|s| error_text.contains(*s));
+                if !to_ignore {
                     logger(format!("*E*E>Error reading SSDP M-SEARCH response: {e}"));
                 }
             }
@@ -589,10 +590,7 @@ pub fn discover(
         if !usable_devices.iter().any(|d| d.0 == *av_url) {
             usable_devices.push((av_url.to_string(), *sa));
         } else {
-            debug!(
-                "SSDP Discovery: skipping AV renderer {} as it is also OH",
-                av_url
-            );
+            debug!("SSDP Discovery: skipping AV renderer {av_url} as it is also OH");
         }
     }
     // now filter out devices we already know about
@@ -601,7 +599,7 @@ pub fn discover(
             info!("SSDP discovery: new Renderer found at : {}", url);
             devices.push((url.to_string(), *sa));
         } else {
-            info!("SSDP discovery: Skipping known Renderer at {}", url);
+            info!("SSDP discovery: Skipping known Renderer at {url}");
         }
     }
 
@@ -676,7 +674,7 @@ fn get_service_description(dev_url: &str) -> Option<String> {
             }
         }
         Err(e) => {
-            error!("Error {} getting service description for {}", e, url);
+            error!("Error {e} getting service description for {url}");
             None
         }
     }
@@ -732,7 +730,7 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                 }
             }
             Err(e) => {
-                error!("SSDP Get Renderer Description Error: {}", e);
+                error!("SSDP Get Renderer Description Error: {e}");
                 return None;
             }
             _ => {}
@@ -781,5 +779,16 @@ mod tests {
             url.insert(0, '/');
         }
         assert_eq!(url, "/A/.url");
+    }
+
+    #[test]
+    fn test_contains() {
+        let ok_errors = ["10060", "os error 11", "os error 35"];
+        let mut e = "bla bla os error 11 bla bla";
+        let to_ignore = OK_errors.iter().any(|s| e.contains(*s));
+        assert!(to_ignore == true);
+        e = "bla bla os error 12 bla bla";
+        let to_ignore = OK_errors.iter().any(|s| e.contains(*s));
+        assert!(to_ignore == false);
     }
 }

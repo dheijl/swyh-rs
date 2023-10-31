@@ -56,7 +56,10 @@ pub fn run_server(
                     if cfg!(debug_assertions) {
                         debug!("<== Incoming {:?}", rq);
                         for hdr in rq.headers() {
-                            debug!(" <== Incoming Request {:?} from {}", hdr, rq.remote_addr().unwrap());
+                            debug!(
+                                " <== Incoming Request {hdr:?} from {}",
+                                rq.remote_addr().unwrap()
+                            );
                         }
                     }
                     // get remote ip
@@ -67,15 +70,20 @@ pub fn run_server(
                     }
                     // default headers
                     let srvr_hdr =
-                        Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..])
-                            .unwrap();
+                        Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap();
                     let nm_hdr = Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap();
                     let cc_hdr = Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap();
                     // don't accept range headers (Linn) until I know how to handle them
-                    let acc_rng_hdr = Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap();
+                    let acc_rng_hdr =
+                        Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap();
                     // check url
-                    const VALID_URLS: [&str; 4] = ["/stream/swyh.wav", "/stream/swyh.raw", "/stream/swyh.flac", "/stream/swyh.rf64"];
-                    if ! VALID_URLS.contains(&rq.url()) {
+                    const VALID_URLS: [&str; 4] = [
+                        "/stream/swyh.wav",
+                        "/stream/swyh.raw",
+                        "/stream/swyh.flac",
+                        "/stream/swyh.rf64",
+                    ];
+                    if !VALID_URLS.contains(&rq.url()) {
                         ui_log(format!(
                             "Unrecognized request '{}' from {}'",
                             rq.url(),
@@ -105,16 +113,19 @@ pub fn run_server(
                         "audio/flac".to_string()
                     } else if conf.use_wave_format {
                         "audio/vnd.wave;codec=1".to_string()
-                    } else { // LPCM
+                    } else {
+                        // LPCM
                         if conf.bits_per_sample == Some(16) {
-                            format!("audio/L16;rate={};channels=2", wd.sample_rate.0) 
+                            format!("audio/L16;rate={};channels=2", wd.sample_rate.0)
                         } else {
-                            format!("audio/L24;rate={};channels=2", wd.sample_rate.0) 
+                            format!("audio/L24;rate={};channels=2", wd.sample_rate.0)
                         }
                     };
-                    let ct_hdr = Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
+                    let ct_hdr =
+                        Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
                     let tm_hdr =
-                        Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..]).unwrap();
+                        Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..])
+                            .unwrap();
                     // handle response, streaming if GET, headers only otherwise
                     if matches!(rq.method(), Method::Get) {
                         ui_log(format!(
@@ -150,7 +161,8 @@ pub fn run_server(
                             "audio/FLAC"
                         } else if format == StreamingFormat::Wav {
                             "audio/wave;codec=1 (WAV)"
-                        } else { // LPCM
+                        } else {
+                            // LPCM
                             if conf.bits_per_sample == Some(16) {
                                 "audio/L16 (LPCM)"
                             } else {
@@ -158,17 +170,18 @@ pub fn run_server(
                             }
                         };
                         ui_log(format!(
-                            "Streaming {streaming_format}, input sample format {:?}, channels=2, rate={}, to {}",
+                            "Streaming {streaming_format}, input sample format {:?}, \
+                            channels=2, rate={}, to {}",
                             wd.sample_format,
                             wd.sample_rate.0,
                             rq.remote_addr().unwrap()
                         ));
-                        // make sure that tiny-http does not use chunked encoding 
+                        // make sure that tiny-http does not use chunked encoding
                         let (streamsize, chunksize) = if format == StreamingFormat::Wav {
-                             (Some((u32::MAX - 1) as usize), (u32::MAX) as usize)
-                         } else {
+                            (Some((u32::MAX - 1) as usize), (u32::MAX) as usize)
+                        } else {
                             (Some((i64::MAX - 1) as usize), i64::MAX as usize)
-                         };
+                        };
                         let response = Response::empty(200)
                             .with_data(channel_stream, streamsize)
                             .with_chunked_threshold(chunksize)
@@ -179,10 +192,13 @@ pub fn run_server(
                             .with_header(acc_rng_hdr)
                             .with_header(nm_hdr);
                         if cfg!(debug_assertions) {
-                           debug!("==> Response:");
-                           debug!(" ==> Content-Length: {}", response.data_length().unwrap_or(0));
+                            debug!("==> Response:");
+                            debug!(
+                                " ==> Content-Length: {}",
+                                response.data_length().unwrap_or(0)
+                            );
                             for hdr in response.headers() {
-                              debug!(" ==> Response {:?} to {}", hdr, rq.remote_addr().unwrap());
+                                debug!(" ==> Response {:?} to {}", hdr, rq.remote_addr().unwrap());
                             }
                         }
                         let e = rq.respond(response);
@@ -193,8 +209,8 @@ pub fn run_server(
                         }
                         let nclients = {
                             let mut clients = CLIENTS.write();
-                            if let Some(chs) = clients.remove(&remote_addr) { 
-                                chs.stop_flac_encoder() 
+                            if let Some(chs) = clients.remove(&remote_addr) {
+                                chs.stop_flac_encoder()
                             };
                             clients.len()
                         };

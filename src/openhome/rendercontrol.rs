@@ -22,7 +22,8 @@ use xml::reader::{EventReader, XmlEvent};
 /// OH insert playlist template
 static OH_INSERT_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <s:Body>\
 <u:Insert xmlns:u=\"urn:av-openhome-org:service:Playlist:1\">\
 <AfterId>0</AfterId>\
@@ -35,7 +36,8 @@ static OH_INSERT_PL_TEMPLATE: &str = "\
 /// AV SetTransportURI template
 static AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"utf-8\"?>\
-<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\
+<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" \
+s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\
 <s:Body>\
 <u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\">\
 <InstanceID>0</InstanceID>\
@@ -49,12 +51,17 @@ static AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 /// rf64 seems to work with L16, do we need a specific one?
 static L16_PROT_INFO: &str = "http-get:*:audio/L16;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
 static L24_PROT_INFO: &str = "http-get:*:audio/L24;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
-static WAV_PROT_INFO: &str = "http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=03700000000000000000000000000000";
-static FLAC_PROT_INFO: &str = "http-get:*:audio/flac:DLNA.ORG_PN=FLAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
+static WAV_PROT_INFO: &str = "http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_CI=0;\
+    DLNA.ORG_FLAGS=03700000000000000000000000000000";
+static FLAC_PROT_INFO: &str =
+    "http-get:*:audio/flac:DLNA.ORG_PN=FLAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0;\
+    DLNA.ORG_FLAGS=01700000000000000000000000000000";
 
 /// didl metadata template
 static DIDL_TEMPLATE: &str = "\
-<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
+<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" \
+xmlns:dc=\"http://purl.org/dc/elements/1.1/\" \
+xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
 <item id=\"1\" parentID=\"0\" restricted=\"0\">\
 <dc:title>swyh-rs</dc:title>\
 <res bitsPerSample=\"{bits_per_sample}\" \
@@ -79,7 +86,8 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 /// AV Play template
 static AV_PLAY_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"utf-8\"?>\
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <s:Body>\
 <u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\">\
 <InstanceID>0</InstanceID>\
@@ -99,9 +107,10 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Envelope>";
 
 /// AV Stop play template
-static AV_STOP_PLAY_TEMPLATE: &str ="\
+static AV_STOP_PLAY_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"utf-8\"?>\
-<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <s:Body>\
 <u:Stop xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\">\
 <InstanceID>0</InstanceID>\
@@ -155,7 +164,8 @@ pub struct SupportedProtocols: u32 {
     }
 }
 
-/// Renderer struct describers a media renderer, info is collected from GetDescription.xml
+/// Renderer struct describers a media renderer,
+/// info is collected from GetDescription.xml
 #[derive(Debug, Clone)]
 pub struct Renderer {
     pub dev_name: String,
@@ -297,7 +307,7 @@ impl Renderer {
             .contains(SupportedProtocols::OPENHOME)
         {
             log(format!(
-            "OH Start playing on {} host={host} port={port} from {local_addr} using OpenHome Playlist",
+            "OH Start playing on {} host={host} port={port} from {local_addr} using OH Playlist",
             self.dev_name));
             return self.oh_play(log, &fmt_vars);
         } else if self
@@ -305,8 +315,9 @@ impl Renderer {
             .contains(SupportedProtocols::AVTRANSPORT)
         {
             log(format!(
-            "AV Start playing on {} host={host} port={port} from {local_addr} using AvTransport Play",
-            self.dev_name));
+                "AV Start playing on {} host={host} port={port} from {local_addr} using AV Play",
+                self.dev_name
+            ));
             return self.av_play(log, &fmt_vars);
         } else {
             log("ERROR: play: no supported renderer protocol found".to_string());

@@ -186,19 +186,23 @@ fn main() -> Result<(), i32> {
         *conf = config.clone();
     }
 
-    // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
-    // the discovered renderers will be kept in this list
-    ui_log("Discover networks".to_string());
-    let mut renderers: Vec<Renderer> = Vec::new();
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
-    ui_log("Starting SSDP discovery".to_string());
-    let ssdp_int = config.ssdp_interval_mins;
-    let _ = thread::Builder::new()
-        .name("ssdp_updater".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
-        .unwrap();
+    let mut renderers: Vec<Renderer> = Vec::new();
 
+    let serve_only = args.serve_only.unwrap_or(false);
+    // if only serving: no ssdp discovery
+    if !serve_only {
+        // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
+        // the discovered renderers will be kept in this list
+        ui_log("Discover networks".to_string());
+        ui_log("Starting SSDP discovery".to_string());
+        let ssdp_int = config.ssdp_interval_mins;
+        let _ = thread::Builder::new()
+            .name("ssdp_updater".into())
+            .stack_size(4 * 1024 * 1024)
+            .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
+            .unwrap();
+    }
     // set args player
     config.last_renderer = args.player_ip.unwrap_or(config.last_renderer);
     // set args streaming format
@@ -246,35 +250,43 @@ fn main() -> Result<(), i32> {
     thread::sleep(Duration::from_secs(5));
 
     // get the results of the ssdp discovery
-    let mut n = 0;
-    while let Ok(newr) = ssdp_rx.try_recv() {
-        renderers.push(newr.clone());
+    if !serve_only {
+        let mut n = 0;
+        while let Ok(newr) = ssdp_rx.try_recv() {
+            renderers.push(newr.clone());
+            ui_log(format!(
+                "Available renderer #{n}: {} at {}",
+                newr.dev_name, newr.remote_addr
+            ));
+            n += 1;
+        }
+    }
+
+    let mut player: Option<&Renderer> = None;
+    // select the player unless only serving
+    if !serve_only {
+        if renderers.is_empty() {
+            error!("No renderers found!!!");
+            return Err(-1);
+        }
+        // default = first player
+        player = Some(&renderers[0]);
+        // but use the configured renderer if present
+        if let Some(pl) = renderers
+            .iter()
+            .find(|&renderer| renderer.remote_addr == config.last_renderer)
+        {
+            player = Some(pl);
+        }
+        // if specified player ip not found: use default player
+        if config.last_renderer != player.unwrap().remote_addr {
+            config.last_renderer = player.unwrap().remote_addr.clone();
+        }
         ui_log(format!(
-            "Available renderer #{n}: {} at {}",
-            newr.dev_name, newr.remote_addr
+            "Selected player with ip = {}",
+            player.unwrap().remote_addr
         ));
-        n += 1;
     }
-
-    if renderers.is_empty() {
-        error!("No renderers found!!!");
-        return Err(-1);
-    }
-
-    // default = first player
-    let mut player = &renderers[0];
-    // but use the configured renderer if present
-    if let Some(pl) = renderers
-        .iter()
-        .find(|&renderer| renderer.remote_addr == config.last_renderer)
-    {
-        player = pl;
-    }
-    // if specified player ip not found: use default player
-    if config.last_renderer != player.remote_addr {
-        config.last_renderer = player.remote_addr.clone();
-    }
-    ui_log(format!("Selected player with ip = {}", player.remote_addr));
 
     // update config with new args
     let _ = config.update_config();
@@ -306,42 +318,48 @@ fn main() -> Result<(), i32> {
         bits_per_sample: config.bits_per_sample.unwrap_or(16),
         streaming_format: config.streaming_format.unwrap_or(Lpcm),
     };
-    let _ = player.play(
-        &local_addr,
-        config.server_port.unwrap_or(5901),
-        &ui_log,
-        &streaminfo,
-    );
+
+    // start playing unless only serving
+    if !serve_only {
+        let _ = player.unwrap().play(
+            &local_addr,
+            config.server_port.unwrap_or(5901),
+            &ui_log,
+            &streaminfo,
+        );
+    }
 
     loop {
         while let Ok(streamer_feedback) = feedback_rx.try_recv() {
             match streamer_feedback.streaming_state {
                 StreamingState::Started => {}
                 StreamingState::Ended => {
-                    // first check if the renderer has actually not started streaming again
-                    // as this can happen with Bubble/Nest Audio Openhome
-                    let still_streaming = CLIENTS
-                        .read()
-                        .values()
-                        .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
-                    if !still_streaming {
-                        let config = CONFIG.read().clone();
-                        if config.auto_resume {
-                            if let Some(r) = renderers
-                                .iter()
-                                .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                            {
-                                let streaminfo = StreamInfo {
-                                    sample_rate: wd.sample_rate.0,
-                                    bits_per_sample: config.bits_per_sample.unwrap_or(16),
-                                    streaming_format: config.streaming_format.unwrap_or(Flac),
-                                };
-                                let _ = r.play(
-                                    &local_addr,
-                                    server_port.unwrap_or_default(),
-                                    &dummy_log,
-                                    &streaminfo,
-                                );
+                    if !serve_only {
+                        // first check if the renderer has actually not started streaming again
+                        // as this can happen with Bubble/Nest Audio Openhome
+                        let still_streaming = CLIENTS
+                            .read()
+                            .values()
+                            .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
+                        if !still_streaming {
+                            let config = CONFIG.read().clone();
+                            if config.auto_resume {
+                                if let Some(r) = renderers
+                                    .iter()
+                                    .find(|r| r.remote_addr == streamer_feedback.remote_ip)
+                                {
+                                    let streaminfo = StreamInfo {
+                                        sample_rate: wd.sample_rate.0,
+                                        bits_per_sample: config.bits_per_sample.unwrap_or(16),
+                                        streaming_format: config.streaming_format.unwrap_or(Flac),
+                                    };
+                                    let _ = r.play(
+                                        &local_addr,
+                                        server_port.unwrap_or_default(),
+                                        &dummy_log,
+                                        &streaminfo,
+                                    );
+                                }
                             }
                         }
                     }

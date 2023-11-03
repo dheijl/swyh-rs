@@ -24,6 +24,7 @@ pub struct Args {
     pub player_ip: Option<String>,
     pub ip_address: Option<String>,
     pub inject_silence: Option<bool>,
+    pub serve_only: Option<bool>,
 }
 
 impl Default for Args {
@@ -48,6 +49,7 @@ impl Args {
             player_ip: None,
             ip_address: None,
             inject_silence: None,
+            serve_only: None,
         }
     }
 
@@ -69,6 +71,7 @@ Recognized options:
     -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
     -S (--inject_silence) bool : inject silence into stream (bool) [false]
+    -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
 "#
         );
         println!("{:?}", self);
@@ -189,6 +192,12 @@ Recognized options:
                     if let Ok(inject) = argparser.value() {
                         self.inject_silence =
                             Some(inject.string().unwrap().sanitize_bool().parse().unwrap());
+                    }
+                }
+                Short('x') | Long("serve_only") => {
+                    if let Ok(serve) = argparser.value() {
+                        self.serve_only =
+                            Some(serve.string().unwrap().sanitize_bool().parse().unwrap());
                     }
                 }
                 _ => (),

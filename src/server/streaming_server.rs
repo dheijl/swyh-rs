@@ -157,16 +157,17 @@ pub fn run_server(
                             })
                             .unwrap();
                         std::thread::yield_now();
-                        let streaming_format = if format == StreamingFormat::Flac {
-                            "audio/FLAC"
-                        } else if format == StreamingFormat::Wav {
-                            "audio/wave;codec=1 (WAV)"
-                        } else {
-                            // LPCM
-                            if conf.bits_per_sample == Some(16) {
-                                "audio/L16 (LPCM)"
-                            } else {
-                                "audio/L24 (LPCM)"
+                        let streaming_format = match format {
+                            StreamingFormat::Flac => "audio/FLAC",
+                            StreamingFormat::Wav | StreamingFormat::Rf64 => {
+                                "audio/wave;codec=1 (WAV)"
+                            }
+                            StreamingFormat::Lpcm => {
+                                if conf.bits_per_sample == Some(16) {
+                                    "audio/L16 (LPCM)"
+                                } else {
+                                    "audio/L24 (LPCM)"
+                                }
                             }
                         };
                         ui_log(format!(

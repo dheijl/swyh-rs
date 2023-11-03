@@ -6,9 +6,10 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.9.2-beta with
+The current release is 1.9.2-beta2 with
 
-- a new -x (--serve_only) option for the cli, that lets swyh-rs serve music without running the SSDP discovery and without automatically startinjg to play. It just sits there waiting for streaming requests. See issue #111.
+- CLI: boolean options no longer take an argument, absent means false, present means true.
+- CLI: a new -x (--serve_only) option for the cli, that lets swyh-rs serve music without running the SSDP discovery and without automatically startinjg to play. It just sits there waiting for streaming requests. See issue #111.
 - support for the RF64 audio format
 - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
 - make the WAV format more compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges which are unsupported and this leads to an extra HTTP requests.

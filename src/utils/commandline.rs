@@ -7,7 +7,6 @@ use lexopt::{
 use log::LevelFilter;
 
 use crate::enums::streaming::StreamingFormat;
-use crate::utils::traits::SanitizeArg;
 
 #[derive(Clone, Debug)]
 pub struct Args {
@@ -100,16 +99,7 @@ Recognized options:
                     }
                 }
                 Short('r') | Long("auto_resume") => {
-                    if let Ok(auto_resume) = argparser.value() {
-                        self.auto_resume = Some(
-                            auto_resume
-                                .string()
-                                .unwrap()
-                                .sanitize_bool()
-                                .parse()
-                                .unwrap(),
-                        );
-                    }
+                    self.auto_resume = Some(true);
                 }
                 Short('s') | Long("sound_source_index") => {
                     if let Ok(ssi) = argparser.value() {
@@ -189,16 +179,10 @@ Recognized options:
                     }
                 }
                 Short('S') | Long("inject_silence") => {
-                    if let Ok(inject) = argparser.value() {
-                        self.inject_silence =
-                            Some(inject.string().unwrap().sanitize_bool().parse().unwrap());
-                    }
+                    self.inject_silence = Some(true);
                 }
                 Short('x') | Long("serve_only") => {
-                    if let Ok(serve) = argparser.value() {
-                        self.serve_only =
-                            Some(serve.string().unwrap().sanitize_bool().parse().unwrap());
-                    }
+                    self.serve_only = Some(true);
                 }
                 _ => (),
             }

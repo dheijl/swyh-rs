@@ -1,10 +1,11 @@
 # swyh-rs Changelog
 
-- 1.9.2-beta (unreleased)
+- 1.9.2-beta2 (unreleased)
   - some optimizations, use more iterators instead of loops, ...
   - cli argument "autoreconnect" removed, it's de facto **ON**
   - correct RMS value calculation
   - issue #111: introduce a new -x (--serve_only) commandline switch for the cli. If -x is present no SSDP discovery is run and playing is not started. swyh-rs-cli just sits there waiting for play requests from renderers. Some other useful options in this use case are: -f (format), -b (bits) and -s (sound source).
+  - CLI: boolean options no longer take an argument, absent means false, present means true.
 
 - 1.9.1 (Oct 19 2023 dheijl)
   - use WAV didl protocol info for RF64 too (instead of LPCM), should be compatible

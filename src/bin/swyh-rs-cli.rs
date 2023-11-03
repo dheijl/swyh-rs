@@ -234,23 +234,23 @@ fn main() -> Result<(), i32> {
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
     let server_port = config.server_port;
-    let _ = thread::Builder::new()
-        .name("swyh_rs_webserver".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(move || {
-            run_server(
-                &local_addr,
-                server_port.unwrap_or_default(),
-                wd,
-                feedback_tx,
-            )
-        })
-        .unwrap();
-    // give the webserver a chance to start and wait for ssdp to complete
-    thread::sleep(Duration::from_secs(5));
-
-    // get the results of the ssdp discovery
     if !serve_only {
+        let _ = thread::Builder::new()
+            .name("swyh_rs_webserver".into())
+            .stack_size(4 * 1024 * 1024)
+            .spawn(move || {
+                run_server(
+                    &local_addr,
+                    server_port.unwrap_or_default(),
+                    wd,
+                    feedback_tx,
+                )
+            })
+            .unwrap();
+        // give the webserver a chance to start and wait for ssdp to complete
+        thread::sleep(Duration::from_secs(5));
+
+        // get the results of the ssdp discovery
         let mut n = 0;
         while let Ok(newr) = ssdp_rx.try_recv() {
             renderers.push(newr.clone());
@@ -320,13 +320,18 @@ fn main() -> Result<(), i32> {
     };
 
     // start playing unless only serving
-    if !serve_only {
+    if serve_only {
+        let port = config.server_port.unwrap_or(5901);
+        ui_log(format!("Serving started on port {port}..."));
+    } else {
         let _ = player.unwrap().play(
             &local_addr,
             config.server_port.unwrap_or(5901),
             &ui_log,
             &streaminfo,
         );
+        let pl = &player.unwrap().dev_url;
+        ui_log(format!("Playing to {pl}"));
     }
 
     loop {

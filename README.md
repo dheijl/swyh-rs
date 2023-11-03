@@ -6,8 +6,9 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.9.1 with
+The current release is 1.9.2-beta with
 
+- a new -x (--serve_only) option for the cli, that lets swyh-rs serve music without running the SSDP discovery and without automatically startinjg to play. It just sits there waiting for streaming requests. See issue #111.
 - support for the RF64 audio format
 - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
 - make the WAV format more compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges which are unsupported and this leads to an extra HTTP requests.
@@ -148,6 +149,7 @@ Recognized options:
     -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
     -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
+    -x (--serve_only) bool : skip ssdp discovery and start serving immediately [false]
 ```
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.
@@ -157,6 +159,7 @@ Streaming is started automatically, and you can stop and restart streaming with 
 The only way to stop the cli app is by killing it,  with "CONTROL C" or task manager or any other way you use to kill processes.
 You can run as many instances simultaneously as you like as long as you start each one with its own configuration id value (-c option).
 I suppose you could run it from the command line or as a scheduled task or as an autorun task in Windows or...
+When using the **-x (--serve_only)** option, no SSDP discovery is run, and playing is not started (ignoring -o option). Instead swyh-rs-cli immediately starts listening for streaming requests from renderers until you terminate it.  
 
 ### Audio quality and Windows WasApi Loopback capture
 

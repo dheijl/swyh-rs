@@ -6,9 +6,9 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
-The current release is 1.9.2-beta2 with
+The current release is 1.9.2 with
 
-- CLI: boolean options no longer take an argument, absent means false, present means true. For options stored in the config you can still use the false argument to disable them.
+- CLI: boolean options no longer take an argument, absent means false, present means true. For options stored in the config you can still use the false argument to disable them. Option -n, -h and -x are not stored in the config file.
 - CLI: a new -x (--serve_only) option for the cli, that lets swyh-rs serve music without running the SSDP discovery and without automatically startinjg to play. It just sits there waiting for streaming requests. See issue #111.
 - support for the RF64 audio format
 - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
@@ -19,7 +19,7 @@ The current release is 1.9.2-beta2 with
 - a new button to enable injecting silence (Sonos specific)
 - a fix for QPlay devices (issue #99) like the Xiaomi S12
 - the ability to stream from input devices, thanks to @joshuamegnauth54 (PR #95)
-- a new CLI binary, swyh-rs-cli, where the GUI is replaced with command line options
+- **a new CLI binary, swyh-rs-cli**, where the GUI is replaced with command line options
 - **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
 - support for multiple identically named soundcards
 - Sonos fix for pausing audio with the "inject silence" config option
@@ -154,13 +154,15 @@ Recognized options:
 ```
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.
-All options are saved in the config file, so once a config is working to your liking you no longer have to provide them.
+Most options except -h, -n and -x are saved in the config file, so once a config is working to your liking you no longer have to provide them.
+Options -h, -n and -x will ignore the optional boolean argument (true/false) if specified. Specifying the option alone is equivalent to true.
+Other boolean options accept an optional true/false, because they are remembered in the config file and you should be able to change the stored value.
 Hint: use the **-n (dry-run) mode** to get the index of the sound source device and the ip address of the receiver that you need to pass as commandline parameter.
 Streaming is started automatically, and you can stop and restart streaming with the remote of your player as long as the app is running.
 The only way to stop the cli app is by killing it,  with "CONTROL C" or task manager or any other way you use to kill processes.
 You can run as many instances simultaneously as you like as long as you start each one with its own configuration id value (-c option).
 I suppose you could run it from the command line or as a scheduled task or as an autorun task in Windows or...
-When using the **-x (--serve_only)** option, no SSDP discovery is run, and playing is not started (ignoring -o option). Instead swyh-rs-cli immediately starts listening for streaming requests from renderers until you terminate it.  
+When using the **-x (--serve_only)** option, no SSDP discovery is run, and playing is not started (ignoring the -o option). Instead swyh-rs-cli immediately starts listening for streaming requests from renderers until you terminate it.  
 
 ### Audio quality and Windows WasApi Loopback capture
 

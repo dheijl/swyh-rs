@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.9.3-beta (unreleased)
+
 - 1.9.2 (Nov 3 2023 dheijl)
   - some optimizations, use more iterators instead of loops, ...
   - cli argument "autoreconnect" removed, it's de facto **ON**

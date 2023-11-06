@@ -28,12 +28,27 @@ The current release is 1.9.2 with
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OpenHome compatible music player (a "Renderer").
 
+## swyh-rs as your local internet radio
+
+You can also use swyh-rs as an internet radio station on your local network. swyh-rs is available at
+
+- http://{your-pc-ip}/swyh/swyh.raw when streaming LPCM format
+- http://{your-pc-ip}/swyh/swyh.wav when streaming WAV format
+- http://{your-pc-ip}/swyh/swyh.rf64 when streaming RF64 format
+- http://{your-pc-ip}/swyh/swyh.flac when streaming FLAC format
+
+When running the CLI with the -x option, that is effectively the only way to access the swyh-rs audio server.
+
+## Why this SWYH alternative ?
+
 I wrote this because
 
 - I wanted to learn Rust
 - SWYH does not work on Linux
 - SWYH did not work well with Volumio (push streaming did not work)
 - SWYH has a substantial memory leak due to the use of an old and unmaintained Intel .Net UPNP/DLNA library it uses.
+
+**NOTE** swyh-rs does not support lossy mp3 or aac re-encoding, only lossess LPCM/WAV/RF64/FLAC for obvious reasons.
 
 It has been tested with
 

@@ -50,7 +50,7 @@ impl Write for FlacWriter {
 // to the samples_in channel for encoding
 #[derive(Clone)]
 pub struct FlacChannel {
-    samples_in: Receiver<Vec<f32>>,
+    samples_rcvr: Receiver<Vec<f32>>,
     pub flac_in: Receiver<Vec<u8>>,
     active: Arc<AtomicBool>,
     writer: FlacWriter,
@@ -61,14 +61,14 @@ pub struct FlacChannel {
 
 impl FlacChannel {
     pub fn new(
-        samples_in: Receiver<Vec<f32>>,
+        samples_chan: Receiver<Vec<f32>>,
         sample_rate: u32,
         bits_per_sample: u32,
         channels: u32,
     ) -> FlacChannel {
         let (flac_out, flac_in): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = unbounded();
         FlacChannel {
-            samples_in,
+            samples_rcvr: samples_chan,
             flac_in,
             active: Arc::new(AtomicBool::new(false)),
             writer: FlacWriter::new(flac_out),
@@ -80,7 +80,7 @@ impl FlacChannel {
 
     pub fn run(&self) {
         // copy instance data for thread
-        let samples_in = self.samples_in.clone();
+        let samples_rdr = self.samples_rcvr.clone();
         let mut writer = self.writer.clone();
         let ch = self.channels;
         let bps = self.bits_per_sample;
@@ -127,7 +127,7 @@ impl FlacChannel {
                             Duration::from_millis(NOISE_PERIOD * 4)
                         };
                     }
-                    if let Ok(f32_samples) = samples_in.recv_timeout(time_out) {
+                    if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
                         #[cfg(feature = "NOISE")]
                         {
                             sending_silence = false;

@@ -6,6 +6,20 @@
 
 A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
+### Contents
+
+- [Current release](#current-release)
+- [swyh-rs as your local internet radio](#swyh-rs-as-your-local-internet-radio)
+- [Why this SWYH alternative ?](#why)
+- [Todo](#todo)
+- [Known problems](#known-problems)
+- [Artwork Credits](#artwork-credits)
+- [How does it work](#how)
+- [The CLI binary](#the-cli-binary)
+- [Audio quality and Windows WasApi Loopback capture](#audio-quality-and-windows-wasapi-loopback-capture)
+
+## Current Release
+
 The current release is 1.9.2 with
 
 - CLI: boolean options no longer take an argument, absent means false, present means true. For options stored in the config you can still use the false argument to disable them. Option -n, -h and -x are not stored in the config file.
@@ -39,7 +53,7 @@ You can also use swyh-rs as an internet radio station on your local network. swy
 
 When running the CLI with the -x option, that is effectively the only way to access the swyh-rs audio server.
 
-## Why this SWYH alternative ?
+## Why this SWYH alternative ?{#why}
 
 I wrote this because
 
@@ -121,7 +135,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 The icon was designed by @numanair, thanks!
 
-### How does it work?
+### How does it work?{#how}
 
 - audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac), but you can choose any audio source you want. Changing the sound source needs a restart of the app to take effect.
 - On Windows you can check in the soundmixer that the audio device you're capturing is the device that is actually playing audio. On Linux you can use [pavucontrol](https://freedesktop.org/software/pulseaudio/pavucontrol/) to enable the audio monitor for the audio device you are capturing.

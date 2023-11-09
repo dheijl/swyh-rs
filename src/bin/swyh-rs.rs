@@ -37,7 +37,7 @@ SOFTWARE.
 */
 use swyh_rs::{
     enums::streaming::{StreamingFormat::Flac, StreamingState},
-    globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
+    globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL, SERVER_PORT},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
     ui::mainform::MainForm,
@@ -236,24 +236,21 @@ fn main() {
     let _ = thread::Builder::new()
         .name("rms_monitor".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_rms_monitor(&wd.clone(), &rms_receiver, mon_l, mon_r))
+        .spawn(move || {
+            run_rms_monitor(&wd.clone(), &rms_receiver, mon_l, mon_r);
+        })
         .unwrap();
 
     // finally start a webserver on the local address,
     // with a Crossbeam feedback channel for connection accept/drop
     let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
         unbounded();
-    let server_port = config.server_port;
+    let server_port = config.server_port.unwrap_or(SERVER_PORT);
     let _ = thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)
         .spawn(move || {
-            run_server(
-                &local_addr,
-                server_port.unwrap_or_default(),
-                wd,
-                &feedback_tx,
-            );
+            run_server(&local_addr, server_port, wd, &feedback_tx);
         })
         .unwrap();
     // give the webserver a chance to start
@@ -304,12 +301,8 @@ fn main() {
                                         bits_per_sample: config.bits_per_sample.unwrap_or(16),
                                         streaming_format: config.streaming_format.unwrap_or(Flac),
                                     };
-                                    let _ = r.play(
-                                        &local_addr,
-                                        server_port.unwrap_or_default(),
-                                        &dummy_log,
-                                        &streaminfo,
-                                    );
+                                    let _ =
+                                        r.play(&local_addr, server_port, &dummy_log, &streaminfo);
                                 }
                             } else if button.is_set() {
                                 button.set(false);

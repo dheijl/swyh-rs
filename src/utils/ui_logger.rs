@@ -14,8 +14,8 @@ pub fn disable_ui_log() {
     HAVE_UI.store(false, Relaxed);
 }
 
-/// ui_log - send a logmessage to the textbox on the Crossbeam LOGCHANNEL
-pub fn ui_log(s: String) {
+/// `ui_log` - send a logmessage to the textbox on the Crossbeam LOGCHANNEL
+pub fn ui_log(s: &str) {
     let cat: &str = &s[..2];
     if HAVE_UI.load(Relaxed) {
         match cat {
@@ -24,7 +24,7 @@ pub fn ui_log(s: String) {
             _ => info!("tb_log: {}", s),
         };
         let logger = &LOGCHANNEL.read().0;
-        logger.send(s).unwrap();
+        logger.send(s.to_string()).unwrap();
         app::awake();
     } else {
         match cat {

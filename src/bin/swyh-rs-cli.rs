@@ -5,7 +5,10 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::{debug, error, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use swyh_rs::{
-    enums::streaming::{StreamingFormat::*, StreamingState},
+    enums::streaming::{
+        StreamingFormat::{Flac, Lpcm, Rf64, Wav},
+        StreamingState,
+    },
     globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
@@ -48,11 +51,11 @@ fn main() -> Result<(), i32> {
     };
     if let Some(config_id) = &config.config_id {
         if !config_id.is_empty() {
-            ui_log(format!("Loaded configuration -c {config_id}"));
+            ui_log(&format!("Loaded configuration -c {config_id}"));
         }
     }
     config.monitor_rms = false;
-    ui_log(format!("Current config: {config:?}"));
+    ui_log(&format!("Current config: {config:?}"));
     // set args loglevel
     if let Some(level) = args.log_level {
         config.log_level = level;
@@ -84,7 +87,7 @@ fn main() -> Result<(), i32> {
         std::env::consts::OS
     );
     if cfg!(debug_assertions) {
-        ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
+        ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
     }
     if args.inject_silence.is_some() {
         config.inject_silence = args.inject_silence;
@@ -99,7 +102,7 @@ fn main() -> Result<(), i32> {
     let mut source_names: Vec<String> = Vec::new();
     for (index, adev) in audio_devices.into_iter().enumerate() {
         let devname = adev.name().to_owned();
-        ui_log(format!(
+        ui_log(&format!(
             "Found Audio Source: index = {index}, name = {devname}"
         ));
         if config.sound_source_index.is_some()
@@ -107,18 +110,18 @@ fn main() -> Result<(), i32> {
         {
             audio_output_device = adev;
             config.sound_source = devname.clone();
-            ui_log(format!("Selected audio source: {}[#{}]", devname, index));
+            ui_log(&format!("Selected audio source: {devname}[#{index}]"));
         } else if devname == config.sound_source {
             audio_output_device = adev;
-            ui_log(format!("Selected audio source: {}", devname));
+            ui_log(&format!("Selected audio source: {devname}"));
         }
         source_names.push(devname);
     }
 
     // get the list of available networks
     let networks = get_interfaces();
-    for ip in networks.iter() {
-        ui_log(format!("Found network: {ip}"));
+    for ip in &networks {
+        ui_log(&format!("Found network: {ip}"));
     }
     // args: ip_address
     if let Some(ip) = args.ip_address {
@@ -154,20 +157,16 @@ fn main() -> Result<(), i32> {
     // capture system audio
     debug!("Try capturing system audio");
     let stream: cpal::Stream;
-    match capture_output_audio(&audio_output_device, rms_channel.0) {
-        Some(s) => {
-            stream = s;
-            stream.play().unwrap();
-        }
-        None => {
-            ui_log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
-            return Err(-2);
-        }
+    if let Some(s) = capture_output_audio(&audio_output_device, rms_channel.0) {
+        stream = s;
+        stream.play().unwrap();
+    } else {
+        ui_log("*E*E*> Could not capture audio ...Please check configuration.");
+        return Err(-2);
     }
-
     // If silence injector is on, create a silence injector stream.
     let _silence_stream = if let Some(true) = CONFIG.read().inject_silence {
-        ui_log("Injecting silence into the output stream".to_string());
+        ui_log("Injecting silence into the output stream");
         Some(run_silence_injector(&audio_output_device))
     } else {
         None
@@ -194,13 +193,13 @@ fn main() -> Result<(), i32> {
     if !serve_only {
         // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
         // the discovered renderers will be kept in this list
-        ui_log("Discover networks".to_string());
-        ui_log("Starting SSDP discovery".to_string());
+        ui_log("Discover networks");
+        ui_log("Starting SSDP discovery");
         let ssdp_int = config.ssdp_interval_mins;
         let _ = thread::Builder::new()
             .name("ssdp_updater".into())
             .stack_size(4 * 1024 * 1024)
-            .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
+            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
             .unwrap();
     }
     // set args player
@@ -242,8 +241,8 @@ fn main() -> Result<(), i32> {
                 &local_addr,
                 server_port.unwrap_or_default(),
                 wd,
-                feedback_tx,
-            )
+                &feedback_tx,
+            );
         })
         .unwrap();
 
@@ -254,7 +253,7 @@ fn main() -> Result<(), i32> {
         let mut n = 0;
         while let Ok(newr) = ssdp_rx.try_recv() {
             renderers.push(newr.clone());
-            ui_log(format!(
+            ui_log(&format!(
                 "Available renderer #{n}: {} at {}",
                 newr.dev_name, newr.remote_addr
             ));
@@ -282,7 +281,7 @@ fn main() -> Result<(), i32> {
         if config.last_renderer != player.unwrap().remote_addr {
             config.last_renderer = player.unwrap().remote_addr.clone();
         }
-        ui_log(format!(
+        ui_log(&format!(
             "Selected player with ip = {}",
             player.unwrap().remote_addr
         ));
@@ -300,7 +299,7 @@ fn main() -> Result<(), i32> {
 
     // exit here if dry-run
     if args.dry_run.is_some() {
-        ui_log("dry-run - exiting...".to_string());
+        ui_log("dry-run - exiting...");
         return Ok(());
     }
 
@@ -322,7 +321,7 @@ fn main() -> Result<(), i32> {
     // start playing unless only serving
     if serve_only {
         let port = config.server_port.unwrap_or(5901);
-        ui_log(format!("Serving started on port {port}..."));
+        ui_log(&format!("Serving started on port {port}..."));
     } else {
         let _ = player.unwrap().play(
             &local_addr,
@@ -331,7 +330,7 @@ fn main() -> Result<(), i32> {
             &streaminfo,
         );
         let pl = &player.unwrap().dev_url;
-        ui_log(format!("Playing to {pl}"));
+        ui_log(&format!("Playing to {pl}"));
     }
 
     loop {
@@ -373,26 +372,26 @@ fn main() -> Result<(), i32> {
         }
         // check the logchannel for new log messages to show in the logger textbox
         while let Ok(msg) = logreader.try_recv() {
-            ui_log(msg);
+            ui_log(&msg);
         }
         thread::sleep(Duration::from_millis(100));
     }
 }
 
-/// a dummy_log is used during AV transport autoresume
-fn dummy_log(s: String) {
+/// a `dummy_log` is used during AV transport autoresume
+fn dummy_log(s: &str) {
     debug!("Autoresume: {}", s);
 }
 
-/// run the ssdp_updater - thread that periodically run ssdp discovery
+/// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the Crossbeam ssdp channel
-fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
+fn run_ssdp_updater(ssdp_tx: &Sender<Renderer>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
         let renderers = discover(&rmap, &ui_log).unwrap_or_default();
-        for r in renderers.iter() {
+        for r in &renderers {
             if !rmap.contains_key(&r.remote_addr) {
                 let _ = ssdp_tx.send(r.clone());
                 thread::yield_now();

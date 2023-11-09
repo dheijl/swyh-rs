@@ -1,7 +1,7 @@
 ///
 /// rendercontrol.rs
 ///
-/// controller for avmedia renderers (audio only) using OpenHome protocol
+/// controller for avmedia renderers (audio only) using `OpenHome` protocol
 ///
 /// Only tested with Volumio streamers (https://volumio.org/)
 ///
@@ -33,7 +33,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
-/// AV SetTransportURI template
+/// AV `SetTransportURI` template
 static AV_SET_TRANSPORT_URI_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"utf-8\"?>\
 <s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" \
@@ -194,7 +194,7 @@ impl Renderer {
         }
     }
 
-    fn parse_url(&self, dev_url: &str, log: &dyn Fn(String)) -> (String, u16) {
+    fn parse_url(&self, dev_url: &str, log: &dyn Fn(&str)) -> (String, u16) {
         let host: String;
         let port: u16;
         match Url::parse(dev_url) {
@@ -203,7 +203,7 @@ impl Renderer {
                 port = url.port_or_known_default().unwrap();
             }
             Err(e) => {
-                log(format!(
+                log(&format!(
                     "parse_url(): Error '{e}' while parsing base url '{dev_url}'"
                 ));
                 host = "0.0.0.0".to_string();
@@ -213,7 +213,7 @@ impl Renderer {
         (host, port)
     }
 
-    /// oh_soap_request - send an OpenHome SOAP message to a renderer
+    /// `oh_soap_request` - send an `OpenHome` SOAP message to a renderer
     fn soap_request(&self, url: &str, soap_action: &str, body: &str) -> Option<String> {
         debug!(
             "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
@@ -241,12 +241,12 @@ impl Renderer {
         }
     }
 
-    /// play - start play on this renderer, using Openhome if present, else AvTransport (if present)
+    /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
     pub fn play(
         &self,
         local_addr: &IpAddr,
         server_port: u16,
-        log: &dyn Fn(String),
+        log: &dyn Fn(&str),
         streaminfo: &StreamInfo,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
@@ -286,7 +286,7 @@ impl Renderer {
             Ok(s) => didl_prot = s,
             Err(e) => {
                 didl_prot = format!("oh_play: error {e} formatting didl_prot");
-                log(didl_prot.clone());
+                log(&didl_prot);
                 return Err(BAD_TEMPL);
             }
         }
@@ -296,7 +296,7 @@ impl Renderer {
             Ok(s) => didl_data = s,
             Err(e) => {
                 didl_data = format!("oh_play: error {e} formatting didl_data xml");
-                log(didl_data.clone());
+                log(&didl_data);
                 return Err(BAD_TEMPL);
             }
         }
@@ -306,7 +306,7 @@ impl Renderer {
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            log(format!(
+            log(&format!(
             "OH Start playing on {} host={host} port={port} from {local_addr} using OH Playlist",
             self.dev_name));
             return self.oh_play(log, &fmt_vars);
@@ -314,38 +314,34 @@ impl Renderer {
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            log(format!(
+            log(&format!(
                 "AV Start playing on {} host={host} port={port} from {local_addr} using AV Play",
                 self.dev_name
             ));
             return self.av_play(log, &fmt_vars);
         } else {
-            log("ERROR: play: no supported renderer protocol found".to_string());
+            log("ERROR: play: no supported renderer protocol found");
         }
         Ok(())
     }
 
-    /// oh_play - set up a playlist on this OpenHome renderer and tell it to play it
+    /// `oh_play` - set up a playlist on this `OpenHome` renderer and tell it to play it
     ///
     /// the renderer will then try to get the audio from our built-in webserver
-    /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
-    fn oh_play(
-        &self,
-        log: &dyn Fn(String),
-        fmt_vars: &HashMap<String, String>,
-    ) -> Result<(), &str> {
+    /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`  
+    fn oh_play(&self, log: &dyn Fn(&str), fmt_vars: &HashMap<String, String>) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         self.oh_stop_play(log);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
         let (host, port) = self.parse_url(&self.dev_url, log);
-        log(format!(
+        log(&format!(
             "OH Inserting new playlist on {} host={host} port={port}",
             self.dev_name
         ));
         let xmlbody = match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                log(format!("oh_play: error {e} formatting oh playlist xml"));
+                log(&format!("oh_play: error {e} formatting oh playlist xml"));
                 return Err(BAD_TEMPL);
             }
         };
@@ -358,7 +354,7 @@ impl Renderer {
             )
             .unwrap_or_default();
         // send the Play command
-        log(format!(
+        log(&format!(
             "OH Play on {} host={host} port={port}",
             self.dev_name
         ));
@@ -372,15 +368,11 @@ impl Renderer {
         Ok(())
     }
 
-    /// av_play - send the AVTransport URI to the player and tell it to play
+    /// `av_play` - send the `AVTransport` URI to the player and tell it to play
     ///
     /// the renderer will then try to get the audio from our built-in webserver
-    /// at http://{_my_ip_}:{server_port}/stream/swyh.wav  
-    fn av_play(
-        &self,
-        log: &dyn Fn(String),
-        fmt_vars: &HashMap<String, String>,
-    ) -> Result<(), &str> {
+    /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`  
+    fn av_play(&self, log: &dyn Fn(&str), fmt_vars: &HashMap<String, String>) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(log);
@@ -388,7 +380,7 @@ impl Renderer {
         let xmlbody = match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                log(format!("av_play: error {e} formatting set transport uri"));
+                log(&format!("av_play: error {e} formatting set transport uri"));
                 return Err(BAD_TEMPL);
             }
         };
@@ -414,28 +406,28 @@ impl Renderer {
         Ok(())
     }
 
-    /// stop_play - stop playing on this renderer (OpenHome or AvTransport)
-    pub fn stop_play(&self, log: &dyn Fn(String)) {
+    /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
+    pub fn stop_play(&self, log: &dyn Fn(&str)) {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            self.oh_stop_play(log)
+            self.oh_stop_play(log);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            self.av_stop_play(log)
+            self.av_stop_play(log);
         } else {
-            log("ERROR: stop_play: no supported renderer protocol found".to_string());
+            log("ERROR: stop_play: no supported renderer protocol found");
         }
     }
 
-    /// oh_stop_play - delete the playlist on the OpenHome renderer, so that it stops playing
-    fn oh_stop_play(&self, log: &dyn Fn(String)) {
+    /// `oh_stop_play` - delete the playlist on the `OpenHome` renderer, so that it stops playing
+    fn oh_stop_play(&self, log: &dyn Fn(&str)) {
         let (host, port) = self.parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
-        log(format!(
+        log(&format!(
             "OH Deleting current playlist on {} host={host} port={port}",
             self.dev_name
         ));
@@ -450,11 +442,11 @@ impl Renderer {
             .unwrap_or_default();
     }
 
-    /// av_stop_play - stop playing on the AV renderer
-    fn av_stop_play(&self, log: &dyn Fn(String)) {
+    /// `av_stop_play` - stop playing on the AV renderer
+    fn av_stop_play(&self, log: &dyn Fn(&str)) {
         let (host, port) = self.parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.av_control_url);
-        log(format!(
+        log(&format!(
             "AV Stop playing on {} host={host} port={port}",
             self.dev_name
         ));
@@ -482,15 +474,12 @@ MX: 3\r\n\r\n";
 //
 // returns a list of all AVTransport DLNA and Openhome rendering devices
 //
-pub fn discover(
-    rmap: &HashMap<String, Renderer>,
-    logger: &dyn Fn(String),
-) -> Option<Vec<Renderer>> {
-    debug!("SSDP discovery started");
-
+pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Option<Vec<Renderer>> {
     const OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
     const AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
     const DEFAULT_SEARCH_TTL: u32 = 2;
+
+    debug!("SSDP discovery started");
 
     // get the address of the selected interface
     let ip = CONFIG.read().last_network.clone();
@@ -586,7 +575,7 @@ pub fn discover(
                     .iter()
                     .any(|s| error_text.contains(*s));
                 if !to_ignore {
-                    logger(format!("*E*E>Error reading SSDP M-SEARCH response: {e}"));
+                    logger(&format!("*E*E>Error reading SSDP M-SEARCH response: {e}"));
                 }
             }
         }
@@ -594,10 +583,10 @@ pub fn discover(
 
     // only keep OH devices and AV devices that are not OH capable
     let mut usable_devices: Vec<(String, SocketAddr)> = Vec::new();
-    for (oh_url, sa) in oh_devices.iter() {
+    for (oh_url, sa) in &oh_devices {
         usable_devices.push((oh_url.to_string(), *sa));
     }
-    for (av_url, sa) in av_devices.iter() {
+    for (av_url, sa) in &av_devices {
         if !usable_devices.iter().any(|d| d.0 == *av_url) {
             usable_devices.push((av_url.to_string(), *sa));
         } else {
@@ -605,12 +594,12 @@ pub fn discover(
         }
     }
     // now filter out devices we already know about
-    for (url, sa) in usable_devices.iter() {
-        if !rmap.iter().any(|m| url.contains(&m.1.dev_url)) {
+    for (url, sa) in &usable_devices {
+        if rmap.iter().any(|m| url.contains(&m.1.dev_url)) {
+            info!("SSDP discovery: Skipping known Renderer at {url}");
+        } else {
             info!("SSDP discovery: new Renderer found at : {}", url);
             devices.push((url.to_string(), *sa));
-        } else {
-            info!("SSDP discovery: Skipping known Renderer at {url}");
         }
     }
 
@@ -644,7 +633,7 @@ pub fn discover(
         }
     }
 
-    for r in renderers.iter() {
+    for r in &renderers {
         debug!(
             "Renderer {} {} ip {} at urlbase {} has {} services",
             r.dev_name,
@@ -657,7 +646,7 @@ pub fn discover(
             "  => OpenHome Playlist control url: '{}', AvTransport url: '{}'",
             r.oh_control_url, r.av_control_url
         );
-        for s in r.services.iter() {
+        for s in &r.services {
             debug!(".. {} {} {}", s.service_type, s.service_id, s.control_url);
         }
     }
@@ -665,7 +654,7 @@ pub fn discover(
     Some(renderers)
 }
 
-/// get_service_description - get the upnp service description xml for a media renderer
+/// `get_service_description` - get the upnp service description xml for a media renderer
 fn get_service_description(dev_url: &str) -> Option<String> {
     debug!("Get service description for {}", dev_url.to_string());
     let url = dev_url.to_string();
@@ -678,10 +667,10 @@ fn get_service_description(dev_url: &str) -> Option<String> {
             let descr_xml = resp.into_string().unwrap_or_default();
             debug!("Service description:");
             debug!("{}", descr_xml);
-            if !descr_xml.is_empty() {
-                Some(descr_xml)
-            } else {
+            if descr_xml.is_empty() {
                 None
+            } else {
+                Some(descr_xml)
             }
         }
         Err(e) => {

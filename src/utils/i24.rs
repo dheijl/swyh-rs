@@ -20,9 +20,9 @@ impl I24Sample for f32 {
         sample = sample.clamp(-1.0, 1.0);
         let tmp_i32 = {
             if sample >= 0.0 {
-                ((sample as f64 * i32::MAX as f64) + 0.5) as i32
+                ((f64::from(sample) * f64::from(i32::MAX)) + 0.5) as i32
             } else {
-                ((-sample as f64 * i32::MIN as f64) - 0.5) as i32
+                ((f64::from(-sample) * f64::from(i32::MIN)) - 0.5) as i32
             }
         };
         let [a, b, c, _d] = tmp_i32.to_be_bytes();

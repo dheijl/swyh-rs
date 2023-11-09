@@ -22,7 +22,7 @@ use std::{
 
 use super::flacstream::FlacChannel;
 
-/// Channelstream - used to transport the f32 samples from the wave_reader
+/// Channelstream - used to transport the f32 samples from the `wave_reader`
 /// to the http output stream in LPCM/WAV/FLAC format
 #[derive(Clone)]
 pub struct ChannelStream {
@@ -55,13 +55,13 @@ impl ChannelStream {
             Some(FlacChannel::new(
                 rx.clone(),
                 sample_rate,
-                bits_per_sample as u32,
+                u32::from(bits_per_sample),
                 2,
             ))
         } else {
             None
         };
-        let capture_timout = CONFIG.read().capture_timeout.unwrap() as u64;
+        let capture_timout = u64::from(CONFIG.read().capture_timeout.unwrap());
         let chs = ChannelStream {
             s: tx,
             r: rx,
@@ -112,11 +112,11 @@ impl ChannelStream {
 /// implement the Read trait for the HTTP writer
 ///
 /// for LPCM/WAV the f32 samples are read from the f32 input channel and pushed
-/// on the fifo VecDeque that is then read for conversion to LPCM and transmission
+/// on the fifo `VecDeque` that is then read for conversion to LPCM and transmission
 ///
 /// for FLAC the f32 samples have already been encoded to FLAC and written to the
-/// flac_out channel of the FlacChannel encoder.
-/// the flac_in channel of the FlacChannel is read here and pushed on the flac_fifo VecDeque
+/// `flac_out` channel of the `FlacChannel` encoder.
+/// the `flac_in` channel of the `FlacChannel` is read here and pushed on the `flac_fifo` `VecDeque`
 /// for transmission  
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
@@ -209,9 +209,9 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let channels: u16 = 2;
     let bytes_per_sample: u16 = bits_per_sample / 8;
     let block_align: u16 = channels * bytes_per_sample;
-    let byte_rate: u32 = sample_rate * block_align as u32;
+    let byte_rate: u32 = sample_rate * u32::from(block_align);
     hdr[0..4].copy_from_slice(b"RIFF"); //ChunkId, little endian WAV
-    let riffchunksize: u32 = 4294967286; // RIFF chunksize
+    let riffchunksize: u32 = 4_294_967_286; // RIFF chunksize
     let datachunksize: u32 = riffchunksize - 36; // data chunksize
     hdr[4..8].copy_from_slice(&riffchunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format
@@ -259,14 +259,14 @@ fn create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let channels: u16 = 2;
     let bytes_per_sample: u16 = bits_per_sample / 8;
     let block_align: u16 = channels * bytes_per_sample;
-    let byte_rate: u32 = sample_rate * block_align as u32;
+    let byte_rate: u32 = sample_rate * u32::from(block_align);
     hdr[0..4].copy_from_slice(b"RF64"); //ChunkId, little endian WAV
-    let rf64chunksize: u32 = 0xffffffff; // dummy RIFF chunksize
-    let datachunksize: u32 = 0xffffffff; // dummy data chunksize
+    let rf64chunksize: u32 = 0xffff_ffff; // dummy RIFF chunksize
+    let datachunksize: u32 = 0xffff_ffff; // dummy data chunksize
     let ds64chunksize: u32 = 28;
     let ds64riffsize: u64 = i64::MAX as u64 - 64;
     let ds64datasize: u64 = ds64riffsize - 8u64;
-    let ds64nsamples: u64 = ds64datasize / bytes_per_sample as u64;
+    let ds64nsamples: u64 = ds64datasize / u64::from(bytes_per_sample);
     let ds64tablelength = 0u32;
     hdr[4..8].copy_from_slice(&rf64chunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format
@@ -311,7 +311,7 @@ fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     let mut noise = Vec::with_capacity(size);
     noise.resize(size, 0.0);
     let amplitude: f32 = 0.001;
-    for sample in noise.iter_mut() {
+    for sample in &mut noise {
         *sample = ((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude;
     }
     noise

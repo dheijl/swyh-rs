@@ -1,5 +1,5 @@
 use crate::{
-    enums::streaming::{StreamingFormat, StreamingFormat::*, StreamingState},
+    enums::streaming::{StreamingFormat, StreamingFormat::Flac, StreamingState},
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
@@ -17,21 +17,28 @@ pub struct StreamerFeedBack {
     pub streaming_state: StreamingState,
 }
 
-/// run_server - run a tiny-http webserver to serve streaming requests from renderers
+/// `run_server` - run a tiny-http webserver to serve streaming requests from renderers
 ///
 /// all music is sent in audio/l16 PCM format (i16) with the sample rate of the source
-/// the samples are read from a crossbeam channel fed by the wave_reader
-/// a ChannelStream is created for this purpose, and inserted in the array of active
-/// "clients" for the wave_reader
+/// the samples are read from a crossbeam channel fed by the `wave_reader`
+/// a `ChannelStream` is created for this purpose, and inserted in the array of active
+/// "clients" for the `wave_reader`
 pub fn run_server(
     local_addr: &IpAddr,
     server_port: u16,
     wd: WavData,
-    feedback_tx: Sender<StreamerFeedBack>,
+    feedback_tx: &Sender<StreamerFeedBack>,
 ) {
+    const VALID_URLS: [&str; 4] = [
+        "/stream/swyh.wav",
+        "/stream/swyh.raw",
+        "/stream/swyh.flac",
+        "/stream/swyh.rf64",
+    ];
     let addr = format!("{local_addr}:{server_port}");
-    let logmsg = format!("The streaming server is listening on http://{addr}/stream/swyh.wav");
-    ui_log(logmsg);
+    ui_log(&format!(
+        "The streaming server is listening on http://{addr}/stream/swyh.wav"
+    ));
     let logmsg = {
         let cfg = CONFIG.read();
         format!(
@@ -41,7 +48,7 @@ pub fn run_server(
             cfg.streaming_format.unwrap_or(Flac),
         )
     };
-    ui_log(logmsg);
+    ui_log(&logmsg);
     let server = Arc::new(Server::http(addr).unwrap());
     let mut handles = Vec::new();
     // always have two threads ready to serve new requests
@@ -77,14 +84,8 @@ pub fn run_server(
                     let acc_rng_hdr =
                         Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap();
                     // check url
-                    const VALID_URLS: [&str; 4] = [
-                        "/stream/swyh.wav",
-                        "/stream/swyh.raw",
-                        "/stream/swyh.flac",
-                        "/stream/swyh.rf64",
-                    ];
                     if !VALID_URLS.contains(&rq.url()) {
-                        ui_log(format!(
+                        ui_log(&format!(
                             "Unrecognized request '{}' from {}'",
                             rq.url(),
                             rq.remote_addr().unwrap()
@@ -94,7 +95,7 @@ pub fn run_server(
                             .with_header(srvr_hdr)
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
-                            ui_log(format!(
+                            ui_log(&format!(
                                 "=>Http POST connection with {remote_addr} terminated [{e}]"
                             ));
                         }
@@ -128,7 +129,7 @@ pub fn run_server(
                             .unwrap();
                     // handle response, streaming if GET, headers only otherwise
                     if matches!(rq.method(), Method::Get) {
-                        ui_log(format!(
+                        ui_log(&format!(
                             "Received request {} from {}",
                             rq.url(),
                             rq.remote_addr().unwrap()
@@ -170,7 +171,7 @@ pub fn run_server(
                                 }
                             }
                         };
-                        ui_log(format!(
+                        ui_log(&format!(
                             "Streaming {streaming_format}, input sample format {:?}, \
                             channels=2, rate={}, to {}",
                             wd.sample_format,
@@ -204,19 +205,19 @@ pub fn run_server(
                         }
                         let e = rq.respond(response);
                         if e.is_err() {
-                            ui_log(format!(
+                            ui_log(&format!(
                                 "=>Http connection with {remote_addr} terminated [{e:?}]"
                             ));
                         }
                         let nclients = {
                             let mut clients = CLIENTS.write();
                             if let Some(chs) = clients.remove(&remote_addr) {
-                                chs.stop_flac_encoder()
+                                chs.stop_flac_encoder();
                             };
                             clients.len()
                         };
                         debug!("Now have {nclients} streaming clients left");
-                        ui_log(format!("Streaming to {remote_addr} has ended"));
+                        ui_log(&format!("Streaming to {remote_addr} has ended"));
                         // inform the main thread that this renderer has finished receiving
                         // necessary if the connection close was not caused by our own GUI
                         // so that we can update the corresponding button state
@@ -238,7 +239,7 @@ pub fn run_server(
                             .with_header(acc_rng_hdr)
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
-                            ui_log(format!(
+                            ui_log(&format!(
                                 "=>Http HEAD connection with {remote_addr} terminated [{e}]"
                             ));
                         }
@@ -249,7 +250,7 @@ pub fn run_server(
                             .with_header(srvr_hdr)
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
-                            ui_log(format!(
+                            ui_log(&format!(
                                 "=>Http POST connection with {remote_addr} terminated [{e}]"
                             ));
                         }

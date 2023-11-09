@@ -12,7 +12,7 @@ use std::{
     path::{Path, PathBuf},
     sync::atomic::Ordering::Relaxed,
 };
-use toml::*;
+use toml::from_str;
 
 const CONFIGFILE: &str = "config{}.toml";
 const PKGNAME: &str = env!("CARGO_PKG_NAME");
@@ -76,6 +76,7 @@ impl Default for Configuration {
 }
 
 impl Configuration {
+    #[must_use]
     pub fn new() -> Configuration {
         Configuration {
             server_port: Some(SERVER_PORT),
@@ -100,21 +101,26 @@ impl Configuration {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn config_dir(&self) -> PathBuf {
         self.config_dir.clone()
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn log_dir(&self) -> PathBuf {
         self.config_dir.clone()
     }
 
+    #[must_use]
     pub fn read_config() -> Configuration {
         let mut force_update = false;
         let configfile = Self::get_config_path(CONFIGFILE);
         let old_configfile = Self::get_config_path("config.ini");
         if !Path::new(&configfile).exists() {
-            if !Path::new(&old_configfile).exists() {
+            if Path::new(&old_configfile).exists() {
+                Self::migrate_config_to_toml(&old_configfile, &configfile);
+            } else {
                 println!("Creating a new default config {}", configfile.display());
                 let config = Configuration::new();
                 let configuration = Config {
@@ -126,14 +132,12 @@ impl Configuration {
                 println!("New default CONFIG: {s}");
                 w.write_all(s.as_bytes()).unwrap();
                 w.flush().unwrap();
-            } else {
-                Self::migrate_config_to_toml(&old_configfile, &configfile);
             }
         }
         println!("Loading config from {}", configfile.display());
         let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
             eprintln!("Unable to read config file: {error}");
-            "".to_string()
+            String::new()
         });
         let mut config: Config = from_str(&s).unwrap_or_else(|error| {
             eprintln!("Unable to deserialize config: {error}");

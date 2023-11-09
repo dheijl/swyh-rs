@@ -6,7 +6,7 @@
 ///
 /// I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 ///
-/// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use HiFi Cable Input).
+/// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use `HiFi` Cable Input).
 ///
 /// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio DLNA renderers and with a Harman-Kardon AVR DLNA device.
 /// I don't have access to a Mac, so I don't know if this would also work.
@@ -36,7 +36,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 use swyh_rs::{
-    enums::streaming::{StreamingFormat::*, StreamingState},
+    enums::streaming::{StreamingFormat::Flac, StreamingState},
     globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
@@ -46,7 +46,7 @@ use swyh_rs::{
             capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
         },
         bincommon::run_silence_injector,
-        local_ip_address::*,
+        local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::ui_log,
     },
@@ -89,10 +89,10 @@ fn main() {
     };
     if let Some(config_id) = &config.config_id {
         if !config_id.is_empty() {
-            ui_log(format!("Loaded configuration -c {config_id}"));
+            ui_log(&format!("Loaded configuration -c {config_id}"));
         }
     }
-    ui_log(format!("{config:?}"));
+    ui_log(&format!("{config:?}"));
     if cfg!(debug_assertions) {
         config.log_level = LevelFilter::Debug;
     }
@@ -131,7 +131,7 @@ fn main() {
         std::env::consts::OS
     );
     if cfg!(debug_assertions) {
-        ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!".to_string());
+        ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
     }
     info!("Config: {:?}", config);
 
@@ -181,12 +181,12 @@ fn main() {
     // we now have enough information to create the GUI with meaningful data
     let mut mf = MainForm::create(
         &config,
-        config_changed.clone(),
+        &config_changed,
         &source_names,
         &networks,
         local_addr,
         &wd,
-        APP_VERSION.to_string(),
+        APP_VERSION,
     );
 
     // raise process priority a bit to prevent audio stuttering under cpu load
@@ -204,13 +204,13 @@ fn main() {
             stream.play().unwrap();
         }
         None => {
-            ui_log("*E*E*> Could not capture audio ...Please check configuration.".to_string());
+            ui_log("*E*E*> Could not capture audio ...Please check configuration.");
         }
     }
 
     // If silence injector is on, create a silence injector stream.
     let _silence_stream = if let Some(true) = CONFIG.read().inject_silence {
-        ui_log("Injecting silence into the output stream".to_owned());
+        ui_log("Injecting silence into the output stream");
         Some(run_silence_injector(&audio_output_device))
     } else {
         None
@@ -218,10 +218,10 @@ fn main() {
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
-    ui_log("Discover networks".to_string());
+    ui_log("Discover networks");
     let mut renderers: Vec<Renderer> = Vec::new();
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
-    ui_log("Starting SSDP discovery".to_string());
+    ui_log("Starting SSDP discovery");
     let ssdp_int = config.ssdp_interval_mins;
     let _ = thread::Builder::new()
         .name("ssdp_updater".into())
@@ -252,8 +252,8 @@ fn main() {
                 &local_addr,
                 server_port.unwrap_or_default(),
                 wd,
-                feedback_tx,
-            )
+                &feedback_tx,
+            );
         })
         .unwrap();
     // give the webserver a chance to start
@@ -327,7 +327,7 @@ fn main() {
         }
         // check the logchannel for new log messages to show in the logger textbox
         while let Ok(msg) = logreader.try_recv() {
-            mf.add_log_msg(msg);
+            mf.add_log_msg(&msg);
         }
     } // while app::wait()
 }
@@ -353,12 +353,12 @@ fn app_restart(mf: &MainForm) -> i32 {
     }
 }
 
-/// a dummy_log is used during AV transport autoresume
-fn dummy_log(s: String) {
+/// a `dummy_log` is used during AV transport autoresume
+fn dummy_log(s: &str) {
     debug!("Autoresume: {}", s);
 }
 
-/// run the ssdp_updater - thread that periodically run ssdp discovery
+/// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the Crossbeam ssdp channel
 fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
@@ -366,7 +366,7 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
         let renderers = discover(&rmap, &ui_log).unwrap_or_default();
-        for r in renderers.iter() {
+        for r in &renderers {
             if !rmap.contains_key(&r.remote_addr) {
                 let _ = ssdp_tx.send(r.clone());
                 app::awake();
@@ -391,7 +391,7 @@ fn run_rms_monitor(
     mut rms_frame_r: Progress,
 ) {
     // compute # of samples needed to get a 10 Hz refresh rate
-    let samples_per_update = ((wd.sample_rate.0 * wd.channels as u32) / 10) as usize;
+    let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
     let mut sum_l = 0f64;
     let mut sum_r = 0f64;
@@ -399,12 +399,12 @@ fn run_rms_monitor(
         total_samples += samples.len();
         // sum left channel samples
         sum_l = samples.iter().step_by(2).fold(sum_l, |acc, x| {
-            let v = i16::from_sample(*x) as f64;
+            let v = f64::from(i16::from_sample(*x));
             acc + (v * v)
         });
         // sum right channel samples
         sum_r = samples.iter().skip(1).step_by(2).fold(sum_r, |acc, x| {
-            let v = i16::from_sample(*x) as f64;
+            let v = f64::from(i16::from_sample(*x));
             acc + (v * v)
         });
         // compute and show current RMS values if enough samples collected

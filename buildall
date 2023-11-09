@@ -1,6 +1,8 @@
 #!/usr/bin/sh
 echo "Build all"
 
+#cargo clippy --all --fix --allow-dirty --bin swyh-rs-cli -- -W clippy::all -W clippy::pedantic
+#cargo clippy --all --fix --allow-dirty --bin swyh-rs -- -W clippy::all -W clippy::pedantic
 cargo fmt --all
 cargo update 
 cargo upgrade  --verbose

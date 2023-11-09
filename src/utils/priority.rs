@@ -2,18 +2,23 @@ use crate::utils::ui_logger::ui_log;
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
-    use windows::Win32::{Foundation::GetLastError, System::Threading::*};
+    use windows::Win32::{
+        Foundation::GetLastError,
+        System::Threading::{
+            GetCurrentProcess, GetCurrentProcessId, SetPriorityClass, ABOVE_NORMAL_PRIORITY_CLASS,
+        },
+    };
     unsafe {
         let id = GetCurrentProcess();
         if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS).is_err() {
             let e = GetLastError();
             let p = GetCurrentProcessId();
-            ui_log(format!(
+            ui_log(&format!(
                 "*E*E*>Failed to set process priority id={p}, error={e:?}"
             ));
         }
     }
-    ui_log("Now running at ABOVE_NORMAL_PRIORITY_CLASS".to_string());
+    ui_log("Now running at ABOVE_NORMAL_PRIORITY_CLASS");
 }
 
 #[cfg(target_os = "linux")]
@@ -26,9 +31,9 @@ pub fn raise_priority() {
         let newpri = pri - 5;
         let rc = setpriority(PRIO_PROCESS, 0, newpri);
         if rc != 0 {
-            ui_log("Sorry, but you don't have permissions to raise priority...".to_string());
+            ui_log("Sorry, but you don't have permissions to raise priority...");
         } else {
-            ui_log(format!("Now running at nice value {newpri}"));
+            ui_log(&format!("Now running at nice value {newpri}"));
         }
     }
 }

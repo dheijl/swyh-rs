@@ -33,6 +33,7 @@ impl Default for Args {
 }
 
 impl Args {
+    #[must_use]
     pub fn new() -> Args {
         Args {
             dry_run: None,
@@ -73,11 +74,12 @@ Recognized options:
     -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
 "#
         );
-        println!("{:?}", self);
+        println!("{self:?}");
         std::process::exit(0);
     }
 
     // parse commandline arguments
+    #[must_use]
     pub fn parse(&mut self) -> Args {
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
@@ -123,7 +125,7 @@ Recognized options:
                         match loglevel.as_str() {
                             "info" | "Info" | "INFO" => self.log_level = Some(LevelFilter::Info),
                             "debug" | "Debug" | "DEBUG" => {
-                                self.log_level = Some(LevelFilter::Debug)
+                                self.log_level = Some(LevelFilter::Debug);
                             }
                             _ => {
                                 println!("log_level not info or debug");
@@ -161,10 +163,10 @@ Recognized options:
                                 self.use_wave_format = Some(true);
                             }
                             "LPCM" | "lpcm" | "Lpcm" => {
-                                self.streaming_format = Some(StreamingFormat::Lpcm)
+                                self.streaming_format = Some(StreamingFormat::Lpcm);
                             }
                             "FLAC" | "flac" | "Flac" => {
-                                self.streaming_format = Some(StreamingFormat::Flac)
+                                self.streaming_format = Some(StreamingFormat::Flac);
                             }
                             _ => {
                                 println!("invalid streaming_format {streaming_format}");
@@ -203,7 +205,7 @@ Recognized options:
                 _ => (),
             }
         }
-        println!("{:?}\n", self);
+        println!("{self:?}\n");
         self.clone()
     }
 }

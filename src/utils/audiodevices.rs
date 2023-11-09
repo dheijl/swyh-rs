@@ -11,9 +11,9 @@ use dasp_sample::ToSample;
 use log::debug;
 use parking_lot::Once;
 
-/// A [cpal::Device] with either a default input or default output config.
+/// A [`cpal::Device`] with either a default input or default output config.
 ///
-/// The internal device may be retrieved via [AsRef::as_ref].
+/// The internal device may be retrieved via [`AsRef::as_ref`].
 pub struct Device {
     /// Indicates if [cpal::Device] is primarily output or input.
     kind: DeviceKind,
@@ -35,14 +35,13 @@ impl AsRef<cpal::Device> for DeviceKind {
     #[inline]
     fn as_ref(&self) -> &cpal::Device {
         match self {
-            Self::Input(device) => device,
-            Self::Output(device) => device,
+            Self::Input(device) | Self::Output(device) => device,
         }
     }
 }
 
 impl DeviceKind {
-    /// Returns the default [cpal::SupportedStreamConfig] regardless of device type.
+    /// Returns the default [`cpal::SupportedStreamConfig`] regardless of device type.
     #[inline]
     pub fn default_config_any(
         &self,
@@ -78,29 +77,29 @@ impl Device {
         };
 
         Ok(Self {
-            name,
             kind,
+            name,
             stream_config,
         })
     }
 
     /// Device name as reported by the operating system, or a reasonable default if the
     /// name can't be retrieved.
-    #[inline(always)]
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Default stream config
     #[inline(always)]
+    #[must_use]
     pub fn default_config(&self) -> &SupportedStreamConfig {
         &self.stream_config
     }
 }
 
 impl AsRef<cpal::Device> for Device {
-    /// Reference to the internal [cpal::Device].
-    #[inline(always)]
+    /// Reference to the internal [`cpal::Device`].
     fn as_ref(&self) -> &cpal::Device {
         self.kind.as_ref()
     }
@@ -157,6 +156,7 @@ fn log_stream_configs(
     };
 }
 
+#[must_use]
 pub fn get_output_audio_devices() -> Vec<Device> {
     let mut result = Vec::new();
     debug!("Supported hosts:\n  {:?}", cpal::ALL_HOSTS);
@@ -195,6 +195,7 @@ pub fn get_output_audio_devices() -> Vec<Device> {
     result
 }
 
+#[must_use]
 pub fn get_default_audio_output_device() -> Option<Device> {
     // audio hosts
     let _available_hosts = cpal::available_hosts();
@@ -204,15 +205,15 @@ pub fn get_default_audio_output_device() -> Option<Device> {
         .and_then(|device| DeviceKind::Output(device).try_into().ok())
 }
 
-/// capture_audio_output - capture the audio stream from the default audio output device
+/// `capture_audio_output` - capture the audio stream from the default audio output device
 ///
-/// sets up an input stream for the wave_reader in the appropriate format (f32/i16/u16)
+/// sets up an input stream for the `wave_reader` in the appropriate format (f32/i16/u16)
 pub fn capture_output_audio(
     device_wrap: &Device,
     rms_sender: Sender<Vec<f32>>,
 ) -> Option<cpal::Stream> {
     let device = device_wrap.as_ref();
-    ui_log(format!(
+    ui_log(&format!(
         "Capturing audio from: {}",
         device
             .name()
@@ -222,7 +223,7 @@ pub fn capture_output_audio(
         .kind
         .default_config_any()
         .expect("No default stream config found");
-    ui_log(format!("Default audio {audio_cfg:?}"));
+    ui_log(&format!("Default audio {audio_cfg:?}"));
     let mut f32_samples: Vec<f32> = Vec::with_capacity(16384);
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
@@ -233,7 +234,7 @@ pub fn capture_output_audio(
         ) {
             Ok(stream) => Some(stream),
             Err(e) => {
-                ui_log(format!("Error capturing f32 audio stream: {e}"));
+                ui_log(&format!("Error capturing f32 audio stream: {e}"));
                 None
             }
         },
@@ -246,7 +247,7 @@ pub fn capture_output_audio(
             ) {
                 Ok(stream) => Some(stream),
                 Err(e) => {
-                    ui_log(format!("Error capturing i16 audio stream: {e}"));
+                    ui_log(&format!("Error capturing i16 audio stream: {e}"));
                     None
                 }
             }
@@ -260,7 +261,7 @@ pub fn capture_output_audio(
             ) {
                 Ok(stream) => Some(stream),
                 Err(e) => {
-                    ui_log(format!("Error capturing u16 audio stream: {e}"));
+                    ui_log(&format!("Error capturing u16 audio stream: {e}"));
                     None
                 }
             }
@@ -269,15 +270,15 @@ pub fn capture_output_audio(
     }
 }
 
-/// capture_err_fn - called whan it's impossible to build an audio input stream
+/// `capture_err_fn` - called whan it's impossible to build an audio input stream
 fn capture_err_fn(err: cpal::StreamError) {
-    ui_log(format!("Error {err} building audio input stream"));
+    ui_log(&format!("Error {err} building audio input stream"));
 }
 
-/// wave_reader - the captured audio input stream reader
+/// `wave_reader` - the captured audio input stream reader
 ///
 /// writes the captured samples to all registered clients in the
-/// CLIENTS ChannnelStream hashmap
+/// CLIENTS `ChannnelStream` hashmap
 /// also feeds the RMS monitor channel if the RMS option is set
 fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: Sender<Vec<f32>>)
 where
@@ -285,7 +286,7 @@ where
 {
     static INITIALIZER: Once = Once::new();
     INITIALIZER.call_once(|| {
-        ui_log("The wave_reader is now receiving samples".to_string());
+        ui_log("The wave_reader is now receiving samples");
     });
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
@@ -294,6 +295,6 @@ where
         .iter()
         .for_each(|(_, client)| client.write(f32_samples));
     if CONFIG.read().monitor_rms {
-        rms_sender.send(f32_samples.to_vec()).unwrap();
+        rms_sender.send(f32_samples.clone()).unwrap();
     }
 }

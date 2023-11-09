@@ -1,5 +1,5 @@
 use crate::{
-    enums::streaming::{StreamingFormat, StreamingFormat::*},
+    enums::streaming::{StreamingFormat, StreamingFormat::Flac},
     globals::statics::CONFIG,
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{
@@ -53,15 +53,20 @@ pub struct MainForm {
 impl MainForm {
     pub fn create(
         config: &Configuration,
-        config_changed: Rc<Cell<bool>>,
+        config_changed: &Rc<Cell<bool>>,
         audio_sources: &[String],
         networks: &[String],
         local_addr: IpAddr,
         wd: &WavData,
-        app_version: String,
+        app_version: &str,
     ) -> MainForm {
+        const GW: i32 = 600;
+        const FW: i32 = 600;
+        const XPOS: i32 = 30;
+        const YPOS: i32 = 5;
+
         enable_ui_log();
-        let title_color: Color = Color::from_u32(0xe6fff0);
+        let title_color: Color = Color::from_u32(0x00e6_fff0);
         let app = app::App::default().with_scheme(app::Scheme::Gtk);
         app::background(247, 247, 247);
         const WW: i32 = 660;
@@ -97,11 +102,6 @@ impl MainForm {
             }
         });
 
-        const GW: i32 = 600;
-        const FW: i32 = 600;
-        const XPOS: i32 = 30;
-        const YPOS: i32 = 5;
-
         let mut vpack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
         vpack.make_resizable(false);
         vpack.set_spacing(15);
@@ -124,14 +124,14 @@ impl MainForm {
         let mut pnw = Pack::new(0, 0, GW, 25, "");
         pnw.end();
         let cur_nw = {
-            if config.last_network != "None" {
-                format!("Active network: {}", &config.last_network)
-            } else {
+            if config.last_network == "None" {
                 format!("Active network: {local_addr}")
+            } else {
+                format!("Active network: {}", &config.last_network)
             }
         };
         let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);
-        for name in networks.iter() {
+        for name in networks {
             choose_network_but.add_choice(name);
         }
         let rlock = Mutex::new(0);
@@ -152,7 +152,7 @@ impl MainForm {
                 i = (networks_c.len() - 1) as i32;
             }
             let name = &networks_c[i as usize];
-            ui_log(format!(
+            ui_log(&format!(
                 "*W*W*> Network changed to {name}, restart required!!"
             ));
             conf.last_network = name.to_string();
@@ -169,10 +169,10 @@ impl MainForm {
         let mut pas = Pack::new(0, 0, GW, 25, "");
         pas.end();
         let cur_audio_src = format!("Audio Source: {}", config.sound_source);
-        ui_log("Setup audio sources".to_string());
+        ui_log("Setup audio sources");
         let mut choose_audio_source_but =
             MenuButton::new(0, 0, 0, 25, None).with_label(&cur_audio_src);
-        for name in audio_sources.iter() {
+        for name in audio_sources {
             choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
         }
         let rlock = Mutex::new(0);
@@ -193,7 +193,7 @@ impl MainForm {
                 i = (audio_sources_c.len() - 1) as i32;
             }
             let name = &audio_sources_c[i as usize];
-            ui_log(format!(
+            ui_log(&format!(
                 "*W*W*> Audio source changed to {name}, restart required!!"
             ));
             conf.sound_source = name.to_string();
@@ -251,7 +251,7 @@ impl MainForm {
                         let mut conf = CONFIG.write();
                         if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
                             conf.ssdp_interval_mins = b.value();
-                            ui_log(format!(
+                            ui_log(&format!(
                                 "*W*W*> ssdp interval changed to {} minutes, restart required!!",
                                 conf.ssdp_interval_mins
                             ));
@@ -271,7 +271,7 @@ impl MainForm {
         let ll = format!("Log Level: {}", config.log_level);
         let mut log_level_choice = MenuButton::default().with_label(&ll);
         let log_levels = ["Info", "Debug"];
-        for ll in log_levels.iter() {
+        for ll in &log_levels {
             log_level_choice.add_choice(ll);
         }
         // apparently this event can recurse on very fast machines
@@ -291,7 +291,7 @@ impl MainForm {
                     return;
                 }
                 let level = log_levels[i as usize];
-                ui_log(format!(
+                ui_log(&format!(
                     "*W*W*> Log level changed to {level}, restart required!!"
                 ));
                 conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
@@ -330,7 +330,7 @@ impl MainForm {
             StreamingFormat::Flac.to_string(),
             StreamingFormat::Rf64.to_string(),
         ];
-        for fmt in formats.iter() {
+        for fmt in &formats {
             fmt_choice.add_choice(fmt.as_str());
         }
         // apparently this event can recurse on very fast machines
@@ -350,15 +350,14 @@ impl MainForm {
                     return;
                 }
                 let format = formats[i as usize].clone();
-                ui_log(format!(
+                ui_log(&format!(
                     "*W*W*> Streaming Format changed to {format}, restart required!!"
                 ));
                 let newformat = match format.as_str() {
-                    "LPCM" => StreamingFormat::Lpcm,
                     "WAV" => StreamingFormat::Wav,
                     "FLAC" => StreamingFormat::Flac,
                     "RF64" => StreamingFormat::Rf64,
-                    _ => StreamingFormat::Lpcm,
+                    _ => StreamingFormat::Lpcm, // default
                 };
                 conf.use_wave_format =
                     [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&newformat);
@@ -533,8 +532,8 @@ impl MainForm {
         }
     }
 
-    pub fn add_log_msg(&mut self, msg: String) {
-        self.tb.buffer().unwrap().append(&msg);
+    pub fn add_log_msg(&mut self, msg: &str) {
+        self.tb.buffer().unwrap().append(msg);
         self.tb.buffer().unwrap().append("\n");
         let buflen = self.tb.buffer().unwrap().length();
         self.tb.set_insert_position(buflen);

@@ -10,11 +10,11 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 - [Current release](#current-release)
 - [swyh-rs as your local internet radio](#swyh-rs-as-your-local-internet-radio)
-- [Why this SWYH alternative ?](#why)
+- [Why this SWYH alternative ?](#why-this-swyh-alternative-)
 - [Todo](#todo)
 - [Known problems](#known-problems)
 - [Artwork Credits](#artwork-credits)
-- [How does it work](#how)
+- [How does it work](#how-does-it-work)
 - [The CLI binary](#the-cli-binary)
 - [Audio quality and Windows WasApi Loopback capture](#audio-quality-and-windows-wasapi-loopback-capture)
 
@@ -53,7 +53,7 @@ You can also use swyh-rs as an internet radio station on your local network. swy
 
 When running the CLI with the -x option, that is effectively the only way to access the swyh-rs audio server.
 
-## Why this SWYH alternative ?{#why}
+## Why this SWYH alternative ?
 
 I wrote this because
 
@@ -135,7 +135,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 The icon was designed by @numanair, thanks!
 
-### How does it work?{#how}
+### How does it work?
 
 - audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac), but you can choose any audio source you want. Changing the sound source needs a restart of the app to take effect.
 - On Windows you can check in the soundmixer that the audio device you're capturing is the device that is actually playing audio. On Linux you can use [pavucontrol](https://freedesktop.org/software/pulseaudio/pavucontrol/) to enable the audio monitor for the audio device you are capturing.

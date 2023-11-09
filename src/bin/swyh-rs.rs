@@ -226,7 +226,7 @@ fn main() {
     let _ = thread::Builder::new()
         .name("ssdp_updater".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
+        .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
         .unwrap();
 
     // also start the "monitor_rms" thread
@@ -236,7 +236,7 @@ fn main() {
     let _ = thread::Builder::new()
         .name("rms_monitor".into())
         .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_rms_monitor(&wd.clone(), rms_receiver, mon_l, mon_r))
+        .spawn(move || run_rms_monitor(&wd.clone(), &rms_receiver, mon_l, mon_r))
         .unwrap();
 
     // finally start a webserver on the local address,
@@ -361,7 +361,7 @@ fn dummy_log(s: &str) {
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the Crossbeam ssdp channel
-fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
+fn run_ssdp_updater(ssdp_tx: &Sender<Renderer>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
@@ -386,7 +386,7 @@ fn run_ssdp_updater(ssdp_tx: Sender<Renderer>, ssdp_interval_mins: f64) {
 
 fn run_rms_monitor(
     wd: &WavData,
-    rms_receiver: Receiver<Vec<f32>>,
+    rms_receiver: &Receiver<Vec<f32>>,
     mut rms_frame_l: Progress,
     mut rms_frame_r: Progress,
 ) {

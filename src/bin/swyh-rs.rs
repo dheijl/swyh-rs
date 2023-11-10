@@ -237,7 +237,7 @@ fn main() {
         .name("rms_monitor".into())
         .stack_size(4 * 1024 * 1024)
         .spawn(move || {
-            run_rms_monitor(&wd.clone(), &rms_receiver, mon_l, mon_r);
+            run_rms_monitor(wd, &rms_receiver, mon_l, mon_r);
         })
         .unwrap();
 
@@ -378,7 +378,7 @@ fn run_ssdp_updater(ssdp_tx: &Sender<Renderer>, ssdp_interval_mins: f64) {
 }
 
 fn run_rms_monitor(
-    wd: &WavData,
+    wd: WavData,
     rms_receiver: &Receiver<Vec<f32>>,
     mut rms_frame_l: Progress,
     mut rms_frame_r: Progress,

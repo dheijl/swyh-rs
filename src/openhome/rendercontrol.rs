@@ -129,6 +129,7 @@ pub struct WavData {
     pub channels: u16,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct StreamInfo {
     pub sample_rate: u32,
     pub bits_per_sample: u16,
@@ -247,7 +248,7 @@ impl Renderer {
         local_addr: &IpAddr,
         server_port: u16,
         log: &dyn Fn(&str),
-        streaminfo: &StreamInfo,
+        streaminfo: StreamInfo,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = HashMap::new();

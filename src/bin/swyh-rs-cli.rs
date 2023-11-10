@@ -327,7 +327,7 @@ fn main() -> Result<(), i32> {
             &local_addr,
             config.server_port.unwrap_or(5901),
             &ui_log,
-            &streaminfo,
+            streaminfo,
         );
         let pl = &player.unwrap().dev_url;
         ui_log(&format!("Playing to {pl}"));
@@ -361,7 +361,7 @@ fn main() -> Result<(), i32> {
                                         &local_addr,
                                         server_port.unwrap_or_default(),
                                         &dummy_log,
-                                        &streaminfo,
+                                        streaminfo,
                                     );
                                 }
                             }

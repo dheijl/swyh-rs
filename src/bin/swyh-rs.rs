@@ -302,7 +302,7 @@ fn main() {
                                         streaming_format: config.streaming_format.unwrap_or(Flac),
                                     };
                                     let _ =
-                                        r.play(&local_addr, server_port, &dummy_log, &streaminfo);
+                                        r.play(&local_addr, server_port, &dummy_log, streaminfo);
                                 }
                             } else if button.is_set() {
                                 button.set(false);

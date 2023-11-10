@@ -579,7 +579,7 @@ impl MainForm {
                         &local_addr,
                         config.server_port.unwrap_or_default(),
                         &ui_log,
-                        &streaminfo,
+                        streaminfo,
                     );
                 } else {
                     newr_c.stop_play(&ui_log);

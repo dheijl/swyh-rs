@@ -52,10 +52,10 @@ It allows you to stream the music you're currently playing on your PC (Windows o
 
 You can also use swyh-rs as an internet radio station on your local network. swyh-rs is available at
 
-- http://{your-pc-ip}/swyh/swyh.raw when streaming LPCM format
-- http://{your-pc-ip}/swyh/swyh.wav when streaming WAV format
-- http://{your-pc-ip}/swyh/swyh.rf64 when streaming RF64 format
-- http://{your-pc-ip}/swyh/swyh.flac when streaming FLAC format
+- http://{your-pc-ip}/stream/swyh.raw when streaming LPCM format
+- http://{your-pc-ip}/stream/swyh.wav when streaming WAV format
+- http://{your-pc-ip}/stream/swyh.rf64 when streaming RF64 format
+- http://{your-pc-ip}/stream/swyh.flac when streaming FLAC format
 
 When running the CLI with the -x option, that is effectively the only way to access the swyh-rs audio server.
 

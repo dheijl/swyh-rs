@@ -1,5 +1,8 @@
 use crate::{
-    enums::streaming::{StreamingFormat::*, StreamingState},
+    enums::streaming::{
+        StreamingFormat::{Flac, Lpcm, Rf64, Wav},
+        StreamingState,
+    },
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
     utils::{rwstream::ChannelStream, ui_logger::ui_log},

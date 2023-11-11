@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.9.4-beta (unreleased)
+  - more clippy
+
 - 1.9.3 (Nov 11 2023 dheijl)
   - some clippy recommendations
   - when swyh-rs or swyh-rs-cli are used as an internet radio, the URL used by the client now selects the streaming format, independent of the configured values:

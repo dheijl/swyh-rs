@@ -1,9 +1,7 @@
 ///
 /// rendercontrol.rs
 ///
-/// controller for avmedia renderers (audio only) using `OpenHome` protocol
-///
-/// Only tested with Volumio streamers (https://volumio.org/)
+/// controller for avmedia renderers (audio only) using `OpenHome` and `AVTransport`` protocol
 ///
 ///
 use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
@@ -195,7 +193,7 @@ impl Renderer {
         }
     }
 
-    fn parse_url(&self, dev_url: &str, log: &dyn Fn(&str)) -> (String, u16) {
+    fn parse_url(dev_url: &str, log: &dyn Fn(&str)) -> (String, u16) {
         let host: String;
         let port: u16;
         match Url::parse(dev_url) {
@@ -215,7 +213,7 @@ impl Renderer {
     }
 
     /// `oh_soap_request` - send an `OpenHome` SOAP message to a renderer
-    fn soap_request(&self, url: &str, soap_action: &str, body: &str) -> Option<String> {
+    fn soap_request(url: &str, soap_action: &str, body: &str) -> Option<String> {
         debug!(
             "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
             url.to_string(),
@@ -252,7 +250,7 @@ impl Renderer {
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = HashMap::new();
-        let (host, port) = self.parse_url(&self.dev_url, log);
+        let (host, port) = Self::parse_url(&self.dev_url, log);
         let addr = format!("{local_addr}:{server_port}");
 
         let local_url = match streaminfo.streaming_format {
@@ -320,9 +318,8 @@ impl Renderer {
                 self.dev_name
             ));
             return self.av_play(log, &fmt_vars);
-        } else {
-            log("ERROR: play: no supported renderer protocol found");
         }
+        log("ERROR: play: no supported renderer protocol found");
         Ok(())
     }
 
@@ -334,7 +331,7 @@ impl Renderer {
         // stop anything currently playing first, Moode needs it
         self.oh_stop_play(log);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
-        let (host, port) = self.parse_url(&self.dev_url, log);
+        let (host, port) = Self::parse_url(&self.dev_url, log);
         log(&format!(
             "OH Inserting new playlist on {} host={host} port={port}",
             self.dev_name
@@ -347,25 +344,23 @@ impl Renderer {
             }
         };
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Playlist:1#Insert",
-                &xmlbody,
-            )
-            .unwrap_or_default();
+        let _resp = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Playlist:1#Insert",
+            &xmlbody,
+        )
+        .unwrap_or_default();
         // send the Play command
         log(&format!(
             "OH Play on {} host={host} port={port}",
             self.dev_name
         ));
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Playlist:1#Play",
-                OH_PLAY_PL_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Playlist:1#Play",
+            OH_PLAY_PL_TEMPLATE,
+        )
+        .unwrap_or_default();
         Ok(())
     }
 
@@ -385,25 +380,23 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
-        let (host, port) = self.parse_url(&self.dev_url, log);
+        let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.av_control_url);
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
-                &xmlbody,
-            )
-            .unwrap_or_default();
+        let _resp = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
+            &xmlbody,
+        )
+        .unwrap_or_default();
         // the renderer will now send a head request first, so wait a bit
         std::thread::sleep(Duration::from_millis(100));
         // send play command
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:AVTransport:1#Play",
-                AV_PLAY_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:AVTransport:1#Play",
+            AV_PLAY_TEMPLATE,
+        )
+        .unwrap_or_default();
         Ok(())
     }
 
@@ -426,7 +419,7 @@ impl Renderer {
 
     /// `oh_stop_play` - delete the playlist on the `OpenHome` renderer, so that it stops playing
     fn oh_stop_play(&self, log: &dyn Fn(&str)) {
-        let (host, port) = self.parse_url(&self.dev_url, log);
+        let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
         log(&format!(
             "OH Deleting current playlist on {} host={host} port={port}",
@@ -434,18 +427,17 @@ impl Renderer {
         ));
 
         // delete current playlist
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Playlist:1#DeleteAll",
-                OH_DELETE_PL_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Playlist:1#DeleteAll",
+            OH_DELETE_PL_TEMPLATE,
+        )
+        .unwrap_or_default();
     }
 
     /// `av_stop_play` - stop playing on the AV renderer
     fn av_stop_play(&self, log: &dyn Fn(&str)) {
-        let (host, port) = self.parse_url(&self.dev_url, log);
+        let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.av_control_url);
         log(&format!(
             "AV Stop playing on {} host={host} port={port}",
@@ -453,13 +445,12 @@ impl Renderer {
         ));
 
         // delete current playlist
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:AVTransport:1#Stop",
-                AV_STOP_PLAY_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:AVTransport:1#Stop",
+            AV_STOP_PLAY_TEMPLATE,
+        )
+        .unwrap_or_default();
     }
 }
 
@@ -588,10 +579,10 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
         usable_devices.push((oh_url.to_string(), *sa));
     }
     for (av_url, sa) in &av_devices {
-        if !usable_devices.iter().any(|d| d.0 == *av_url) {
-            usable_devices.push((av_url.to_string(), *sa));
-        } else {
+        if usable_devices.iter().any(|d| d.0 == *av_url) {
             debug!("SSDP Discovery: skipping AV renderer {av_url} as it is also OH");
+        } else {
+            usable_devices.push((av_url.to_string(), *sa));
         }
     }
     // now filter out devices we already know about

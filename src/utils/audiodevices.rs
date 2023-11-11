@@ -91,7 +91,6 @@ impl Device {
     }
 
     /// Default stream config
-    #[inline(always)]
     #[must_use]
     pub fn default_config(&self) -> &SupportedStreamConfig {
         &self.stream_config
@@ -228,7 +227,7 @@ pub fn capture_output_audio(
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             &audio_cfg.config(),
-            move |data, _: &_| wave_reader::<f32>(data, &mut f32_samples, rms_sender.clone()),
+            move |data, _: &_| wave_reader::<f32>(data, &mut f32_samples, &rms_sender),
             capture_err_fn,
             None,
         ) {
@@ -241,7 +240,7 @@ pub fn capture_output_audio(
         cpal::SampleFormat::I16 => {
             match device.build_input_stream(
                 &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<i16>(data, &mut f32_samples, rms_sender.clone()),
+                move |data, _: &_| wave_reader::<i16>(data, &mut f32_samples, &rms_sender),
                 capture_err_fn,
                 None,
             ) {
@@ -255,7 +254,7 @@ pub fn capture_output_audio(
         cpal::SampleFormat::U16 => {
             match device.build_input_stream(
                 &audio_cfg.config(),
-                move |data, _: &_| wave_reader::<u16>(data, &mut f32_samples, rms_sender.clone()),
+                move |data, _: &_| wave_reader::<u16>(data, &mut f32_samples, &rms_sender),
                 capture_err_fn,
                 None,
             ) {
@@ -280,7 +279,7 @@ fn capture_err_fn(err: cpal::StreamError) {
 /// writes the captured samples to all registered clients in the
 /// CLIENTS `ChannnelStream` hashmap
 /// also feeds the RMS monitor channel if the RMS option is set
-fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: Sender<Vec<f32>>)
+fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>)
 where
     T: Sample + ToSample<f32>,
 {

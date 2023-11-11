@@ -1,5 +1,5 @@
 use crate::{
-    enums::streaming::{StreamingFormat, StreamingFormat::Flac, StreamingState},
+    enums::streaming::{StreamingFormat::*, StreamingState},
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
@@ -96,7 +96,7 @@ pub fn run_server(
                             .with_header(nm_hdr);
                         if let Err(e) = rq.respond(response) {
                             ui_log(&format!(
-                                "=>Http POST connection with {remote_addr} terminated [{e}]"
+                                "=>Http streaming request with {remote_addr} terminated [{e}]"
                             ));
                         }
                         return;
@@ -109,14 +109,36 @@ pub fn run_server(
                     }
                     // prpare streaming headers
                     let conf = CONFIG.read().clone();
-                    let format = conf.streaming_format.unwrap();
-                    let ct_text = if format == StreamingFormat::Flac {
+                    let mut format = conf.streaming_format.unwrap_or(Lpcm);
+                    let mut bps = conf.bits_per_sample.unwrap_or(16);
+                    // check if client requests the configured format
+                    let url = rq.url().to_lowercase();
+                    let (req_bps, req_format) = {
+                        if let Some(format_start) = url.find("/stream/swyh.") {
+                            match url.to_lowercase().get(format_start + 13..) {
+                                Some("flac") => (24, Flac),
+                                Some("wav") => (16, Wav),
+                                Some("rf64") => (16, Rf64),
+                                Some("raw") => (16, Lpcm),
+                                None | Some(&_) => (bps, format),
+                            }
+                        } else {
+                            (bps, format)
+                        }
+                    };
+                    // if format requested by client differs from config: use requested format
+                    if req_format != format {
+                        debug!("Config: {bps}/{format} <=> Request: {req_bps}/{req_format}");
+                        bps = req_bps;
+                        format = req_format;
+                    }
+                    let ct_text = if format == Flac {
                         "audio/flac".to_string()
-                    } else if conf.use_wave_format {
+                    } else if format == Wav || format == Rf64 {
                         "audio/vnd.wave;codec=1".to_string()
                     } else {
                         // LPCM
-                        if conf.bits_per_sample == Some(16) {
+                        if bps == 16 {
                             format!("audio/L16;rate={};channels=2", wd.sample_rate.0)
                         } else {
                             format!("audio/L24;rate={};channels=2", wd.sample_rate.0)
@@ -141,8 +163,8 @@ pub fn run_server(
                             remote_ip.clone(),
                             conf.use_wave_format,
                             wd.sample_rate.0,
-                            conf.bits_per_sample.unwrap_or(16),
-                            conf.streaming_format.unwrap_or(Flac),
+                            bps,
+                            format,
                         );
                         let nclients = {
                             let mut clients = CLIENTS.write();
@@ -159,12 +181,10 @@ pub fn run_server(
                             .unwrap();
                         std::thread::yield_now();
                         let streaming_format = match format {
-                            StreamingFormat::Flac => "audio/FLAC",
-                            StreamingFormat::Wav | StreamingFormat::Rf64 => {
-                                "audio/wave;codec=1 (WAV)"
-                            }
-                            StreamingFormat::Lpcm => {
-                                if conf.bits_per_sample == Some(16) {
+                            Flac => "audio/FLAC",
+                            Wav | Rf64 => "audio/wave;codec=1 (WAV)",
+                            Lpcm => {
+                                if bps == 16 {
                                     "audio/L16 (LPCM)"
                                 } else {
                                     "audio/L24 (LPCM)"
@@ -179,7 +199,7 @@ pub fn run_server(
                             rq.remote_addr().unwrap()
                         ));
                         // make sure that tiny-http does not use chunked encoding
-                        let (streamsize, chunksize) = if format == StreamingFormat::Wav {
+                        let (streamsize, chunksize) = if format == Wav {
                             (Some((u32::MAX - 1) as usize), (u32::MAX) as usize)
                         } else {
                             (Some((i64::MAX - 1) as usize), i64::MAX as usize)

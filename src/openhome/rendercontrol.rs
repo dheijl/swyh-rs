@@ -745,7 +745,7 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
 mod tests {
     use super::*;
 
-    fn log(_s: String) {}
+    fn log(_s: &str) {}
 
     #[test]
     fn renderer() {
@@ -786,10 +786,32 @@ mod tests {
     fn test_contains() {
         let ok_errors = ["10060", "os error 11", "os error 35"];
         let mut e = "bla bla os error 11 bla bla";
-        let to_ignore = OK_errors.iter().any(|s| e.contains(*s));
+        let to_ignore = ok_errors.iter().any(|s| e.contains(*s));
         assert!(to_ignore == true);
         e = "bla bla os error 12 bla bla";
-        let to_ignore = OK_errors.iter().any(|s| e.contains(*s));
+        let to_ignore = ok_errors.iter().any(|s| e.contains(*s));
         assert!(to_ignore == false);
+    }
+
+    #[test]
+    fn test_format() {
+        let bps = 24;
+        let format = StreamingFormat::Flac;
+        let url = "http://192.168.0.135:5901/Stream/Swyh.raw".to_lowercase();
+        let (req_bps, req_format) = {
+            if let Some(format_start) = url.find("/stream/swyh.") {
+                match url.get(format_start + 13..) {
+                    Some("flac") => (24, StreamingFormat::Flac),
+                    Some("wav") => (16, StreamingFormat::Wav),
+                    Some("rf64") => (16, StreamingFormat::Rf64),
+                    Some("raw") => (16, StreamingFormat::Lpcm),
+                    None | Some(&_) => (bps, format),
+                }
+            } else {
+                (bps, format)
+            }
+        };
+        assert!(req_format == StreamingFormat::Lpcm);
+        assert!(req_bps == 16);
     }
 }

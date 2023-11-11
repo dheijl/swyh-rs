@@ -20,8 +20,13 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.9.2 with
+The current release is 1.9.3 with
 
+- When swyh-rs is used as an internet radio, where the client starts streaming without swyh-rs intervention, the URL used by the client now decides what streaming format is used. This works in the GUI and in the CLI, independent of values configured in the CLI or GUI:
+  - /stream/swyh.raw => LPCM 16 bit
+  - /stream/swyh.flac => FLAC 24 bit
+  - /stream/swyh.wav => LPCM 16 bit with a WAV header
+  - /stream/swyh.rf64 => LPCM 16 bit with a WAV/RF64 header  
 - CLI: boolean options no longer take an argument, absent means false, present means true. For options stored in the config you can still use the false argument to disable them. Option -n, -h and -x are not stored in the config file.
 - CLI: a new -x (--serve_only) option for the cli, that lets swyh-rs serve music without running the SSDP discovery and without automatically starting to play. It just sits there waiting for streaming requests. See issue #111.
 - support for the RF64 audio format

@@ -1,6 +1,12 @@
 # swyh-rs Changelog
 
-- 1.9.3-beta (unreleased)
+- 1.9.3 (Nov 11 2023 dheijl)
+  - some clippy recommendations
+  - when swyh-rs or swyh-rs-cli are used as an internet radio, the URL used by the client now selects the streaming format, independent of the configured values:
+    - /stream/swyh.raw => LPCM 16 bit
+    - /stream/swyh.flac => FLAC 24 bit
+    - /stream/swyh.wav => LPCM 16 bit with a WAV header
+    - /stream/swyh.rf64 => LPCM 16 bit with a WAV/RF64 header  
 
 - 1.9.2 (Nov 3 2023 dheijl)
   - some optimizations, use more iterators instead of loops, ...

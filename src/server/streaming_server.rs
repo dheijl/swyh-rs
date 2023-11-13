@@ -8,6 +8,7 @@ use crate::{
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
+#[cfg(feature = "gui")]
 use fltk::app;
 use log::debug;
 use std::{net::IpAddr, sync::Arc};
@@ -250,6 +251,7 @@ pub fn run_server(
                                 streaming_state: StreamingState::Ended,
                             })
                             .unwrap();
+                        #[cfg(feature = "gui")]
                         app::awake();
                         std::thread::yield_now();
                     } else if matches!(rq.method(), Method::Head) {

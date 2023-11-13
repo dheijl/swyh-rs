@@ -1,7 +1,4 @@
-use crate::{
-    enums::streaming::StreamingFormat,
-    globals::statics::{HAVE_UI, SERVER_PORT},
-};
+use crate::{enums::streaming::StreamingFormat, globals::statics::SERVER_PORT};
 use lexopt::{prelude::*, Parser};
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
@@ -10,7 +7,6 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
-    sync::atomic::Ordering::Relaxed,
 };
 use toml::from_str;
 
@@ -237,8 +233,10 @@ impl Configuration {
                 };
             };
         }
-        if config_id.is_empty() && !HAVE_UI.load(Relaxed) {
-            config_id = "_cli".to_string();
+        if !cfg!(feature = "gui") {
+            if config_id.is_empty() {
+                config_id = "_cli".to_string();
+            }
         }
         config_id
     }

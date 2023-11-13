@@ -1,12 +1,9 @@
+#![cfg(feature = "gui")]
 use crate::{
     enums::streaming::{StreamingFormat, StreamingFormat::Flac},
     globals::statics::CONFIG,
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
-    utils::{
-        configuration::Configuration,
-        traits::FwSlashPipeEscape,
-        ui_logger::{enable_ui_log, ui_log},
-    },
+    utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
 };
 use fltk::{
     app,
@@ -65,7 +62,6 @@ impl MainForm {
         const XPOS: i32 = 30;
         const YPOS: i32 = 5;
 
-        enable_ui_log();
         let title_color: Color = Color::from_u32(0x00e6_fff0);
         let app = app::App::default().with_scheme(app::Scheme::Gtk);
         app::background(247, 247, 247);

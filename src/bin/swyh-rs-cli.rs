@@ -20,13 +20,11 @@ use swyh_rs::{
         commandline::Args,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
-        ui_logger::{disable_ui_log, ui_log},
+        ui_logger::ui_log,
     },
 };
 
 fn main() -> Result<(), i32> {
-    // tell everyone we're running without UI
-    disable_ui_log();
     // gracefully exit on Ctrl-C
     ctrlc::set_handler(move || {
         println!("Received Ctrl+C -> exiting.");

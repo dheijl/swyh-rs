@@ -1,3 +1,4 @@
+#![cfg(feature = "gui")]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // to suppress console with debug output for release builds
 ///
 /// swyh-rs

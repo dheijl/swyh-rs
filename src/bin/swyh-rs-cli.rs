@@ -1,3 +1,4 @@
+#![cfg(feature = "cli")]
 use std::{collections::HashMap, fs::File, net::IpAddr, path::Path, thread, time::Duration};
 
 use cpal::traits::StreamTrait;

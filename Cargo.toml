@@ -13,6 +13,7 @@ readme = "README.md"
 
 [features]
 gui = ["dep:fltk"]
+cli = []
 
 [[bin]]
 name = "swyh-rs"
@@ -22,6 +23,7 @@ required-features = ["gui"]
 [[bin]]
 name = "swyh-rs-cli"
 #src = "src/bin/swyh-rs-cli"
+required-features = ["cli"]
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.12"

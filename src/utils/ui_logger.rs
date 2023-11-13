@@ -19,7 +19,7 @@ pub fn ui_log(s: &str) {
     app::awake();
 }
 
-#[cfg(not(feature = "gui"))]
+#[cfg(feature = "cli")]
 pub fn ui_log(s: &str) {
     let cat: &str = &s[..2];
     match cat {

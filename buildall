@@ -4,6 +4,7 @@ echo "Build all"
 while getopts u flag
 do
     if [[ "${flag}" == "u" ]]; then
+    echo "Updating dependencies"
         cargo update 
         cargo upgrade  --verbose
 fi

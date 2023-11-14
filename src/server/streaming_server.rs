@@ -8,8 +8,6 @@ use crate::{
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
-#[cfg(feature = "gui")]
-use fltk::app;
 use log::debug;
 use std::{net::IpAddr, sync::Arc};
 use tiny_http::{Header, Method, Response, Server};
@@ -183,7 +181,6 @@ pub fn run_server(
                                 streaming_state: StreamingState::Started,
                             })
                             .unwrap();
-                        std::thread::yield_now();
                         let streaming_format = match format {
                             Flac => "audio/FLAC",
                             Wav | Rf64 => "audio/wave;codec=1 (WAV)",
@@ -241,7 +238,6 @@ pub fn run_server(
                             clients.len()
                         };
                         debug!("Now have {nclients} streaming clients left");
-                        ui_log(&format!("Streaming to {remote_addr} has ended"));
                         // inform the main thread that this renderer has finished receiving
                         // necessary if the connection close was not caused by our own GUI
                         // so that we can update the corresponding button state
@@ -251,9 +247,7 @@ pub fn run_server(
                                 streaming_state: StreamingState::Ended,
                             })
                             .unwrap();
-                        #[cfg(feature = "gui")]
-                        app::awake();
-                        std::thread::yield_now();
+                        ui_log(&format!("Streaming to {remote_addr} has ended"));
                     } else if matches!(rq.method(), Method::Head) {
                         debug!("HEAD rq from {}", remote_addr);
                         let response = Response::empty(200)

@@ -17,6 +17,7 @@ pub fn ui_log(s: &str) {
     let logger = &LOGCHANNEL.read().0;
     logger.send(s.to_string()).unwrap();
     app::awake();
+    std::thread::yield_now();
 }
 
 #[cfg(feature = "cli")]

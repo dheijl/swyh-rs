@@ -233,10 +233,8 @@ impl Configuration {
                 };
             };
         }
-        if !cfg!(feature = "gui") {
-            if config_id.is_empty() {
-                config_id = "_cli".to_string();
-            }
+        if cfg!(feature = "cli") && config_id.is_empty() {
+            config_id = "_cli".to_string();
         }
         config_id
     }

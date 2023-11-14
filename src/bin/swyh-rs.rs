@@ -302,8 +302,7 @@ fn main() {
                                         bits_per_sample: config.bits_per_sample.unwrap_or(16),
                                         streaming_format: config.streaming_format.unwrap_or(Flac),
                                     };
-                                    let _ =
-                                        r.play(&local_addr, server_port, &dummy_log, streaminfo);
+                                    let _ = r.play(&local_addr, server_port, &ui_log, streaminfo);
                                 }
                             } else if button.is_set() {
                                 button.set(false);
@@ -345,11 +344,6 @@ fn app_restart(mf: &MainForm) -> i32 {
         // cancel
         1
     }
-}
-
-/// a `dummy_log` is used during AV transport autoresume
-fn dummy_log(s: &str) {
-    debug!("Autoresume: {}", s);
 }
 
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery

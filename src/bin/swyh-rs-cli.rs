@@ -359,7 +359,7 @@ fn main() -> Result<(), i32> {
                                     let _ = r.play(
                                         &local_addr,
                                         server_port.unwrap_or_default(),
-                                        &dummy_log,
+                                        &ui_log,
                                         streaminfo,
                                     );
                                 }
@@ -375,11 +375,6 @@ fn main() -> Result<(), i32> {
         }
         thread::sleep(Duration::from_millis(100));
     }
-}
-
-/// a `dummy_log` is used during AV transport autoresume
-fn dummy_log(s: &str) {
-    debug!("Autoresume: {}", s);
 }
 
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery

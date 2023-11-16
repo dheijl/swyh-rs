@@ -64,7 +64,7 @@ url = "2.4.1"
 xml-rs = "0.8.19"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.4.16", features = ["use-ninja"], optional = true }
-windows = { version = "0.51.1", features = [
+windows = { version = "0.52.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }

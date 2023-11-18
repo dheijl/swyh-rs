@@ -294,6 +294,6 @@ where
         .iter()
         .for_each(|(_, client)| client.write(f32_samples));
     if CONFIG.read().monitor_rms {
-        rms_sender.send(f32_samples.clone()).unwrap();
+        rms_sender.send(Vec::from(f32_samples.as_slice())).unwrap();
     }
 }

@@ -63,14 +63,14 @@ ureq = { version = "2.8.0", default-features = false, features = [
 url = "2.4.1"
 xml-rs = "0.8.19"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.4.16", features = ["use-ninja"], optional = true }
+fltk = { version = "1.4.18", features = ["use-ninja"], optional = true }
 windows = { version = "0.52.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.4.16", features = ["use-ninja"], optional = true }
+fltk = { version = "1.4.18", features = ["use-ninja"], optional = true }
 libc = "0.2.150"
 
 [patch.crates-io]

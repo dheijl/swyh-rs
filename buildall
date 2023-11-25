@@ -9,11 +9,10 @@ do
         cargo upgrade  --verbose
 fi
 done
-#cargo clippy --all --fix --allow-dirty --bin swyh-rs-cli -- -W clippy::all -W clippy::pedantic
-#cargo clippy --all --fix --allow-dirty --bin swyh-rs -- -W clippy::all -W clippy::pedantic
+#cargo clippy --all --fix --allow-dirty --features=cli -- -W clippy::all -W clippy::pedantic
+#cargo clippy --all --fix --allow-dirty --features=gui -- -W clippy::all -W clippy::pedantic
 cargo fmt --all
 cargo build --bin swyh-rs-cli --features cli
 cargo build --bin swyh-rs --features gui
 cargo build --bin swyh-rs-cli --features cli --release 
 cargo build --bin swyh-rs --features gui --release 
-#cargo build --target=i686-pc-windows-msvc && cargo build --target=i686-pc-windows-msvc --release

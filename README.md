@@ -10,6 +10,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 - [Current release](#current-release)
 - [Changelog](CHANGELOG.md)
+- [Building](https://github.com/dheijl/swyh-rs/wiki)
 - [swyh-rs as your local internet radio](#swyh-rs-as-your-local-internet-radio)
 - [Why this SWYH alternative ?](#why-this-swyh-alternative-)
 - [Todo](#todo)

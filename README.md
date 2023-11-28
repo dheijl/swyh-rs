@@ -79,7 +79,7 @@ It has been tested with
 - Denon Heos devices
 - Sony AV streamers & Bravia TVs
 - Chromecast devices defined as an OpenHome or DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)
-- **Sonos** speakers/soundbars using the **WAV** format (thanks @Cunkers !). **update:** A recent update to the Sonos Play 1 also enabled **FLAC**. Depending on your network a Sonos may stutter when using WAV, if you are affected you should use FLAC if your device supports it. See issues #84 and #75.
+- **Sonos** speakers/soundbars using the **WAV** format (thanks @Cunkers !). **update:** A recent update to the Sonos Play 1 also enabled **FLAC**. Depending on your network a Sonos may stutter when using WAV, if you are affected you should use FLAC if your device supports it. See issues #84 and #75. Software version "15.9 (Build 75146030)" on the Play:1 is known to support FLAC without stuttering (thanks @beWAYNE !).
   - If you want to pause music without losing the connection you have to enable the  **Inject Silence** option,and make sure that the **CaptureTimeout** is set to _250_ in your _{user_profile}/.swyh-rs/config.toml_ file. The InjectSilence flag is automatically added to the config file when you first start version 1.4.5 and defaults to _false_. Contributed by @genekellyjr, see issue #71, and @DanteDT.
   - injecting silence will eat a neglegible amount of cpu cycles.
 - Kef Wireless LS50 II (thanks @Turbomortel via Twitter)

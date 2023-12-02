@@ -15,6 +15,7 @@ readme = "README.md"
 gui = ["dep:fltk"]
 cli = []
 NOISE = []
+default = ["gui"]
 
 [[bin]]
 name = "swyh-rs"

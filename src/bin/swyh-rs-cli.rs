@@ -50,11 +50,11 @@ fn main() -> Result<(), i32> {
     };
     if let Some(config_id) = &config.config_id {
         if !config_id.is_empty() {
-            ui_log(&format!("Loaded configuration -c {config_id}"));
+            println!("Loaded configuration -c {config_id}");
         }
     }
     config.monitor_rms = false;
-    ui_log(&format!("Current config: {config:?}"));
+    println!("Current config: {config:?}");
     // set args loglevel
     if let Some(level) = args.log_level {
         config.log_level = level;
@@ -94,7 +94,9 @@ fn main() -> Result<(), i32> {
     // autoreconnect is ignored but effectively always on
     config.auto_reconnect = true;
     // set args soundsource index
-    config.sound_source_index = Some(args.sound_source_index.unwrap_or(0));
+    if args.sound_source_index.is_some() {
+        config.sound_source_index = args.sound_source_index;
+    }
 
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices();

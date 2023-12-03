@@ -265,9 +265,9 @@ checksum = "0c87e182de0887fd5361989c677c4e8f5000cd9491d6d563161a8f3a5519fc7f"
 
 [[package]]
 name = "deranged"
-version = "0.3.9"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f32d04922c60427da6f9fef14d042d9edddef64cb9d4ce0d64d0685fbeb1fd3"
+checksum = "8eb30d70a07a3b04884d2677f06bec33509dc67ca60d92949e5535352d3191dc"
 dependencies = [
  "powerfmt",
 ]
@@ -329,9 +329,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.18"
+version = "1.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c39636985b90bec05882f3ba163ab9147cebffd31e5d731f37817cb2941eb18c"
+checksum = "66085dfcddc4fe7d72bbc46575d9918924ac4ee9a5ede18b70fff48ca17ea58d"
 dependencies = [
  "bitflags 2.4.1",
  "crossbeam-channel",
@@ -342,9 +342,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.17"
+version = "1.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19a692af744b3c7d39c670c427786be2288467925b1b6c1d8fb7f3d3ce779b2a"
+checksum = "4381407b1e9001ba18c8039af5e05287e9962161b064441f256a0cc74fb839df"
 dependencies = [
  "cmake",
 ]

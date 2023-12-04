@@ -1,9 +1,10 @@
 # swyh-rs Changelog
 
-- 1.9.4-beta (unreleased)
+- 1.9.4 (Dec 4 2023 dheijl)
   - more clippy
-  - introduce cargo features "cli" and "gui", needed to build swyh-rs-cli without pulling in fltk-rs and its dependencies, and to build swyh-rs without the cli specific code. Also see the updated build information in the wiki.
+  - introduce cargo build features "cli" and "gui", needed to build swyh-rs-cli without pulling in fltk-rs and its dependencies, and to build swyh-rs without the cli specific code. Also see the updated build information in the wiki.
   - document that recent Sonos firmware now supports FLAC format too. It solves the stuttering problem that can happen when using WAV format on some networks.
+  - CLI: config sound source was ignored
 
 - 1.9.3 (Nov 11 2023 dheijl)
   - some clippy recommendations

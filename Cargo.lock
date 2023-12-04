@@ -990,7 +990,7 @@ checksum = "913e7b03d63752f6cdd2df77da36749d82669904798fe8944b9ec3d23f159905"
 
 [[package]]
 name = "swyh-rs"
-version = "1.9.4-beta"
+version = "1.9.4"
 dependencies = [
  "bitflags 2.4.1",
  "cpal",
@@ -1569,9 +1569,9 @@ checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
 
 [[package]]
 name = "winnow"
-version = "0.5.19"
+version = "0.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "829846f3e3db426d4cee4510841b71a8e58aa2a76b1132579487ae430ccd9c7b"
+checksum = "05c8ac106f5ae4cb3786c9ef22f066b20646795d0262df031bf04fd68630cd39"
 dependencies = [
  "memchr",
 ]

@@ -24,7 +24,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 The current release is 1.9.4 with
 
-- New **cargo build features** "*cli*" and "*gui*" to enable building swyh-rs-cli without pulling in fltk and dependencies, and swyh-rs without the CLI specifiv code. Refer to [Building](https://github.com/dheijl/swyh-rs/wiki) in the Wiki on how to build the gui and cli versions. This means that from 1.9.4 on a simple ```Cargo build``` will only build the swyh-rs GUI version.
+- New **cargo build features** "*cli*" and "*gui*" to enable building swyh-rs-cli without pulling in fltk and dependencies, and swyh-rs without the CLI specific code. Refer to [Building](https://github.com/dheijl/swyh-rs/wiki) in the Wiki on how to build the gui and cli versions. This means that from 1.9.4 on a simple ```Cargo build``` will only build the swyh-rs GUI version.
 - Recent Sonos firmware now supports FLAC, see issue #75, solving possible stuttering problems with Sonos.
 - When swyh-rs is used as an internet radio, where the client starts streaming without swyh-rs intervention, the URL used by the client now decides what streaming format is used. This works in the GUI and in the CLI, independent of values configured in the CLI or GUI:
   - /stream/swyh.raw => LPCM 16 bit

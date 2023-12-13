@@ -33,7 +33,7 @@ winres = "0.1.12"
 [dependencies]
 bitflags = "2.4.1"
 cpal = "0.15.2"
-crossbeam-channel = "0.5.8"
+crossbeam-channel = "0.5.9"
 ctrlc = { version = "3.4.1", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "5.0.1"
@@ -73,7 +73,7 @@ windows = { version = "0.52.0", features = [
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.4.19", features = ["use-ninja"], optional = true }
-libc = "0.2.150"
+libc = "0.2.151"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

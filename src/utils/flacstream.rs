@@ -12,7 +12,7 @@ use std::{
 };
 
 #[cfg(feature = "NOISE")]
-use crate::ui_log;
+use crate::utils::ui_logger::ui_log;
 
 const NOISE_PERIOD: u64 = 250;
 
@@ -107,33 +107,19 @@ impl FlacChannel {
                     .unwrap();
                 // read captured samples and encode
                 let shift = if bps == 24 { 8u8 } else { 16u8 };
+                // create the random generator for the white noise
                 #[cfg(feature = "NOISE")]
-                {
-                    // create the random generator for the white noise
-                    let mut rng = StdRng::seed_from_u64(79);
-                    // preallocate the noise buffer
-                    const DIVISOR: u64 = 1000 / NOISE_PERIOD;
-                    let size = ((sr * 2) / DIVISOR as u32) as usize;
-                    let mut noise: Vec<f32> = Vec::with_capacity(size);
-                    noise.resize(size, 0.0);
-                    let mut sending_silence = false;
-                }
+                let mut rng = StdRng::seed_from_u64(79);
+                // init NOISE feature and preallocate the noise buffer
+                const DIVISOR: u64 = 1000 / NOISE_PERIOD;
+                let size = ((sr * 2) / DIVISOR as u32) as usize;
+                let mut noise: Vec<f32> = Vec::with_capacity(size);
+                noise.resize(size, 0.0);
                 // read and FLAC encode samples
-                let time_out = Duration::from_millis(NOISE_PERIOD);
+                let mut time_out = Duration::from_millis(NOISE_PERIOD);
                 while l_active.load(Relaxed) {
-                    #[cfg(feature = "NOISE")]
-                    {
-                        let time_out = if sending_silence {
-                            Duration::from_millis(NOISE_PERIOD)
-                        } else {
-                            Duration::from_millis(NOISE_PERIOD * 4)
-                        };
-                    }
                     if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
-                        #[cfg(feature = "NOISE")]
-                        {
-                            sending_silence = false;
-                        }
+                        time_out = Duration::from_millis(NOISE_PERIOD);
                         let samples = f32_samples
                             .iter()
                             .map(|s| to_i32_sample(*s) >> shift)
@@ -141,10 +127,10 @@ impl FlacChannel {
                         enc.process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                             .unwrap();
                     } else {
+                        time_out = Duration::from_millis(NOISE_PERIOD * 4);
                         #[cfg(feature = "NOISE")]
                         {
                             // if no samples for a certain time: send a faint white noise
-                            sending_silence = true;
                             if l_active.load(Relaxed) {
                                 fill_noise_buffer(&mut rng, &mut noise);
                                 let samples = noise

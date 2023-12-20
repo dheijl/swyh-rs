@@ -1,13 +1,8 @@
-#[cfg(feature = "gui")]
-use fltk::app;
 use log::{error, info, warn};
-
-#[cfg(feature = "gui")]
-use crate::globals::statics::LOGCHANNEL;
 
 /// `ui_log`
 /// - log a messgae to the terminal and the logfile
-/// - send a logmessage to the textbox on the Crossbeam LOGCHANNEL ig runing the GUI
+/// - send a logmessage to the textbox on the Crossbeam LOGCHANNEL when runing the GUI
 pub fn ui_log(s: &str) {
     let cat: &str = &s[..2];
     match cat {
@@ -17,6 +12,8 @@ pub fn ui_log(s: &str) {
     };
     #[cfg(feature = "gui")]
     {
+        use crate::globals::statics::LOGCHANNEL;
+        use fltk::app;
         let logger = &LOGCHANNEL.read().0;
         logger.send(s.to_string()).unwrap();
         app::awake();

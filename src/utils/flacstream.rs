@@ -14,7 +14,7 @@ use std::{
 #[cfg(feature = "NOISE")]
 use crate::utils::ui_logger::ui_log;
 
-const NOISE_PERIOD: u64 = 250;
+const NOISE_PERIOD_MS: u64 = 250; // milliseconds
 
 // the flacwriter receives the data from the encoder
 // and writes them to the flac output channel
@@ -111,15 +111,15 @@ impl FlacChannel {
                 #[cfg(feature = "NOISE")]
                 let mut rng = StdRng::seed_from_u64(79);
                 // init NOISE feature and preallocate the noise buffer
-                const DIVISOR: u64 = 1000 / NOISE_PERIOD;
-                let size = ((sr * 2) / DIVISOR as u32) as usize;
-                let mut noise: Vec<f32> = Vec::with_capacity(size);
-                noise.resize(size, 0.0);
+                const DIVISOR: u64 = 1000 / NOISE_PERIOD_MS;
+                let noise_bufsize = ((sr * 2) / DIVISOR as u32) as usize;
+                let mut noise_buf: Vec<f32> = Vec::with_capacity(noise_bufsize);
+                noise_buf.resize(noise_bufsize, 0.0);
                 // read and FLAC encode samples
-                let mut time_out = Duration::from_millis(NOISE_PERIOD);
+                let mut time_out = Duration::from_millis(NOISE_PERIOD_MS);
                 while l_active.load(Relaxed) {
                     if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
-                        time_out = Duration::from_millis(NOISE_PERIOD);
+                        time_out = Duration::from_millis(NOISE_PERIOD_MS);
                         let samples = f32_samples
                             .iter()
                             .map(|s| to_i32_sample(*s) >> shift)
@@ -127,13 +127,14 @@ impl FlacChannel {
                         enc.process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                             .unwrap();
                     } else {
-                        time_out = Duration::from_millis(NOISE_PERIOD * 4);
+                        time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
+                        // send very faint noise if no samples for time_out msecs
                         #[cfg(feature = "NOISE")]
                         {
                             // if no samples for a certain time: send a faint white noise
                             if l_active.load(Relaxed) {
-                                fill_noise_buffer(&mut rng, &mut noise);
-                                let samples = noise
+                                fill_noise_buffer(&mut rng, &mut noise_buf);
+                                let samples = noise_buf
                                     .iter()
                                     .map(|s| to_i32_sample(*s) >> shift)
                                     .collect::<Vec<i32>>();
@@ -175,9 +176,9 @@ fn to_i32_sample(mut f32_sample: f32) -> i32 {
 ///
 /// fille the pre-allocated noise buffer with a very faint white noise (-60db)
 ///
-fn fill_noise_buffer(rng: &mut StdRng, noise: &mut [f32]) {
+fn fill_noise_buffer(rng: &mut StdRng, noise_buf: &mut [f32]) {
     let amplitude: f32 = 0.001;
-    for sample in noise.iter_mut() {
+    for sample in noise_buf.iter_mut() {
         *sample = ((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude;
     }
 }

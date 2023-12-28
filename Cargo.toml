@@ -33,8 +33,8 @@ winres = "0.1.12"
 [dependencies]
 bitflags = "2.4.1"
 cpal = "0.15.2"
-crossbeam-channel = "0.5.9"
-ctrlc = { version = "3.4.1", features = ["termination"] }
+crossbeam-channel = "0.5.10"
+ctrlc = { version = "3.4.2", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "5.0.1"
 flac-bound = { version = "0.3.0", default-features = false, features = [

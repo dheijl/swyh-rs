@@ -389,13 +389,13 @@ fn run_ssdp_updater(ssdp_tx: &Sender<Renderer>, ssdp_interval_mins: f64) {
         let renderers = discover(&rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             if !rmap.contains_key(&r.remote_addr) {
+                rmap.insert(r.remote_addr.clone(), r.clone());
                 let _ = ssdp_tx.send(r.clone());
-                thread::yield_now();
                 info!(
                     "Found new renderer {} {}  at {}",
                     r.dev_name, r.dev_model, r.remote_addr
                 );
-                rmap.insert(r.remote_addr.clone(), r.clone());
+                thread::yield_now();
             }
         }
         thread::sleep(Duration::from_millis(

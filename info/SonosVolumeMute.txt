@@ -1,0 +1,97 @@
+function SonosGetVolume(Device_Sonos_IP,command) --  Volume, Mute
+    Device_Sonos_Port = "1400"
+    Device_Sonos_url = "/MediaRenderer/RenderingControl/Control"
+    Device_Sonos_Method = "urn:schemas-upnp-org:service:RenderingControl:1#Get" .. command
+
+	-- config ---------------------------------------------------------
+    url = ('curl --header 
+        \'SOAPACTION: ' .. Device_Sonos_Method .. '
+        \' --data 
+        \'<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+        <s:Body>
+            <u:Get'.. command .. ' xmlns:u="urn:schemas-upnp-org:service:RenderingControl:1">
+            <InstanceID>0</InstanceID>
+            <Channel>Master</Channel>
+            </u:Get'.. command .. '>
+        </s:Body>
+        </s:Envelope>
+        \' http://' .. Device_Sonos_IP .. ':' .. Device_Sonos_Port .. '' .. Device_Sonos_url .. '')
+	local f = io.popen(url)
+	line = f:read()
+	i, j = string.find(line, '<Current' .. command .. '>')
+	ValueStart = j+1
+	i, j = string.find(line, '</Current' .. command .. '>')
+	ValueStop = i-1	
+	SonosResult = string.sub(line, ValueStart, ValueStop)
+	if (command == "Mute") and (SonosResult == "0") then SonosResult = "Off"
+	elseif (command == "Mute") and (SonosResult == "1") then SonosResult = "On"
+	end
+	
+	return SonosResult
+end
+
+
+use:
+print(SonosGetVolume("192.168.0.2","Volume")  -- Gets volume status from Sonos device with IP address 192.168.0.2
+print(SonosGetVolume("192.168.0.2","Mute")  -- Gets mutestatus from Sonos device with IP address 192.168.0.2
+
+
+
+function SonosVolume(Device_Sonos_IP,command,value) -- Volume -> 0-100, Mute -> On/Off
+    if ((command == "Volume") or (command == "Mute")) and 
+        ((value == "Off") or (value == "On") or ((tonumber(value) >= 0) and (tonumber(value) <= 100)))
+	then
+	    if (value == "Off") then value = 0
+	    elseif (value == "On") then value = 1
+	    end
+
+    	Device_Sonos_Port = "1400"
+    	Device_Sonos_url = "/MediaRenderer/RenderingControl/Control"
+    	Device_Sonos_Method = "urn:schemas-upnp-org:service:RenderingControl:1#Set".. command
+    	url = ('curl --header 
+            \'SOAPACTION: ' .. Device_Sonos_Method .. '
+            \' --data 
+            \'<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+            <s:Body>
+                <u:Set' .. command ..' xmlns:u="urn:schemas-upnp-org:service:RenderingControl:1">
+                <InstanceID>0</InstanceID>
+                <Channel>Master</Channel>
+                <Desired' .. command ..'>' .. value .. '</Desired' .. command ..'>
+                </u:Set' .. command ..'>
+            </s:Body>
+            </s:Envelope>
+            \' http://' .. Device_Sonos_IP .. ':' .. Device_Sonos_Port .. '' .. Device_Sonos_url .. '')
+    	io.popen(url .. ' &')
+	end
+end
+
+
+OPENHOME:
+
+var req = new tabris.XMLHttpRequest();
+req.open('POST', 'http://192.168.1.6:49152/ctl/RenderingControl', true);
+req.setRequestHeader('Content-Type', 'text/xml; charset="utf-8"');
+req.setRequestHeader('SOAPAction', '"urn:schemas-upnp-org:service:RenderingControl:1#GetVolume"');
+req.onreadystatechange = function () {
+ if (req.readyState === req.DONE) {
+  console.log(req.response);
+ }
+};
+
+var payload = `<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+ <s:Body>
+  <u:GetVolume xmlns:u="urn:schemas-upnp-org:service:RenderingControl:1">
+   <InstanceID>0</InstanceID>
+   <Channel>Master</Channel>
+  </u:GetVolume>
+ </s:Body>
+</s:Envelope>`;
+
+req.send(payload);
+
+
+use:
+SonosVolume("192.168.0.2","Volume", 15) -- Sets volume to 15% for Sonos device with IP address 192.168.0.2
+SonosVolume("192.168.0.2","Mute", "On") -- Mutes Sonos device with IP address 192.168.0.2
+SonosVolume("192.168.0.2","Mute", "Off") -- Unmutes Sonos device with IP address 192.168.0.2

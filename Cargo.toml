@@ -51,7 +51,7 @@ log = { version = "0.4.20", features = [
 ] }
 once_cell = "1.19.0"
 parking_lot = "0.12.1"
-serde = { version = "1.0.195", features = ["derive"] }
+serde = { version = "1.0.196", features = ["derive"] }
 simplelog = "0.12.1"
 rand = "0.8.5"
 strfmt = "0.2.4"

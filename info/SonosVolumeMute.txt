@@ -65,6 +65,12 @@ function SonosVolume(Device_Sonos_IP,command,value) -- Volume -> 0-100, Mute -> 
 	end
 end
 
+use:
+SonosVolume("192.168.0.2","Volume", 15) -- Sets volume to 15% for Sonos device with IP address 192.168.0.2
+SonosVolume("192.168.0.2","Mute", "On") -- Mutes Sonos device with IP address 192.168.0.2
+SonosVolume("192.168.0.2","Mute", "Off") -- Unmutes Sonos device with IP address 192.168.0.2
+
+
 
 OPENHOME:
 
@@ -89,9 +95,3 @@ var payload = `<?xml version="1.0"?>
 </s:Envelope>`;
 
 req.send(payload);
-
-
-use:
-SonosVolume("192.168.0.2","Volume", 15) -- Sets volume to 15% for Sonos device with IP address 192.168.0.2
-SonosVolume("192.168.0.2","Mute", "On") -- Mutes Sonos device with IP address 192.168.0.2
-SonosVolume("192.168.0.2","Mute", "Off") -- Unmutes Sonos device with IP address 192.168.0.2

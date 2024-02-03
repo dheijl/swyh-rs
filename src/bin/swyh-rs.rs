@@ -315,6 +315,7 @@ fn main() {
         // check the ssdp discovery thread channel for newly discovered renderers
         // add a new button below the last one for each discovered renderer
         while let Ok(newr) = ssdp_rx.try_recv() {
+            let vol = newr.get_volume(&ui_log);
             mf.add_renderer_button(&newr);
             renderers.push(newr.clone());
         }

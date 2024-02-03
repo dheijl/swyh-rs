@@ -508,14 +508,39 @@ impl Renderer {
         ));
 
         // get volume
-        let _resp = Self::soap_request(
+        let vol_xml = Self::soap_request(
             &url,
             "urn:av-openhome-org:service:Volume:1#Volume",
             OH_GET_VOL_TEMPLATE,
         )
-        .unwrap_or_default();
+        .unwrap_or("<Error/>".to_string());
         // parse response to extract volume
-        1
+        debug!("oh_get_volume response: {vol_xml}");
+        let xmlstream = StringReader::new(&vol_xml);
+        let parser = EventReader::new(xmlstream);
+        let mut cur_elem = String::new();
+        let mut have_vol_response = false;
+        let mut str_volume = "-1".to_string();
+        for e in parser {
+            match e {
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    cur_elem = name.local_name;
+                    if cur_elem.contains("VolumeResponse") {
+                        have_vol_response = true;
+                    }
+                }
+                Ok(XmlEvent::Characters(value)) => {
+                    if cur_elem.contains("Value") && have_vol_response {
+                        str_volume = value;
+                    }
+                }
+                Err(e) => {
+                    error!("OH Volume XML parse error: {e}");
+                }
+                _ => {}
+            }
+        }
+        str_volume.parse::<i32>().unwrap_or(-1)
     }
 
     fn av_get_volume(&self, log: &dyn Fn(&str)) -> i32 {
@@ -527,13 +552,38 @@ impl Renderer {
         ));
 
         // delete current playlist
-        let _resp = Self::soap_request(
+        let vol_xml = Self::soap_request(
             &url,
             "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
             AV_GET_VOL_TEMPLATE,
         )
-        .unwrap_or_default();
-        1
+        .unwrap_or("<Error/>".to_string());
+        debug!("oh_get_volume response: {vol_xml}");
+        let xmlstream = StringReader::new(&vol_xml);
+        let parser = EventReader::new(xmlstream);
+        let mut cur_elem = String::new();
+        let mut have_vol_response = false;
+        let mut str_volume = "-1".to_string();
+        for e in parser {
+            match e {
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    cur_elem = name.local_name;
+                    if cur_elem.contains("VolumeResponse") {
+                        have_vol_response = true;
+                    }
+                }
+                Ok(XmlEvent::Characters(value)) => {
+                    if cur_elem.contains("Value") && have_vol_response {
+                        str_volume = value;
+                    }
+                }
+                Err(e) => {
+                    error!("OH Volume XML parse error: {e}");
+                }
+                _ => {}
+            }
+        }
+        str_volume.parse::<i32>().unwrap_or(-1)
     }
 }
 

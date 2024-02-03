@@ -316,6 +316,7 @@ fn main() {
         // add a new button below the last one for each discovered renderer
         while let Ok(newr) = ssdp_rx.try_recv() {
             let vol = newr.get_volume(&ui_log);
+            debug!("Renderer {} Volume: {vol}", newr.dev_name);
             mf.add_renderer_button(&newr);
             renderers.push(newr.clone());
         }

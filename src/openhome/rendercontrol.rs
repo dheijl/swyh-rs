@@ -568,12 +568,12 @@ impl Renderer {
             match e {
                 Ok(XmlEvent::StartElement { name, .. }) => {
                     cur_elem = name.local_name;
-                    if cur_elem.contains("VolumeResponse") {
+                    if cur_elem.contains("GetVolumeResponse") {
                         have_vol_response = true;
                     }
                 }
                 Ok(XmlEvent::Characters(value)) => {
-                    if cur_elem.contains("Value") && have_vol_response {
+                    if cur_elem.contains("CurrentVolume") && have_vol_response {
                         str_volume = value;
                     }
                 }

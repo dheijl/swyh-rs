@@ -17,7 +17,7 @@ use fltk::{
     misc::Progress,
     prelude::*,
     text::{TextBuffer, TextDisplay},
-    valuator::Counter,
+    valuator::{Counter, HorNiceSlider},
     window::DoubleWindow,
 };
 //use fltk_flow::Flow;
@@ -538,8 +538,10 @@ impl MainForm {
     }
 
     pub fn add_renderer_button(&mut self, new_renderer: &Renderer) {
+        let pbwidth = (self.bwidth / 3) * 2;
+        let slwidth = self.bwidth - pbwidth;
         let mut but = LightButton::default() // create the button
-            .with_size(self.bwidth, self.bheight)
+            .with_size(pbwidth, self.bheight)
             .with_pos(0, 0)
             .with_align(Align::Center)
             .with_label(&format!(
@@ -582,10 +584,31 @@ impl MainForm {
                 }
             }
         });
+        // the volume slider
+        let mut sl = HorNiceSlider::default()
+            .with_size(slwidth, self.bheight)
+            .with_pos(0, 0);
+        sl.set_maximum(100.0);
+        sl.set_minimum(0.0);
+        sl.set_step(1.0, 1);
+        sl.set_value(new_renderer.volume.into());
+        sl.set_trigger(fltk::enums::CallbackTrigger::Release);
+        // slider callback
+        sl.set_callback({
+            let mut newr_c = new_renderer.clone();
+            move |s| {
+                let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
+                debug!("Setting new volume for {}: {vol}", newr_c.dev_name);
+                newr_c.set_volume(&ui_log, vol);
+            }
+        });
         // the pack for the new button
         let mut pbutton = Pack::new(0, 0, self.bwidth, self.bheight, "");
+        pbutton.set_spacing(5);
+        pbutton.set_type(PackType::Horizontal);
         pbutton.end();
         pbutton.add(&but); // add the button to the window
+        pbutton.add(&sl); // add the slider
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons
             .insert(new_renderer.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping

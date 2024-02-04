@@ -116,6 +116,56 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
+/// OH get volume template, uses Volume service
+static OH_GET_VOL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:Volume xmlns:u=\"urn:av-openhome-org:service:Volume:1\">\
+</u:Volume>\
+</s:Body>\
+</s:Envelope>";
+
+/// OH set volume template, uses Volume service
+static OH_SET_VOL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:SetVolume xmlns:u=\"urn:av-openhome-org:service:SetVolume:1\">\
+<Value>{volume}</Value>\
+</u:SetVolume>\
+</s:Body>\
+</s:Envelope>";
+
+/// AV get Volume template, uses RenderingControl service
+static AV_GET_VOL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:GetVolume xmlns:u=\"urn:schemas-upnp-org:service:RenderingControl:1\">\
+<InstanceID>0</InstanceID>\
+<Channel>Master</Channel>\
+</u:GetVolume>\
+</s:Body>\
+</s:Envelope>";
+
+/// AV set Volume template, uses RenderingControl service
+static AV_SET_VOL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:SetVolume xmlns:u=\"urn:schemas-upnp-org:service:RenderingControl:1\">\
+<InstanceID>0</InstanceID>\
+<Channel>Master</Channel>\
+<DesiredVolume>{volume}</DesiredVolume>\
+</u:SetVolume>\
+</s:Body>\
+</s:Envelope>";
+
 /// Bad XML template error
 static BAD_TEMPL: &str = "Bad xml template (strfmt)";
 
@@ -173,6 +223,9 @@ pub struct Renderer {
     pub dev_url: String,
     pub oh_control_url: String,
     pub av_control_url: String,
+    pub oh_volume_url: String,
+    pub av_volume_url: String,
+    pub volume: i32,
     pub supported_protocols: SupportedProtocols,
     pub remote_addr: String,
     pub services: Vec<AvService>,
@@ -182,11 +235,14 @@ impl Renderer {
     fn new() -> Renderer {
         Renderer {
             dev_name: String::new(),
-            dev_url: String::new(),
             dev_model: String::new(),
+            dev_url: String::new(),
             dev_type: String::new(),
-            av_control_url: String::new(),
             oh_control_url: String::new(),
+            av_control_url: String::new(),
+            oh_volume_url: String::new(),
+            av_volume_url: String::new(),
+            volume: -1,
             supported_protocols: SupportedProtocols::NONE,
             remote_addr: String::new(),
             services: Vec::new(),
@@ -237,6 +293,37 @@ impl Renderer {
                 error!("<= SOAP POST error: {}\r\n", e);
                 None
             }
+        }
+    }
+
+    /// get volume
+    pub fn get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
+        if self
+            .supported_protocols
+            .contains(SupportedProtocols::OPENHOME)
+        {
+            return self.oh_get_volume(log);
+        } else if self
+            .supported_protocols
+            .contains(SupportedProtocols::AVTRANSPORT)
+        {
+            return self.av_get_volume(log);
+        }
+        -1
+    }
+
+    pub fn set_volume(&mut self, log: &dyn Fn(&str), vol: i32) {
+        self.volume = vol;
+        if self
+            .supported_protocols
+            .contains(SupportedProtocols::OPENHOME)
+        {
+            self.oh_set_volume(log);
+        } else if self
+            .supported_protocols
+            .contains(SupportedProtocols::AVTRANSPORT)
+        {
+            self.av_set_volume(log);
         }
     }
 
@@ -451,6 +538,133 @@ impl Renderer {
             AV_STOP_PLAY_TEMPLATE,
         )
         .unwrap_or_default();
+    }
+
+    fn oh_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_volume_url);
+
+        // get current volume
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Volume:1#Volume",
+            OH_GET_VOL_TEMPLATE,
+        )
+        .unwrap_or("<Error/>".to_string());
+        // parse response to extract volume
+        debug!("oh_get_volume response: {vol_xml}");
+        let xmlstream = StringReader::new(&vol_xml);
+        let parser = EventReader::new(xmlstream);
+        let mut cur_elem = String::new();
+        let mut have_vol_response = false;
+        let mut str_volume = "-1".to_string();
+        for e in parser {
+            match e {
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    cur_elem = name.local_name;
+                    if cur_elem.contains("VolumeResponse") {
+                        have_vol_response = true;
+                    }
+                }
+                Ok(XmlEvent::Characters(value)) => {
+                    if cur_elem.contains("Value") && have_vol_response {
+                        str_volume = value;
+                    }
+                }
+                Err(e) => {
+                    error!("OH Volume XML parse error: {e}");
+                }
+                _ => {}
+            }
+        }
+        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
+        log(&format!(
+            "OH Get Volume on {} host={host} port={port} = {}%",
+            self.dev_name, self.volume,
+        ));
+        self.volume
+    }
+
+    fn av_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_volume_url);
+
+        // get current volume
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
+            AV_GET_VOL_TEMPLATE,
+        )
+        .unwrap_or("<Error/>".to_string());
+        debug!("oh_get_volume response: {vol_xml}");
+        let xmlstream = StringReader::new(&vol_xml);
+        let parser = EventReader::new(xmlstream);
+        let mut cur_elem = String::new();
+        let mut have_vol_response = false;
+        let mut str_volume = "-1".to_string();
+        for e in parser {
+            match e {
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    cur_elem = name.local_name;
+                    if cur_elem.contains("GetVolumeResponse") {
+                        have_vol_response = true;
+                    }
+                }
+                Ok(XmlEvent::Characters(value)) => {
+                    if cur_elem.contains("CurrentVolume") && have_vol_response {
+                        str_volume = value;
+                    }
+                }
+                Err(e) => {
+                    error!("OH Volume XML parse error: {e}");
+                }
+                _ => {}
+            }
+        }
+        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
+        log(&format!(
+            "AV Get Volume on {} host={host} port={port} = {}%",
+            self.dev_name, self.volume,
+        ));
+        self.volume
+    }
+
+    fn oh_set_volume(&mut self, log: &dyn Fn(&str)) {
+        let vol = self.volume;
+        let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_volume_url);
+        log(&format!(
+            "OH Set New Volume on {} host={host} port={port}: {vol}%",
+            self.dev_name
+        ));
+        // set new volume
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Volume:1#SetVolume",
+            &tmpl,
+        )
+        .unwrap_or("<Error/>".to_string());
+        debug!("oh_set_volume response: {vol_xml}");
+    }
+
+    fn av_set_volume(&mut self, log: &dyn Fn(&str)) {
+        let vol = self.volume;
+        let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_volume_url);
+        log(&format!(
+            "AV Set New Volume on {} host={host} port={port}: {vol}%",
+            self.dev_name
+        ));
+        // set new volume
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:RenderingControl:1#SetVolume",
+            &tmpl,
+        )
+        .unwrap_or("<Error/>".to_string());
+        debug!("av_set_volume response: {vol_xml}");
     }
 }
 
@@ -695,6 +909,12 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                     } else if service.service_id.contains("AVTransport") {
                         renderer.av_control_url = service.control_url.clone();
                         renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
+                    } else if service.service_id.contains("Volume")
+                        && service.service_id.contains("urn:av-openhome-org:service")
+                    {
+                        renderer.oh_volume_url = service.control_url.clone();
+                    } else if service.service_id.contains("RenderingControl") {
+                        renderer.av_volume_url = service.control_url.clone();
                     }
                     renderer.services.push(service);
                     service = AvService::new();

@@ -635,7 +635,7 @@ impl Renderer {
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_volume_url);
         log(&format!(
-            "OH Set New Volume on {} host={host} port={port} = {vol}%",
+            "OH Set New Volume on {} host={host} port={port}: {vol}%",
             self.dev_name
         ));
         // set new volume
@@ -648,7 +648,24 @@ impl Renderer {
         debug!("oh_set_volume response: {vol_xml}");
     }
 
-    fn av_set_volume(&mut self, log: &dyn Fn(&str)) {}
+    fn av_set_volume(&mut self, log: &dyn Fn(&str)) {
+        let vol = self.volume;
+        let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_volume_url);
+        log(&format!(
+            "AV Set New Volume on {} host={host} port={port}: {vol}%",
+            self.dev_name
+        ));
+        // set new volume
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:RenderingControl:1#SetVolume",
+            &tmpl,
+        )
+        .unwrap_or("<Error/>".to_string());
+        debug!("av_set_volume response: {vol_xml}");
+    }
 }
 
 // SSDP UDP search message for media renderers with a 3.0 second MX response time

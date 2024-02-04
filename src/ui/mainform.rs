@@ -590,7 +590,18 @@ impl MainForm {
             .with_pos(0, 0);
         sl.set_maximum(100.0);
         sl.set_minimum(0.0);
+        sl.set_step(1.0, 1);
         sl.set_value(new_renderer.volume.into());
+        sl.set_trigger(fltk::enums::CallbackTrigger::Release);
+        // slider callback
+        sl.set_callback({
+            let mut newr_c = new_renderer.clone();
+            move |s| {
+                let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
+                debug!("New volume: {vol}");
+                newr_c.set_volume(vol);
+            }
+        });
         // the pack for the new button
         let mut pbutton = Pack::new(0, 0, self.bwidth, self.bheight, "");
         pbutton.set_spacing(5);

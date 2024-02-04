@@ -286,6 +286,21 @@ impl Renderer {
         -1
     }
 
+    pub fn set_volume(&mut self, vol: i32) {
+        self.volume = vol;
+        if self
+            .supported_protocols
+            .contains(SupportedProtocols::OPENHOME)
+        {
+            //
+        } else if self
+            .supported_protocols
+            .contains(SupportedProtocols::AVTRANSPORT)
+        {
+            //
+        }
+    }
+
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
     pub fn play(
         &self,

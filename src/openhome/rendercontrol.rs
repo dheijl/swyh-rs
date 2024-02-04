@@ -271,7 +271,7 @@ impl Renderer {
     }
 
     /// get volume
-    pub fn get_volume(&self, log: &dyn Fn(&str)) -> i32 {
+    pub fn get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
@@ -499,13 +499,9 @@ impl Renderer {
         .unwrap_or_default();
     }
 
-    fn oh_get_volume(&self, log: &dyn Fn(&str)) -> i32 {
+    fn oh_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_volume_url);
-        log(&format!(
-            "OH Get Volume on {} host={host} port={port}",
-            self.dev_name
-        ));
 
         // get volume
         let vol_xml = Self::soap_request(
@@ -540,16 +536,17 @@ impl Renderer {
                 _ => {}
             }
         }
-        str_volume.parse::<i32>().unwrap_or(-1)
+        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
+        log(&format!(
+            "OH Get Volume on {} host={host} port={port} = {}%",
+            self.dev_name, self.volume,
+        ));
+        self.volume
     }
 
-    fn av_get_volume(&self, log: &dyn Fn(&str)) -> i32 {
+    fn av_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.av_volume_url);
-        log(&format!(
-            "AV Get Volume on {} host={host} port={port}",
-            self.dev_name
-        ));
 
         // delete current playlist
         let vol_xml = Self::soap_request(
@@ -583,7 +580,12 @@ impl Renderer {
                 _ => {}
             }
         }
-        str_volume.parse::<i32>().unwrap_or(-1)
+        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
+        log(&format!(
+            "AV Get Volume on {} host={host} port={port} = {}%",
+            self.dev_name, self.volume,
+        ));
+        self.volume
     }
 }
 

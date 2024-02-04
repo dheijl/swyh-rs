@@ -22,8 +22,10 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.9.4 with
+The current release is 1.9.5 with
 
+- Volume sliders to control the volume of the players in swyh-rs GUI
+- the possibility to compile swyh-rs with the "NOISE" feature to enable a faint noise instead of silence when using FLAC with no sound playing and you wish to keep the connection alive
 - New **cargo build features** "*cli*" and "*gui*" to enable building swyh-rs-cli without pulling in fltk and dependencies, and swyh-rs without the CLI specific code. Refer to [Building](https://github.com/dheijl/swyh-rs/wiki) in the Wiki on how to build the gui and cli versions. This means that from 1.9.4 on a simple ```Cargo build``` will only build the swyh-rs GUI version.
 - Recent Sonos firmware now supports FLAC, see issue #75, solving possible stuttering problems with Sonos.
 - When swyh-rs is used as an internet radio, where the client starts streaming without swyh-rs intervention, the URL used by the client now decides what streaming format is used. This works in the GUI and in the CLI, independent of values configured in the CLI or GUI:
@@ -222,4 +224,4 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
 ### Screenshot
 
-![Knipsel](https://github.com/dheijl/swyh-rs/assets/2384545/39a35928-9894-4e36-949f-661880ca8b44)
+![afbeelding](https://github.com/dheijl/swyh-rs/assets/2384545/e54afebf-786e-44de-b355-d3c339f311c9)

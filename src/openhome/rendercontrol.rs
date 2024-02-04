@@ -286,18 +286,18 @@ impl Renderer {
         -1
     }
 
-    pub fn set_volume(&mut self, vol: i32) {
+    pub fn set_volume(&mut self, log: &dyn Fn(&str), vol: i32) {
         self.volume = vol;
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            //
+            self.oh_set_volume(log);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            //
+            self.av_set_volume(log);
         }
     }
 
@@ -602,6 +602,10 @@ impl Renderer {
         ));
         self.volume
     }
+
+    fn oh_set_volume(&mut self, log: &dyn Fn(&str)) {}
+
+    fn av_set_volume(&mut self, log: &dyn Fn(&str)) {}
 }
 
 // SSDP UDP search message for media renderers with a 3.0 second MX response time

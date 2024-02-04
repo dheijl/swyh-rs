@@ -598,8 +598,8 @@ impl MainForm {
             let mut newr_c = new_renderer.clone();
             move |s| {
                 let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
-                debug!("New volume: {vol}");
-                newr_c.set_volume(vol);
+                debug!("Setting new volume for {}: {vol}", newr_c.dev_name);
+                newr_c.set_volume(&ui_log, vol);
             }
         });
         // the pack for the new button

@@ -127,6 +127,18 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
+/// OH set volume template, uses Volume service
+static OH_SET_VOL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:SetVolume xmlns:u=\"urn:av-openhome-org:service:SetVolume:1\">\
+<Value>{volume}</Value>\
+</u:SetVolume>\
+</s:Body>\
+</s:Envelope>";
+
 /// AV get Volume template, uses RenderingControl service
 static AV_GET_VOL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
@@ -137,6 +149,20 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 <InstanceID>0</InstanceID>\
 <Channel>Master</Channel>\
 </u:GetVolume>\
+</s:Body>\
+</s:Envelope>";
+
+/// AV set Volume template, uses RenderingControl service
+static AV_SET_VOL_TEMPLATE: &str = "\
+<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
+xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
+<s:Body>\
+<u:SetVolume xmlns:u=\"urn:schemas-upnp-org:service:RenderingControl:1\">\
+<InstanceID>0</InstanceID>\
+<Channel>Master</Channel>\
+<DesiredVolume>{volume}</DesiredVolume>\
+</u:SetVolume>\
 </s:Body>\
 </s:Envelope>";
 
@@ -518,7 +544,7 @@ impl Renderer {
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_volume_url);
 
-        // get volume
+        // get current volume
         let vol_xml = Self::soap_request(
             &url,
             "urn:av-openhome-org:service:Volume:1#Volume",
@@ -563,7 +589,7 @@ impl Renderer {
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.av_volume_url);
 
-        // delete current playlist
+        // get current volume
         let vol_xml = Self::soap_request(
             &url,
             "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
@@ -603,7 +629,24 @@ impl Renderer {
         self.volume
     }
 
-    fn oh_set_volume(&mut self, log: &dyn Fn(&str)) {}
+    fn oh_set_volume(&mut self, log: &dyn Fn(&str)) {
+        let vol = self.volume;
+        let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_volume_url);
+        log(&format!(
+            "OH Set New Volume on {} host={host} port={port} = {vol}%",
+            self.dev_name
+        ));
+        // set new volume
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Volume:1#SetVolume",
+            &tmpl,
+        )
+        .unwrap_or("<Error/>".to_string());
+        debug!("oh_set_volume response: {vol_xml}");
+    }
 
     fn av_set_volume(&mut self, log: &dyn Fn(&str)) {}
 }

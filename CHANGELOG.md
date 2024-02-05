@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.9.6 (unreleased)
+  - don't show the volume sliders if GetVolume does not work
+
 - 1.9.5 (Feb 4 2024 dheijl)
   - add Volume Control Sliders as requested in issue #113
   - if you wish you can now compile swyh-rs with the "NOISE" feature for FLAC, where a very faint noise is sent instead of silence to keep the connection alive if there is no sound (FLAC compresses the silence away)

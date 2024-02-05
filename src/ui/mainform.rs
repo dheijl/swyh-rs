@@ -538,10 +538,11 @@ impl MainForm {
     }
 
     pub fn add_renderer_button(&mut self, new_renderer: &Renderer) {
-        let (pbwidth, slwidth) = if new_renderer.volume == -1 {
-            (self.bwidth, 0)
-        } else {
+        // check if the renderer responded to GetVolume and configure room for sliders if yes
+        let (pbwidth, slwidth) = if new_renderer.volume >= 0 {
             ((self.bwidth / 3) * 2, self.bwidth / 3)
+        } else {
+            (self.bwidth, 0)
         };
         let mut but = LightButton::default() // create the button
             .with_size(pbwidth, self.bheight)
@@ -587,11 +588,18 @@ impl MainForm {
                 }
             }
         });
-        // the volume slider
-        let mut sl = HorNiceSlider::default()
-            .with_size(slwidth, self.bheight)
-            .with_pos(0, 0);
-        if new_renderer.volume > -1 {
+        // the pack for the new button
+        let mut pbutton = Pack::new(0, 0, self.bwidth, self.bheight, "");
+        pbutton.set_spacing(5);
+        pbutton.set_type(PackType::Horizontal);
+        pbutton.end();
+        // add the renderer button to the window
+        pbutton.add(&but);
+        // Only if GetVolume worked: configure the volume slider
+        if new_renderer.volume >= 0 {
+            let mut sl = HorNiceSlider::default()
+                .with_size(slwidth, self.bheight)
+                .with_pos(0, 0);
             sl.set_maximum(100.0);
             sl.set_minimum(0.0);
             sl.set_step(1.0, 1);
@@ -608,16 +616,9 @@ impl MainForm {
                     newr_c.set_volume(&ui_log, vol);
                 }
             });
+            pbutton.add(&sl);
         }
-        // the pack for the new button
-        let mut pbutton = Pack::new(0, 0, self.bwidth, self.bheight, "");
-        pbutton.set_spacing(5);
-        pbutton.set_type(PackType::Horizontal);
-        pbutton.end();
-        pbutton.add(&but); // add the button to the window
-        if new_renderer.volume != -1 {
-            pbutton.add(&sl); // add the slider
-        }
+        // and add the volume slider too if GetVolume worked
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons
             .insert(new_renderer.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping

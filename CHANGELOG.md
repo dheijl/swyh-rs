@@ -1,7 +1,7 @@
 # swyh-rs Changelog
 
-- 1.9.6 (unreleased)
-  - don't show the volume sliders if GetVolume does not work
+- 1.9.6 (Feb 5 2024 dheijl)
+  - don't show the volume sliders if Get/SetVolume does not work, like with recent Sonos firmware (#115)
 
 - 1.9.5 (Feb 4 2024 dheijl)
   - add Volume Control Sliders as requested in issue #113

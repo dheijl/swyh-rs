@@ -3,7 +3,7 @@ resolver = "2"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2021"
 name = "swyh-rs"
-version = "1.9.6"
+version = "1.9.7"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -57,7 +57,7 @@ rand = "0.8.5"
 strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
-toml = "0.8.9"
+toml = "0.8.10"
 ureq = { version = "2.9.4", default-features = false, features = [
     "charset",
     "gzip",

@@ -906,14 +906,14 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                     {
                         renderer.oh_control_url = service.control_url.clone();
                         renderer.supported_protocols |= SupportedProtocols::OPENHOME;
-                    } else if service.service_id.contains("AVTransport") {
+                    } else if service.service_id.contains(":AVTransport") {
                         renderer.av_control_url = service.control_url.clone();
                         renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
-                    } else if service.service_id.contains("Volume")
+                    } else if service.service_id.contains(":Volume")
                         && service.service_id.contains("urn:av-openhome-org:service")
                     {
                         renderer.oh_volume_url = service.control_url.clone();
-                    } else if service.service_id.contains("RenderingControl") {
+                    } else if service.service_id.contains(":RenderingControl") {
                         renderer.av_volume_url = service.control_url.clone();
                     }
                     renderer.services.push(service);

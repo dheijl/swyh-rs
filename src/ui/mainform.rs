@@ -538,13 +538,13 @@ impl MainForm {
     }
 
     pub fn add_renderer_button(&mut self, new_renderer: &Renderer) {
-        // check if the renderer responded to GetVolume and configure room for sliders if yes
-        let (pbwidth, slwidth) = if new_renderer.volume >= 0 {
-            ((self.bwidth / 3) * 2, self.bwidth / 3)
+        // check if the renderer responded to GetVolume and make room for the slider if yes
+        let (show_vol_slider, pbwidth, slwidth) = if new_renderer.volume >= 0 {
+            (true, (self.bwidth / 3) * 2, self.bwidth / 3)
         } else {
-            (self.bwidth, 0)
+            (false, self.bwidth, 0)
         };
-        let mut but = LightButton::default() // create the button
+        let mut pbut = LightButton::default() // create the button
             .with_size(pbwidth, self.bheight)
             .with_pos(0, 0)
             .with_align(Align::Center)
@@ -552,7 +552,7 @@ impl MainForm {
                 "{} {}",
                 new_renderer.dev_model, new_renderer.dev_name
             ));
-        but.set_callback({
+        pbut.set_callback({
             let newr_c = new_renderer.clone();
             let bi = self.buttons.len();
             let local_addr = self.local_addr;
@@ -594,9 +594,9 @@ impl MainForm {
         pbutton.set_type(PackType::Horizontal);
         pbutton.end();
         // add the renderer button to the window
-        pbutton.add(&but);
-        // Only if GetVolume worked: configure the volume slider
-        if new_renderer.volume >= 0 {
+        pbutton.add(&pbut);
+        // Only if GetVolume worked: show the volume slider
+        if show_vol_slider {
             let mut sl = HorNiceSlider::default()
                 .with_size(slwidth, self.bheight)
                 .with_pos(0, 0);
@@ -621,12 +621,12 @@ impl MainForm {
         // and add the volume slider too if GetVolume worked
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons
-            .insert(new_renderer.remote_addr.clone(), but.clone()); // and keep a reference to it for bookkeeping
+            .insert(new_renderer.remote_addr.clone(), pbut.clone()); // and keep a reference to it for bookkeeping
         app::redraw();
         // check if autoreconnect is set for this renderer
-        if self.auto_reconnect.is_set() && but.label() == CONFIG.read().last_renderer {
-            but.turn_on(true);
-            but.do_callback();
+        if self.auto_reconnect.is_set() && pbut.label() == CONFIG.read().last_renderer {
+            pbut.turn_on(true);
+            pbut.do_callback();
         }
     }
 }

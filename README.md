@@ -22,8 +22,9 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.9.6 with
+The current release is 1.9.7 with
 
+- 1.9.7: bugfix in getting/setting Sonos volume. This may allow you to control the volume of your Sonos speakers, depending on version/firmware.
 - 1.9.6: Volume sliders are only shown if upnp/dlna GetVolume worked
 - 1.9.5: Volume sliders to control the volume of the players in swyh-rs GUI
 - the possibility to compile swyh-rs with the "NOISE" feature to enable a faint noise instead of silence when using FLAC with no sound playing and you wish to keep the connection alive

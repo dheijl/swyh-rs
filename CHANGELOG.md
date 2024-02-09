@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.9.8 (unreleased)
+
 - 1.9.7 (Feb 8 2024 dheijl)
   - fix bug in getting/setting Sonos volume
 

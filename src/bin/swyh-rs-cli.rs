@@ -324,6 +324,12 @@ fn main() -> Result<(), i32> {
         let port = config.server_port.unwrap_or(5901);
         ui_log(&format!("Serving started on port {port}..."));
     } else {
+        if let Some(vol) = args.volume {
+            let mut pl = player.unwrap().clone();
+            if pl.get_volume(&ui_log) > -1 {
+                pl.set_volume(&ui_log, vol.into());
+            }
+        }
         let _ = player.unwrap().play(
             &local_addr,
             config.server_port.unwrap_or(5901),

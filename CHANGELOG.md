@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
-- 1.9.8 (unreleased)
+- 1.9.8 (Feb 13 2024 dheijl)
+  - support setting volume in swyh-rs-cli too if the renderer supports it (-v xx or --volume n, where n between 0 and 100)
+  - optimize release builds (lto = "thin" and codegen-units = 1)
 
 - 1.9.7 (Feb 8 2024 dheijl)
   - fix bug in getting/setting Sonos volume

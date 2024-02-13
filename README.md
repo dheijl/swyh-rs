@@ -22,13 +22,14 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.9.7 with
+The current release is 1.9.8 with
 
+- 1.9.8: swyh-rs-cli now also supports setting the volume with -v _n_ or --volume _n_ where n between 0 and 100. Release builds are now optimized (lto="thin", codegen-units=1).
 - 1.9.7: bugfix in getting/setting Sonos volume. This may allow you to control the volume of your Sonos speakers, depending on version/firmware.
 - 1.9.6: Volume sliders are only shown if upnp/dlna GetVolume worked
 - 1.9.5: Volume sliders to control the volume of the players in swyh-rs GUI
 - the possibility to compile swyh-rs with the "NOISE" feature to enable a faint noise instead of silence when using FLAC with no sound playing and you wish to keep the connection alive
-- 1.9.4: New **cargo build features** "*cli*" and "*gui*" to enable building swyh-rs-cli without pulling in fltk and dependencies, and swyh-rs without the CLI specific code. Refer to [Building](https://github.com/dheijl/swyh-rs/wiki) in the Wiki on how to build the gui and cli versions. This means that from 1.9.4 on a simple ```Cargo build``` will only build the swyh-rs GUI version.
+- 1.9.4: New **cargo build features** "_cli_" and "_gui_" to enable building swyh-rs-cli without pulling in fltk and dependencies, and swyh-rs without the CLI specific code. Refer to [Building](https://github.com/dheijl/swyh-rs/wiki) in the Wiki on how to build the gui and cli versions. This means that from 1.9.4 on a simple ```Cargo build``` will only build the swyh-rs GUI version.
 - Recent Sonos firmware now supports FLAC, see issue #75, solving possible stuttering problems with Sonos.
 - When swyh-rs is used as an internet radio, where the client starts streaming without swyh-rs intervention, the URL used by the client now decides what streaming format is used. This works in the GUI and in the CLI, independent of values configured in the CLI or GUI:
   - /stream/swyh.raw => LPCM 16 bit
@@ -50,7 +51,7 @@ The current release is 1.9.7 with
 - **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
 - support for multiple identically named soundcards
 - Sonos fix for pausing audio with the "inject silence" config option
-- support for multiple configurations with a *-c* commandline switch. Useful if you have multiple audiosources (suggestion by @cavadias).
+- support for multiple configurations with a _-c_ commandline switch. Useful if you have multiple audiosources (suggestion by @cavadias).
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OpenHome compatible music player (a "Renderer").
@@ -79,14 +80,14 @@ I wrote this because
 
 It has been tested with
 
-- [Moode audio 8](https://moodeaudio.org/), with Moode configured as UPNP renderer in *Openhome* mode, and using FLAC (preferable) or LPCM (since 1.8.7) or WAV format. Note that the WAV format will cause MPD to issue 2 GET requests, one for the WAV header and another one for the PCM data.
+- [Moode audio 8](https://moodeaudio.org/), with Moode configured as UPNP renderer in _Openhome_ mode, and using FLAC (preferable) or LPCM (since 1.8.7) or WAV format. Note that the WAV format will cause MPD to issue 2 GET requests, one for the WAV header and another one for the PCM data.
 - [Volumio](https://volumio.org/)
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
 - Denon Heos devices
 - Sony AV streamers & Bravia TVs
 - Chromecast devices defined as an OpenHome or DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)
 - **Sonos** speakers/soundbars using the **WAV** format (thanks @Cunkers !). **update:** A recent update to the Sonos Play 1 also enabled **FLAC**. Depending on your network a Sonos may stutter when using WAV, if you are affected you should use FLAC if your device supports it. See issues #84 and #75. Software version "15.9 (Build 75146030)" on the Play:1 is known to support FLAC without stuttering (thanks @beWAYNE !).
-  - If you want to pause music without losing the connection you have to enable the  **Inject Silence** option,and make sure that the **CaptureTimeout** is set to *250* in your *{user_profile}/.swyh-rs/config.toml* file. The InjectSilence flag is automatically added to the config file when you first start version 1.4.5 and defaults to *false*. Contributed by @genekellyjr, see issue #71, and @DanteDT.
+  - If you want to pause music without losing the connection you have to enable the  **Inject Silence** option,and make sure that the **CaptureTimeout** is set to _250_ in your _{user_profile}/.swyh-rs/config.toml_ file. The InjectSilence flag is automatically added to the config file when you first start version 1.4.5 and defaults to _false_. Contributed by @genekellyjr, see issue #71, and @DanteDT.
   - injecting silence will eat a neglegible amount of cpu cycles.
 - Kef Wireless LS50 II (thanks @Turbomortel via Twitter)
 - Xbox 360, using Foobar2000 and entering the streaming url in foo_upnp (thanks @instinctualjealousy)
@@ -123,7 +124,7 @@ You can get the latest Windows binary from the [Release page](https://github.com
 No install needed, no runtime, no dependencies. Just unzip the binary in a convenient place and run it.
 
 Debug build and a release builds and a setup for Windows 64 bit are included in the release assets, I also sometimes add a Linux (Ubuntu 20.04) binary.
-You would only ever need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the *.swyh-rs* folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
+You would only ever need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the _.swyh-rs_ folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
 
 If you want to build swyh-rs yourself, you can find some information in the [wiki](https://github.com/dheijl/swyh-rs/wiki).
 
@@ -157,18 +158,18 @@ The icon was designed by @numanair, thanks!
 - then a button is shown for every renderer found
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source, unless you enable 24 bit LPCM (see below).
-- some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the **Autoresume*" checkbox if you encounter this problem. But always try to disable the "*Chunked Transfer Encoding*" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
-- there is an "*Autoreconnect*" checkbox, if set the last used renderer will be automatically activated on program start
+- some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the *_Autoresume_" checkbox if you encounter this problem. But always try to disable the "_Chunked Transfer Encoding_" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
+- there is an "_Autoreconnect_" checkbox, if set the last used renderer will be automatically activated on program start
 - since 1.4.0 there is a dropdown that lets you choose between FLAC, LPCM or WAV format. Preferred format is FLAC, WAV or LPCM should only be used if FLAC does not work. Also, only FLAC will work with 24 bit.
-- there is (since 1.3.20) a check box "*24 bit*". It causes audio to be streamed in 24 bit LPCM format (audio/L24) with the sampling rate of the audio source. It only works reliably with the FLAC format. 24 bit works with Bubble/UPNP too with LPCM, but not with hardware streamers.
-- there is (since 1.3.13) an input box to select the *HTTP listener port* for the streaming server. Default is 5901. If you use a firewall, this port should allow incoming HTTP connections from your renderer(s).
+- there is (since 1.3.20) a check box "_24 bit_". It causes audio to be streamed in 24 bit LPCM format (audio/L24) with the sampling rate of the audio source. It only works reliably with the FLAC format. 24 bit works with Bubble/UPNP too with LPCM, but not with hardware streamers.
+- there is (since 1.3.13) an input box to select the _HTTP listener port_ for the streaming server. Default is 5901. If you use a firewall, this port should allow incoming HTTP connections from your renderer(s).
 - there is (since 1.3.6) an option to enable visualization of the RMS value (L+R channel) of the captured PCM audio signal. It will only add an insignificant amount of CPU use.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio at <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program tries to run at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary priviliges (renice).
 - the SSDP discovery process is rerun every x minutes in the background, any newly discovered renderers will be automatically added to the GUI. Existing renderers that "disappear" during discovery are not deleted from the GUI, as SSDP discovery is not guaranteed to be failsafe (it uses UDP packets). The SSDP discovery interval is configurable, minimum value is 0.5 minutes, there is no maximum value.
 - after a configuration change that needs a program restart, you get a "restart" popup dialog. Click "Restart" to restart the app, or "Cancel" to ignore.
 - Since version 1.2.2, swyh-rs will send silence to connected renderers if no sound is being captured because no audio is currently being played. This prevents some renderers from disconnecting because they have not received any sound for some time (Bubble UPNP Server with Chromecast/Nest Audio). Apparently sending silence keeps them happy. I did not implement this "silence" for FLAC streaming.
-- Since version 1.5 you can have multiple instances running where each instance uses a different configuration file. An optional command line parameter *-c config* or *--configuration config* has been added to enable this (using a shortcut or starting swyh-rs from the command line). This *config* parameter is then used as part of the config.toml filename for the swyh-rs instance. The default *config* is empty. Examples: *swyh-rs -c 1* or *swyh-rs --configuration vb-audio*. This way you can **stream different audio sources** to different receivers simultaneously.
+- Since version 1.5 you can have multiple instances running where each instance uses a different configuration file. An optional command line parameter _-c config_ or _--configuration config_ has been added to enable this (using a shortcut or starting swyh-rs from the command line). This _config_ parameter is then used as part of the config.toml filename for the swyh-rs instance. The default _config_ is empty. Examples: _swyh-rs -c 1_ or _swyh-rs --configuration vb-audio_. This way you can **stream different audio sources** to different receivers simultaneously.
 
 ### The CLI binary
 
@@ -210,7 +211,7 @@ When using the **-x (--serve_only)** option, no SSDP discovery is run, and playi
 
 If you want maximum audio quality on Windows, there are a number of concerns:
 
-- you should avoid resampling, because it affects audio quality. The sampling rate from the original audio source should be used to preserve quality. This means that you should make sure that the sampling frequency in the entire audio chain is the same (Use "Control Panel Sound" to check/change the sampling frequency). Bit depth does not really affect sound quality, and 16 bit *is* enough except if you are recording for mastering purposes in an audio lab. Deezer HiFi and Tidal HiFi use 16 bit 44100 Hz (lossless CD quality).
+- you should avoid resampling, because it affects audio quality. The sampling rate from the original audio source should be used to preserve quality. This means that you should make sure that the sampling frequency in the entire audio chain is the same (Use "Control Panel Sound" to check/change the sampling frequency). Bit depth does not really affect sound quality, and 16 bit _is_ enough except if you are recording for mastering purposes in an audio lab. Deezer HiFi and Tidal HiFi use 16 bit 44100 Hz (lossless CD quality).
 - on Windows, WasApi is used to capture audio. WasApi tries to capture directly from the hardware (soundcard) loopback if available, otherwise it uses the soundsource directly. In practice, this means that the soundcard loopback audio quality can be vastly inferior to the original soundsource (Realtek, Conexant, especially in laptops). Make sure all "effects" are disabled. The freeware/donationware VBAudio HiFi Cable driver (<https://shop.vb-audio.com/en/win-apps/19-hifi-cable-asio-bridge.html?SubmitCurrency=1&id_currency=2>) is an excellent solution to prevent this problem. Just make sure you configure it with the same sampling frequency as the default Windows audio source. You can then select HiFi Cable as the sound source in swyh-rs, and use the Windows Sound Mixer to route different apps to other sound drivers for Windows as needed (system sound etc). HiFi cable is a bit perfect pipe from the audio source to the renderer, except for the bit depth at this moment, because swyh-rs uses audio/l16, FLAC/16 or FLAC/24 to stream to the network players, but this does not affect sound quality, it only limits the dynamic range to 96 dB when using 16 bits which is fine for HiFi. You can also make HiFi cable the default output source, and configure other sound cards in the volume mixer for applications as needed.
 
 ### Audio recording
@@ -227,4 +228,3 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 ### Screenshot
 
 ![afbeelding](https://github.com/dheijl/swyh-rs/assets/2384545/24b4eded-738a-474d-87e3-19f7bddbaf73)
-

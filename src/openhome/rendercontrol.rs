@@ -413,7 +413,7 @@ impl Renderer {
     /// `oh_play` - set up a playlist on this `OpenHome` renderer and tell it to play it
     ///
     /// the renderer will then try to get the audio from our built-in webserver
-    /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`  
+    /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
     fn oh_play(&self, log: &dyn Fn(&str), fmt_vars: &HashMap<String, String>) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         self.oh_stop_play(log);
@@ -454,7 +454,7 @@ impl Renderer {
     /// `av_play` - send the `AVTransport` URI to the player and tell it to play
     ///
     /// the renderer will then try to get the audio from our built-in webserver
-    /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`  
+    /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
     fn av_play(&self, log: &dyn Fn(&str), fmt_vars: &HashMap<String, String>) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
@@ -960,11 +960,10 @@ mod tests {
 
     #[test]
     fn renderer() {
-        let renderer = Renderer::new();
-        let (host, port) = renderer.parse_url("http://192.168.1.26:80/", &log);
+        let (host, port) = Renderer::parse_url("http://192.168.1.26:80/", &log);
         assert_eq!(host, "192.168.1.26");
         assert_eq!(port, 80); // default port
-        let (host, port) = renderer.parse_url("http://192.168.1.26:12345/", &log);
+        let (host, port) = Renderer::parse_url("http://192.168.1.26:12345/", &log);
         assert_eq!(host, "192.168.1.26");
         assert_eq!(port, 12345); // other port
     }

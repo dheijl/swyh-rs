@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.9.9 (unreleased)
+  fix test compilation (PR #116, thanks @ein-shved)
 
 - 1.9.8 (Feb 13 2024 dheijl)
   - support setting volume in swyh-rs-cli too if the renderer supports it (-v xx or --volume n, where n between 0 and 100)

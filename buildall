@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 echo "Build all"
 
 while getopts u flag

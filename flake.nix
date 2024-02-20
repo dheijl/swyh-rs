@@ -45,6 +45,7 @@
           swyh-rs-cli = swyh-rs.override {withGui = false;};
           swyh-rs-gui = swyh-rs.override {withCli = false;};
           default = swyh-rs;
+          test = pkgs.callPackage ./test.nix {inherit module;};
         };
         devShells = {
           swyh-rs = swyh-rs.devShell;

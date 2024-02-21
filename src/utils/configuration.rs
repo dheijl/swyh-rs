@@ -20,49 +20,61 @@ struct Config {
     pub configuration: Configuration,
 }
 
-fn disable_chunked() -> bool {
-    true
+struct Defaults {}
+
+impl Defaults {
+    pub fn t() -> bool {
+        true
+    }
+    pub fn log_level() -> LevelFilter {
+        LevelFilter::Info
+    }
+    pub fn ssdp_interval_mins() -> f64 {
+        10.0
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Configuration {
-    #[serde(alias = "ServerPort")]
+    #[serde(alias = "ServerPort", default)]
     pub server_port: Option<u16>,
-    #[serde(alias = "AutoResume")]
+    #[serde(alias = "AutoResume", default = "Defaults::t")]
     pub auto_resume: bool,
-    #[serde(alias = "SoundCard")]
-    pub sound_source: String,
-    #[serde(alias = "SoundCardIndex")]
+    #[serde(alias = "SoundCard", default)]
+    pub sound_source: Option<String>,
+    #[serde(alias = "SoundCardIndex", default)]
     pub sound_source_index: Option<i32>,
-    #[serde(alias = "LogLevel")]
+    #[serde(alias = "LogLevel", default = "Defaults::log_level")]
     pub log_level: LevelFilter,
-    #[serde(alias = "SSDPIntervalMins")]
+    #[serde(alias = "SSDPIntervalMins", default = "Defaults::ssdp_interval_mins")]
     pub ssdp_interval_mins: f64,
-    #[serde(alias = "AutoReconnect")]
+    #[serde(alias = "AutoReconnect", default = "Defaults::t")]
     pub auto_reconnect: bool,
     // removed in 1.8.5
-    #[serde(alias = "DisableChunked", skip, default = "disable_chunked")]
+    #[serde(alias = "DisableChunked", skip, default = "Defaults::t")]
     _disable_chunked: bool,
-    #[serde(alias = "UseWaveFormat")]
+    #[serde(alias = "UseWaveFormat", default = "Defaults::t")]
     pub use_wave_format: bool,
-    #[serde(alias = "BitsPerSample")]
+    #[serde(alias = "BitsPerSample", default)]
     pub bits_per_sample: Option<u16>,
-    #[serde(alias = "StreamingFormat")]
+    #[serde(alias = "StreamingFormat", default)]
     pub streaming_format: Option<StreamingFormat>,
-    #[serde(alias = "MonitorRms")]
+    #[serde(alias = "MonitorRms", default)]
     pub monitor_rms: bool,
-    #[serde(alias = "CaptureTimeout")]
+    #[serde(alias = "CaptureTimeout", default)]
     pub capture_timeout: Option<u32>,
-    #[serde(alias = "InjectSilence")]
+    #[serde(alias = "InjectSilence", default)]
     pub inject_silence: Option<bool>,
-    #[serde(alias = "LastRenderer")]
-    pub last_renderer: String,
-    #[serde(alias = "LastNetwork")]
-    pub last_network: String,
-    #[serde(alias = "ConfigDir")]
+    #[serde(alias = "LastRenderer", default)]
+    pub last_renderer: Option<String>,
+    #[serde(alias = "LastNetwork", default)]
+    pub last_network: Option<String>,
+    #[serde(alias = "ConfigDir", default)]
     config_dir: PathBuf,
-    #[serde(alias = "ConfigId")]
+    #[serde(alias = "ConfigId", default)]
     pub config_id: Option<String>,
+    #[serde(alias = "ReadOnly", default)]
+    pub read_only: bool,
 }
 
 impl Default for Configuration {
@@ -77,7 +89,7 @@ impl Configuration {
         Configuration {
             server_port: Some(SERVER_PORT),
             auto_resume: false,
-            sound_source: "None".to_string(),
+            sound_source: None,
             sound_source_index: Some(0),
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 10.0,
@@ -89,10 +101,11 @@ impl Configuration {
             monitor_rms: false,
             capture_timeout: Some(2000),
             inject_silence: Some(false),
-            last_renderer: "None".to_string(),
-            last_network: "None".to_string(),
+            last_renderer: None,
+            last_network: None,
             config_dir: Self::get_config_dir(),
             config_id: Some(Self::get_config_id()),
+            read_only: false,
         }
     }
 
@@ -111,25 +124,7 @@ impl Configuration {
     #[must_use]
     pub fn read_config() -> Configuration {
         let mut force_update = false;
-        let configfile = Self::get_config_path(CONFIGFILE);
-        let old_configfile = Self::get_config_path("config.ini");
-        if !Path::new(&configfile).exists() {
-            if Path::new(&old_configfile).exists() {
-                Self::migrate_config_to_toml(&old_configfile, &configfile);
-            } else {
-                println!("Creating a new default config {}", configfile.display());
-                let config = Configuration::new();
-                let configuration = Config {
-                    configuration: config,
-                };
-                let f = File::create(&configfile).unwrap();
-                let s = toml::to_string(&configuration).unwrap();
-                let mut w = BufWriter::new(f);
-                println!("New default CONFIG: {s}");
-                w.write_all(s.as_bytes()).unwrap();
-                w.flush().unwrap();
-            }
-        }
+        let configfile = Self::chose_config_path();
         println!("Loading config from {}", configfile.display());
         let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
             eprintln!("Unable to read config file: {error}");
@@ -173,13 +168,22 @@ impl Configuration {
             config.configuration.sound_source_index = Some(0);
             force_update = true;
         }
-        if force_update {
+        if !config.configuration.read_only {
+            let meta = fs::metadata(configfile);
+            if let Ok(meta) = meta {
+                config.configuration.read_only = meta.permissions().readonly();
+            }
+        }
+        if force_update && !config.configuration.read_only {
             config.configuration.update_config().unwrap();
         }
         config.configuration
     }
 
     pub fn update_config(&self) -> std::io::Result<()> {
+        if self.read_only {
+            return Ok(());
+        }
         let configfile = Self::get_config_path(CONFIGFILE);
         let f = File::create(configfile).unwrap();
         let conf = Config {
@@ -190,6 +194,33 @@ impl Configuration {
         w.write_all(s.as_bytes()).unwrap();
         w.flush().unwrap();
         Ok(())
+    }
+
+    fn chose_config_path() -> PathBuf {
+        if let Some(path) = Self::get_arg_config_path() {
+            path
+        } else {
+            let configfile = Self::get_config_path(CONFIGFILE);
+            let old_configfile = Self::get_config_path("config.ini");
+            if !Path::new(&configfile).exists() {
+                if Path::new(&old_configfile).exists() {
+                    Self::migrate_config_to_toml(&old_configfile, &configfile);
+                } else {
+                    println!("Creating a new default config {}", configfile.display());
+                    let config = Configuration::new();
+                    let configuration = Config {
+                        configuration: config,
+                    };
+                    let f = File::create(&configfile).unwrap();
+                    let s = toml::to_string(&configuration).unwrap();
+                    let mut w = BufWriter::new(f);
+                    println!("New default CONFIG: {s}");
+                    w.write_all(s.as_bytes()).unwrap();
+                    w.flush().unwrap();
+                }
+            }
+            configfile
+        }
     }
 
     fn get_config_dir() -> PathBuf {
@@ -237,6 +268,19 @@ impl Configuration {
             config_id = "_cli".to_string();
         }
         config_id
+    }
+
+    fn get_arg_config_path() -> Option<PathBuf> {
+        let mut argparser = Parser::from_env();
+        let mut path = None;
+        while let Some(arg) = argparser.next().unwrap() {
+            if let Short('C') | Long("configfile") = arg {
+                if let Ok(opt) = argparser.value() {
+                    path = opt.string().ok().map(|s| PathBuf::from(&s));
+                };
+            };
+        }
+        path
     }
 
     fn migrate_config_to_toml(old_config: &Path, new_config: &Path) {

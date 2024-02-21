@@ -120,10 +120,10 @@ impl MainForm {
         let mut pnw = Pack::new(0, 0, GW, 25, "");
         pnw.end();
         let cur_nw = {
-            if config.last_network == "None" {
-                format!("Active network: {local_addr}")
+            if let Some(ref net) = config.last_network {
+                format!("Active network: {}", net)
             } else {
-                format!("Active network: {}", &config.last_network)
+                format!("Active network: {local_addr}")
             }
         };
         let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);
@@ -151,9 +151,10 @@ impl MainForm {
             ui_log(&format!(
                 "*W*W*> Network changed to {name}, restart required!!"
             ));
-            conf.last_network = name.to_string();
+            let network = name.to_string();
+            b.set_label(&format!("New Network: {}", &network));
+            conf.last_network = Some(network);
             let _ = conf.update_config();
-            b.set_label(&format!("New Network: {}", conf.last_network));
             config_ch_flag.set(true);
             app::awake();
             *recursion -= 1;
@@ -164,7 +165,7 @@ impl MainForm {
         // setup audio source choice
         let mut pas = Pack::new(0, 0, GW, 25, "");
         pas.end();
-        let cur_audio_src = format!("Audio Source: {}", config.sound_source);
+        let cur_audio_src = format!("Audio Source: {:?}", config.sound_source);
         ui_log("Setup audio sources");
         let mut choose_audio_source_but =
             MenuButton::new(0, 0, 0, 25, None).with_label(&cur_audio_src);
@@ -192,10 +193,10 @@ impl MainForm {
             ui_log(&format!(
                 "*W*W*> Audio source changed to {name}, restart required!!"
             ));
-            conf.sound_source = name.to_string();
+            conf.sound_source = Some(name.to_string());
             conf.sound_source_index = Some(i);
             let _ = conf.update_config();
-            b.set_label(&format!("New Audio Source: {}", conf.sound_source));
+            b.set_label(&format!("New Audio Source: {}", name));
             config_ch_flag.set(true);
             app::awake();
             *recursion -= 1;
@@ -568,7 +569,7 @@ impl MainForm {
                 if b.is_set() {
                     {
                         let mut conf = CONFIG.write();
-                        conf.last_renderer = b.label();
+                        conf.last_renderer = Some(b.label());
                         let _ = conf.update_config();
                     }
                     let config = CONFIG.read().clone();
@@ -624,7 +625,8 @@ impl MainForm {
             .insert(new_renderer.remote_addr.clone(), pbut.clone()); // and keep a reference to it for bookkeeping
         app::redraw();
         // check if autoreconnect is set for this renderer
-        if self.auto_reconnect.is_set() && pbut.label() == CONFIG.read().last_renderer {
+        let renderer = &CONFIG.read().last_renderer;
+        if renderer.is_some() && self.auto_reconnect.is_set() && &pbut.label() == renderer.as_ref().unwrap() {
             pbut.turn_on(true);
             pbut.do_callback();
         }

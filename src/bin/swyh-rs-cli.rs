@@ -42,8 +42,8 @@ fn main() -> Result<(), i32> {
     // initialize config
     let mut config = {
         let mut conf = CONFIG.write();
-        if conf.sound_source == "None" {
-            conf.sound_source = audio_output_device.name().into();
+        if conf.sound_source.is_none() && conf.sound_source_index.is_none() {
+            conf.sound_source = Some(audio_output_device.name().into());
             let _ = conf.update_config();
         }
         conf.clone()
@@ -106,15 +106,16 @@ fn main() -> Result<(), i32> {
         ui_log(&format!(
             "Found Audio Source: index = {index}, name = {devname}"
         ));
-        if config.sound_source_index.is_some()
-            && config.sound_source_index.unwrap_or_default() == index as i32
-        {
-            audio_output_device = adev;
-            config.sound_source = devname.clone();
-            ui_log(&format!("Selected audio source: {devname}[#{index}]"));
-        } else if devname == config.sound_source {
-            audio_output_device = adev;
-            ui_log(&format!("Selected audio source: {devname}"));
+        if let Some(id) = config.sound_source_index {
+            if id == index as i32 {
+                audio_output_device = adev;
+                info!("Selected audio source: {}[#{}]", devname, index);
+            }
+        } else if let Some(ref dev) = config.sound_source {
+            if &devname == dev {
+                audio_output_device = adev;
+                info!("Selected audio source: {}", devname);
+            }
         }
         source_names.push(devname);
     }
@@ -126,18 +127,19 @@ fn main() -> Result<(), i32> {
     }
     // args: ip_address
     if let Some(ip) = args.ip_address {
-        config.last_network = ip.parse().unwrap();
+        config.last_network = Some(ip.parse().unwrap());
     }
     // get the network that connects to the internet
     let local_addr: IpAddr = {
-        if config.last_network == "None" {
-            let addr = get_local_addr().expect("Could not obtain local address.");
-            config.last_network = addr.to_string();
-            info!("using network {}", config.last_network);
-            addr
+        if let Some(ref network) = config.last_network {
+            info!("new network {}", network);
+            network.parse().unwrap()
         } else {
-            info!("new network {}", config.last_network);
-            config.last_network.parse().unwrap()
+            let addr = get_local_addr().expect("Could not obtain local address.");
+            let saddr = addr.to_string();
+            config.last_network = Some(addr.to_string());
+            info!("using network {}", saddr);
+            addr
         }
     };
 
@@ -189,7 +191,7 @@ fn main() -> Result<(), i32> {
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     let mut renderers: Vec<Renderer> = Vec::new();
 
-    let serve_only = args.serve_only.unwrap_or(false);
+    let mut serve_only = args.serve_only.unwrap_or(false);
     // if only serving: no ssdp discovery
     if !serve_only {
         // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
@@ -204,7 +206,12 @@ fn main() -> Result<(), i32> {
             .unwrap();
     }
     // set args player
-    config.last_renderer = args.player_ip.unwrap_or(config.last_renderer);
+    if let Some(player_ip) = args.player_ip {
+        config.last_renderer = Some(player_ip);
+    }
+    if config.last_renderer.is_none() {
+        serve_only = true;
+    }
     // set args streaming format
     config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
     // set args server port
@@ -265,6 +272,7 @@ fn main() -> Result<(), i32> {
     let mut player: Option<&Renderer> = None;
     // select the player unless only serving
     if !serve_only {
+        let last_renderer = config.last_renderer.as_ref().unwrap();
         if renderers.is_empty() {
             error!("No renderers found!!!");
             return Err(-1);
@@ -274,13 +282,13 @@ fn main() -> Result<(), i32> {
         // but use the configured renderer if present
         if let Some(pl) = renderers
             .iter()
-            .find(|&renderer| renderer.remote_addr == config.last_renderer)
+            .find(|&renderer| &renderer.remote_addr == last_renderer)
         {
             player = Some(pl);
         }
         // if specified player ip not found: use default player
-        if config.last_renderer != player.unwrap().remote_addr {
-            config.last_renderer = player.unwrap().remote_addr.clone();
+        if last_renderer != &player.unwrap().remote_addr {
+            config.last_renderer = Some(player.unwrap().remote_addr.clone());
         }
         ui_log(&format!(
             "Selected player with ip = {}",

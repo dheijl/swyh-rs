@@ -91,9 +91,9 @@ checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
 
 [[package]]
 name = "bumpalo"
-version = "3.15.1"
+version = "3.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c764d619ca78fccbf3069b37bd7af92577f044bb15236036662d79b6559f25b7"
+checksum = "a3b1be7772ee4501dba05acbe66bb1e8760f6a6c474a36035631638e4415f130"
 
 [[package]]
 name = "bytes"
@@ -330,9 +330,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.24"
+version = "1.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26cb7f1038a3d80444ebabb2e53f2c403a2953fa8accdc18a90521ce4215ff0d"
+checksum = "59fa214b5ad440215f11c6099697c7118c63c08c140636b405d6a14712640491"
 dependencies = [
  "bitflags 2.4.2",
  "crossbeam-channel",
@@ -343,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.23"
+version = "1.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6992c4fcc7b748fbeca0a771ba941cfb09e5edfe5d41df19e421c00cd2aefd1d"
+checksum = "e0af8e28f3915d1362de406f05f5b917d5ce678e818ee403b32edc18fc25708b"
 dependencies = [
  "cmake",
 ]

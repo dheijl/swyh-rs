@@ -36,15 +36,16 @@ fn main() -> Result<(), i32> {
     // collect command line arguments
     let args = Args::new().parse();
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
-    let mut audio_output_device =
-        get_default_audio_output_device().expect("No default audio device");
+    let mut audio_output_device_opt = get_default_audio_output_device();
 
     // initialize config
     let mut config = {
         let mut conf = CONFIG.write();
         if conf.sound_source.is_none() && conf.sound_source_index.is_none() {
-            conf.sound_source = Some(audio_output_device.name().into());
-            let _ = conf.update_config();
+            if let Some(ref audio_output_device) = audio_output_device_opt {
+                conf.sound_source = Some(audio_output_device.name().into());
+                let _ = conf.update_config();
+            }
         }
         conf.clone()
     };
@@ -108,17 +109,19 @@ fn main() -> Result<(), i32> {
         ));
         if let Some(id) = config.sound_source_index {
             if id == index as i32 {
-                audio_output_device = adev;
+                audio_output_device_opt = Some(adev);
                 info!("Selected audio source: {}[#{}]", devname, index);
             }
         } else if let Some(ref dev) = config.sound_source {
             if &devname == dev {
-                audio_output_device = adev;
+                audio_output_device_opt = Some(adev);
                 info!("Selected audio source: {}", devname);
             }
         }
         source_names.push(devname);
     }
+
+    let audio_output_device = audio_output_device_opt.expect("No default audio device");
 
     // get the list of available networks
     let networks = get_interfaces();

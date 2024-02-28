@@ -1,6 +1,9 @@
 #![cfg(feature = "gui")]
 use crate::{
-    enums::streaming::{StreamingFormat, StreamingFormat::Flac},
+    enums::streaming::{
+        StreamSize,
+        StreamingFormat::{self, Flac},
+    },
     globals::statics::CONFIG,
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
@@ -23,7 +26,7 @@ use fltk::{
 //use fltk_flow::Flow;
 use log::{debug, LevelFilter};
 use parking_lot::Mutex;
-use std::{cell::Cell, collections::HashMap, net::IpAddr, rc::Rc};
+use std::{cell::Cell, collections::HashMap, net::IpAddr, rc::Rc, str::FromStr};
 
 pub struct MainForm {
     pub wind: DoubleWindow,
@@ -430,11 +433,79 @@ impl MainForm {
         pconfig2.make_resizable(false);
         vpack.add(&pconfig2);
 
-        // RMS animation
+        // streaming content length and chunking
         let mut pconfig3 = Pack::new(0, 0, GW, 20, "");
         pconfig3.set_spacing(10);
         pconfig3.set_type(PackType::Horizontal);
         pconfig3.end();
+
+        let streamsize = if let Some(fmt) = config.streaming_format {
+            match fmt {
+                StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap(),
+                StreamingFormat::Wav => config.wav_stream_size.unwrap(),
+                StreamingFormat::Rf64 => config.rf64_stream_size.unwrap(),
+                StreamingFormat::Flac => config.flac_stream_size.unwrap(),
+            }
+        } else {
+            StreamSize::U64maxNotChunked
+        };
+        let fmt = format!("StreamSize: {streamsize}");
+        let mut ss_choice = MenuButton::default().with_label(&fmt);
+        let streamsizes = vec![
+            StreamSize::U64maxNotChunked.to_string(),
+            StreamSize::NoneChunked.to_string(),
+            StreamSize::U64maxChunked.to_string(),
+            StreamSize::U32maxNotChunked.to_string(),
+            StreamSize::U32maxChunked.to_string(),
+        ];
+        for fmt in &streamsizes {
+            ss_choice.add_choice(fmt.as_str());
+        }
+        // apparently this event can recurse on very fast machines
+        // probably because it takes some time doing the file I/O, hence recursion lock
+        let rlock = Mutex::new(0);
+        ss_choice.set_callback({
+            let config_changed = config_changed.clone();
+            move |b| {
+                let mut recursion = rlock.lock();
+                if *recursion > 0 {
+                    return;
+                }
+                *recursion += 1;
+                let mut conf = CONFIG.write();
+                let i = b.value();
+                if i < 0 {
+                    return;
+                }
+                let newsize = streamsizes[i as usize].clone();
+                ui_log(&format!(
+                    "*W*W*> StreamSize changed to {streamsize}, restart required!!"
+                ));
+                let streamsize = StreamSize::from_str(&newsize).unwrap();
+                match conf.streaming_format.unwrap() {
+                    StreamingFormat::Lpcm => conf.lpcm_stream_size = Some(streamsize),
+                    StreamingFormat::Wav => conf.wav_stream_size = Some(streamsize),
+                    StreamingFormat::Rf64 => conf.rf64_stream_size = Some(streamsize),
+                    StreamingFormat::Flac => conf.flac_stream_size = Some(streamsize),
+                }
+                let _ = conf.update_config();
+                config_changed.set(true);
+                let fmt = format!("StreamSize: {newsize}");
+                b.set_label(&fmt);
+                app::awake();
+                *recursion -= 1;
+            }
+        });
+        pconfig3.add(&ss_choice);
+        pconfig3.auto_layout();
+        pconfig3.make_resizable(false);
+        vpack.add(&pconfig3);
+
+        // RMS animation
+        let mut pconfig4 = Pack::new(0, 0, GW, 20, "");
+        pconfig4.set_spacing(10);
+        pconfig4.set_type(PackType::Horizontal);
+        pconfig4.end();
         // RMS animation enable checkbox
         let mut show_rms = CheckButton::new(0, 0, 0, 0, "RMS Monitor");
         if config.monitor_rms {
@@ -465,7 +536,7 @@ impl MainForm {
                 rms_mon_r.set_value(0.0);
             }
         });
-        pconfig3.add(&show_rms);
+        pconfig4.add(&show_rms);
         // vertical pack for the RMS meters
         let mut pconfig3_v = Pack::new(0, 0, GW, 16, "");
         pconfig3_v.set_spacing(4);
@@ -475,11 +546,11 @@ impl MainForm {
         pconfig3_v.add(&rms_mon_r);
         pconfig3_v.auto_layout();
         pconfig3_v.make_resizable(false);
-        pconfig3.add(&pconfig3_v);
+        pconfig4.add(&pconfig3_v);
 
-        pconfig3.auto_layout();
-        pconfig3.make_resizable(false);
-        vpack.add(&pconfig3);
+        pconfig4.auto_layout();
+        pconfig4.make_resizable(false);
+        vpack.add(&pconfig4);
 
         // show renderer buttons title with our local ip address
         let mut pbuttons = Pack::new(0, 0, GW, 25, "");
@@ -512,7 +583,7 @@ impl MainForm {
             auto_reconnect,
             ssdp_interval,
             log_level_choice,
-            fmt_choice,
+            fmt_choice: ss_choice,
             b24_bit,
             show_rms,
             rms_mon_l,

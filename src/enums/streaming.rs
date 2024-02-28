@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 /// streaming state
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -28,7 +28,6 @@ impl fmt::Display for StreamingFormat {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
 pub enum StreamSize {
     NoneChunked,
     U32maxChunked,
@@ -45,6 +44,21 @@ impl fmt::Display for StreamSize {
             StreamSize::U32maxNotChunked => write!(f, "U32maxNotChunked"),
             StreamSize::U64maxChunked => write!(f, "U64maxChunked"),
             StreamSize::U64maxNotChunked => write!(f, "U64maxNotChunked"),
+        }
+    }
+}
+
+impl FromStr for StreamSize {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "NoneChunked" => Ok(StreamSize::NoneChunked),
+            "U32maxChunked" => Ok(StreamSize::U32maxChunked),
+            "U32maxNotChunked" => Ok(StreamSize::U32maxNotChunked),
+            "U64maxChunked" => Ok(StreamSize::U64maxChunked),
+            "U64maxNotChunked" => Ok(StreamSize::U64maxNotChunked),
+            _ => Err(()),
         }
     }
 }

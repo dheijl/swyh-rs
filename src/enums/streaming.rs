@@ -19,10 +19,24 @@ pub enum StreamingFormat {
 impl fmt::Display for StreamingFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StreamingFormat::Lpcm => write!(f, "LPCM"),
-            StreamingFormat::Wav => write!(f, "WAV"),
-            StreamingFormat::Flac => write!(f, "FLAC"),
-            StreamingFormat::Rf64 => write!(f, "RF64"),
+            StreamingFormat::Lpcm => write!(f, "Lpcm"),
+            StreamingFormat::Wav => write!(f, "Wav"),
+            StreamingFormat::Flac => write!(f, "Flac"),
+            StreamingFormat::Rf64 => write!(f, "Rf64"),
+        }
+    }
+}
+
+impl FromStr for StreamingFormat {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Lpcm" => Ok(StreamingFormat::Lpcm),
+            "Wav" => Ok(StreamingFormat::Wav),
+            "Flac" => Ok(StreamingFormat::Flac),
+            "Rf64" => Ok(StreamingFormat::Rf64),
+            _ => Err(()),
         }
     }
 }

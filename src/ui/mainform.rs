@@ -320,7 +320,7 @@ impl MainForm {
         let fmt = if let Some(format) = config.streaming_format {
             format!("FMT: {format}")
         } else {
-            "FMT: LPCM".to_string()
+            "FMT: Lpcm".to_string()
         };
         let mut fmt_choice = MenuButton::default().with_label(&fmt);
         let formats = vec![
@@ -352,12 +352,7 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Streaming Format changed to {format}, restart required!!"
                 ));
-                let newformat = match format.as_str() {
-                    "WAV" => StreamingFormat::Wav,
-                    "FLAC" => StreamingFormat::Flac,
-                    "RF64" => StreamingFormat::Rf64,
-                    _ => StreamingFormat::Lpcm, // default
-                };
+                let newformat = StreamingFormat::from_str(&format).unwrap();
                 conf.use_wave_format =
                     [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&newformat);
                 conf.streaming_format = Some(newformat);

@@ -199,11 +199,12 @@ pub fn run_server(
                             wd.sample_rate.0,
                             rq.remote_addr().unwrap()
                         ));
-                        // make sure that tiny-http does not use chunked encoding
-                        let (streamsize, chunksize) = if format == Wav {
-                            (Some((u32::MAX - 1) as usize), (u32::MAX) as usize)
-                        } else {
-                            (Some((i64::MAX - 1) as usize), i64::MAX as usize)
+                        // use the configured content length and chunksize params
+                        let (streamsize, chunksize) = match conf.streaming_format.unwrap() {
+                            Lpcm => conf.lpcm_stream_size.unwrap().values(),
+                            Wav => conf.wav_stream_size.unwrap().values(),
+                            Rf64 => conf.rf64_stream_size.unwrap().values(),
+                            Flac => conf.flac_stream_size.unwrap().values(),
                         };
                         let response = Response::empty(200)
                             .with_data(channel_stream, streamsize)

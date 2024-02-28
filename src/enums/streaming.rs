@@ -50,6 +50,18 @@ pub enum StreamSize {
     U64maxNotChunked,
 }
 
+impl StreamSize {
+    pub fn values(&self) -> (Option<usize>, usize) {
+        match self {
+            StreamSize::NoneChunked => (None, 8192),
+            StreamSize::U32maxChunked => (Some(u32::MAX as usize), 8192),
+            StreamSize::U32maxNotChunked => (Some((u32::MAX - 1) as usize), u32::MAX as usize),
+            StreamSize::U64maxChunked => (Some(u64::MAX as usize), 8192),
+            StreamSize::U64maxNotChunked => (Some((u64::MAX - 1) as usize), u64::MAX as usize),
+        }
+    }
+}
+
 impl fmt::Display for StreamSize {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

@@ -1,4 +1,6 @@
-use crate::{enums::streaming::StreamingFormat, globals::statics::SERVER_PORT};
+use crate::{
+    enums::streaming::StreamSize, enums::streaming::StreamingFormat, globals::statics::SERVER_PORT,
+};
 use lexopt::{prelude::*, Parser};
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
@@ -13,15 +15,29 @@ use toml::from_str;
 const CONFIGFILE: &str = "config{}.toml";
 const PKGNAME: &str = env!("CARGO_PKG_NAME");
 
+// default values for Serde
+struct CfgDefaults {}
+
+impl CfgDefaults {
+    fn disable_chunked() -> bool {
+        true
+    }
+    pub fn log_level() -> LevelFilter {
+        LevelFilter::Info
+    }
+    pub fn ssdp_interval_mins() -> f64 {
+        10.0
+    }
+    pub fn stream_size() -> StreamSize {
+        StreamSize::U64maxNotChunked
+    }
+}
+
 // the configuration struct, read from and saved in config.ini
 #[derive(Deserialize, Serialize, Clone, Debug)]
 struct Config {
     #[serde(alias = "Configuration")]
     pub configuration: Configuration,
-}
-
-fn disable_chunked() -> bool {
-    true
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -34,15 +50,25 @@ pub struct Configuration {
     pub sound_source: String,
     #[serde(alias = "SoundCardIndex")]
     pub sound_source_index: Option<i32>,
-    #[serde(alias = "LogLevel")]
+    #[serde(alias = "LogLevel", default = "CfgDefaults::log_level")]
     pub log_level: LevelFilter,
-    #[serde(alias = "SSDPIntervalMins")]
+    #[serde(
+        alias = "SSDPIntervalMins",
+        default = "CfgDefaults::ssdp_interval_mins"
+    )]
     pub ssdp_interval_mins: f64,
     #[serde(alias = "AutoReconnect")]
     pub auto_reconnect: bool,
     // removed in 1.8.5
-    #[serde(alias = "DisableChunked", skip, default = "disable_chunked")]
+    #[serde(
+        alias = "DisableChunked",
+        skip,
+        default = "CfgDefaults::disable_chunked"
+    )]
     _disable_chunked: bool,
+    // added in 1.9.9
+    #[serde(alias = "StreamSize", default = "CfgDefaults::stream_size")]
+    pub stream_size: StreamSize,
     #[serde(alias = "UseWaveFormat")]
     pub use_wave_format: bool,
     #[serde(alias = "BitsPerSample")]
@@ -83,6 +109,7 @@ impl Configuration {
             ssdp_interval_mins: 10.0,
             auto_reconnect: false,
             _disable_chunked: true,
+            stream_size: StreamSize::U64maxNotChunked,
             use_wave_format: false,
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),

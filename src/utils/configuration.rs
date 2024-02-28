@@ -67,8 +67,14 @@ pub struct Configuration {
     )]
     _disable_chunked: bool,
     // added in 1.9.9
-    #[serde(alias = "StreamSize", default = "CfgDefaults::stream_size")]
-    pub stream_size: StreamSize,
+    #[serde(alias = "LPCMStreamSize", default = "CfgDefaults::stream_size")]
+    pub lpcm_stream_size: StreamSize,
+    #[serde(alias = "WavStreamSize", default = "CfgDefaults::stream_size")]
+    pub wav_stream_size: StreamSize,
+    #[serde(alias = "RF64StreamSize", default = "CfgDefaults::stream_size")]
+    pub rf64_stream_size: StreamSize,
+    #[serde(alias = "FLACStreamSize", default = "CfgDefaults::stream_size")]
+    pub flac_stream_size: StreamSize,
     #[serde(alias = "UseWaveFormat")]
     pub use_wave_format: bool,
     #[serde(alias = "BitsPerSample")]
@@ -109,7 +115,10 @@ impl Configuration {
             ssdp_interval_mins: 10.0,
             auto_reconnect: false,
             _disable_chunked: true,
-            stream_size: StreamSize::U64maxNotChunked,
+            lpcm_stream_size: StreamSize::U64maxNotChunked,
+            wav_stream_size: StreamSize::U64maxNotChunked,
+            rf64_stream_size: StreamSize::U64maxNotChunked,
+            flac_stream_size: StreamSize::U64maxNotChunked,
             use_wave_format: false,
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),

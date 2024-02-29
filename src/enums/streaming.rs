@@ -50,14 +50,23 @@ pub enum StreamSize {
     U64maxNotChunked,
 }
 
+// streamsize/chunkthreshold pairs for tiny-http response
+pub(crate) const NONECHUNKED: (Option<usize>, usize) = (None, 8192);
+pub(crate) const U32MAXCHUNKED: (Option<usize>, usize) = (Some(u32::MAX as usize), 8192);
+pub(crate) const U32MAXNOTCHUNKED: (Option<usize>, usize) =
+    (Some((u32::MAX - 1) as usize), u32::MAX as usize);
+pub(crate) const U64MAXCHUNKED: (Option<usize>, usize) = (Some(u64::MAX as usize), 8192);
+pub(crate) const U64MAXNOTCHUNKED: (Option<usize>, usize) =
+    (Some((u64::MAX - 1) as usize), u64::MAX as usize);
+
 impl StreamSize {
     pub fn values(&self) -> (Option<usize>, usize) {
         match self {
-            StreamSize::NoneChunked => (None, 8192),
-            StreamSize::U32maxChunked => (Some(u32::MAX as usize), 8192),
-            StreamSize::U32maxNotChunked => (Some((u32::MAX - 1) as usize), u32::MAX as usize),
-            StreamSize::U64maxChunked => (Some(u64::MAX as usize), 8192),
-            StreamSize::U64maxNotChunked => (Some((u64::MAX - 1) as usize), u64::MAX as usize),
+            StreamSize::NoneChunked => NONECHUNKED,
+            StreamSize::U32maxChunked => U32MAXCHUNKED,
+            StreamSize::U32maxNotChunked => U32MAXNOTCHUNKED,
+            StreamSize::U64maxChunked => U64MAXCHUNKED,
+            StreamSize::U64maxNotChunked => U64MAXNOTCHUNKED,
         }
     }
 }

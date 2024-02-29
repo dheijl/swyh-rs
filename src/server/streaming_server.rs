@@ -1,7 +1,7 @@
 use crate::{
     enums::streaming::{
         StreamingFormat::{Flac, Lpcm, Rf64, Wav},
-        StreamingState,
+        StreamingState, U64MAXNOTCHUNKED,
     },
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
@@ -200,11 +200,15 @@ pub fn run_server(
                             rq.remote_addr().unwrap()
                         ));
                         // use the configured content length and chunksize params
-                        let (streamsize, chunksize) = match conf.streaming_format.unwrap() {
-                            Lpcm => conf.lpcm_stream_size.unwrap().values(),
-                            Wav => conf.wav_stream_size.unwrap().values(),
-                            Rf64 => conf.rf64_stream_size.unwrap().values(),
-                            Flac => conf.flac_stream_size.unwrap().values(),
+                        let (streamsize, chunksize) = if let Some(format) = conf.streaming_format {
+                            match format {
+                                Lpcm => conf.lpcm_stream_size.unwrap().values(),
+                                Wav => conf.wav_stream_size.unwrap().values(),
+                                Rf64 => conf.rf64_stream_size.unwrap().values(),
+                                Flac => conf.flac_stream_size.unwrap().values(),
+                            }
+                        } else {
+                            U64MAXNOTCHUNKED
                         };
                         let response = Response::empty(200)
                             .with_data(channel_stream, streamsize)

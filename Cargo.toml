@@ -3,7 +3,7 @@ resolver = "2"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2021"
 name = "swyh-rs"
-version = "1.9.9"
+version = "1.9.9-rc1"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -37,7 +37,7 @@ winres = "0.1.12"
 [dependencies]
 bitflags = "2.4.2"
 cpal = "0.15.2"
-crossbeam-channel = "0.5.11"
+crossbeam-channel = "0.5.12"
 ctrlc = { version = "3.4.2", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "5.0.1"
@@ -48,7 +48,7 @@ flac-bound = { version = "0.3.0", default-features = false, features = [
 htmlescape = "0.3.1"
 if-addrs = "0.11.0"
 lexopt = "0.3.0"
-log = { version = "0.4.20", features = [
+log = { version = "0.4.21", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",
@@ -70,7 +70,7 @@ url = "2.5.0"
 xml-rs = "0.8.19"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.4.25", features = ["use-ninja"], optional = true }
-windows = { version = "0.52.0", features = [
+windows = { version = "0.54.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }

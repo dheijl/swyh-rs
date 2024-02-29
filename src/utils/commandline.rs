@@ -7,7 +7,7 @@ use lexopt::{
 };
 use log::LevelFilter;
 
-use crate::{enums::streaming::StreamingFormat, utils::traits::SanitizeArg};
+use crate::{enums::streaming::*, utils::traits::SanitizeArg};
 
 #[derive(Clone, Debug)]
 pub struct Args {
@@ -21,6 +21,7 @@ pub struct Args {
     pub use_wave_format: Option<bool>,
     pub bits_per_sample: Option<u16>,
     pub streaming_format: Option<StreamingFormat>,
+    pub stream_size: Option<StreamSize>,
     pub player_ip: Option<String>,
     pub ip_address: Option<String>,
     pub inject_silence: Option<bool>,
@@ -48,6 +49,7 @@ impl Args {
             use_wave_format: None,
             bits_per_sample: None,
             streaming_format: None,
+            stream_size: None,
             player_ip: None,
             ip_address: None,
             inject_silence: None,
@@ -71,6 +73,7 @@ Recognized options:
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
     -f (--format) string : streaming_format (lpcm/flac/wav/rf64) [LPCM]
+       optionally followed by a plus sign and a streamsize[LPCM+U64maxNotChunked] 
     -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
     -S (--inject_silence) bool : inject silence into stream (bool) [false]
@@ -157,25 +160,46 @@ Recognized options:
                 Short('f') | Long("format") => {
                     if let Ok(fmt) = argparser.value() {
                         let streaming_format = fmt.string().unwrap_or_default();
-                        match streaming_format.as_str() {
-                            "WAV" | "wav" | "Wav" => {
+                        let (format, streamsize) = if streaming_format.contains('+') {
+                            let parts: Vec<&str> = streaming_format.split('+').collect();
+                            (parts[0], parts[1])
+                        } else {
+                            (streaming_format.as_str(), "")
+                        };
+                        match format.to_uppercase().as_str() {
+                            "WAV" => {
                                 self.streaming_format = Some(StreamingFormat::Wav);
                                 self.use_wave_format = Some(true);
                             }
-                            "RF64" | "rf64" | "Rf64" => {
+                            "RF64" => {
                                 self.streaming_format = Some(StreamingFormat::Rf64);
                                 self.use_wave_format = Some(true);
                             }
-                            "LPCM" | "lpcm" | "Lpcm" => {
+                            "LPCM" => {
                                 self.streaming_format = Some(StreamingFormat::Lpcm);
                             }
-                            "FLAC" | "flac" | "Flac" => {
+                            "FLAC" => {
                                 self.streaming_format = Some(StreamingFormat::Flac);
                             }
                             _ => {
                                 println!("invalid streaming_format {streaming_format}");
                                 self.usage();
                             }
+                        }
+                        if !streamsize.is_empty() {
+                            self.stream_size = match streamsize.to_uppercase().as_str() {
+                                "NONECHUNKED" => Some(StreamSize::NoneChunked),
+                                "U32MAXCHUNKED" => Some(StreamSize::U32maxChunked),
+                                "U32MAXNOTCHUNKED" => Some(StreamSize::U32maxNotChunked),
+                                "U64MAXCHUNKED" => Some(StreamSize::U64maxChunked),
+                                "U64MAXNOTCHUNKED" => Some(StreamSize::U64maxNotChunked),
+                                _ => {
+                                    println!("invalid streamsize {streamsize}");
+                                    println!("valid options: NONECHUNKED,U32MAXCHUNKED,U32MAXNOTCHUNKED,U64MAXCHUNKED,U64MAXNOTCHUNKED");
+                                    self.usage();
+                                    Some(StreamSize::U64maxNotChunked)
+                                }
+                            };
                         }
                     }
                 }

@@ -22,8 +22,9 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.9.8 with
+The current release is 1.9.9 with
 
+- 1.9.9: a configurable HTTP streamsize/chunking per streaming format. 
 - 1.9.8: swyh-rs-cli now also supports setting the volume with -v _n_ or --volume _n_ where n between 0 and 100. Release builds are now optimized (lto="thin", codegen-units=1).
 - 1.9.7: bugfix in getting/setting Sonos volume. This may allow you to control the volume of your Sonos speakers, depending on version/firmware.
 - 1.9.6: Volume sliders are only shown if upnp/dlna GetVolume worked
@@ -227,4 +228,4 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
 ### Screenshot
 
-![afbeelding](https://github.com/dheijl/swyh-rs/assets/2384545/24b4eded-738a-474d-87e3-19f7bddbaf73)
+![afbeelding](https://github.com/dheijl/swyh-rs/assets/2384545/5ee60e88-9339-4f22-8a79-5af8c5ed3de3)

@@ -221,6 +221,15 @@ fn main() -> Result<(), i32> {
         config.use_wave_format = [Some(Wav), Some(Rf64)].contains(&config.streaming_format);
     }
 
+    if args.streaming_format.is_some() && args.stream_size.is_some() {
+        match args.streaming_format.unwrap() {
+            Lpcm => config.lpcm_stream_size = args.stream_size,
+            Wav => config.wav_stream_size = args.stream_size,
+            Flac => config.flac_stream_size = args.stream_size,
+            Rf64 => config.rf64_stream_size = args.stream_size,
+        }
+    }
+
     // update config with new args
     let _ = config.update_config();
     // update in_memory shared config for other threads

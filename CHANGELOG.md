@@ -1,8 +1,9 @@
 # swyh-rs Changelog
 
-- 1.9.9 (unreleased)
+- 1.9.9 (Feb 29 2024 dheijl)
   - fix test compilation (PR #116, thanks @ein-shved)
   - add nix build recipes from @ein-shved, PR #117
+  - add streamsize/chunking dropdown to swyh-rs GUI and cli argument to swyh-rs-cli. Allows one to choose a combination of streaming format an streamsize that works. See also issue #120.
 
 - 1.9.8 (Feb 13 2024 dheijl)
   - support setting volume in swyh-rs-cli too if the renderer supports it (-v xx or --volume n, where n between 0 and 100)

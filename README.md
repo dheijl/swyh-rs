@@ -10,6 +10,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 - [Current release](#current-release)
 - [Changelog](CHANGELOG.md)
+- [Latency, streaming format and stream duration](#latency-and-streaming-format-and-stream-duration)
 - [Building (Wiki)](https://github.com/dheijl/swyh-rs/wiki)
 - [swyh-rs as your local internet radio](#swyh-rs-as-your-local-internet-radio)
 - [Why this SWYH alternative ?](#why-this-swyh-alternative-)
@@ -24,7 +25,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 The current release is 1.9.9 with
 
-- 1.9.9: a configurable HTTP streamsize/chunking per streaming format. 
+- 1.9.9: a configurable HTTP streamsize/chunking per streaming format.
 - 1.9.8: swyh-rs-cli now also supports setting the volume with -v _n_ or --volume _n_ where n between 0 and 100. Release builds are now optimized (lto="thin", codegen-units=1).
 - 1.9.7: bugfix in getting/setting Sonos volume. This may allow you to control the volume of your Sonos speakers, depending on version/firmware.
 - 1.9.6: Volume sliders are only shown if upnp/dlna GetVolume worked
@@ -171,6 +172,12 @@ The icon was designed by @numanair, thanks!
 - after a configuration change that needs a program restart, you get a "restart" popup dialog. Click "Restart" to restart the app, or "Cancel" to ignore.
 - Since version 1.2.2, swyh-rs will send silence to connected renderers if no sound is being captured because no audio is currently being played. This prevents some renderers from disconnecting because they have not received any sound for some time (Bubble UPNP Server with Chromecast/Nest Audio). Apparently sending silence keeps them happy. I did not implement this "silence" for FLAC streaming.
 - Since version 1.5 you can have multiple instances running where each instance uses a different configuration file. An optional command line parameter _-c config_ or _--configuration config_ has been added to enable this (using a shortcut or starting swyh-rs from the command line). This _config_ parameter is then used as part of the config.toml filename for the swyh-rs instance. The default _config_ is empty. Examples: _swyh-rs -c 1_ or _swyh-rs --configuration vb-audio_. This way you can **stream different audio sources** to different receivers simultaneously.
+- Since 1.9.9 you have a dropdown to select one of 5 possible HTTP streaming sizes, select the one that works best for you with the selected streaming format:
+  - NoneChunked: no Content-Length, chunked HTTP streaming
+  - U32MaxChunked: Content-Length = u32::MAX, chunked HTTP streaming
+  - U64MaxChunked: Content-Length = u64::MAX, chunked HTTP streaming
+  - U32MaxNotChunked: Content-Length = u32::MAX -1, no chunking
+  - U64MaxNotChunked: Content-Length = u64::MAX - 1, no chunking
 
 ### The CLI binary
 
@@ -191,7 +198,7 @@ Recognized options:
     -l (--log_level) string : log_level (info/debug) [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
-    -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM]
+    -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM] optionally followed by a plus sign and a streamsize[LPCM+U64maxNotChunked] 
     -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
     -x (--serve_only) bool : skip ssdp discovery and start serving immediately [false]
@@ -207,6 +214,15 @@ The only way to stop the cli app is by killing it,  with "CONTROL C" or task man
 You can run as many instances simultaneously as you like as long as you start each one with its own configuration id value (-c option).
 I suppose you could run it from the command line or as a scheduled task or as an autorun task in Windows or...
 When using the **-x (--serve_only)** option, no SSDP discovery is run, and playing is not started (ignoring the -o option). Instead swyh-rs-cli immediately starts listening for streaming requests from renderers until you terminate it.  
+
+### Latency and streaming format and stream duration
+
+- For minimal latency, use LPCM (if your receiver supports it). On many devices LPCM will only work with 16 bit samples.
+- A higher bit depth and/or sample rate will reduce latency because it will the buffer of the receiver faster.
+- For unlimited streamsize and duration, use NoneChunked. If it doesn't work try one of the other options.
+- WAV is in theory limited to 4 GB streaming, so it's possible that it only works with an u32Max streamsize. But you can try if NoneChunked works. 4 GB is only a couple of hours of streaming depending on sample size and sample rate. On MoodeAudio WAV only works with U32MaxNotChunked, but RF64 workand FLAC work with anything. It depends the decoder used in the receiver.
+- On some receivers WAV and RF64 will cause an extra HTTP request, increasing latency slightly.
+- If you suffer from hiccups or drop-outs caused by your WiFi network, use FLAC as the compression increases buffering in the receiver. This makes it less likely that you will suffer from audio stuttering.
 
 ### Audio quality and Windows WasApi Loopback capture
 

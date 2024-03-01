@@ -220,9 +220,9 @@ When using the **-x (--serve_only)** option, no SSDP discovery is run, and playi
 - For minimal latency, use LPCM (if your receiver supports it). On many devices LPCM will only work with 16 bit samples.
 - A higher bit depth and/or sample rate will reduce latency because it will fill the buffer of the receiver faster.
 - For unlimited streamsize and duration, use NoneChunked. If it doesn't work try one of the other options.
-- WAV is in theory limited to 4 GB streaming, so it's possible that it only works with an u32Max streamsize. But you can try if NoneChunked works. 4 GB is only a couple of hours of streaming depending on sample size and sample rate. On MoodeAudio WAV only works with U32MaxNotChunked, but RF64 workand FLAC work with anything. It depends the decoder used in the receiver.
+- WAV is in theory limited to 4 GB streaming, so it's possible that it only works with an u32Max streamsize. But you can try if NoneChunked works. 4 GB is only a couple of hours of streaming depending on sample size and sample rate. On MoodeAudio WAV only works with U32MaxNotChunked, but RF64 and FLAC work with anything. It depends on the decoder used in the receiver.
 - On some receivers WAV and RF64 will cause an extra HTTP request, increasing latency slightly.
-- If you suffer from hiccups or drop-outs caused by your WiFi network, use FLAC as the compression increases buffering in the receiver. This makes it less likely that you will suffer from audio stuttering.
+- If you suffer from hiccups or drop-outs caused by your WiFi network, use FLAC, as the compression increases buffering in the receiver. This makes it less likely that you will suffer from audio stuttering.
 
 ### Audio quality and Windows WasApi Loopback capture
 

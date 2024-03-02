@@ -129,9 +129,9 @@ Recognized options:
                 Short('l') | Long("log_level") => {
                     if let Ok(level) = argparser.value() {
                         let loglevel = level.string().unwrap_or_default();
-                        match loglevel.as_str() {
-                            "info" | "Info" | "INFO" => self.log_level = Some(LevelFilter::Info),
-                            "debug" | "Debug" | "DEBUG" => {
+                        match loglevel.to_uppercase().as_str() {
+                            "INFO" => self.log_level = Some(LevelFilter::Info),
+                            "DEBUG" => {
                                 self.log_level = Some(LevelFilter::Debug);
                             }
                             _ => {

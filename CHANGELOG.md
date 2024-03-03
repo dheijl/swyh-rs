@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.10.0-rc1 (unreleased)
+  - CLI: allow to specify a sound source name instead of an index, it can be substring of the name, if you have duplicates append :n to the name where is a zero-based index
+
 - 1.9.9 (Feb 29 2024 dheijl)
   - fix test compilation (PR #116, thanks @ein-shved)
   - add nix build recipes from @ein-shved, PR #117

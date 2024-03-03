@@ -106,9 +106,13 @@ fn main() -> Result<(), i32> {
         ui_log(&format!(
             "Found Audio Source: index = {index}, name = {devname}"
         ));
-        if config.sound_source_index.is_some()
-            && config.sound_source_index.unwrap_or_default() == index as i32
-        {
+        if let Some(ref name) = args.sound_source_name {
+            if devname.to_uppercase().contains(&name.to_uppercase()) {
+                audio_output_device = adev;
+                config.sound_source = devname.clone();
+                ui_log(&format!("Selected audio source: {devname}[#{index}]"));
+            }
+        } else if let Some(index) = config.sound_source_index {
             audio_output_device = adev;
             config.sound_source = devname.clone();
             ui_log(&format!("Selected audio source: {devname}[#{index}]"));

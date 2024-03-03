@@ -16,6 +16,7 @@ pub struct Args {
     pub server_port: Option<u16>,
     pub auto_resume: Option<bool>,
     pub sound_source_index: Option<i32>,
+    pub sound_source_name: Option<String>,
     pub log_level: Option<LevelFilter>,
     pub ssdp_interval_mins: Option<f64>,
     pub use_wave_format: Option<bool>,
@@ -44,6 +45,7 @@ impl Args {
             server_port: None,
             auto_resume: None,
             sound_source_index: None,
+            sound_source_name: None,
             log_level: None,
             ssdp_interval_mins: None,
             use_wave_format: None,
@@ -68,7 +70,7 @@ Recognized options:
     -c (--config_id) string : config_id [_cli]
     -p (--server_port) u16 : server_port [5901]
     -r (--auto_resume) bool : auto_resume [false]
-    -s (--sound_source) u16 : sound_source index [os default]
+    -s (--sound_source) u16|string  : sound_source index or name [os default]
     -l (--log_level) string : log_level (info/debug) [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
@@ -121,9 +123,17 @@ Recognized options:
                         self.auto_resume = Some(true);
                     }
                 }
-                Short('s') | Long("sound_source_index") => {
+                Short('s') | Long("sound_source") => {
                     if let Ok(ssi) = argparser.value() {
-                        self.sound_source_index = Some(ssi.parse().unwrap());
+                        // numeric = the index, otherwise the name
+                        let ss_idx_or_nm = ssi.to_str();
+                        if let Some(si) = ss_idx_or_nm {
+                            if si.chars().all(|c| c.is_numeric()) {
+                                self.sound_source_index = Some(si.parse::<i32>().unwrap());
+                            } else {
+                                self.sound_source_name = Some(si.to_string());
+                            }
+                        }
                     }
                 }
                 Short('l') | Long("log_level") => {

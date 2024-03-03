@@ -93,34 +93,64 @@ fn main() -> Result<(), i32> {
     }
     // autoreconnect is ignored but effectively always on
     config.auto_reconnect = true;
-    // set args soundsource index
-    if args.sound_source_index.is_some() {
-        config.sound_source_index = args.sound_source_index;
-    }
-
-    // get the output device from the config and get all available audio source names
+    // set soundsource index or name
     let audio_devices = get_output_audio_devices();
-    let mut source_names: Vec<String> = Vec::new();
-    for (index, adev) in audio_devices.into_iter().enumerate() {
-        let devname = adev.name().to_owned();
-        ui_log(&format!(
-            "Found Audio Source: index = {index}, name = {devname}"
-        ));
-        if let Some(ref name) = args.sound_source_name {
-            if devname.to_uppercase().contains(&name.to_uppercase()) {
+    if let Some(index) = args.sound_source_index {
+        // args - sound source index
+        config.sound_source_index = Some(index);
+        for (index, adev) in audio_devices.into_iter().enumerate() {
+            let devname = adev.name().to_owned();
+            ui_log(&format!(
+                "Found Audio Source: index = {index}, name = {devname}"
+            ));
+            if index == config.sound_source_index.unwrap() as usize {
                 audio_output_device = adev;
                 config.sound_source = devname.clone();
                 ui_log(&format!("Selected audio source: {devname}[#{index}]"));
+            } else if devname == config.sound_source {
+                audio_output_device = adev;
+                ui_log(&format!("Selected audio source: {devname}"));
             }
-        } else if let Some(index) = config.sound_source_index {
-            audio_output_device = adev;
-            config.sound_source = devname.clone();
-            ui_log(&format!("Selected audio source: {devname}[#{index}]"));
-        } else if devname == config.sound_source {
-            audio_output_device = adev;
-            ui_log(&format!("Selected audio source: {devname}"));
         }
-        source_names.push(devname);
+    } else if let Some(ref name) = args.sound_source_name {
+        // args = sound source name, check for duplicate name position
+        let (dupname, duppos) = if name.contains(':') {
+            let parts: Vec<&str> = name.split(':').collect();
+            (parts[0], parts[1])
+        } else {
+            ("", "")
+        };
+        if duppos.is_empty() {
+            for (index, adev) in audio_devices.into_iter().enumerate() {
+                let devname = adev.name().to_owned();
+                ui_log(&format!(
+                    "Found Audio Source: index = {index}, name = {devname}"
+                ));
+                if devname.to_uppercase().contains(&name.to_uppercase()) {
+                    audio_output_device = adev;
+                    config.sound_source = devname.clone();
+                    ui_log(&format!("Selected audio source: {devname}[#{index}]"));
+                } else if devname == config.sound_source {
+                    audio_output_device = adev;
+                    ui_log(&format!("Selected audio source: {devname}"));
+                }
+            }
+        } else {
+            if let Ok(pos) = duppos.parse::<usize>() {
+                let dups: Vec<_> = audio_devices
+                    .into_iter()
+                    .filter(|d| d.name().to_uppercase().contains(&dupname.to_uppercase()))
+                    .collect();
+                for (index, dev) in dups.into_iter().enumerate() {
+                    if index == pos {
+                        let devname = dev.name().to_string();
+                        audio_output_device = dev;
+                        config.sound_source = devname.clone();
+                        ui_log(&format!("Selected audio source: {devname}:{pos}"));
+                    }
+                }
+            }
+        }
     }
 
     // get the list of available networks

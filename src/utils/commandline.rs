@@ -130,8 +130,10 @@ Recognized options:
                         if let Some(si) = ss_idx_or_nm {
                             if si.chars().all(|c| c.is_numeric()) {
                                 self.sound_source_index = Some(si.parse::<i32>().unwrap());
+                                self.sound_source_name = None;
                             } else {
                                 self.sound_source_name = Some(si.to_string());
+                                self.sound_source_index = None;
                             }
                         }
                     }

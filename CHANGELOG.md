@@ -2,6 +2,7 @@
 
 - 1.10.0-rc1 (unreleased)
   - CLI: allow to specify a sound source name instead of an index, it can be substring of the name, if you have duplicates append :n to the name where n is a zero-based index
+  - some clean up in configuraiton.rs: make the old plain Strings Option too
 
 - 1.9.9 (Feb 29 2024 dheijl)
   - fix test compilation (PR #116, thanks @ein-shved)

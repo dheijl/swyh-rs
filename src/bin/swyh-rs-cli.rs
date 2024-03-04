@@ -162,17 +162,16 @@ fn main() -> Result<(), i32> {
     }
     // get the network that connects to the internet
     let local_addr: IpAddr = {
-        if config.last_network.is_none() {
+        if let Some(ref network) = config.last_network {
+            info!("new network {}", config.last_network.as_ref().unwrap());
+            network.parse().unwrap()
+        } else {
             let addr = get_local_addr().expect("Could not obtain local address.");
             config.last_network = Some(addr.to_string());
             info!("using network {}", config.last_network.as_ref().unwrap());
             addr
-        } else {
-            info!("new network {}", config.last_network.as_ref().unwrap());
-            config.last_network.as_ref().unwrap().parse().unwrap()
         }
     };
-
     // we need to pass some audio config data to the play function
     let audio_cfg = audio_output_device.default_config().clone();
     let wd = WavData {
@@ -236,10 +235,9 @@ fn main() -> Result<(), i32> {
             .unwrap();
     }
     // set args player
-    config.last_renderer = Some(
-        args.player_ip
-            .unwrap_or(config.last_renderer.unwrap().clone()),
-    );
+    if let Some(player_ip) = args.player_ip {
+        config.last_renderer = Some(player_ip);
+    }
     // set args streaming format
     config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
     // set args server port
@@ -309,6 +307,7 @@ fn main() -> Result<(), i32> {
     let mut player: Option<&Renderer> = None;
     // select the player unless only serving
     if !serve_only {
+        let last_renderer = config.last_renderer.as_ref().unwrap();
         if renderers.is_empty() {
             error!("No renderers found!!!");
             return Err(-1);
@@ -318,12 +317,12 @@ fn main() -> Result<(), i32> {
         // but use the configured renderer if present
         if let Some(pl) = renderers
             .iter()
-            .find(|&renderer| renderer.remote_addr == *config.last_renderer.as_ref().unwrap())
+            .find(|&renderer| renderer.remote_addr == *last_renderer)
         {
             player = Some(pl);
         }
         // if specified player ip not found: use default player
-        if config.last_renderer.clone().unwrap() != player.unwrap().remote_addr {
+        if *last_renderer != player.unwrap().remote_addr {
             config.last_renderer = Some(player.unwrap().remote_addr.clone());
         }
         ui_log(&format!(

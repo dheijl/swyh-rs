@@ -141,30 +141,31 @@ fn main() {
     let mut source_names: Vec<String> = Vec::new();
     for (index, adev) in audio_devices.into_iter().enumerate() {
         let devname = adev.name().to_owned();
-        if config.sound_source_index.is_none() {
+        if let Some(id) = config.sound_source_index {
+            // index is needed for duplicate audio device names in Windows
+            if id == index as i32 && devname == *config.sound_source.as_ref().unwrap() {
+                audio_output_device = adev;
+                info!("Selected audio source: {}[#{}]", devname, index);
+            }
+        } else {
             if devname == *config.sound_source.as_ref().unwrap() {
                 audio_output_device = adev;
                 info!("Selected audio source: {}", devname);
             }
-        } else if devname == *config.sound_source.as_ref().unwrap()
-            && config.sound_source_index.unwrap_or_default() == index as i32
-        {
-            audio_output_device = adev;
-            info!("Selected audio source: {}[#{}]", devname, index);
         }
         source_names.push(devname);
     }
 
     // get the default network that connects to the internet
     let local_addr: IpAddr = {
-        if config.last_network.is_none() {
+        if let Some(ref net) = config.last_network {
+            net.parse().unwrap()
+        } else {
             let addr = get_local_addr().expect("Could not obtain local address.");
             let mut conf = CONFIG.write();
             conf.last_network = Some(addr.to_string());
             let _ = conf.update_config();
             addr
-        } else {
-            config.last_network.as_ref().unwrap().parse().unwrap()
         }
     };
 

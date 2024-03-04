@@ -42,8 +42,8 @@ fn main() -> Result<(), i32> {
     // initialize config
     let mut config = {
         let mut conf = CONFIG.write();
-        if conf.sound_source == "None" {
-            conf.sound_source = audio_output_device.name().into();
+        if conf.sound_source.is_none() {
+            conf.sound_source = Some(audio_output_device.name().into());
             let _ = conf.update_config();
         }
         conf.clone()
@@ -105,9 +105,9 @@ fn main() -> Result<(), i32> {
             ));
             if index == config.sound_source_index.unwrap() as usize {
                 audio_output_device = adev;
-                config.sound_source = devname.clone();
+                config.sound_source = Some(devname.clone());
                 ui_log(&format!("Selected audio source: {devname}[#{index}]"));
-            } else if devname == config.sound_source {
+            } else if devname == *config.sound_source.as_ref().unwrap() {
                 audio_output_device = adev;
                 ui_log(&format!("Selected audio source: {devname}"));
             }
@@ -128,26 +128,24 @@ fn main() -> Result<(), i32> {
                 ));
                 if devname.to_uppercase().contains(&name.to_uppercase()) {
                     audio_output_device = adev;
-                    config.sound_source = devname.clone();
+                    config.sound_source = Some(devname.clone());
                     ui_log(&format!("Selected audio source: {devname}[#{index}]"));
-                } else if devname == config.sound_source {
+                } else if devname == *config.sound_source.as_ref().unwrap() {
                     audio_output_device = adev;
                     ui_log(&format!("Selected audio source: {devname}"));
                 }
             }
-        } else {
-            if let Ok(pos) = duppos.parse::<usize>() {
-                let dups: Vec<_> = audio_devices
-                    .into_iter()
-                    .filter(|d| d.name().to_uppercase().contains(&dupname.to_uppercase()))
-                    .collect();
-                for (index, dev) in dups.into_iter().enumerate() {
-                    if index == pos {
-                        let devname = dev.name().to_string();
-                        audio_output_device = dev;
-                        config.sound_source = devname.clone();
-                        ui_log(&format!("Selected audio source: {devname}:{pos}"));
-                    }
+        } else if let Ok(pos) = duppos.parse::<usize>() {
+            let dups: Vec<_> = audio_devices
+                .into_iter()
+                .filter(|d| d.name().to_uppercase().contains(&dupname.to_uppercase()))
+                .collect();
+            for (index, dev) in dups.into_iter().enumerate() {
+                if index == pos {
+                    let devname = dev.name().to_string();
+                    audio_output_device = dev;
+                    config.sound_source = Some(devname.clone());
+                    ui_log(&format!("Selected audio source: {devname}:{pos}"));
                 }
             }
         }
@@ -160,18 +158,18 @@ fn main() -> Result<(), i32> {
     }
     // args: ip_address
     if let Some(ip) = args.ip_address {
-        config.last_network = ip.parse().unwrap();
+        config.last_network = Some(ip.parse().unwrap());
     }
     // get the network that connects to the internet
     let local_addr: IpAddr = {
-        if config.last_network == "None" {
+        if config.last_network.is_none() {
             let addr = get_local_addr().expect("Could not obtain local address.");
-            config.last_network = addr.to_string();
-            info!("using network {}", config.last_network);
+            config.last_network = Some(addr.to_string());
+            info!("using network {}", config.last_network.as_ref().unwrap());
             addr
         } else {
-            info!("new network {}", config.last_network);
-            config.last_network.parse().unwrap()
+            info!("new network {}", config.last_network.as_ref().unwrap());
+            config.last_network.as_ref().unwrap().parse().unwrap()
         }
     };
 
@@ -238,7 +236,10 @@ fn main() -> Result<(), i32> {
             .unwrap();
     }
     // set args player
-    config.last_renderer = args.player_ip.unwrap_or(config.last_renderer);
+    config.last_renderer = Some(
+        args.player_ip
+            .unwrap_or(config.last_renderer.unwrap().clone()),
+    );
     // set args streaming format
     config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
     // set args server port
@@ -317,13 +318,13 @@ fn main() -> Result<(), i32> {
         // but use the configured renderer if present
         if let Some(pl) = renderers
             .iter()
-            .find(|&renderer| renderer.remote_addr == config.last_renderer)
+            .find(|&renderer| renderer.remote_addr == *config.last_renderer.as_ref().unwrap())
         {
             player = Some(pl);
         }
         // if specified player ip not found: use default player
-        if config.last_renderer != player.unwrap().remote_addr {
-            config.last_renderer = player.unwrap().remote_addr.clone();
+        if config.last_renderer.clone().unwrap() != player.unwrap().remote_addr {
+            config.last_renderer = Some(player.unwrap().remote_addr.clone());
         }
         ui_log(&format!(
             "Selected player with ip = {}",

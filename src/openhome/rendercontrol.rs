@@ -688,7 +688,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
     debug!("SSDP discovery started");
 
     // get the address of the selected interface
-    let ip = CONFIG.read().last_network.clone();
+    let ip = CONFIG.read().last_network.as_ref().unwrap().clone();
     info!("running SSDP on {ip}");
     let local_addr: IpAddr = ip.parse().unwrap();
     let bind_addr = SocketAddr::new(local_addr, 0);

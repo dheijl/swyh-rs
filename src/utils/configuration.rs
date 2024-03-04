@@ -47,7 +47,7 @@ pub struct Configuration {
     #[serde(alias = "AutoResume")]
     pub auto_resume: bool,
     #[serde(alias = "SoundCard")]
-    pub sound_source: String,
+    pub sound_source: Option<String>,
     #[serde(alias = "SoundCardIndex")]
     pub sound_source_index: Option<i32>,
     #[serde(alias = "LogLevel", default = "CfgDefaults::log_level")]
@@ -88,9 +88,9 @@ pub struct Configuration {
     #[serde(alias = "InjectSilence")]
     pub inject_silence: Option<bool>,
     #[serde(alias = "LastRenderer")]
-    pub last_renderer: String,
+    pub last_renderer: Option<String>,
     #[serde(alias = "LastNetwork")]
-    pub last_network: String,
+    pub last_network: Option<String>,
     #[serde(alias = "ConfigDir")]
     config_dir: PathBuf,
     #[serde(alias = "ConfigId")]
@@ -109,14 +109,14 @@ impl Configuration {
         Configuration {
             server_port: Some(SERVER_PORT),
             auto_resume: false,
-            sound_source: "None".to_string(),
+            sound_source: None,
             sound_source_index: Some(0),
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 10.0,
             auto_reconnect: false,
             _disable_chunked: true,
             lpcm_stream_size: Some(StreamSize::U64maxNotChunked),
-            wav_stream_size: Some(StreamSize::U64maxNotChunked),
+            wav_stream_size: Some(StreamSize::U32maxNotChunked),
             rf64_stream_size: Some(StreamSize::U64maxNotChunked),
             flac_stream_size: Some(StreamSize::U64maxNotChunked),
             use_wave_format: false,
@@ -125,8 +125,8 @@ impl Configuration {
             monitor_rms: false,
             capture_timeout: Some(2000),
             inject_silence: Some(false),
-            last_renderer: "None".to_string(),
-            last_network: "None".to_string(),
+            last_renderer: None,
+            last_network: None,
             config_dir: Self::get_config_dir(),
             config_id: Some(Self::get_config_id()),
         }

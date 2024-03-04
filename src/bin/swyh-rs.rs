@@ -82,8 +82,8 @@ fn main() {
     // initialize config
     let mut config = {
         let mut conf = CONFIG.write();
-        if conf.sound_source == "None" {
-            conf.sound_source = audio_output_device.name().into();
+        if conf.sound_source.is_none() {
+            conf.sound_source = Some(audio_output_device.name().into());
             let _ = conf.update_config();
         }
         conf.clone()
@@ -142,11 +142,11 @@ fn main() {
     for (index, adev) in audio_devices.into_iter().enumerate() {
         let devname = adev.name().to_owned();
         if config.sound_source_index.is_none() {
-            if devname == config.sound_source {
+            if devname == *config.sound_source.as_ref().unwrap() {
                 audio_output_device = adev;
                 info!("Selected audio source: {}", devname);
             }
-        } else if devname == config.sound_source
+        } else if devname == *config.sound_source.as_ref().unwrap()
             && config.sound_source_index.unwrap_or_default() == index as i32
         {
             audio_output_device = adev;
@@ -157,14 +157,14 @@ fn main() {
 
     // get the default network that connects to the internet
     let local_addr: IpAddr = {
-        if config.last_network == "None" {
+        if config.last_network.is_none() {
             let addr = get_local_addr().expect("Could not obtain local address.");
             let mut conf = CONFIG.write();
-            conf.last_network = addr.to_string();
+            conf.last_network = Some(addr.to_string());
             let _ = conf.update_config();
             addr
         } else {
-            config.last_network.parse().unwrap()
+            config.last_network.as_ref().unwrap().parse().unwrap()
         }
     };
 

@@ -163,12 +163,12 @@ fn main() -> Result<(), i32> {
     // get the network that connects to the internet
     let local_addr: IpAddr = {
         if let Some(ref network) = config.last_network {
-            info!("new network {}", config.last_network.as_ref().unwrap());
+            info!("new network {}", network);
             network.parse().unwrap()
         } else {
             let addr = get_local_addr().expect("Could not obtain local address.");
             config.last_network = Some(addr.to_string());
-            info!("using network {}", config.last_network.as_ref().unwrap());
+            info!("using network {}", addr);
             addr
         }
     };

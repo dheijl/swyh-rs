@@ -220,7 +220,7 @@ fn main() -> Result<(), i32> {
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     let mut renderers: Vec<Renderer> = Vec::new();
 
-    let serve_only = args.serve_only.unwrap_or(false);
+    let mut serve_only = args.serve_only.unwrap_or(false);
     // if only serving: no ssdp discovery
     if !serve_only {
         // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
@@ -237,6 +237,10 @@ fn main() -> Result<(), i32> {
     // set args player
     if let Some(player_ip) = args.player_ip {
         config.last_renderer = Some(player_ip);
+    }
+    // if no player specified: switch to serve mode
+    if config.last_renderer.is_none() {
+        serve_only = true;
     }
     // set args streaming format
     config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);

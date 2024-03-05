@@ -22,14 +22,23 @@ impl CfgDefaults {
     fn disable_chunked() -> bool {
         true
     }
-    pub fn log_level() -> LevelFilter {
+    fn autoreconnect() -> bool {
+        true
+    }
+    fn log_level() -> LevelFilter {
         LevelFilter::Info
     }
-    pub fn ssdp_interval_mins() -> f64 {
+    fn ssdp_interval_mins() -> f64 {
         10.0
     }
-    pub fn stream_size() -> Option<StreamSize> {
+    fn stream_size() -> Option<StreamSize> {
         Some(StreamSize::U64maxNotChunked)
+    }
+    fn wav_stream_size() -> Option<StreamSize> {
+        Some(StreamSize::U32maxNotChunked)
+    }
+    fn bits_per_sample() -> Option<u16> {
+        Some(16)
     }
 }
 
@@ -42,13 +51,13 @@ struct Config {
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Configuration {
-    #[serde(alias = "ServerPort")]
+    #[serde(alias = "ServerPort", default)]
     pub server_port: Option<u16>,
-    #[serde(alias = "AutoResume")]
+    #[serde(alias = "AutoResume", default)]
     pub auto_resume: bool,
-    #[serde(alias = "SoundCard")]
+    #[serde(alias = "SoundCard", default)]
     pub sound_source: Option<String>,
-    #[serde(alias = "SoundCardIndex")]
+    #[serde(alias = "SoundCardIndex", default)]
     pub sound_source_index: Option<i32>,
     #[serde(alias = "LogLevel", default = "CfgDefaults::log_level")]
     pub log_level: LevelFilter,
@@ -57,7 +66,7 @@ pub struct Configuration {
         default = "CfgDefaults::ssdp_interval_mins"
     )]
     pub ssdp_interval_mins: f64,
-    #[serde(alias = "AutoReconnect")]
+    #[serde(alias = "AutoReconnect", default = "CfgDefaults::autoreconnect")]
     pub auto_reconnect: bool,
     // removed in 1.8.5
     #[serde(
@@ -69,31 +78,31 @@ pub struct Configuration {
     // added in 1.9.9
     #[serde(alias = "LPCMStreamSize", default = "CfgDefaults::stream_size")]
     pub lpcm_stream_size: Option<StreamSize>,
-    #[serde(alias = "WAVStreamSize", default = "CfgDefaults::stream_size")]
+    #[serde(alias = "WAVStreamSize", default = "CfgDefaults::wav_stream_size")]
     pub wav_stream_size: Option<StreamSize>,
     #[serde(alias = "RF64StreamSize", default = "CfgDefaults::stream_size")]
     pub rf64_stream_size: Option<StreamSize>,
     #[serde(alias = "FLACStreamSize", default = "CfgDefaults::stream_size")]
     pub flac_stream_size: Option<StreamSize>,
-    #[serde(alias = "UseWaveFormat")]
+    #[serde(alias = "UseWaveFormat", default)]
     pub use_wave_format: bool,
-    #[serde(alias = "BitsPerSample")]
+    #[serde(alias = "BitsPerSample", default = "CfgDefaults::bits_per_sample")]
     pub bits_per_sample: Option<u16>,
-    #[serde(alias = "StreamingFormat")]
+    #[serde(alias = "StreamingFormat", default)]
     pub streaming_format: Option<StreamingFormat>,
-    #[serde(alias = "MonitorRms")]
+    #[serde(alias = "MonitorRms", default)]
     pub monitor_rms: bool,
-    #[serde(alias = "CaptureTimeout")]
+    #[serde(alias = "CaptureTimeout", default)]
     pub capture_timeout: Option<u32>,
-    #[serde(alias = "InjectSilence")]
+    #[serde(alias = "InjectSilence", default)]
     pub inject_silence: Option<bool>,
-    #[serde(alias = "LastRenderer")]
+    #[serde(alias = "LastRenderer", default)]
     pub last_renderer: Option<String>,
-    #[serde(alias = "LastNetwork")]
+    #[serde(alias = "LastNetwork", default)]
     pub last_network: Option<String>,
-    #[serde(alias = "ConfigDir")]
+    #[serde(alias = "ConfigDir", default)]
     config_dir: PathBuf,
-    #[serde(alias = "ConfigId")]
+    #[serde(alias = "ConfigId", default)]
     pub config_id: Option<String>,
 }
 

@@ -2,7 +2,12 @@
 
 - 1.10.0-rc1 (unreleased)
   - CLI: allow to specify a sound source name instead of an index, it can be substring of the name, if you have duplicates append :n to the name where n is a zero-based index
-  - some clean up in configuraiton.rs: make the old plain Strings Option too
+  - PR #118 by @ein-shved:
+    - clean up configuration.rs
+    - add possibility to specify a configuration file on the commandline
+    - CLI :
+      - add possibility to use a minimal configuration and to make the configuration file read-only
+      - add nix build files and nix module to run swyh-rs-cli as a service
 
 - 1.9.9 (Feb 29 2024 dheijl)
   - fix test compilation (PR #116, thanks @ein-shved)

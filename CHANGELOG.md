@@ -8,6 +8,7 @@
     - CLI :
       - add possibility to use a minimal configuration and to make the configuration file read-only
       - add nix build files and nix module to run swyh-rs-cli as a service
+      - use the local-ip-address crate so that you don't need a "dummy" internet access to Google DNS to locate the default interface for SSDP
 
 - 1.9.9 (Feb 29 2024 dheijl)
   - fix test compilation (PR #116, thanks @ein-shved)

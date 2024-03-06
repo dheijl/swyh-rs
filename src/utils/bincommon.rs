@@ -4,6 +4,7 @@ use cpal::{
     traits::{DeviceTrait, StreamTrait},
     Sample, SampleFormat, Stream, StreamConfig,
 };
+use log::warn;
 
 use super::audiodevices::Device;
 
@@ -22,7 +23,7 @@ pub fn run_silence_injector(device: &Device) -> Stream {
 
     let config = device.default_config();
     let sample_format = config.sample_format();
-    let err_fn = |err| eprintln!("an error occurred on the output audio stream: {err}");
+    let err_fn = |err| warn!("an error occurred on the output audio stream: {err}");
     let config: StreamConfig = config.clone().into();
     let device = device.as_ref();
     let stream = match sample_format {

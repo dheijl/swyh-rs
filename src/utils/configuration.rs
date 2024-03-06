@@ -2,12 +2,12 @@ use crate::{
     enums::streaming::StreamSize, enums::streaming::StreamingFormat, globals::statics::SERVER_PORT,
 };
 use lexopt::{prelude::*, Parser};
-use log::LevelFilter;
+use log::{info, warn, LevelFilter};
 use serde::{Deserialize, Serialize};
 use std::{
     f64, fs,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Write},
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
 };
 use toml::from_str;
@@ -104,6 +104,8 @@ pub struct Configuration {
     config_dir: PathBuf,
     #[serde(alias = "ConfigId", default)]
     pub config_id: Option<String>,
+    #[serde(alias = "ReadOnly", default)]
+    pub read_only: bool,
 }
 
 impl Default for Configuration {
@@ -138,6 +140,7 @@ impl Configuration {
             last_network: None,
             config_dir: Self::get_config_dir(),
             config_id: Some(Self::get_config_id()),
+            read_only: false,
         }
     }
 
@@ -156,32 +159,27 @@ impl Configuration {
     #[must_use]
     pub fn read_config() -> Configuration {
         let mut force_update = false;
-        let configfile = Self::get_config_path(CONFIGFILE);
-        let old_configfile = Self::get_config_path("config.ini");
+        let configfile = Self::choose_config_path();
         if !Path::new(&configfile).exists() {
-            if Path::new(&old_configfile).exists() {
-                Self::migrate_config_to_toml(&old_configfile, &configfile);
-            } else {
-                println!("Creating a new default config {}", configfile.display());
-                let config = Configuration::new();
-                let configuration = Config {
-                    configuration: config,
-                };
-                let f = File::create(&configfile).unwrap();
-                let s = toml::to_string(&configuration).unwrap();
-                let mut w = BufWriter::new(f);
-                println!("New default CONFIG: {s}");
-                w.write_all(s.as_bytes()).unwrap();
-                w.flush().unwrap();
-            }
+            info!("Creating a new default config {}", configfile.display());
+            let config = Configuration::new();
+            let configuration = Config {
+                configuration: config,
+            };
+            let f = File::create(&configfile).unwrap();
+            let s = toml::to_string(&configuration).unwrap();
+            let mut w = BufWriter::new(f);
+            info!("New default CONFIG: {s}");
+            w.write_all(s.as_bytes()).unwrap();
+            w.flush().unwrap();
         }
-        println!("Loading config from {}", configfile.display());
+        info!("Loading config from {}", configfile.display());
         let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
-            eprintln!("Unable to read config file: {error}");
+            warn!("Unable to read config file: {error}");
             String::new()
         });
         let mut config: Config = from_str(&s).unwrap_or_else(|error| {
-            eprintln!("Unable to deserialize config: {error}");
+            warn!("Unable to deserialize config: {error}");
             let config = Configuration::new();
             Config {
                 configuration: config,
@@ -218,13 +216,22 @@ impl Configuration {
             config.configuration.sound_source_index = Some(0);
             force_update = true;
         }
-        if force_update {
+        if !config.configuration.read_only {
+            let meta = fs::metadata(configfile);
+            if let Ok(meta) = meta {
+                config.configuration.read_only = meta.permissions().readonly();
+            }
+        }
+        if force_update && !config.configuration.read_only {
             config.configuration.update_config().unwrap();
         }
         config.configuration
     }
 
     pub fn update_config(&self) -> std::io::Result<()> {
+        if self.read_only {
+            return Ok(());
+        }
         let configfile = Self::get_config_path(CONFIGFILE);
         let f = File::create(configfile).unwrap();
         let conf = Config {
@@ -237,24 +244,31 @@ impl Configuration {
         Ok(())
     }
 
+    fn choose_config_path() -> PathBuf {
+        if let Some(path) = Self::get_arg_config_path() {
+            path
+        } else {
+            let configfile = Self::get_config_path(CONFIGFILE);
+            if !Path::new(&configfile).exists() {
+                info!("Creating a new default config {}", configfile.display());
+                let config = Configuration::new();
+                let configuration = Config {
+                    configuration: config,
+                };
+                let f = File::create(&configfile).unwrap();
+                let s = toml::to_string(&configuration).unwrap();
+                let mut w = BufWriter::new(f);
+                info!("New default CONFIG: {s}");
+                w.write_all(s.as_bytes()).unwrap();
+                w.flush().unwrap();
+            }
+            configfile
+        }
+    }
+
     fn get_config_dir() -> PathBuf {
         let hd = dirs::home_dir().unwrap_or_default();
-        let old_config_dir = Path::new(&hd).join(PKGNAME);
         let config_dir = Path::new(&hd).join(".".to_string() + PKGNAME);
-        if Path::new(&old_config_dir).exists() && !Path::new(&config_dir).exists() {
-            // migrate old config dir to the new "hidden" config_dir
-            fs::create_dir_all(&config_dir).unwrap();
-            let old_config_file = Path::new(&old_config_dir).join("config.ini");
-            if Path::new(&old_config_file).exists() {
-                let config_file = Path::new(&config_dir).join("config.ini");
-                fs::copy(old_config_file, config_file).unwrap();
-                fs::remove_dir_all(&old_config_dir).unwrap();
-                // update the ConfigDir value in the config file
-                let conf = Configuration::read_config();
-                conf.update_config().unwrap();
-            }
-            return config_dir;
-        }
         if !Path::new(&config_dir).exists() {
             fs::create_dir_all(&config_dir).unwrap();
         }
@@ -284,31 +298,16 @@ impl Configuration {
         config_id
     }
 
-    fn migrate_config_to_toml(old_config: &Path, new_config: &Path) {
-        println!(
-            "Migrating {} to {}",
-            old_config.display(),
-            new_config.display()
-        );
-        let oldf = File::open(old_config).unwrap();
-        let r = BufReader::new(&oldf);
-        let newf = File::create(new_config).unwrap();
-        let mut w = BufWriter::new(&newf);
-        for line in r.lines() {
-            let mut s = line.unwrap();
-            if let Some(n) = s.find('=') {
-                const NEEDS_QUOTE: &str = "|SoundCard|LogLevel|LastRenderer|LastNetwork|ConfigDir|";
-                let key = s.get(0..n).unwrap();
-                if NEEDS_QUOTE.contains(key) {
-                    s.insert(n + 1, '"');
-                    s.insert(s.len(), '"');
-                }
-            }
-            w.write_all(s.as_bytes()).unwrap();
-            writeln!(w).unwrap();
+    fn get_arg_config_path() -> Option<PathBuf> {
+        let mut argparser = Parser::from_env();
+        let mut path = None;
+        while let Some(arg) = argparser.next().unwrap() {
+            if let Short('C') | Long("configfile") = arg {
+                if let Ok(opt) = argparser.value() {
+                    path = opt.string().ok().map(|s| PathBuf::from(&s));
+                };
+            };
         }
-        w.flush().unwrap();
-        drop(oldf);
-        fs::remove_file(old_config).unwrap();
+        path
     }
 }

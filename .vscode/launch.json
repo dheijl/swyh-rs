@@ -7,6 +7,25 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug unit tests in library 'swyh-rs'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=swyh-rs"
+                ],
+                "filter": {
+                    "name": "swyh-rs",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug executable 'swyh-rs'",
             "cargo": {
                 "args": [
@@ -35,6 +54,43 @@
                 ],
                 "filter": {
                     "name": "swyh-rs",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'swyh-rs-cli'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=swyh-rs-cli",
+                    "--package=swyh-rs"
+                ],
+                "filter": {
+                    "name": "swyh-rs-cli",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'swyh-rs-cli'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=swyh-rs-cli",
+                    "--package=swyh-rs"
+                ],
+                "filter": {
+                    "name": "swyh-rs-cli",
                     "kind": "bin"
                 }
             },

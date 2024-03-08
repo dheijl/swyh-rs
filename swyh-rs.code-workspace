@@ -4,7 +4,4 @@
             "path": "."
         }
     ],
-    "settings": {
-        "rust-analyzer.showUnlinkedFileNotification": false
-    },
 }

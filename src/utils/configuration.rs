@@ -2,7 +2,7 @@ use crate::{
     enums::streaming::StreamSize, enums::streaming::StreamingFormat, globals::statics::SERVER_PORT,
 };
 use lexopt::{prelude::*, Parser};
-use log::{info, warn, LevelFilter};
+use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::{
     f64, fs,
@@ -161,7 +161,7 @@ impl Configuration {
         let mut force_update = false;
         let configfile = Self::choose_config_path();
         if !Path::new(&configfile).exists() {
-            info!("Creating a new default config {}", configfile.display());
+            println!("Creating a new default config {}", configfile.display());
             let config = Configuration::new();
             let configuration = Config {
                 configuration: config,
@@ -169,17 +169,17 @@ impl Configuration {
             let f = File::create(&configfile).unwrap();
             let s = toml::to_string(&configuration).unwrap();
             let mut w = BufWriter::new(f);
-            info!("New default CONFIG: {s}");
+            println!("New default CONFIG: {s}");
             w.write_all(s.as_bytes()).unwrap();
             w.flush().unwrap();
         }
-        info!("Loading config from {}", configfile.display());
+        println!("Loading config from {}", configfile.display());
         let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
-            warn!("Unable to read config file: {error}");
+            eprintln!("Unable to read config file: {error}");
             String::new()
         });
         let mut config: Config = from_str(&s).unwrap_or_else(|error| {
-            warn!("Unable to deserialize config: {error}");
+            eprintln!("Unable to deserialize config: {error}");
             let config = Configuration::new();
             Config {
                 configuration: config,
@@ -250,7 +250,7 @@ impl Configuration {
         } else {
             let configfile = Self::get_config_path(CONFIGFILE);
             if !Path::new(&configfile).exists() {
-                info!("Creating a new default config {}", configfile.display());
+                println!("Creating a new default config {}", configfile.display());
                 let config = Configuration::new();
                 let configuration = Config {
                     configuration: config,
@@ -258,7 +258,7 @@ impl Configuration {
                 let f = File::create(&configfile).unwrap();
                 let s = toml::to_string(&configuration).unwrap();
                 let mut w = BufWriter::new(f);
-                info!("New default CONFIG: {s}");
+                println!("New default CONFIG: {s}");
                 w.write_all(s.as_bytes()).unwrap();
                 w.flush().unwrap();
             }
@@ -308,6 +308,7 @@ impl Configuration {
                 };
             };
         }
+        println!("ARG override configfile (-C): {:?}", path);
         path
     }
 }

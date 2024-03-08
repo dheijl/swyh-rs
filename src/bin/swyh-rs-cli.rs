@@ -36,15 +36,17 @@ fn main() -> Result<(), i32> {
     // collect command line arguments
     let args = Args::new().parse();
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
-    let mut audio_output_device =
-        get_default_audio_output_device().expect("No default audio device");
+    // but it's possible that there is no default audio device
+    let mut audio_output_device_opt = get_default_audio_output_device();
 
     // initialize config
     let mut config = {
         let mut conf = CONFIG.write();
-        if conf.sound_source.is_none() {
-            conf.sound_source = Some(audio_output_device.name().into());
-            let _ = conf.update_config();
+        if conf.sound_source.is_none() && conf.sound_source_index.is_none() {
+            if let Some(ref audio_output_device) = audio_output_device_opt {
+                conf.sound_source = Some(audio_output_device.name().into());
+                let _ = conf.update_config();
+            }
         }
         conf.clone()
     };
@@ -104,11 +106,11 @@ fn main() -> Result<(), i32> {
                 "Found Audio Source: index = {index}, name = {devname}"
             ));
             if index == config.sound_source_index.unwrap() as usize {
-                audio_output_device = adev;
+                audio_output_device_opt = Some(adev);
                 config.sound_source = Some(devname.clone());
                 ui_log(&format!("Selected audio source: {devname}[#{index}]"));
             } else if devname == *config.sound_source.as_ref().unwrap() {
-                audio_output_device = adev;
+                audio_output_device_opt = Some(adev);
                 ui_log(&format!("Selected audio source: {devname}"));
             }
         }
@@ -127,11 +129,11 @@ fn main() -> Result<(), i32> {
                     "Found Audio Source: index = {index}, name = {devname}"
                 ));
                 if devname.to_uppercase().contains(&name.to_uppercase()) {
-                    audio_output_device = adev;
+                    audio_output_device_opt = Some(adev);
                     config.sound_source = Some(devname.clone());
                     ui_log(&format!("Selected audio source: {devname}[#{index}]"));
                 } else if devname == *config.sound_source.as_ref().unwrap() {
-                    audio_output_device = adev;
+                    audio_output_device_opt = Some(adev);
                     ui_log(&format!("Selected audio source: {devname}"));
                 }
             }
@@ -143,13 +145,15 @@ fn main() -> Result<(), i32> {
             for (index, dev) in dups.into_iter().enumerate() {
                 if index == pos {
                     let devname = dev.name().to_string();
-                    audio_output_device = dev;
+                    audio_output_device_opt = Some(dev);
                     config.sound_source = Some(devname.clone());
                     ui_log(&format!("Selected audio source: {devname}:{pos}"));
                 }
             }
         }
     }
+
+    let audio_output_device = audio_output_device_opt.expect("No default audio device");
 
     // get the list of available networks
     let networks = get_interfaces();

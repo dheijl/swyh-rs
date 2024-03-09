@@ -11,7 +11,7 @@
     {
       "bin/swyh-rs-cli-old" = "${oldPackage}/bin/swyh-rs-cli";
     };
-  modules = [ module ];
+  modules = [module];
 in
   nixosTest {
     name = "swyh";

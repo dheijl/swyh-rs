@@ -108,8 +108,8 @@
     mkService = name: cfg:
       lib.nameValuePair "swyh-${name}" {
         wantedBy = ["multi-user.target"];
-        after = ["systemd-networkd-wait-online.service" "network-online.target" ];
-        wants = ["systemd-networkd-wait-online.service" "network-online.target" ];
+        after = ["systemd-networkd-wait-online.service" "network-online.target"];
+        wants = ["systemd-networkd-wait-online.service" "network-online.target"];
         serviceConfig = {
           ExecStart = ''
             ${cfg.package}/bin/swyh-rs-cli        \

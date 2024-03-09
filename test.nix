@@ -11,7 +11,7 @@
     {
       "bin/swyh-rs-cli-old" = "${oldPackage}/bin/swyh-rs-cli";
     };
-  modules = [ module ];
+  modules = [module];
 in
   nixosTest {
     name = "swyh";
@@ -55,6 +55,9 @@ in
       ];
     };
     testScript = {nodes, ...}: ''
+      def failed_machine(machine, what):
+        raise Exception(f"[{machine.name}] {what}]")
+
       def read_logs(machine, path):
         from pathlib import Path
         p = Path(path)
@@ -64,31 +67,39 @@ in
         with open(shared / p.name) as f:
           res = f.read()
         return res
+
       def check_machine(machine, card: str):
         machine.wait_for_unit("swyh-test.service")
-        if card not in read_logs(machine, "/var/log/swyh/log_test.txt"):
-            raise Exception("Wrong card selected")
+        logs = read_logs(machine, "/var/log/swyh/log_test.txt")
+        if f"Capturing audio from: {card}" not in logs:
+            failed_machine(machine, f"Wrong card selected. Expected '{card}'. Logs:\n{logs}")
+
       # Test first machine with default device
-      check_machine(default, "Selected audio source: default:CARD=Loopback[#0]")
+      check_machine(default, "default")
+
       # Test second machine with selected device
-      check_machine(audio_1, "Selected audio source: sysdefault:CARD=Loopback[#1]")
+      check_machine(audio_1, "sysdefault")
+
       ### Migration test
       migration.wait_for_unit("network-online.target")
+
       # Run old version and check whether it created configuration and run
       # server
       (_, stdout) = migration.execute("swyh-rs-cli-old", check_return=False, timeout=5)
       logs = read_logs(migration, "/root/.swyh-rs/log_cli.txt")
       if "Creating a new default config /root/.swyh-rs/config_cli.toml" not in str(stdout):
-        raise Exception("Old version creating config logs failed")
+        failed_machine(migration, "Old version creating config logs failed")
+
       if "The streaming server is listening on" not in logs:
-        raise Exception("Old version start logs failed")
+        failed_machine(migration, "Old version start logs failed")
+
       # Run old version and check whether it reads configuration and run
       # server
       (_, stdout) = migration.execute("swyh-rs-cli", check_return=False, timeout=5)
       logs = read_logs(migration, "/root/.swyh-rs/log_cli.txt")
       if "Creating a new default config" in str(stdout):
-        raise Exception("New version wrong creating config logs")
+        failed_machine(migration, "New version wrong creating config logs")
       if "The streaming server is listening on" not in logs:
-        raise Exception("New version start logs failed")
+        failed_machine(migration, "New version start logs failed")
     '';
   }

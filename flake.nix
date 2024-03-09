@@ -17,19 +17,18 @@
     nixpkgs,
     flake-utils,
     rust-overlay,
-  }:
   }: let
     module = {
-        imports = [ ./module.nix ];
-        nixpkgs.overlays = [
-          (import rust-overlay)
-          (prev: cur: rec {
-            swyh-rs = cur.callPackage ./default.nix {};
-            swyh-rs-cli = swyh-rs.override {withGui = false;};
-            swyh-rs-gui = swyh-rs.override {withCli = false;};
-          })
-        ];
-      };
+      imports = [./module.nix];
+      nixpkgs.overlays = [
+        (import rust-overlay)
+        (prev: cur: rec {
+          swyh-rs = cur.callPackage ./default.nix {};
+          swyh-rs-cli = swyh-rs.override {withGui = false;};
+          swyh-rs-gui = swyh-rs.override {withCli = false;};
+        })
+      ];
+    };
   in
     flake-utils.lib.eachDefaultSystem (
       system: let
@@ -53,6 +52,7 @@
           default = swyh-rs.devShell;
         };
         formatter = pkgs.alejandra;
-        nixosModule = module;      }
+        nixosModule = module;
+      }
     );
 }

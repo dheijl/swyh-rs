@@ -109,9 +109,12 @@ fn main() -> Result<(), i32> {
                 audio_output_device_opt = Some(adev);
                 config.sound_source = Some(devname.clone());
                 ui_log(&format!("Selected audio source: {devname}[#{index}]"));
-            } else if devname == *config.sound_source.as_ref().unwrap() {
-                audio_output_device_opt = Some(adev);
-                ui_log(&format!("Selected audio source: {devname}"));
+            } else {
+                let config_sound_source = config.sound_source.clone().unwrap_or_default();
+                if devname == *config_sound_source {
+                    audio_output_device_opt = Some(adev);
+                    ui_log(&format!("Selected audio source: {devname}"));
+                }
             }
         }
     } else if let Some(ref name) = args.sound_source_name {
@@ -164,15 +167,15 @@ fn main() -> Result<(), i32> {
     if let Some(ip) = args.ip_address {
         config.last_network = Some(ip.parse().unwrap());
     }
-    // get the network that connects to the internet
+    // get the local network network address
     let local_addr: IpAddr = {
         if let Some(ref network) = config.last_network {
-            info!("new network {}", network);
+            info!("Using network {}", network);
             network.parse().unwrap()
         } else {
             let addr = get_local_addr().expect("Could not obtain local address.");
             config.last_network = Some(addr.to_string());
-            info!("using network {}", addr);
+            info!("Using network {}", addr);
             addr
         }
     };
@@ -226,7 +229,7 @@ fn main() -> Result<(), i32> {
 
     let mut serve_only = args.serve_only.unwrap_or(false);
     // if only serving: no ssdp discovery
-    if !serve_only {
+    if !serve_only || args.dry_run.is_some() {
         // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
         // the discovered renderers will be kept in this list
         ui_log("Discover networks");
@@ -297,7 +300,7 @@ fn main() -> Result<(), i32> {
         })
         .unwrap();
 
-    if !serve_only {
+    if !serve_only || args.dry_run.is_some() {
         // give the webserver a chance to start and wait for ssdp to complete
         thread::sleep(Duration::from_secs(5));
         // get the results of the ssdp discovery

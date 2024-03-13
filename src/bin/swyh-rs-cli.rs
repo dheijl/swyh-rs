@@ -10,7 +10,7 @@ use swyh_rs::{
         StreamingFormat::{Flac, Lpcm, Rf64, Wav},
         StreamingState,
     },
-    globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
+    globals::statics::{APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
     utils::{
@@ -24,6 +24,8 @@ use swyh_rs::{
         ui_logger::ui_log,
     },
 };
+
+pub const APP_NAME: &str = "SWYH-RS-CLI";
 
 fn main() -> Result<(), i32> {
     // gracefully exit on Ctrl-C

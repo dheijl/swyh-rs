@@ -38,7 +38,7 @@ winres = "0.1.12"
 bitflags = "2.4.2"
 cpal = "0.15.3"
 crossbeam-channel = "0.5.12"
-ctrlc = { version = "3.4.2", features = ["termination"] }
+ctrlc = { version = "3.4.4", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "5.0.1"
 flac-bound = { version = "0.3.0", default-features = false, features = [
@@ -46,7 +46,7 @@ flac-bound = { version = "0.3.0", default-features = false, features = [
 ] }
 #fltk-flow = "0.1.4"
 htmlescape = "0.3.1"
-if-addrs = "0.11.0"
+if-addrs = "0.11.1"
 lexopt = "0.3.0"
 local-ip-address = { version = "0.6.1", optional = true }
 log = { version = "0.4.21", features = [
@@ -62,7 +62,7 @@ rand = "0.8.5"
 strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
-toml = "0.8.10"
+toml = "0.8.11"
 ureq = { version = "2.9.6", default-features = false, features = [
     "charset",
     "gzip",
@@ -70,14 +70,14 @@ ureq = { version = "2.9.6", default-features = false, features = [
 url = "2.5.0"
 xml-rs = "0.8.19"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.4.25", features = ["use-ninja"], optional = true }
+fltk = { version = "1.4.26", features = ["use-ninja"], optional = true }
 windows = { version = "0.54.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.4.25", features = ["use-ninja"], optional = true }
+fltk = { version = "1.4.26", features = ["use-ninja"], optional = true }
 libc = "0.2.153"
 
 [patch.crates-io]

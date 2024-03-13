@@ -7,11 +7,6 @@ use std::collections::HashMap;
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-/// app name
-#[cfg(feature = "gui")]
-pub const APP_NAME: &str = "SWYH-RS";
-#[cfg(feature = "cli")]
-pub const APP_NAME: &str = "SWYH-RS-CLI";
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;

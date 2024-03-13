@@ -38,7 +38,7 @@ SOFTWARE.
 */
 use swyh_rs::{
     enums::streaming::{StreamingFormat::Flac, StreamingState},
-    globals::statics::{APP_NAME, APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL, SERVER_PORT},
+    globals::statics::{APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL, SERVER_PORT},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
     server::streaming_server::{run_server, StreamerFeedBack},
     ui::mainform::MainForm,
@@ -66,6 +66,8 @@ use std::{
     cell::Cell, collections::HashMap, fs::File, net::IpAddr, path::Path, rc::Rc, thread,
     time::Duration,
 };
+
+pub const APP_NAME: &str = "SWYH-RS";
 
 /// swyh-rs
 ///
@@ -147,11 +149,9 @@ fn main() {
                 audio_output_device = adev;
                 info!("Selected audio source: {}[#{}]", devname, index);
             }
-        } else {
-            if devname == *config.sound_source.as_ref().unwrap() {
-                audio_output_device = adev;
-                info!("Selected audio source: {}", devname);
-            }
+        } else if devname == *config.sound_source.as_ref().unwrap() {
+            audio_output_device = adev;
+            info!("Selected audio source: {}", devname);
         }
         source_names.push(devname);
     }

@@ -3,12 +3,12 @@ use if_addrs::IfAddr;
 use local_ip_address::local_ip;
 #[cfg(feature = "cli")]
 use std::net::IpAddr;
-#[cfg(not(feature = "cli"))]
+#[cfg(feature = "gui")]
 use std::net::{IpAddr, UdpSocket};
 
 /// `get_local_address` - get the local ip address, return an `Option<String>`. when it fails, return `None`.
 #[must_use]
-#[cfg(not(feature = "cli"))]
+#[cfg(feature = "gui")]
 pub fn get_local_addr() -> Option<IpAddr> {
     // bind to IN_ADDR_ANY, can be multiple interfaces/addresses
     // try to connect to Google DNS so that we bind to an interface connected to the internet

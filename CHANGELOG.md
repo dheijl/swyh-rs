@@ -1,14 +1,16 @@
 # swyh-rs Changelog
 
-- 1.10.0-rc1 (unreleased)
+- 1.10.0 (Mar 17 2024 dheijl)
   - CLI: allow to specify a sound source name instead of an index, it can be substring of the name, if you have duplicates append :n to the name where n is a zero-based index
   - PR #118 by @ein-shved:
     - clean up configuration.rs
     - add possibility to specify a configuration file on the commandline
-    - CLI :
+    - CLI: changes to make it easier to run swyh-rs-cli as a service by @ein-shved
       - add possibility to use a minimal configuration and to make the configuration file read-only
       - add nix build files and nix module to run swyh-rs-cli as a service
       - use the local-ip-address crate so that you don't need a "dummy" internet access to Google DNS to locate the default interface for SSDP
+      - new commandline switch -C (--configfile) to specify an alternative pathname of the configfile
+      - switch to serve mode if no player specified
 
 - 1.9.9 (Feb 29 2024 dheijl)
   - fix test compilation (PR #116, thanks @ein-shved)

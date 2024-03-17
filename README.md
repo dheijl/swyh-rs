@@ -8,68 +8,27 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ### Contents
 
+- [Why this SWYH alternative ?](#why-this-swyh-alternative-)
 - [Current release](#current-release)
 - [Changelog](CHANGELOG.md)
-- [Latency, streaming format and stream duration](#latency-and-streaming-format-and-stream-duration)
-- [Building (Wiki)](https://github.com/dheijl/swyh-rs/wiki)
 - [swyh-rs as your local internet radio](#swyh-rs-as-your-local-internet-radio)
-- [Why this SWYH alternative ?](#why-this-swyh-alternative-)
 - [Todo](#todo)
+- [Building (Wiki)](https://github.com/dheijl/swyh-rs/wiki)
 - [Known problems](#known-problems)
 - [Artwork Credits](#artwork-credits)
 - [How does it work](#how-does-it-work)
 - [The CLI binary](#the-cli-binary)
+- [Latency, streaming format and stream duration](#latency-and-streaming-format-and-stream-duration)
 - [Audio quality and Windows WasApi Loopback capture](#audio-quality-and-windows-wasapi-loopback-capture)
 
 ## Current Release
 
-The current release is 1.9.9 with
+The current release is 1.10.0, refer to the [Changelog](CHANGELOG.md) for more details.
 
-- 1.9.9: a configurable HTTP streamsize/chunking per streaming format. **WARNING**: if you're using **WAV** streaming will probably not work until you change the streaming size to a value that your receiver supports.
-- 1.9.8: swyh-rs-cli now also supports setting the volume with -v _n_ or --volume _n_ where n between 0 and 100. Release builds are now optimized (lto="thin", codegen-units=1).
-- 1.9.7: bugfix in getting/setting Sonos volume. This may allow you to control the volume of your Sonos speakers, depending on version/firmware.
-- 1.9.6: Volume sliders are only shown if upnp/dlna GetVolume worked
-- 1.9.5: Volume sliders to control the volume of the players in swyh-rs GUI
-- the possibility to compile swyh-rs with the "NOISE" feature to enable a faint noise instead of silence when using FLAC with no sound playing and you wish to keep the connection alive
-- 1.9.4: New **cargo build features** "_cli_" and "_gui_" to enable building swyh-rs-cli without pulling in fltk and dependencies, and swyh-rs without the CLI specific code. Refer to [Building](https://github.com/dheijl/swyh-rs/wiki) in the Wiki on how to build the gui and cli versions. This means that from 1.9.4 on a simple ```Cargo build``` will only build the swyh-rs GUI version.
-- Recent Sonos firmware now supports FLAC, see issue #75, solving possible stuttering problems with Sonos.
-- When swyh-rs is used as an internet radio, where the client starts streaming without swyh-rs intervention, the URL used by the client now decides what streaming format is used. This works in the GUI and in the CLI, independent of values configured in the CLI or GUI:
-  - /stream/swyh.raw => LPCM 16 bit
-  - /stream/swyh.flac => FLAC 24 bit
-  - /stream/swyh.wav => LPCM 16 bit with a WAV header
-  - /stream/swyh.rf64 => LPCM 16 bit with a WAV/RF64 header  
-- CLI: boolean options no longer take an argument, absent means false, present means true. For options stored in the config you can still use the false argument to disable them. Option -n, -h and -x are not stored in the config file.
-- CLI: a new -x (--serve_only) option for the cli, that lets swyh-rs serve music without running the SSDP discovery and without automatically starting to play. It just sits there waiting for streaming requests. See issue #111.
-- support for the RF64 audio format
-- a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.
-- make the WAV format more compatible. Note that MPD (ffmpeg/wav plugin) tries to use HTTP ranges which are unsupported and this leads to an extra HTTP requests.
-- reduce the HTTP response contentlength header for the WAV format from u64::MAX to u32::MAX. If this makes play stop after some 6 hours just enable autoresume.
-- chunked encoding option removed
-- a fix for issue #107
-- a new button to enable injecting silence (Sonos specific)
-- a fix for QPlay devices (issue #99) like the Xiaomi S12
-- the ability to stream from input devices, thanks to @joshuamegnauth54 (PR #95)
-- **a new CLI binary, swyh-rs-cli**, where the GUI is replaced with command line options
-- **FLAC** support (sorry but 64 bit binaries only as libflac-sys does not build on 32 bit)
-- support for multiple identically named soundcards
-- Sonos fix for pausing audio with the "inject silence" config option
-- support for multiple configurations with a _-c_ commandline switch. Useful if you have multiple audiosources (suggestion by @cavadias).
+## Why this SWYH alternative ?
 
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OpenHome compatible music player (a "Renderer").
-
-## swyh-rs as your local internet radio
-
-You can also use swyh-rs as an internet radio station on your local network. swyh-rs is available at
-
-- http://{your-pc-ip}/stream/swyh.raw when streaming LPCM format
-- http://{your-pc-ip}/stream/swyh.wav when streaming WAV format
-- http://{your-pc-ip}/stream/swyh.rf64 when streaming RF64 format
-- http://{your-pc-ip}/stream/swyh.flac when streaming FLAC format
-
-When running the CLI with the -x option, that is effectively the only way to access the swyh-rs audio server.
-
-## Why this SWYH alternative ?
 
 I wrote this because
 
@@ -119,6 +78,17 @@ For FLAC encoding the of use [flac-bound](https://github.com/nabijaczleweli/flac
 Tested on Windows 10 and on Ubuntu 20.04 LTS (Mint 20) and 22.04 LTS (Mint 21) with Raspberry Pi/Hifi-Berry based devices, currently running MoodeAudio 8.x. I don't have access to a Mac, so I don't know if this also works.
 
 Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 4 MB).
+
+## swyh-rs as your local internet radio
+
+You can also use swyh-rs as an internet radio station on your local network. swyh-rs is available at
+
+- http://{your-pc-ip}/stream/swyh.raw when streaming LPCM format
+- http://{your-pc-ip}/stream/swyh.wav when streaming WAV format
+- http://{your-pc-ip}/stream/swyh.rf64 when streaming RF64 format
+- http://{your-pc-ip}/stream/swyh.flac when streaming FLAC format
+
+When running the CLI with the -x option, that is effectively the only way to access the swyh-rs audio server.
 
 ### Where to get it and how to install
 
@@ -176,8 +146,11 @@ The icon was designed by @numanair, thanks!
   - NoneChunked: no Content-Length, chunked HTTP streaming
   - U32MaxChunked: Content-Length = u32::MAX, chunked HTTP streaming
   - U64MaxChunked: Content-Length = u64::MAX, chunked HTTP streaming
-  - U32MaxNotChunked: Content-Length = u32::MAX -1, no chunking
+  - U32MaxNotChunked: Content-Length = u32::MAX -1, no chunking, default for WAV
   - U64MaxNotChunked: Content-Length = u64::MAX - 1, no chunking
+- Since 1.10.0, contributed by @ein-shved:
+  - there are now build files for the Nix build system and the possibility to install swyh-rs-cli as a service using Nix
+  - a more flexible CLI configuration with new -C (configfile) switch and automatic serve mode is no player specified
 
 ### The CLI binary
 
@@ -191,6 +164,7 @@ Recognized options:
     -h (--help) : print usage
     -n (--no-run) : dry-run mode that exits just before starting to stream
     -c (--config_id) string : config_id [_cli]
+    -C (--configfile) string : alternative full pathname of configfile
     -p (--server_port) u16 : server_port [5901]
     -a (--auto_reconnect) bool : auto reconnect [true]
     -r (--auto_resume) bool : auto_resume [false]

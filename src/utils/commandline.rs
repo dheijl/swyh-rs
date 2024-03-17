@@ -68,6 +68,7 @@ Recognized options:
     -h (--help) : print usage
     -n (--no_run) : dry-run, don't start streaming
     -c (--config_id) string : config_id [_cli]
+    -C (--configfile) string : alternative full pathname of configfile
     -p (--server_port) u16 : server_port [5901]
     -r (--auto_resume) bool : auto_resume [false]
     -s (--sound_source) u16|string  : sound_source index or name [os default]

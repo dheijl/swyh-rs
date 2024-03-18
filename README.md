@@ -168,7 +168,7 @@ Recognized options:
     -p (--server_port) u16 : server_port [5901]
     -a (--auto_reconnect) bool : auto reconnect [true]
     -r (--auto_resume) bool : auto_resume [false]
-    -s (--sound_source) u16 : sound_source index [os default]
+    -s (--sound_source) u16 : sound_source index or name [os default]
     -l (--log_level) string : log_level (info/debug) [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
@@ -180,14 +180,22 @@ Recognized options:
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.
 Most options except -h, -n and -x are saved in the config file, so once a config is working to your liking you no longer have to provide them.
+
 Options -h, -n and -x will ignore the optional boolean argument (true/false) if specified. Specifying the option alone is equivalent to true.
 Other boolean options accept an optional true/false, because they are remembered in the config file and you should be able to change the stored value.
+
 Hint: use the **-n (dry-run) mode** to get the index of the sound source device and the ip address of the receiver that you need to pass as commandline parameter.
+
+You can also specify a sounde source **name** instead of an index, or a unique substring of the name. If you have multiple identically named soundcards, you can append _:n_ to the name, where n is a zero-based index in the duplicates.
+
 Streaming is started automatically, and you can stop and restart streaming with the remote of your player as long as the app is running.
 The only way to stop the cli app is by killing it,  with "CONTROL C" or task manager or any other way you use to kill processes.
 You can run as many instances simultaneously as you like as long as you start each one with its own configuration id value (-c option).
 I suppose you could run it from the command line or as a scheduled task or as an autorun task in Windows or...
-When using the **-x (--serve_only)** option, no SSDP discovery is run, and playing is not started (ignoring the -o option). Instead swyh-rs-cli immediately starts listening for streaming requests from renderers until you terminate it.  
+Since version 1.10.0 you can use Nix to build and install swyh-rs-cli as a service. The Nix files are contributed by @ein-shved. I don't use Nix myself.
+
+When using the **-x (--serve_only)** option, no SSDP discovery is run, and playing is not started (ignoring the -o option). Instead swyh-rs-cli immediately starts listening for streaming requests from renderers until you terminate it.
+If you do not specify a player swyh-rs-cli switches to serve_only mode.
 
 ### Latency and streaming format and stream duration
 

@@ -35,7 +35,7 @@ required-features = ["cli"]
 winres = "0.1.12"
 
 [dependencies]
-bitflags = "2.4.2"
+bitflags = "2.5.0"
 cpal = "0.15.3"
 crossbeam-channel = "0.5.12"
 ctrlc = { version = "3.4.4", features = ["termination"] }
@@ -62,7 +62,7 @@ rand = "0.8.5"
 strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
-toml = "0.8.11"
+toml = "0.8.12"
 ureq = { version = "2.9.6", default-features = false, features = [
     "charset",
     "gzip",

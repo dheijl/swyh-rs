@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
-- 1.10.1 (unreleased)
+- 1.10.1 (Mar 27 2024 dheijl)
+  - CLI: add ordered shutdown on CTRL-C, by telling the streamer to stop before exiting. This should fix #125.
 
 - 1.10.0 (Mar 17 2024 dheijl)
   - CLI: allow to specify a sound source name instead of an index, it can be substring of the name, if you have duplicates append :n to the name where n is a zero-based index

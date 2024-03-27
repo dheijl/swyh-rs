@@ -1,5 +1,16 @@
 #![cfg(feature = "cli")]
-use std::{collections::HashMap, fs::File, net::IpAddr, path::Path, thread, time::Duration};
+use std::{
+    collections::HashMap,
+    fs::File,
+    net::IpAddr,
+    path::Path,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread,
+    time::Duration,
+};
 
 use cpal::traits::StreamTrait;
 use crossbeam_channel::{unbounded, Receiver, Sender};
@@ -28,10 +39,11 @@ use swyh_rs::{
 pub const APP_NAME: &str = "SWYH-RS-CLI";
 
 fn main() -> Result<(), i32> {
+    let shutting_down = Arc::new(AtomicBool::new(false));
     // gracefully exit on Ctrl-C
+    let shutdown = shutting_down.clone();
     ctrlc::set_handler(move || {
-        println!("Received Ctrl+C -> exiting.");
-        std::process::exit(0);
+        shutdown.store(true, Ordering::Relaxed);
     })
     .expect("Error setting Ctrl-C handler");
 
@@ -438,6 +450,14 @@ fn main() -> Result<(), i32> {
             ui_log(&msg);
         }
         thread::sleep(Duration::from_millis(100));
+        if shutting_down.load(Ordering::Relaxed) {
+            println!("Received Ctrl+C -> exiting.");
+            if !serve_only && player.is_some() && CLIENTS.read().len() > 0 {
+                let pl = player.unwrap().clone();
+                pl.stop_play(&ui_log);
+            }
+            std::process::exit(0);
+        }
     }
 }
 

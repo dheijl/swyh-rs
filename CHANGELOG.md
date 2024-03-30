@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.10.2 (unreleased)
+
 - 1.10.1 (Mar 27 2024 dheijl)
   - CLI: add ordered shutdown on CTRL-C, by telling the streamer to stop before exiting. This should fix #125.
 

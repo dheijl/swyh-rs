@@ -340,9 +340,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.26"
+version = "1.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8be71e3609a579ca4d917323ceb78325a8b5516db4aa6c365ff9e870e38f2da"
+checksum = "8c3edc8b83f63e3c6f1af2539ed7532961c071b08e5c81d361766fd0b8bdfdb8"
 dependencies = [
  "bitflags 2.5.0",
  "crossbeam-channel",
@@ -353,9 +353,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.26"
+version = "1.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da6332e318d10fbb52213cfd78e934b608bff8450cbb63ee512ccc3d4efcdefe"
+checksum = "5e4fcd21df2112d5d73d9b2abf966bf9ad0570a081d3eb6318ff2d18ecba6f68"
 dependencies = [
  "cmake",
 ]
@@ -416,9 +416,9 @@ dependencies = [
 
 [[package]]
 name = "if-addrs"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "624c5448ba529e74f594c65b7024f31b2de7b64a9b228b8df26796bbb6e32c36"
+checksum = "bb2a33e9c38988ecbda730c85b0fd9ddcdf83c0305ac7fd21c8bb9f57f2f0cc8"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
@@ -535,13 +535,12 @@ dependencies = [
 
 [[package]]
 name = "libredox"
-version = "0.0.1"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85c833ca1e66078851dba29046874e38f08b2c883700aa29a03ddd3b23814ee8"
+checksum = "c0ff37bd590ca25063e35af745c343cb7a0271906fb7b37e4813e8f79f00268d"
 dependencies = [
  "bitflags 2.5.0",
  "libc",
- "redox_syscall",
 ]
 
 [[package]]
@@ -893,9 +892,9 @@ dependencies = [
 
 [[package]]
 name = "redox_users"
-version = "0.4.4"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a18479200779601e498ada4e8c1e1f50e3ee19deb0259c25825a98b5603b2cb4"
+checksum = "bd283d9651eeda4b2a83a43c1c91b266c40fd76ecd39a50a8c630ae69dc72891"
 dependencies = [
  "getrandom",
  "libredox",
@@ -1646,6 +1645,6 @@ dependencies = [
 
 [[package]]
 name = "xml-rs"
-version = "0.8.19"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fcb9cbac069e033553e8bb871be2fbdffcab578eb25bd0f7c508cedc6dcd75a"
+checksum = "791978798f0597cfc70478424c2b4fdc2b7a8024aaff78497ef00f24ef674193"

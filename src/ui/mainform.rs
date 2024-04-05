@@ -619,7 +619,7 @@ impl MainForm {
         let mut pbut = LightButton::default() // create the button
             .with_size(pbwidth, self.bheight)
             .with_pos(0, 0)
-            .with_align(Align::Center)
+            .with_align(Align::Center | Align::Clip)
             .with_label(&format!(
                 "{} {}",
                 new_renderer.dev_model, new_renderer.dev_name

@@ -450,11 +450,31 @@ fn main() -> Result<(), i32> {
             ui_log(&msg);
         }
         thread::sleep(Duration::from_millis(100));
+        // handle CTL-C interrupt: shutdown the player
         if shutting_down.load(Ordering::Relaxed) {
-            println!("Received Ctrl+C -> exiting.");
+            println!("Received ^C -> exiting.");
             if !serve_only && player.is_some() && CLIENTS.read().len() > 0 {
                 let pl = player.unwrap().clone();
+                println!("^C: Stopping streaming to {}", pl.dev_name);
                 pl.stop_play(&ui_log);
+                // also wait some time for the player to drop the HTTP streaming connection
+                println!(
+                    "^C: Waiting for HTTP streaming to {} to end.",
+                    pl.remote_addr
+                );
+                for _ in 0..100 {
+                    if CLIENTS.read().len() == 0 {
+                        println!(
+                            "^C: HTTP streaming connection with {} closed.",
+                            pl.remote_addr
+                        );
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(100));
+                }
+                if CLIENTS.read().len() > 0 {
+                    println!("^C: Time-out waiting for HTTP streaming shutdown - exiting.");
+                }
             }
             std::process::exit(0);
         }

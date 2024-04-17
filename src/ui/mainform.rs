@@ -95,7 +95,8 @@ impl MainForm {
             match ev {
                 Event::Close => {
                     app.quit();
-                    std::process::exit(0);
+                    //std::process::exit(0);
+                    true
                 }
                 _ => false,
             }

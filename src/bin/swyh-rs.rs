@@ -326,6 +326,25 @@ fn main() {
             mf.add_log_msg(&msg);
         }
     } // while app::wait()
+      // if anyone is still streaming: stop them first
+    for button in mf.buttons.iter() {
+        if button.1.is_set() {
+            if let Some(r) = renderers.iter().find(|r| r.remote_addr == *button.0) {
+                r.stop_play(&ui_log);
+            }
+        }
+    }
+    // and now wait some time for them to stop the HTTP streaming connection
+    for _ in 0..100 {
+        if CLIENTS.read().len() == 0 {
+            ui_log("No active HTTP streaming connections - exiting.");
+            break;
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    if CLIENTS.read().len() > 0 {
+        ui_log("Time-out waiting for HTTP streaming shutdown - exiting.");
+    }
 }
 
 fn app_restart(mf: &MainForm) -> i32 {

@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
-- 1.10.3 (unreleased)
+- 1.10.3 (Apr 82024 dheijl)
+  - GUI: try to stop any players still streaming when the swyh-rs windows is closed. If the players don't stop streaming voluntarily exit anyway (after a 5 second time-out).
 
 - 1.10.2 (Apr 8 2024 dheijl)
   - clip player button text

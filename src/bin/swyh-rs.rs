@@ -334,16 +334,16 @@ fn main() {
             }
         }
     }
-    // and now wait some time for them to stop the HTTP streaming connection
-    for _ in 0..100 {
+    // and now wait some time for them to stop the HTTP streaming connection too
+    for _ in 0..50 {
         if CLIENTS.read().len() == 0 {
-            ui_log("No active HTTP streaming connections - exiting.");
+            info!("No active HTTP streaming connections - exiting.");
             break;
         }
         thread::sleep(Duration::from_millis(100));
     }
     if CLIENTS.read().len() > 0 {
-        ui_log("Time-out waiting for HTTP streaming shutdown - exiting.");
+        info!("Time-out waiting for HTTP streaming shutdown - exiting.");
     }
 }
 

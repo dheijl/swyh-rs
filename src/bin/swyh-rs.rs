@@ -326,13 +326,22 @@ fn main() {
             mf.add_log_msg(&msg);
         }
     } // while app::wait()
-      // if anyone is still streaming: stop them first
+
+    // if anyone is still streaming: stop them first
+    let mut active_players: Vec<String> = Vec::new();
     for button in mf.buttons.iter() {
         if button.1.is_set() {
             if let Some(r) = renderers.iter().find(|r| r.remote_addr == *button.0) {
+                active_players.push(r.remote_addr.clone());
                 r.stop_play(&ui_log);
             }
         }
+    }
+    // remeber active players in config for auto_reconnect
+    {
+        let mut config = CONFIG.write();
+        config.active_renderers = active_players;
+        let _ = config.update_config();
     }
     // and now wait some time for them to stop the HTTP streaming connection too
     for _ in 0..50 {

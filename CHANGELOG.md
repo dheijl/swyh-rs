@@ -1,8 +1,9 @@
 # swyh-rs Changelog
 
-- 1.10.4 (unreleased)
+- 1.10.4 (Apr 23 2024 dheijl)
+  - GUI: autoreconnect now works for multiple players. When you close swyh-rs (GUI) any players still active will be remembered in the config before they are stopped. This should fix issue #129. CLI is unaffected by this change.
 
-- 1.10.3 (Apr 82024 dheijl)
+- 1.10.3 (Apr 8 2024 dheijl)
   - GUI: try to stop any players still streaming when the swyh-rs windows is closed. If the players don't stop streaming voluntarily exit anyway (after a 5 second time-out).
 
 - 1.10.2 (Apr 8 2024 dheijl)

@@ -11,10 +11,6 @@ readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[profile.release]
-codegen-units = 1
-lto = "thin"
-
 [features]
 gui = ["dep:fltk"]
 cli = ["dep:local-ip-address"]

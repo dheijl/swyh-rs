@@ -24,7 +24,7 @@ use fltk::{
     window::DoubleWindow,
 };
 //use fltk_flow::Flow;
-use log::{debug, LevelFilter};
+use log::{debug, info, LevelFilter};
 use parking_lot::Mutex;
 use std::{cell::Cell, collections::HashMap, net::IpAddr, rc::Rc, str::FromStr};
 
@@ -697,11 +697,16 @@ impl MainForm {
             .insert(new_renderer.remote_addr.clone(), pbut.clone()); // and keep a reference to it for bookkeeping
         app::redraw();
         // check if autoreconnect is set for this renderer
-        if self.auto_reconnect.is_set()
-            && pbut.label() == *CONFIG.read().last_renderer.as_ref().unwrap()
-        {
-            pbut.turn_on(true);
-            pbut.do_callback();
+        if self.auto_reconnect.is_set() {
+            let active_players = CONFIG.read().active_renderers.clone();
+            info!("AutoReconnect: Active Renderers = {:?}", active_players);
+            if active_players
+                .iter()
+                .any(|p| *p == new_renderer.remote_addr)
+            {
+                pbut.turn_on(true);
+                pbut.do_callback();
+            }
         }
     }
 }

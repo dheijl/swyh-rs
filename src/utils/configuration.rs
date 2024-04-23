@@ -98,6 +98,8 @@ pub struct Configuration {
     pub inject_silence: Option<bool>,
     #[serde(alias = "LastRenderer", default)]
     pub last_renderer: Option<String>,
+    #[serde(alias = "ActiveRenderers", default)]
+    pub active_renderers: Vec<String>,
     #[serde(alias = "LastNetwork", default)]
     pub last_network: Option<String>,
     #[serde(alias = "ConfigDir", default)]
@@ -137,6 +139,7 @@ impl Configuration {
             capture_timeout: Some(2000),
             inject_silence: Some(false),
             last_renderer: None,
+            active_renderers: Vec::new(),
             last_network: None,
             config_dir: Self::get_config_dir(),
             config_id: Some(Self::get_config_id()),

@@ -52,9 +52,9 @@ checksum = "f1fdabc7756949593fe60f30ec81974b613357de856987752631dea1e3394c80"
 
 [[package]]
 name = "base64"
-version = "0.21.7"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
+checksum = "9475866fec1451be56a3c2400fd081ff546538961565ccb5b7142cbd22bc7a51"
 
 [[package]]
 name = "bindgen"
@@ -341,9 +341,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.28"
+version = "1.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1a1a1f12e65dffb4cc653584d064e7f8ba85b68409b5b83b3132a2c68bad28c"
+checksum = "c1c0639e68289e58cdbc1cf93713b2e9b2aab551bedd4616ae51ce55aa8054e6"
 dependencies = [
  "bitflags 2.5.0",
  "crossbeam-channel",
@@ -354,9 +354,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.28"
+version = "1.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7648b69ab9ac05bd7efe7c5bced6a561aa540d8a969e36baf77a96b0a661d884"
+checksum = "f4d8e7a6651c3a838f9dfffdfc415543aecb843f36d062bd2e3f6467121a5d65"
 dependencies = [
  "cmake",
 ]
@@ -1244,9 +1244,9 @@ dependencies = [
 
 [[package]]
 name = "ureq"
-version = "2.9.6"
+version = "2.9.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11f214ce18d8b2cbe84ed3aa6486ed3f5b285cf8d8fbdbce9f3f767a724adc35"
+checksum = "d11a831e3c0b56e438a28308e7c810799e3c118417f342d30ecec080105395cd"
 dependencies = [
  "base64",
  "encoding_rs",
@@ -1360,35 +1360,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "winapi"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
-dependencies = [
- "winapi-i686-pc-windows-gnu",
- "winapi-x86_64-pc-windows-gnu",
-]
-
-[[package]]
-name = "winapi-i686-pc-windows-gnu"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
-
-[[package]]
 name = "winapi-util"
-version = "0.1.6"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f29e6f9198ba0d26b4c9f07dbe6f9ed633e1f3d5b8b414090084349e46a52596"
+checksum = "4d4cc384e1e73b93bafa6fb4f1df8c41695c8a91cf9c4c64358067d15a7b6c6b"
 dependencies = [
- "winapi",
+ "windows-sys 0.52.0",
 ]
-
-[[package]]
-name = "winapi-x86_64-pc-windows-gnu"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"

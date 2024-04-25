@@ -11,6 +11,10 @@ readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.release]
+codegen-units = 1
+lto = "thin"
+
 [features]
 gui = ["dep:fltk"]
 cli = ["dep:local-ip-address"]
@@ -59,21 +63,21 @@ strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
 toml = "0.8.12"
-ureq = { version = "2.9.6", default-features = false, features = [
+ureq = { version = "2.9.7", default-features = false, features = [
     "charset",
     "gzip",
 ] }
 url = "2.5.0"
 xml-rs = "0.8.20"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.4.28", features = ["use-ninja"], optional = true }
+fltk = { version = "1.4.29", features = ["use-ninja"], optional = true }
 windows = { version = "0.56.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.4.28", features = ["use-ninja"], optional = true }
+fltk = { version = "1.4.29", features = ["use-ninja"], optional = true }
 libc = "0.2.153"
 
 [patch.crates-io]

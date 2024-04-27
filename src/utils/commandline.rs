@@ -25,6 +25,7 @@ pub struct Args {
     pub stream_size: Option<StreamSize>,
     pub player_ip: Option<String>,
     pub ip_address: Option<String>,
+    pub active_players: Option<Vec<String>>,
     pub inject_silence: Option<bool>,
     pub serve_only: Option<bool>,
     pub volume: Option<u8>,
@@ -54,6 +55,7 @@ impl Args {
             stream_size: None,
             player_ip: None,
             ip_address: None,
+            active_players: None,
             inject_silence: None,
             serve_only: None,
             volume: None,
@@ -77,7 +79,7 @@ Recognized options:
     -b (--bits) u16 : bits_per_sample (16/24) [16]
     -f (--format) string : streaming_format (lpcm/flac/wav/rf64) [LPCM]
        optionally followed by a plus sign and a streamsize[LPCM+U64maxNotChunked] 
-    -o (--player_ip) string : the player ip address [last used player]
+    -o (--player_ip) string : (comma-seperated) player ip address(es) [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
     -S (--inject_silence) bool : inject silence into stream (bool) [false]
     -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
@@ -218,7 +220,18 @@ Recognized options:
                 }
                 Short('o') | Long("player") => {
                     if let Ok(player) = argparser.value() {
-                        self.player_ip = Some(player.string().unwrap_or_default());
+                        let mut active_players: Vec<String> = Vec::new();
+                        let output = player.string().unwrap_or_default();
+                        if output.contains(',') {
+                            let parts: Vec<&str> = output.split(',').collect();
+                            active_players = parts.into_iter().map(|x| x.to_string()).collect();
+                            self.player_ip = Some(active_players[0].clone());
+                            self.active_players = Some(active_players);
+                        } else {
+                            self.player_ip = Some(output.clone());
+                            active_players.push(output);
+                            self.active_players = Some(active_players);
+                        }
                     }
                 }
                 Short('e') | Long("ip_address") => {

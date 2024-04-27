@@ -351,10 +351,12 @@ fn main() -> Result<(), i32> {
             config.last_renderer = Some(player.unwrap().remote_addr.clone());
         }
         ui_log(&format!(
-            "Selected player with ip = {}",
+            "Default player ip = {}",
             player.unwrap().remote_addr
         ));
     }
+
+    config.active_renderers = args.active_players.unwrap_or_default().clone();
 
     // update config with new args
     let _ = config.update_config();
@@ -392,20 +394,27 @@ fn main() -> Result<(), i32> {
         let port = config.server_port.unwrap_or(5901);
         ui_log(&format!("Serving started on port {port}..."));
     } else {
-        let mut pl = player.unwrap().clone();
-        if let Some(vol) = args.volume {
-            if pl.get_volume(&ui_log) > -1 {
-                pl.set_volume(&ui_log, vol.into());
+        for ip in config.active_renderers {
+            if let Some(pl) = renderers
+                .iter()
+                .find(|&renderer| renderer.remote_addr == ip)
+            {
+                let mut player = pl.clone();
+                if let Some(vol) = args.volume {
+                    if player.get_volume(&ui_log) > -1 {
+                        player.set_volume(&ui_log, vol.into());
+                    }
+                }
+                let _ = player.play(
+                    &local_addr,
+                    config.server_port.unwrap_or(5901),
+                    &ui_log,
+                    streaminfo,
+                );
+                let pl_name = &player.dev_url;
+                ui_log(&format!("Playing to {pl_name}"));
             }
         }
-        let _ = pl.play(
-            &local_addr,
-            config.server_port.unwrap_or(5901),
-            &ui_log,
-            streaminfo,
-        );
-        let pl_name = &pl.dev_url;
-        ui_log(&format!("Playing to {pl_name}"));
     }
 
     loop {

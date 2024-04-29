@@ -1,6 +1,5 @@
 #![cfg(feature = "cli")]
 use std::{
-    collections::HashMap,
     fs::File,
     net::IpAddr,
     path::Path,
@@ -14,6 +13,7 @@ use std::{
 
 use cpal::traits::StreamTrait;
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use hashbrown::HashMap;
 use log::{debug, error, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use swyh_rs::{

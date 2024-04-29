@@ -6,9 +6,10 @@
 ///
 use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
 use bitflags::bitflags;
+use hashbrown::HashMap;
 use log::{debug, error, info};
+use std::collections::HashMap as StrHashMap;
 use std::{
-    collections::HashMap,
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
@@ -336,7 +337,7 @@ impl Renderer {
         streaminfo: StreamInfo,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
-        let mut fmt_vars = HashMap::new();
+        let mut fmt_vars = StrHashMap::new();
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let addr = format!("{local_addr}:{server_port}");
 
@@ -414,7 +415,11 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn oh_play(&self, log: &dyn Fn(&str), fmt_vars: &HashMap<String, String>) -> Result<(), &str> {
+    fn oh_play(
+        &self,
+        log: &dyn Fn(&str),
+        fmt_vars: &StrHashMap<String, String>,
+    ) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         self.oh_stop_play(log);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
@@ -455,7 +460,11 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn av_play(&self, log: &dyn Fn(&str), fmt_vars: &HashMap<String, String>) -> Result<(), &str> {
+    fn av_play(
+        &self,
+        log: &dyn Fn(&str),
+        fmt_vars: &StrHashMap<String, String>,
+    ) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(log);

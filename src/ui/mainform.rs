@@ -24,9 +24,10 @@ use fltk::{
     window::DoubleWindow,
 };
 //use fltk_flow::Flow;
+use hashbrown::HashMap;
 use log::{debug, info, LevelFilter};
 use parking_lot::Mutex;
-use std::{cell::Cell, collections::HashMap, net::IpAddr, rc::Rc, str::FromStr};
+use std::{cell::Cell, net::IpAddr, rc::Rc, str::FromStr};
 
 pub struct MainForm {
     pub wind: DoubleWindow,

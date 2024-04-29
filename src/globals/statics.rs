@@ -1,9 +1,9 @@
 use crate::utils::{configuration::Configuration, rwstream::ChannelStream};
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use hashbrown::HashMap;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
-use std::collections::HashMap;
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");

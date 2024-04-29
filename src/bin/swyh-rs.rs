@@ -60,12 +60,10 @@ use fltk::{
     misc::Progress,
     prelude::{ButtonExt, WidgetExt},
 };
+use hashbrown::HashMap;
 use log::{debug, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
-use std::{
-    cell::Cell, collections::HashMap, fs::File, net::IpAddr, path::Path, rc::Rc, thread,
-    time::Duration,
-};
+use std::{cell::Cell, fs::File, net::IpAddr, path::Path, rc::Rc, thread, time::Duration};
 
 pub const APP_NAME: &str = "SWYH-RS";
 

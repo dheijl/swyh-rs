@@ -8,7 +8,7 @@ use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
 use bitflags::bitflags;
 use hashbrown::HashMap;
 use log::{debug, error, info};
-use std::collections::HashMap as StrHashMap;
+use std::collections::HashMap as StdHashMap;
 use std::{
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
@@ -337,7 +337,7 @@ impl Renderer {
         streaminfo: StreamInfo,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
-        let mut fmt_vars = StrHashMap::new();
+        let mut fmt_vars = StdHashMap::new();
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let addr = format!("{local_addr}:{server_port}");
 
@@ -418,7 +418,7 @@ impl Renderer {
     fn oh_play(
         &self,
         log: &dyn Fn(&str),
-        fmt_vars: &StrHashMap<String, String>,
+        fmt_vars: &StdHashMap<String, String>,
     ) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         self.oh_stop_play(log);
@@ -463,7 +463,7 @@ impl Renderer {
     fn av_play(
         &self,
         log: &dyn Fn(&str),
-        fmt_vars: &StrHashMap<String, String>,
+        fmt_vars: &StdHashMap<String, String>,
     ) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first

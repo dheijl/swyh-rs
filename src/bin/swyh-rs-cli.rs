@@ -356,7 +356,9 @@ fn main() -> Result<(), i32> {
         ));
     }
 
-    config.active_renderers = args.active_players.unwrap_or_default().clone();
+    config
+        .active_renderers
+        .clone_from(&args.active_players.unwrap_or_default());
 
     // update config with new args
     let _ = config.update_config();

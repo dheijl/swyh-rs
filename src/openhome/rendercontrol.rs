@@ -913,17 +913,17 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                     if service.service_id.contains("Playlist")
                         && service.service_id.contains("urn:av-openhome-org:service")
                     {
-                        renderer.oh_control_url = service.control_url.clone();
+                        renderer.oh_control_url.clone_from(&service.control_url);
                         renderer.supported_protocols |= SupportedProtocols::OPENHOME;
                     } else if service.service_id.contains(":AVTransport") {
-                        renderer.av_control_url = service.control_url.clone();
+                        renderer.av_control_url.clone_from(&service.control_url);
                         renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
                     } else if service.service_id.contains(":Volume")
                         && service.service_id.contains("urn:av-openhome-org:service")
                     {
-                        renderer.oh_volume_url = service.control_url.clone();
+                        renderer.oh_volume_url.clone_from(&service.control_url);
                     } else if service.service_id.contains(":RenderingControl") {
-                        renderer.av_volume_url = service.control_url.clone();
+                        renderer.av_volume_url.clone_from(&service.control_url);
                     }
                     renderer.services.push(service);
                     service = AvService::new();

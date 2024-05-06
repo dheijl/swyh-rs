@@ -9,7 +9,7 @@ use crate::{
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::debug;
-use std::{net::IpAddr, sync::Arc};
+use std::{net::IpAddr, sync::Arc, thread, time::Duration};
 use tiny_http::{Header, Method, Response, Server};
 
 /// streaming state feedback for a client
@@ -181,6 +181,14 @@ pub fn run_server(
                                 streaming_state: StreamingState::Started,
                             })
                             .unwrap();
+
+                        // check for upfront audio buffering needed
+                        if let Some(bufferdelay) = conf.buffering_delay_msec {
+                            if bufferdelay > 0 {
+                                thread::sleep(Duration::from_millis(bufferdelay.into()));
+                            }
+                        }
+
                         let streaming_format = match format {
                             Flac => "audio/FLAC",
                             Wav | Rf64 => "audio/wave;codec=1 (WAV)",

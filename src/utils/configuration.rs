@@ -96,6 +96,8 @@ pub struct Configuration {
     pub capture_timeout: Option<u32>,
     #[serde(alias = "InjectSilence", default)]
     pub inject_silence: Option<bool>,
+    #[serde(alias = "BufferingDelayMSec", default)]
+    pub buffering_delay_msec: Option<u32>,
     #[serde(alias = "LastRenderer", default)]
     pub last_renderer: Option<String>,
     #[serde(alias = "ActiveRenderers", default)]
@@ -138,6 +140,7 @@ impl Configuration {
             monitor_rms: false,
             capture_timeout: Some(2000),
             inject_silence: Some(false),
+            buffering_delay_msec: Some(0),
             last_renderer: None,
             active_renderers: Vec::new(),
             last_network: None,
@@ -209,6 +212,10 @@ impl Configuration {
         }
         if config.configuration.inject_silence.is_none() {
             config.configuration.inject_silence = Some(false);
+            force_update = true;
+        }
+        if config.configuration.buffering_delay_msec.is_none() {
+            config.configuration.buffering_delay_msec = Some(0);
             force_update = true;
         }
         if config.configuration.config_id.is_none() {

@@ -500,6 +500,33 @@ impl MainForm {
             }
         });
         pconfig3.add(&ss_choice);
+
+        let label_ms = Frame::default().with_label("                   Inital buffer (msec): ");
+        pconfig3.add(&label_ms);
+        let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
+        upfront_buffer_ms.set_maximum_size(5);
+        let b_config = config.buffering_delay_msec.unwrap_or_default();
+        upfront_buffer_ms.set_value(&b_config.to_string());
+        upfront_buffer_ms.set_callback({
+            move |i| {
+                let mut b: i32 = i.value().parse().unwrap();
+                if b < 0 {
+                    i.set_value(&0i32.to_string());
+                    return;
+                }
+                if b > 5_000 {
+                    i.set_value(&5_000i32.to_string());
+                    b = 5_000;
+                }
+                if b as u32 != b_config {
+                    let mut conf = CONFIG.write();
+                    conf.buffering_delay_msec = Some(b as u32);
+                    let _ = conf.update_config();
+                }
+            }
+        });
+        pconfig3.add(&upfront_buffer_ms);
+
         pconfig3.auto_layout();
         pconfig3.make_resizable(false);
         vpack.add(&pconfig3);

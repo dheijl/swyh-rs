@@ -288,6 +288,10 @@ fn main() -> Result<(), i32> {
         }
     }
 
+    if args.upfront_buffer.is_some() {
+        config.buffering_delay_msec = args.upfront_buffer;
+    }
+
     // update config with new args
     let _ = config.update_config();
     // update in_memory shared config for other threads

@@ -29,6 +29,7 @@ pub struct Args {
     pub inject_silence: Option<bool>,
     pub serve_only: Option<bool>,
     pub volume: Option<u8>,
+    pub upfront_buffer: Option<u32>,
 }
 
 impl Default for Args {
@@ -59,6 +60,7 @@ impl Args {
             inject_silence: None,
             serve_only: None,
             volume: None,
+            upfront_buffer: None,
         }
     }
 
@@ -84,6 +86,7 @@ Recognized options:
     -S (--inject_silence) bool : inject silence into stream (bool) [false]
     -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
     -v (--volume) u8 : desired player volume between 0 and 100 [unchanged]
+    -u (--upfront_buffer) u32 : initial buffering in milliseconds [0]
 "#
         );
         println!("{self:?}");
@@ -262,6 +265,12 @@ Recognized options:
                         if v <= 100 {
                             self.volume = Some(v);
                         }
+                    }
+                }
+                Short('u') | Long("initial_buffer") => {
+                    if let Ok(buffer) = argparser.value() {
+                        let b: u32 = buffer.parse().unwrap();
+                        self.upfront_buffer = Some(b);
                     }
                 }
                 _ => (),

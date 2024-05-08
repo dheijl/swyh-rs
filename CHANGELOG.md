@@ -3,6 +3,8 @@
 - 1.10.5 (unreleased)
   - CLI: the -o option now accepts multiple player ip addresses seperated by a comma. Ignored in serve-only (-x) mode.
   - use hashbrown HashMap where possible
+  - don't blow up memory if the streaming stalls, but discard samples
+  - add a configurable "up-front" samples buffering before streaming actually starts, it may help to prevent stuttering with some configurations
 
 - 1.10.4 (Apr 23 2024 dheijl)
   - GUI: autoreconnect now works for multiple players. When you close swyh-rs (GUI) any players still active will be remembered in the config before they are stopped. This should fix issue #129. CLI is unaffected by this change.

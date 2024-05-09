@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.10.5 (unreleased)
+- 1.10.5 (May 9 2024 dheijl)
   - CLI: the -o option now accepts multiple player ip addresses seperated by a comma. Ignored in serve-only (-x) mode.
   - use hashbrown HashMap where possible
   - don't blow up memory if the streaming stalls, but discard samples

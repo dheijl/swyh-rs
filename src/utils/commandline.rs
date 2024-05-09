@@ -267,7 +267,7 @@ Recognized options:
                         }
                     }
                 }
-                Short('u') | Long("initial_buffer") => {
+                Short('u') | Long("upfront_buffer") => {
                     if let Ok(buffer) = argparser.value() {
                         let b: u32 = buffer.parse().unwrap();
                         self.upfront_buffer = Some(b);

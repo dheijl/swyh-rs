@@ -23,7 +23,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.10.4, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is 1.10.5, refer to the [Changelog](CHANGELOG.md) for more details.
 
 ## Why this SWYH alternative ?
 
@@ -152,6 +152,7 @@ The icon was designed by @numanair, thanks!
 - Since 1.10.0, contributed by @ein-shved:
   - there are now build files for the Nix build system and the possibility to install swyh-rs-cli as a service using Nix
   - a more flexible CLI configuration with new -C (configfile) switch and automatic serve mode is no player specified
+- Since 1.10.5 you can enable **initial buffering** audio for a number of milliseconds before streaming starts, this may help to prevent stuttering on flaky (WiFi) networks or with streamers that don't have a configurable buffer size or that have a flaky system clock.
 
 ### The CLI binary
 
@@ -177,6 +178,7 @@ Recognized options:
     -o (--player_ip) string : the player ip address [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
     -x (--serve_only) bool : skip ssdp discovery and start serving immediately [false]
+    -u (--upfront-buffer) i32: initial audio bufferign before streaming starts [0]
 ```
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.

@@ -13,7 +13,7 @@ use fltk::{
     button::{CheckButton, LightButton},
     enums::{Align, Color, Event, FrameType},
     frame::Frame,
-    group::{Pack, PackType},
+    group::{Flex, FlexType, Pack, PackType},
     image::SvgImage,
     input::IntInput,
     menu::MenuButton,
@@ -103,14 +103,15 @@ impl MainForm {
             }
         });
 
-        let mut vpack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
-        vpack.make_resizable(false);
+        let mut vpack: Pack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
+        vpack.make_resizable(true);
+        vpack.set_type(PackType::Vertical);
         vpack.set_spacing(15);
         vpack.end();
         wind.add(&vpack);
 
         // title frame
-        let mut p1 = Pack::new(0, 0, GW, 25, "");
+        let mut p1 = Flex::new(0, 0, GW, 25, "");
         p1.end();
         let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
         opt_frame.set_frame(FrameType::BorderBox);
@@ -122,7 +123,7 @@ impl MainForm {
         // show config option widgets
 
         // network selection
-        let mut pnw = Pack::new(0, 0, GW, 25, "");
+        let mut pnw = Flex::new(0, 0, GW, 25, "");
         pnw.end();
         let cur_nw = {
             if config.last_network.is_none() {
@@ -170,7 +171,7 @@ impl MainForm {
         vpack.add(&pnw);
 
         // setup audio source choice
-        let mut pas = Pack::new(0, 0, GW, 25, "");
+        let mut pas = Flex::new(0, 0, GW, 25, "");
         pas.end();
         let cur_audio_src = format!("Audio Source: {}", config.sound_source.as_ref().unwrap());
         ui_log("Setup audio sources");
@@ -215,9 +216,9 @@ impl MainForm {
         vpack.add(&pas);
 
         // all other options
-        let mut pconfig1 = Pack::new(0, 0, GW, 20, "");
+        let mut pconfig1 = Flex::new(0, 0, GW, 20, "");
         pconfig1.set_spacing(10);
-        pconfig1.set_type(PackType::Horizontal);
+        pconfig1.set_type(FlexType::Row);
         pconfig1.end();
 
         // auto_resume button for AVTransport autoresume play
@@ -311,17 +312,17 @@ impl MainForm {
             }
         });
         pconfig1.add(&log_level_choice);
-        pconfig1.auto_layout();
-        pconfig1.make_resizable(false);
+        //pconfig1.auto_layout();
+        pconfig1.make_resizable(true);
         vpack.add(&pconfig1);
         // spacer
-        let mut pspacer = Pack::new(0, 0, GW, 10, "");
-        pspacer.make_resizable(false);
+        let mut pspacer = Flex::new(0, 0, GW, 10, "");
+        pspacer.make_resizable(true);
         vpack.add(&pspacer);
 
-        let mut pconfig2 = Pack::new(0, 0, GW, 20, "");
+        let mut pconfig2 = Flex::new(0, 0, GW, 20, "");
         pconfig2.set_spacing(10);
-        pconfig2.set_type(PackType::Horizontal);
+        pconfig2.set_type(FlexType::Row);
         pconfig2.end();
 
         // streaming format
@@ -432,14 +433,14 @@ impl MainForm {
         });
         pconfig2.add(&inj_silence);
 
-        pconfig2.auto_layout();
-        pconfig2.make_resizable(false);
+        //pconfig2.auto_layout();
+        pconfig2.make_resizable(true);
         vpack.add(&pconfig2);
 
         // streaming content length and chunking
-        let mut pconfig3 = Pack::new(0, 0, GW, 20, "");
+        let mut pconfig3 = Flex::new(0, 0, GW, 20, "");
         pconfig3.set_spacing(10);
-        pconfig3.set_type(PackType::Horizontal);
+        pconfig3.set_type(FlexType::Row);
         pconfig3.end();
 
         let streamsize = if let Some(fmt) = config.streaming_format {
@@ -501,7 +502,7 @@ impl MainForm {
         });
         pconfig3.add(&ss_choice);
 
-        let label_ms = Frame::default().with_label("                   Inital buffer (msec): ");
+        let label_ms = Frame::default().with_label("                       Inital buffer (msec): ");
         pconfig3.add(&label_ms);
         let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
         upfront_buffer_ms.set_maximum_size(5);
@@ -527,14 +528,14 @@ impl MainForm {
         });
         pconfig3.add(&upfront_buffer_ms);
 
-        pconfig3.auto_layout();
-        pconfig3.make_resizable(false);
+        //pconfig3.auto_layout();
+        pconfig3.make_resizable(true);
         vpack.add(&pconfig3);
 
         // RMS animation
-        let mut pconfig4 = Pack::new(0, 0, GW, 20, "");
+        let mut pconfig4 = Flex::new(0, 0, GW, 20, "");
         pconfig4.set_spacing(10);
-        pconfig4.set_type(PackType::Horizontal);
+        pconfig4.set_type(FlexType::Row);
         pconfig4.end();
         // RMS animation enable checkbox
         let mut show_rms = CheckButton::new(0, 0, 0, 0, "RMS Monitor");
@@ -568,22 +569,22 @@ impl MainForm {
         });
         pconfig4.add(&show_rms);
         // vertical pack for the RMS meters
-        let mut pconfig3_v = Pack::new(0, 0, GW, 16, "");
+        let mut pconfig3_v = Flex::new(0, 0, GW, 16, "");
         pconfig3_v.set_spacing(4);
-        pconfig3_v.set_type(PackType::Vertical);
+        pconfig3_v.set_type(FlexType::Column);
         pconfig3_v.end();
         pconfig3_v.add(&rms_mon_l);
         pconfig3_v.add(&rms_mon_r);
-        pconfig3_v.auto_layout();
-        pconfig3_v.make_resizable(false);
+        //pconfig3_v.auto_layout();
+        pconfig3_v.make_resizable(true);
         pconfig4.add(&pconfig3_v);
 
-        pconfig4.auto_layout();
-        pconfig4.make_resizable(false);
+        //pconfig4.auto_layout();
+        pconfig4.make_resizable(true);
         vpack.add(&pconfig4);
 
         // show renderer buttons title with our local ip address
-        let mut pbuttons = Pack::new(0, 0, GW, 25, "");
+        let mut pbuttons = Flex::new(0, 0, GW, 25, "");
         pbuttons.end();
         let mut frame = Frame::new(0, 0, FW, 25, "").with_align(Align::Center);
         frame.set_frame(FrameType::BorderBox);
@@ -593,7 +594,7 @@ impl MainForm {
         vpack.add(&pbuttons);
 
         // setup feedback textbox at the bottom
-        let mut pfeedback = Pack::new(0, 0, GW, 156, "");
+        let mut pfeedback = Flex::new(0, 0, GW, 156, "");
         pfeedback.end();
         let buf = TextBuffer::default();
         let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
@@ -690,9 +691,9 @@ impl MainForm {
             }
         });
         // the pack for the new button
-        let mut pbutton = Pack::new(0, 0, self.bwidth, self.bheight, "");
+        let mut pbutton = Flex::new(0, 0, self.bwidth, self.bheight, "");
         pbutton.set_spacing(5);
-        pbutton.set_type(PackType::Horizontal);
+        pbutton.set_type(FlexType::Row);
         pbutton.end();
         // add the renderer button to the window
         pbutton.add(&pbut);

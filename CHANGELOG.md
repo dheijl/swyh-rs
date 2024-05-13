@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.10.6 (unreleased)
+  - make the default streamsize for FLAC NoneChunked
+
 - 1.10.5 (May 9 2024 dheijl)
   - CLI: the -o option now accepts multiple player ip addresses seperated by a comma. Ignored in serve-only (-x) mode.
   - use hashbrown HashMap where possible

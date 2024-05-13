@@ -37,6 +37,9 @@ impl CfgDefaults {
     fn wav_stream_size() -> Option<StreamSize> {
         Some(StreamSize::U32maxNotChunked)
     }
+    fn flac_stream_size() -> Option<StreamSize> {
+        Some(StreamSize::NoneChunked)
+    }
     fn bits_per_sample() -> Option<u16> {
         Some(16)
     }
@@ -82,7 +85,7 @@ pub struct Configuration {
     pub wav_stream_size: Option<StreamSize>,
     #[serde(alias = "RF64StreamSize", default = "CfgDefaults::stream_size")]
     pub rf64_stream_size: Option<StreamSize>,
-    #[serde(alias = "FLACStreamSize", default = "CfgDefaults::stream_size")]
+    #[serde(alias = "FLACStreamSize", default = "CfgDefaults::flac_stream_size")]
     pub flac_stream_size: Option<StreamSize>,
     #[serde(alias = "UseWaveFormat", default)]
     pub use_wave_format: bool,

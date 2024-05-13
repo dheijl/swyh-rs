@@ -55,6 +55,7 @@ It has been tested with
 - iEast Audiocast M5 using the WAV format header (thanks @Katharsas)
 - Yamaha WXAD-10 since 1.6.1 (see issue #89), and possibly other Yamaha devices?
 - for QPlay devices, like the Xiaomi S12, you need version 1.8.2 or later, see issue #99. Older versions wrongly try to use Openhome instead of AVTransport.
+- **Roon** with FLAC and using U32MaxChunked for streamsize (swyh-rs 1.10.5 and up). Thanks to @DrCWO for figuring this out (issue #55).
 
 but any OpenHome/DLNA streamer that supports FLAC (except older Sonos software versions that do not do FLAC over upnp) will probably work (since version 1.4.0).
 

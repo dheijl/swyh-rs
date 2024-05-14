@@ -2,7 +2,6 @@
     "rust-analyzer.cargo.features": [
         "cli",
         "gui",
-        "NOISE",
     ],
     "files.eol": "\n",
 }

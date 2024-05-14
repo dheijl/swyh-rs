@@ -19,7 +19,6 @@ lto = "thin"
 [features]
 gui = ["dep:fltk"]
 cli = ["dep:local-ip-address"]
-NOISE = []
 default = ["gui"]
 
 [[bin]]

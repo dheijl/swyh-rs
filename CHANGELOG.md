@@ -2,6 +2,7 @@
 
 - 1.10.6 (unreleased)
   - make the default streamsize for FLAC NoneChunked
+  - remove the NOISE feature flag: this enables the white noise injection for FLAC if no sound while streaming. Only works if you do not enable "Inject Silence".
 
 - 1.10.5 (May 9 2024 dheijl)
   - CLI: the -o option now accepts multiple player ip addresses seperated by a comma. Ignored in serve-only (-x) mode.

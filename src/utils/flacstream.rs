@@ -1,6 +1,5 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use flac_bound::{FlacEncoder, WriteWrapper};
-#[cfg(feature = "NOISE")]
 use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::{
     io::Write,
@@ -11,7 +10,6 @@ use std::{
     time::Duration,
 };
 
-#[cfg(feature = "NOISE")]
 use crate::utils::ui_logger::ui_log;
 
 const NOISE_PERIOD_MS: u64 = 250; // milliseconds
@@ -108,7 +106,6 @@ impl FlacChannel {
                 // read captured samples and encode
                 let shift = if bps == 24 { 8u8 } else { 16u8 };
                 // create the random generator for the white noise
-                #[cfg(feature = "NOISE")]
                 let mut rng = StdRng::seed_from_u64(79);
                 // init NOISE feature and preallocate the noise buffer
                 const DIVISOR: u64 = 1000 / NOISE_PERIOD_MS;
@@ -129,26 +126,20 @@ impl FlacChannel {
                     } else {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
                         // send very faint noise if no samples for time_out msecs
-                        #[cfg(feature = "NOISE")]
-                        {
-                            // if no samples for a certain time: send a faint white noise
-                            if l_active.load(Relaxed) {
-                                fill_noise_buffer(&mut rng, &mut noise_buf);
-                                let samples = noise_buf
-                                    .iter()
-                                    .map(|s| to_i32_sample(*s) >> shift)
-                                    .collect::<Vec<i32>>();
-                                let res = enc.process_interleaved(
-                                    samples.as_slice(),
-                                    (samples.len() / 2) as u32,
-                                );
-                                if let Err(e) = res {
-                                    ui_log(&format!(
-                                        "Flac encoding error caused by silence {:?}",
-                                        e
-                                    ));
-                                    break;
-                                }
+                        // if no samples for a certain time: send a faint white noise
+                        if l_active.load(Relaxed) {
+                            fill_noise_buffer(&mut rng, &mut noise_buf);
+                            let samples = noise_buf
+                                .iter()
+                                .map(|s| to_i32_sample(*s) >> shift)
+                                .collect::<Vec<i32>>();
+                            let res = enc.process_interleaved(
+                                samples.as_slice(),
+                                (samples.len() / 2) as u32,
+                            );
+                            if let Err(e) = res {
+                                ui_log(&format!("Flac encoding error caused by silence {:?}", e));
+                                break;
                             }
                         }
                     }
@@ -172,9 +163,8 @@ fn to_i32_sample(mut f32_sample: f32) -> i32 {
     }
 }
 
-#[cfg(feature = "NOISE")]
 ///
-/// fille the pre-allocated noise buffer with a very faint white noise (-60db)
+/// fill the pre-allocated noise buffer with a very faint white noise (-60db)
 ///
 fn fill_noise_buffer(rng: &mut StdRng, noise_buf: &mut [f32]) {
     let amplitude: f32 = 0.001;

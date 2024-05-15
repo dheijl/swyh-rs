@@ -164,10 +164,10 @@ fn to_i32_sample(mut f32_sample: f32) -> i32 {
 }
 
 ///
-/// fill the pre-allocated noise buffer with a very faint white noise (-60db)
+/// fill the pre-allocated noise buffer with a very faint white noise (-90db)
 ///
 fn fill_noise_buffer(rng: &mut StdRng, noise_buf: &mut [f32]) {
-    let amplitude: f32 = 0.001;
+    let amplitude: f32 = 0.000_031_62;
     for sample in noise_buf.iter_mut() {
         *sample = ((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude;
     }

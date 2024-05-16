@@ -3,7 +3,6 @@ pub mod bincommon;
 pub mod commandline;
 pub mod configuration;
 pub mod flacstream;
-pub mod i24;
 pub mod local_ip_address;
 pub mod priority;
 pub mod rwstream;

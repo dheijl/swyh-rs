@@ -9,7 +9,7 @@
 /// to the media Renderer
 ///
 */
-use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG, utils::i24::I24Sample};
+use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
 use crossbeam_channel::{Receiver, Sender};
 use dasp_sample::Sample;
 use log::debug;
@@ -136,7 +136,6 @@ impl Read for ChannelStream {
             while i < buf.len() - bytes_per_sample {
                 if let Some(f32sample) = self.fifo.pop_front() {
                     if self.bits_per_sample == 16 {
-                        //let sample: i16 = f32sample.to_i16();
                         let sample = i16::from_sample(f32sample);
                         let b = if self.use_wave_format {
                             sample.to_le_bytes()
@@ -147,15 +146,17 @@ impl Read for ChannelStream {
                         buf[i + 1] = b[1];
                         i += 2;
                     } else {
-                        let sample = f32sample.to_i24();
+                        let sample = i32::from_sample(f32sample) >> 8;
                         if self.use_wave_format {
-                            buf[i] = sample.b3;
-                            buf[i + 1] = sample.b2;
-                            buf[i + 2] = sample.b1;
+                            let b = sample.to_le_bytes();
+                            buf[i] = b[0];
+                            buf[i + 1] = b[1];
+                            buf[i + 2] = b[2];
                         } else {
-                            buf[i] = sample.b1;
-                            buf[i + 1] = sample.b2;
-                            buf[i + 2] = sample.b3;
+                            let b = sample.to_be_bytes();
+                            buf[i] = b[1];
+                            buf[i + 1] = b[2];
+                            buf[i + 2] = b[3];
                         }
                         i += 3;
                     }

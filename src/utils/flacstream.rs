@@ -1,4 +1,5 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use dasp_sample::Sample;
 use flac_bound::{FlacEncoder, WriteWrapper};
 use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::{
@@ -119,7 +120,7 @@ impl FlacChannel {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS);
                         let samples = f32_samples
                             .iter()
-                            .map(|s| to_i32_sample(*s) >> shift)
+                            .map(|s| s.to_sample::<i32>() >> shift)
                             .collect::<Vec<i32>>();
                         enc.process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                             .unwrap();
@@ -131,7 +132,7 @@ impl FlacChannel {
                             fill_noise_buffer(&mut rng, &mut noise_buf);
                             let samples = noise_buf
                                 .iter()
-                                .map(|s| to_i32_sample(*s) >> shift)
+                                .map(|s| s.to_sample::<i32>() >> shift)
                                 .collect::<Vec<i32>>();
                             let res = enc.process_interleaved(
                                 samples.as_slice(),
@@ -151,15 +152,6 @@ impl FlacChannel {
 
     pub fn stop(&self) {
         self.active.store(false, Relaxed);
-    }
-}
-
-fn to_i32_sample(mut f32_sample: f32) -> i32 {
-    f32_sample = f32_sample.clamp(-1.0, 1.0);
-    if f32_sample >= 0.0 {
-        ((f64::from(f32_sample) * f64::from(i32::MAX)) + 0.5) as i32
-    } else {
-        ((f64::from(-f32_sample) * f64::from(i32::MIN)) - 0.5) as i32
     }
 }
 

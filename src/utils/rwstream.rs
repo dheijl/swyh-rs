@@ -339,4 +339,13 @@ mod tests {
         let sb = get_silence_buffer(SAMPLE_RATE, 250);
         assert_eq!(sb.len(), ((SAMPLE_RATE * 2) as u64 / (1000 / 250)) as usize);
     }
+
+    use dasp_sample::{Sample, I24};
+    // just to prove that ((i32 >> 8) & 0xffffff) is indeed I24
+    #[test]
+    fn test_i24() {
+        let sample = i32::from_sample(0x12345678i32);
+        let i24_sample = I24::from_sample(sample);
+        println!("i24: {:X?}", i24_sample);
+    }
 }

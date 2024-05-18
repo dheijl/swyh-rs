@@ -78,7 +78,7 @@ windows = { version = "0.56.0", features = [
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.4.30", features = ["use-ninja"], optional = true }
-libc = "0.2.154"
+libc = "0.2.155"
 
 [patch.crates-io]
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }

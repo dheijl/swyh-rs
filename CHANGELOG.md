@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.10.7 (unreleased)
+
 - 1.10.6 (May 18 2024 dheijl)
   - make the default streamsize for FLAC NoneChunked
   - remove the NOISE feature flag: this enables the white noise injection for FLAC if no sound while streaming. Only works if you do **NOT**** enable "Inject Silence".

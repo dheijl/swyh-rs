@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
 - 1.10.7 (unreleased)
+  - CLI: don't set autoreconnect to true if serve-only (-x) is set, it's meaningless
+  - GUI: changing the StreamSize doesn't need a restart, new connections simply use the new value, active connections are not affected
 
 - 1.10.6 (May 18 2024 dheijl)
   - make the default streamsize for FLAC NoneChunked

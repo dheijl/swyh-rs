@@ -453,8 +453,10 @@ impl MainForm {
         } else {
             StreamSize::U64maxNotChunked
         };
-        let fmt = format!("StreamSize: {streamsize}");
-        let mut ss_choice = MenuButton::default().with_label(&fmt);
+        let fmt = format!("StrmSize: {streamsize}");
+        let mut ss_choice = MenuButton::default()
+            .with_label(&fmt)
+            .with_align(Align::Center | Align::Clip);
         let streamsizes = vec![
             StreamSize::U64maxNotChunked.to_string(),
             StreamSize::NoneChunked.to_string(),
@@ -469,7 +471,6 @@ impl MainForm {
         // probably because it takes some time doing the file I/O, hence recursion lock
         let rlock = Mutex::new(0);
         ss_choice.set_callback({
-            let config_changed = config_changed.clone();
             move |b| {
                 let mut recursion = rlock.lock();
                 if *recursion > 0 {
@@ -483,7 +484,8 @@ impl MainForm {
                 }
                 let newsize = streamsizes[i as usize].clone();
                 ui_log(&format!(
-                    "*W*W*> StreamSize changed to {streamsize}, restart required!!"
+                    "StreamSize for {} changed to {newsize}",
+                    conf.streaming_format.unwrap()
                 ));
                 let streamsize = StreamSize::from_str(&newsize).unwrap();
                 match conf.streaming_format.unwrap() {
@@ -493,8 +495,7 @@ impl MainForm {
                     StreamingFormat::Flac => conf.flac_stream_size = Some(streamsize),
                 }
                 let _ = conf.update_config();
-                config_changed.set(true);
-                let fmt = format!("StreamSize: {newsize}");
+                let fmt = format!("StrmSize: {newsize}");
                 b.set_label(&fmt);
                 app::awake();
                 *recursion -= 1;

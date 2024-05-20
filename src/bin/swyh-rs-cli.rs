@@ -107,8 +107,6 @@ fn main() -> Result<(), i32> {
     if args.inject_silence.is_some() {
         config.inject_silence = args.inject_silence;
     }
-    // autoreconnect is ignored but effectively always on
-    config.auto_reconnect = true;
     // set soundsource index or name
     let audio_devices = get_output_audio_devices();
     if let Some(index) = args.sound_source_index {
@@ -263,7 +261,7 @@ fn main() -> Result<(), i32> {
     if config.last_renderer.is_none() {
         serve_only = true;
     }
-    // set args streaming format
+    // set args autoresume
     config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
     // set args server port
     if args.server_port.is_some() {
@@ -278,7 +276,7 @@ fn main() -> Result<(), i32> {
         config.streaming_format = args.streaming_format;
         config.use_wave_format = [Some(Wav), Some(Rf64)].contains(&config.streaming_format);
     }
-
+    // and stream-size
     if args.streaming_format.is_some() && args.stream_size.is_some() {
         match args.streaming_format.unwrap() {
             Lpcm => config.lpcm_stream_size = args.stream_size,
@@ -287,11 +285,17 @@ fn main() -> Result<(), i32> {
             Rf64 => config.rf64_stream_size = args.stream_size,
         }
     }
-
+    // upfront buffering
     if args.upfront_buffer.is_some() {
         config.buffering_delay_msec = args.upfront_buffer;
     }
-
+    // in serve-only mode (-x): disable auto_reconnect else it's always on
+    if serve_only {
+        config.auto_reconnect = false;
+    } else {
+        // else autoreconnect is always on
+        config.auto_reconnect = true;
+    }
     // update config with new args
     let _ = config.update_config();
     // update in_memory shared config for other threads

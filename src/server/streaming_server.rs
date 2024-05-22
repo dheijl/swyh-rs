@@ -1,10 +1,12 @@
 use crate::{
     enums::streaming::{
-        StreamingFormat::{Flac, Lpcm, Rf64, Wav},
+        BitDepth,
+        StreamingFormat::{self, Flac, Lpcm, Rf64, Wav},
         StreamingState, U64MAXNOTCHUNKED,
     },
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
+    server::query_params::StreamingParams,
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
@@ -31,12 +33,6 @@ pub fn run_server(
     wd: WavData,
     feedback_tx: &Sender<StreamerFeedBack>,
 ) {
-    const VALID_URLS: [&str; 4] = [
-        "/stream/swyh.wav",
-        "/stream/swyh.raw",
-        "/stream/swyh.flac",
-        "/stream/swyh.rf64",
-    ];
     let addr = format!("{local_addr}:{server_port}");
     ui_log(&format!(
         "The streaming server is listening on http://{addr}/stream/swyh.wav"
@@ -85,8 +81,10 @@ pub fn run_server(
                     // don't accept range headers (Linn) until I know how to handle them
                     let acc_rng_hdr =
                         Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap();
+                    // parse the GET request
+                    let sp = StreamingParams::from_query_string(rq.url());
                     // check url
-                    if !VALID_URLS.contains(&rq.url()) {
+                    if sp.path.is_none() {
                         ui_log(&format!(
                             "Unrecognized request '{}' from {}'",
                             rq.url(),
@@ -111,36 +109,26 @@ pub fn run_server(
                     }
                     // prpare streaming headers
                     let conf = CONFIG.read().clone();
-                    let mut format = conf.streaming_format.unwrap_or(Lpcm);
-                    let mut bps = conf.bits_per_sample.unwrap_or(16);
-                    // check if client requests the configured format
-                    let url = rq.url().to_lowercase();
-                    let (req_bps, req_format) = {
-                        if let Some(format_start) = url.find("/stream/swyh.") {
-                            match url.to_lowercase().get(format_start + 13..) {
-                                Some("flac") => (24, Flac),
-                                Some("wav") => (16, Wav),
-                                Some("rf64") => (16, Rf64),
-                                Some("raw") => (16, Lpcm),
-                                None | Some(&_) => (bps, format),
-                            }
-                        } else {
-                            (bps, format)
-                        }
+                    let cf_format = conf.streaming_format.unwrap_or(Lpcm);
+                    let format = if let Some(fmt) = sp.fmt {
+                        fmt
+                    } else {
+                        cf_format
                     };
-                    // if format requested by client differs from config: use requested format
-                    if req_format != format {
-                        debug!("Config: {bps}/{format} <=> Request: {req_bps}/{req_format}");
-                        bps = req_bps;
-                        format = req_format;
-                    }
-                    let ct_text = if format == Flac {
+                    let cf_bps = conf.bits_per_sample.unwrap_or(16);
+                    // check if client requests the configured format
+                    let bps = if let Some(bd) = sp.bd {
+                        bd
+                    } else {
+                        BitDepth::from_u16(cf_bps)
+                    };
+                    let ct_text = if format == StreamingFormat::Flac {
                         "audio/flac".to_string()
-                    } else if format == Wav || format == Rf64 {
+                    } else if format == StreamingFormat::Wav || format == StreamingFormat::Rf64 {
                         "audio/vnd.wave;codec=1".to_string()
                     } else {
                         // LPCM
-                        if bps == 16 {
+                        if bps == BitDepth::Bits16 {
                             format!("audio/L16;rate={};channels=2", wd.sample_rate.0)
                         } else {
                             format!("audio/L24;rate={};channels=2", wd.sample_rate.0)
@@ -165,7 +153,7 @@ pub fn run_server(
                             remote_ip.clone(),
                             conf.use_wave_format,
                             wd.sample_rate.0,
-                            bps,
+                            bps.as_u16(),
                             format,
                         );
                         let nclients = {
@@ -193,7 +181,7 @@ pub fn run_server(
                             Flac => "audio/FLAC",
                             Wav | Rf64 => "audio/wave;codec=1 (WAV)",
                             Lpcm => {
-                                if bps == 16 {
+                                if bps == BitDepth::Bits16 {
                                     "audio/L16 (LPCM)"
                                 } else {
                                     "audio/L24 (LPCM)"

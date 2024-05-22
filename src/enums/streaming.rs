@@ -105,6 +105,23 @@ pub enum BitDepth {
     Bits16,
 }
 
+impl BitDepth {
+    pub(crate) fn from_u16(bps: u16) -> BitDepth {
+        match bps {
+            16 => BitDepth::Bits16,
+            24 => BitDepth::Bits24,
+            _ => BitDepth::Bits16,
+        }
+    }
+
+    pub(crate) fn as_u16(&self) -> u16 {
+        match self {
+            BitDepth::Bits24 => 24,
+            BitDepth::Bits16 => 16,
+        }
+    }
+}
+
 impl fmt::Display for BitDepth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

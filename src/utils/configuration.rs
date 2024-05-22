@@ -136,7 +136,7 @@ impl Configuration {
             lpcm_stream_size: Some(StreamSize::U64maxNotChunked),
             wav_stream_size: Some(StreamSize::U32maxNotChunked),
             rf64_stream_size: Some(StreamSize::U64maxNotChunked),
-            flac_stream_size: Some(StreamSize::U64maxNotChunked),
+            flac_stream_size: Some(StreamSize::NoneChunked),
             use_wave_format: false,
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),

@@ -1,18 +1,62 @@
-use crate::enums::streaming::{BitDepth, StreamSize};
+use crate::enums::streaming::{BitDepth, StreamSize, StreamingFormat};
 use std::str::FromStr;
 
+const VALID_URLS: [&str; 4] = [
+    "/stream/swyh.wav",
+    "/stream/swyh.raw",
+    "/stream/swyh.flac",
+    "/stream/swyh.rf64",
+];
+
+#[derive(Debug, Clone)]
 pub struct StreamingParams {
-    bd: Option<BitDepth>,
-    ss: Option<StreamSize>,
+    pub path: Option<String>,
+    pub bd: Option<BitDepth>,
+    pub ss: Option<StreamSize>,
+    pub fmt: Option<StreamingFormat>,
 }
 
 impl StreamingParams {
     pub fn from_query_string(url: &str) -> StreamingParams {
-        let mut result = StreamingParams { bd: None, ss: None };
-        if !url.contains('?') {
+        let mut result = StreamingParams {
+            path: None,
+            bd: None,
+            ss: None,
+            fmt: None,
+        };
+        if !url.contains('/') {
             return result;
         }
         let parts: Vec<&str> = url.split('?').collect();
+        if parts.is_empty() {
+            return result;
+        }
+        let path = parts[0];
+        if path.is_empty() {
+            return result;
+        }
+        let lc_path = path.to_lowercase();
+        if VALID_URLS.contains(&lc_path.as_str()) {
+            result.path = Some(lc_path.clone());
+        }
+        let (bd, fmt) = {
+            if let Some(format_start) = lc_path.find("/stream/swyh.") {
+                match lc_path.to_lowercase().get(format_start + 13..) {
+                    Some("flac") => (Some(BitDepth::Bits24), Some(StreamingFormat::Flac)),
+                    Some("wav") => (Some(BitDepth::Bits16), Some(StreamingFormat::Wav)),
+                    Some("rf64") => (Some(BitDepth::Bits16), Some(StreamingFormat::Rf64)),
+                    Some("raw") => (Some(BitDepth::Bits16), Some(StreamingFormat::Lpcm)),
+                    None | Some(&_) => (None, None),
+                }
+            } else {
+                (None, None)
+            }
+        };
+        result.bd = bd;
+        result.fmt = fmt;
+        if fmt.is_none() {
+            return result;
+        }
         if parts.len() < 2 {
             return result;
         }
@@ -43,23 +87,40 @@ mod tests {
     use crate::server::query_params::*;
     #[test]
     fn test_parse() {
-        let sp = StreamingParams::from_query_string("/stream/swyh.wav?bd=24&");
+        let sp = StreamingParams::from_query_string("/stream/Swyh.wav?bd=24&");
+        assert_eq!(sp.path, Some("/stream/swyh.wav".to_string()));
         assert_eq!(sp.bd, Some(BitDepth::Bits24));
         assert_eq!(sp.ss, None);
-        let sp = StreamingParams::from_query_string("/stream/swyh.wav?ss=u32maxchunked");
-        assert_eq!(sp.bd, None);
-        assert_eq!(sp.ss, Some(StreamSize::U32maxChunked));
-        let sp = StreamingParams::from_query_string("/stream/swyh.wav?bd=24&ss=u32maxchunked");
+        assert_eq!(sp.fmt, Some(StreamingFormat::Wav));
+        let sp = StreamingParams::from_query_string("/stream/swyh.Flac?ss=u32maxchunked");
+        assert_eq!(sp.path, Some("/stream/swyh.flac".to_string()));
         assert_eq!(sp.bd, Some(BitDepth::Bits24));
         assert_eq!(sp.ss, Some(StreamSize::U32maxChunked));
-        let sp = StreamingParams::from_query_string("/stream/swyh.wav");
+        assert_eq!(sp.fmt, Some(StreamingFormat::Flac));
+        let sp = StreamingParams::from_query_string("/stream/swyh.rf64?bd=24&ss=u32maxchunked");
+        assert_eq!(sp.path, Some("/stream/swyh.rf64".to_string()));
+        assert_eq!(sp.bd, Some(BitDepth::Bits24));
+        assert_eq!(sp.ss, Some(StreamSize::U32maxChunked));
+        assert_eq!(sp.fmt, Some(StreamingFormat::Rf64));
+        let sp = StreamingParams::from_query_string("/stream/swyh.RAW");
+        assert_eq!(sp.path, Some("/stream/swyh.raw".to_string()));
+        assert_eq!(sp.bd, Some(BitDepth::Bits16));
+        assert_eq!(sp.ss, None);
+        assert_eq!(sp.fmt, Some(StreamingFormat::Lpcm));
+        let sp = StreamingParams::from_query_string("/stream/swyh.waf?");
+        assert_eq!(sp.path, None);
         assert_eq!(sp.bd, None);
         assert_eq!(sp.ss, None);
-        let sp = StreamingParams::from_query_string("/stream/swyh.wav?");
-        assert_eq!(sp.bd, None);
-        assert_eq!(sp.ss, None);
+        assert_eq!(sp.fmt, None);
         let sp = StreamingParams::from_query_string("/stream/swyh.wav?&");
+        assert_eq!(sp.path, Some("/stream/swyh.wav".to_string()));
+        assert_eq!(sp.bd, Some(BitDepth::Bits16));
+        assert_eq!(sp.ss, None);
+        assert_eq!(sp.fmt, Some(StreamingFormat::Wav));
+        let sp = StreamingParams::from_query_string("/stream/swyh.rf65?bd=24&ss=u32maxchunked");
+        assert_eq!(sp.path, None);
         assert_eq!(sp.bd, None);
         assert_eq!(sp.ss, None);
+        assert_eq!(sp.fmt, None);
     }
 }

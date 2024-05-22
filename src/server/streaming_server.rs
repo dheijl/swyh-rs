@@ -190,9 +190,10 @@ pub fn run_server(
                         };
                         ui_log(&format!(
                             "Streaming {streaming_format}, input sample format {:?}, \
-                            channels=2, rate={}, to {}",
+                            channels=2, rate={}, bps = {}, to {}",
                             wd.sample_format,
                             wd.sample_rate.0,
+                            bps.as_u16(),
                             rq.remote_addr().unwrap()
                         ));
                         // use the configured content length and chunksize params

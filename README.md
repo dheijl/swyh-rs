@@ -23,7 +23,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.10.6, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is 1.10.7, refer to the [Changelog](CHANGELOG.md) for more details.
 
 ## Why this SWYH alternative ?
 
@@ -85,10 +85,15 @@ Because it is written in Rust it uses almost no resources (CPU usage barely meas
 
 You can also use swyh-rs as an internet radio station on your local network. swyh-rs is available at
 
-- http://{your-pc-ip}/stream/swyh.raw when streaming LPCM format
-- http://{your-pc-ip}/stream/swyh.wav when streaming WAV format
-- http://{your-pc-ip}/stream/swyh.rf64 when streaming RF64 format
-- http://{your-pc-ip}/stream/swyh.flac when streaming FLAC format
+- `http://{your-pc-ip}/stream/swyh.raw` when streaming LPCM format
+- `http://{your-pc-ip}/stream/swyh.wav` when streaming WAV format
+- `http://{your-pc-ip}/stream/swyh.rf64` when streaming RF64 format
+- `http://{your-pc-ip}/stream/swyh.flac` when streaming FLAC format
+
+You can append query parameters to the url for bits per sample (bd = bit depth, 16 or 24) and streamsize (ss: nonechunked, u32maxchunked, u64maxchunked, u32maxnotchunked, u64maxnotchunked).
+The query parmeters in the query string override the configured values.
+
+Example: `http://{your-pc-ip}/stream/swyh.flac?bd=24&ss=nonechunked`
 
 When running the CLI with the -x option, that is effectively the only way to access the swyh-rs audio server.
 

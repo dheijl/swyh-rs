@@ -2,7 +2,7 @@ use crate::{
     enums::streaming::{
         BitDepth,
         StreamingFormat::{self, Flac, Lpcm, Rf64, Wav},
-        StreamingState, U64MAXNOTCHUNKED,
+        StreamingState,
     },
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
@@ -109,12 +109,14 @@ pub fn run_server(
                     }
                     // prpare streaming headers
                     let conf = CONFIG.read().clone();
+                    // format from config or from GET Path
                     let cf_format = conf.streaming_format.unwrap_or(Lpcm);
                     let format = if let Some(fmt) = sp.fmt {
                         fmt
                     } else {
                         cf_format
                     };
+                    // bit depth from config or from GET query string
                     let cf_bps = conf.bits_per_sample.unwrap_or(16);
                     // check if client requests the configured format
                     let bps = if let Some(bd) = sp.bd {
@@ -197,16 +199,16 @@ pub fn run_server(
                             rq.remote_addr().unwrap()
                         ));
                         // use the configured content length and chunksize params
-                        let (streamsize, chunksize) = if let Some(format) = conf.streaming_format {
-                            match format {
-                                Lpcm => conf.lpcm_stream_size.unwrap().values(),
-                                Wav => conf.wav_stream_size.unwrap().values(),
-                                Rf64 => conf.rf64_stream_size.unwrap().values(),
-                                Flac => conf.flac_stream_size.unwrap().values(),
-                            }
-                        } else {
-                            U64MAXNOTCHUNKED
+                        let (mut streamsize, mut chunksize) = match format {
+                            Lpcm => conf.lpcm_stream_size.unwrap().values(),
+                            Wav => conf.wav_stream_size.unwrap().values(),
+                            Rf64 => conf.rf64_stream_size.unwrap().values(),
+                            Flac => conf.flac_stream_size.unwrap().values(),
                         };
+                        // unless overridden by the GET query string
+                        if sp.ss.is_some() {
+                            (streamsize, chunksize) = sp.ss.unwrap().values();
+                        }
                         let response = Response::empty(200)
                             .with_data(channel_stream, streamsize)
                             .with_chunked_threshold(chunksize)

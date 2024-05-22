@@ -87,13 +87,41 @@ impl FromStr for StreamSize {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "nonechunked" => Ok(StreamSize::NoneChunked),
+            "u32maxchunked" => Ok(StreamSize::U32maxChunked),
+            "u32maxnotchunked" => Ok(StreamSize::U32maxNotChunked),
+            "u64maxchunked" => Ok(StreamSize::U64maxChunked),
+            "u64maxnotchunked" => Ok(StreamSize::U64maxNotChunked),
+            _ => Ok(StreamSize::NoneChunked),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum BitDepth {
+    Bits24,
+    Bits16,
+}
+
+impl fmt::Display for BitDepth {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BitDepth::Bits16 => write!(f, "16"),
+            BitDepth::Bits24 => write!(f, "24"),
+        }
+    }
+}
+
+impl FromStr for BitDepth {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "NoneChunked" => Ok(StreamSize::NoneChunked),
-            "U32maxChunked" => Ok(StreamSize::U32maxChunked),
-            "U32maxNotChunked" => Ok(StreamSize::U32maxNotChunked),
-            "U64maxChunked" => Ok(StreamSize::U64maxChunked),
-            "U64maxNotChunked" => Ok(StreamSize::U64maxNotChunked),
-            _ => Err(()),
+            "16" => Ok(BitDepth::Bits16),
+            "24" => Ok(BitDepth::Bits24),
+            _ => Ok(BitDepth::Bits16),
         }
     }
 }

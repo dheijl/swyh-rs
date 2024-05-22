@@ -1,8 +1,12 @@
 # swyh-rs Changelog
 
-- 1.10.7 (unreleased)
+- 1.10.7 (May 22 2024 dheijl)
   - CLI: don't set autoreconnect to true if serve-only (-x) is set, it's meaningless
   - GUI: changing the StreamSize doesn't need a restart, new connections simply use the new value, active connections are not affected
+  - internet radio URL: query parameters bd (bit depth) and ss (streamsize) allow to override any configured values, for example
+    - `/stream/swyh.flac?bd=24&ss=nonechunked`
+    - `/stream/swyh.wav?bd=16&ss=u32maxnotchunked`
+    useful for CLI and/or when you don't use SSDP and the buttons in the GUI
 
 - 1.10.6 (May 18 2024 dheijl)
   - make the default streamsize for FLAC NoneChunked

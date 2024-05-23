@@ -122,7 +122,7 @@ pub fn run_server(
                     let bps = if let Some(bd) = sp.bd {
                         bd
                     } else {
-                        BitDepth::from_u16(cf_bps)
+                        BitDepth::from(cf_bps)
                     };
                     let ct_text = if format == StreamingFormat::Flac {
                         "audio/flac".to_string()
@@ -157,7 +157,7 @@ pub fn run_server(
                             remote_ip.clone(),
                             use_wav_hdr,
                             wd.sample_rate.0,
-                            bps.as_u16(),
+                            bps.into(),
                             format,
                         );
                         let nclients = {
@@ -197,7 +197,7 @@ pub fn run_server(
                             channels=2, rate={}, bps = {}, to {}",
                             wd.sample_format,
                             wd.sample_rate.0,
-                            bps.as_u16(),
+                            bps.into(),
                             rq.remote_addr().unwrap()
                         ));
                         // use the configured content length and chunksize params

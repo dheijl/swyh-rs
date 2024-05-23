@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{fmt, str::FromStr};
+use std::{convert::From, fmt, str::FromStr};
 
 /// streaming state
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -106,18 +106,20 @@ pub enum BitDepth {
 }
 
 impl BitDepth {
-    pub(crate) fn from_u16(bps: u16) -> BitDepth {
+    pub(crate) fn into(self) -> u16 {
+        match self {
+            BitDepth::Bits24 => 24,
+            BitDepth::Bits16 => 16,
+        }
+    }
+}
+
+impl From<u16> for BitDepth {
+    fn from(bps: u16) -> Self {
         match bps {
             16 => BitDepth::Bits16,
             24 => BitDepth::Bits24,
             _ => BitDepth::Bits16,
-        }
-    }
-
-    pub(crate) fn as_u16(&self) -> u16 {
-        match self {
-            BitDepth::Bits24 => 24,
-            BitDepth::Bits16 => 16,
         }
     }
 }

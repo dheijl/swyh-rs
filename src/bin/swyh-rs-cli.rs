@@ -274,7 +274,6 @@ fn main() -> Result<(), i32> {
     // set args streaming format
     if args.streaming_format.is_some() {
         config.streaming_format = args.streaming_format;
-        config.use_wave_format = [Some(Wav), Some(Rf64)].contains(&config.streaming_format);
     }
     // and stream-size
     if args.streaming_format.is_some() && args.stream_size.is_some() {

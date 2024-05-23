@@ -40,7 +40,7 @@ pub fn run_server(
     let logmsg = {
         let cfg = CONFIG.read();
         format!(
-            "Streaming sample rate: {}, bits per sample: {}, format: {}",
+            "Default streaming sample rate: {}, bits per sample: {}, format: {}",
             wd.sample_rate.0,
             cfg.bits_per_sample.unwrap_or(16),
             cfg.streaming_format.unwrap_or(Flac),
@@ -149,11 +149,13 @@ pub fn run_server(
                             rq.remote_addr().unwrap()
                         ));
                         let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
+                        let use_wav_hdr =
+                            [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&format);
                         let channel_stream = ChannelStream::new(
                             tx,
                             rx,
                             remote_ip.clone(),
-                            conf.use_wave_format,
+                            use_wav_hdr,
                             wd.sample_rate.0,
                             bps.as_u16(),
                             format,

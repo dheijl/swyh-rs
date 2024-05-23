@@ -345,7 +345,6 @@ impl MainForm {
         // probably because it takes some time doing the file I/O, hence recursion lock
         let rlock = Mutex::new(0);
         fmt_choice.set_callback({
-            let config_changed = config_changed.clone();
             move |b| {
                 let mut recursion = rlock.lock();
                 if *recursion > 0 {
@@ -358,15 +357,10 @@ impl MainForm {
                     return;
                 }
                 let format = formats[i as usize].clone();
-                ui_log(&format!(
-                    "*W*W*> Streaming Format changed to {format}, restart required!!"
-                ));
+                ui_log(&format!("Current streaming Format changed to {format}"));
                 let newformat = StreamingFormat::from_str(&format).unwrap();
-                conf.use_wave_format =
-                    [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&newformat);
                 conf.streaming_format = Some(newformat);
                 let _ = conf.update_config();
-                config_changed.set(true);
                 let fmt = format!("FMT: {format}");
                 b.set_label(&fmt);
                 app::awake();
@@ -381,7 +375,6 @@ impl MainForm {
             b24_bit.set(true);
         }
         b24_bit.set_callback({
-            let config_changed = config_changed.clone();
             move |b| {
                 let mut conf = CONFIG.write();
                 if b.is_set() {
@@ -390,7 +383,6 @@ impl MainForm {
                     conf.bits_per_sample = Some(16);
                 }
                 let _ = conf.update_config();
-                config_changed.set(true);
             }
         });
         pconfig2.add(&b24_bit);

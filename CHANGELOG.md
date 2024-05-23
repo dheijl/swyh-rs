@@ -1,5 +1,10 @@
 # swyh-rs Changelog
 
+- 1.10.8 (unreleased)
+  - remove unused config value "use_wave_format"
+  - autoreconnect now defaults to false on a fresh installation
+  - GUI: changing streaming format or bits per sample no longer ask for a restart
+
 - 1.10.7 (May 22 2024 dheijl)
   - CLI: don't set autoreconnect to true if serve-only (-x) is set, it's meaningless
   - GUI: changing the StreamSize doesn't need a restart, new connections simply use the new value, active connections are not affected

@@ -19,11 +19,8 @@ const PKGNAME: &str = env!("CARGO_PKG_NAME");
 struct CfgDefaults {}
 
 impl CfgDefaults {
-    fn disable_chunked() -> bool {
-        true
-    }
     fn autoreconnect() -> bool {
-        true
+        false
     }
     fn log_level() -> LevelFilter {
         LevelFilter::Info
@@ -71,12 +68,8 @@ pub struct Configuration {
     pub ssdp_interval_mins: f64,
     #[serde(alias = "AutoReconnect", default = "CfgDefaults::autoreconnect")]
     pub auto_reconnect: bool,
-    // removed in 1.8.5
-    #[serde(
-        alias = "DisableChunked",
-        skip,
-        default = "CfgDefaults::disable_chunked"
-    )]
+    // removed in 1.8.5 (obsolete)
+    #[serde(alias = "DisableChunked", skip, default)]
     _disable_chunked: bool,
     // added in 1.9.9
     #[serde(alias = "LPCMStreamSize", default = "CfgDefaults::stream_size")]
@@ -87,8 +80,9 @@ pub struct Configuration {
     pub rf64_stream_size: Option<StreamSize>,
     #[serde(alias = "FLACStreamSize", default = "CfgDefaults::flac_stream_size")]
     pub flac_stream_size: Option<StreamSize>,
-    #[serde(alias = "UseWaveFormat", default)]
-    pub use_wave_format: bool,
+    // removed in 1.10.8 (obsolete)
+    #[serde(alias = "UseWaveFormat", skip, default)]
+    pub _use_wave_format: bool,
     #[serde(alias = "BitsPerSample", default = "CfgDefaults::bits_per_sample")]
     pub bits_per_sample: Option<u16>,
     #[serde(alias = "StreamingFormat", default)]
@@ -137,7 +131,7 @@ impl Configuration {
             wav_stream_size: Some(StreamSize::U32maxNotChunked),
             rf64_stream_size: Some(StreamSize::U64maxNotChunked),
             flac_stream_size: Some(StreamSize::NoneChunked),
-            use_wave_format: false,
+            _use_wave_format: false,
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),
             monitor_rms: false,

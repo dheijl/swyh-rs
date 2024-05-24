@@ -157,7 +157,7 @@ pub fn run_server(
                             remote_ip.clone(),
                             use_wav_hdr,
                             wd.sample_rate.0,
-                            bps.into(),
+                            bps as u16,
                             format,
                         );
                         let nclients = {
@@ -197,7 +197,7 @@ pub fn run_server(
                             channels=2, rate={}, bps = {}, to {}",
                             wd.sample_format,
                             wd.sample_rate.0,
-                            bps.into(),
+                            bps as u16,
                             rq.remote_addr().unwrap()
                         ));
                         // use the configured content length and chunksize params

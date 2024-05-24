@@ -101,17 +101,8 @@ impl FromStr for StreamSize {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum BitDepth {
-    Bits24,
-    Bits16,
-}
-
-impl BitDepth {
-    pub(crate) fn into(self) -> u16 {
-        match self {
-            BitDepth::Bits24 => 24,
-            BitDepth::Bits16 => 16,
-        }
-    }
+    Bits24 = 24,
+    Bits16 = 16,
 }
 
 impl From<u16> for BitDepth {

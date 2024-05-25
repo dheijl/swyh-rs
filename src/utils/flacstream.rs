@@ -126,20 +126,19 @@ impl FlacChannel {
                             .unwrap();
                     } else {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
-                        // send very faint noise if no samples for time_out msecs
-                        // if no samples for a certain time: send a faint white noise
+                        // if no samples for a certain time: send very faint near silence bursts
                         if l_active.load(Relaxed) {
                             fill_noise_buffer(&mut rng, &mut noise_buf);
                             let samples = noise_buf
                                 .iter()
-                                .map(|s| s.to_sample::<i32>() >> shift)
+                                .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
                                 .collect::<Vec<i32>>();
                             let res = enc.process_interleaved(
                                 samples.as_slice(),
                                 (samples.len() / 2) as u32,
                             );
                             if let Err(e) = res {
-                                ui_log(&format!("Flac encoding error caused by silence {:?}", e));
+                                ui_log(&format!("Flac silence: end {:?}", e));
                                 break;
                             }
                         }
@@ -156,11 +155,10 @@ impl FlacChannel {
 }
 
 ///
-/// fill the pre-allocated noise buffer with a very faint white noise (-90db)
+/// fill the pre-allocated noise buffer with white noise
 ///
 fn fill_noise_buffer(rng: &mut StdRng, noise_buf: &mut [f32]) {
-    let amplitude: f32 = 0.000_031_62;
     for sample in noise_buf.iter_mut() {
-        *sample = ((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude;
+        *sample = (rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0;
     }
 }

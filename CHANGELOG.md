@@ -1,12 +1,14 @@
 # swyh-rs Changelog
 
+- 1.10.9 (unreleased)
+  - optimize flac near silence injection when no sound is being captured
+  - GUI: you can now **disable ssdp discovery** by setting the ssdp interval to 0.0. Note that the minimum ssdp interval if enabled stays at 0.5 (half a minute).
+
 - 1.10.8 (May 23 2024 dheijl)
   - some code cleanup:
     - remove unused config value "use_wave_format"
     - autoreconnect now defaults to false on a fresh installation
     - GUI: changing streaming format or bits per sample no longer ask for a restart. If you change the streaming format, don't forget to change the streamsize to a working value too!
-  - optimize flac near silence injection when no sound is being captured
-  - GUI: you can now **disable ssdp discovery** by setting the ssdp interval to 0.0. Note that the minimum ssdp interval if enabled stays at 0.5 (half a minute).
 
 - 1.10.7 (May 22 2024 dheijl)
   - CLI: don't set autoreconnect to true if serve-only (-x) is set, it's meaningless

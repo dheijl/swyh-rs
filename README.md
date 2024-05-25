@@ -11,7 +11,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 - [Why this SWYH alternative ?](#why-this-swyh-alternative-)
 - [Current release](#current-release)
 - [Changelog](CHANGELOG.md)
-- [swyh-rs as your local internet radio](#swyh-rs-as-your-local-internet-radio)
+- [swyh-rs as your local internet radio station](#swyh-rs-as-your-local-internet-radio station)
 - [Todo](#todo)
 - [Building (Wiki)](https://github.com/dheijl/swyh-rs/wiki)
 - [Known problems](#known-problems)
@@ -23,7 +23,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.10.8, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is 1.10.9, refer to the [Changelog](CHANGELOG.md) for more details.
 
 ## Why this SWYH alternative ?
 
@@ -48,7 +48,7 @@ It has been tested with
 - Sony AV streamers & Bravia TVs
 - Chromecast devices defined as an OpenHome or DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)
 - **Sonos** speakers/soundbars using the **WAV** format (thanks @Cunkers !). **update:** A recent update to the Sonos Play 1 also enabled **FLAC**. Depending on your network a Sonos may stutter when using WAV, if you are affected you should use FLAC if your device supports it. See issues #84 and #75. Software version "15.9 (Build 75146030)" on the Play:1 is known to support FLAC without stuttering (thanks @beWAYNE !).
-  - If you want to pause music without losing the connection you have to enable the  **Inject Silence** option. The InjectSilence flag is automatically added to the config file when you first start version 1.4.5 and defaults to _false_. Contributed by @genekellyjr, see issue #71, and @DanteDT. Note that Inject Silence is ineffective for FLAC, as the FLAC format will compress the silence away resulting in large gaps between the FLAC frames probably cutting the connection.
+  - If you want to pause music without losing the connection you can enable the  **Inject Silence** option for LPCM/WAV/RF64. The InjectSilence flag is automatically added to the config file when you first start version 1.4.5 and defaults to _false_. Contributed by @genekellyjr, see issue #71, and @DanteDT. Note that Inject Silence is ineffective and incompatible with FLAC, as the FLAC format will compress the silence away resulting in large gaps between the FLAC frames probably cutting the connection. For FLAC near-silence is always automatically injected, as the InjectSilence option is ineffective because FLAC compresses the silence away. Do **NOT** enable InjectSilence for FLAC.
   - injecting silence will eat a neglegible amount of cpu cycles.
   - it seems that stuttering can occur with Sonos gear, especially with WiFi connections. You can try to set an initial buffering value to prevent this. According to @konyong installing ccproxy can also help, refer to issue #130 for more details.
 - Kef Wireless LS50 II (thanks @Turbomortel via Twitter)
@@ -81,11 +81,11 @@ Tested on Windows 10 and on Ubuntu 20.04 LTS (Mint 20) and 22.04 LTS (Mint 21) w
 
 Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 4 MB).
 
-## swyh-rs as your local internet radio
+## swyh-rs as your local internet radio station
 
 You can also use swyh-rs as an internet radio station on your local network. swyh-rs is available at
 
-- `http://{your-pc-ip}/stream/swyh.raw` when streaming LPCM format
+- `http://{your-pc-ip}/stream/swyh.raw` when streaming "raw" LPCM format
 - `http://{your-pc-ip}/stream/swyh.wav` when streaming WAV format
 - `http://{your-pc-ip}/stream/swyh.rf64` when streaming RF64 format
 - `http://{your-pc-ip}/stream/swyh.flac` when streaming FLAC format
@@ -96,6 +96,7 @@ The query parmeters in the query string override the configured values.
 Example: `http://{your-pc-ip}/stream/swyh.flac?bd=24&ss=nonechunked`
 
 When running the CLI with the -x option, that is effectively the only way to access the swyh-rs audio server.
+This is also true when running the GUI if SSDP discovery has been disabled by setting the SSDP interval to 0.0.
 
 ### Where to get it and how to install
 
@@ -134,8 +135,8 @@ The icon was designed by @numanair, thanks!
 - On Windows you can check in the **soundmixer** that the audio device you're capturing is the device that is actually playing audio. On Linux you can use [pavucontrol](https://freedesktop.org/software/pulseaudio/pavucontrol/) to enable the audio monitor for the audio device you are capturing.
 - you can (and probably should) use the "_RMS monitor_" feature to verify that swyh-rs is actually capturing audio.
 - a built-in audio streaming web server is started on port 5901.
-- all media renderers are discoverded using SSDP on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen (so that on a multihomed Windows machine the most likely interface is selected). If necessary you can choose another network from the network dropdown, for instance if you use a VPN.
-- then a button is shown for every renderer found
+- all media renderers are discoverded using **SSDP** on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen (so that on a multihomed Windows machine the most likely interface is selected). If necessary you can choose another network from the network dropdown, for instance if you use a VPN. The SSDP discovery interval is configurable in the GUI. You can **disable SSDP discovery by setting the discovery interval to 0.0**. This puts swyh-rs GUI in "_serve only_" mode, so that you can only use it as an internet radio station.
+- then a button is shown for every renderer found by the SSDP discovery
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source, unless you enable 24 bit LPCM (see below).
 - some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "_Autoresume_" checkbox if you encounter this problem. But always try to disable the "_Chunked Transfer Encoding_" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).

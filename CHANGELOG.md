@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.10.9 (unreleased)
+- 1.10.9 (May 25 2024 dheijl)
   - optimize flac near silence injection when no sound is being captured
   - GUI: you can now **disable ssdp discovery** by setting the ssdp interval to 0.0. Note that the minimum ssdp interval if enabled stays at 0.5 (half a minute).
 

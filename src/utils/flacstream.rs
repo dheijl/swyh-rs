@@ -138,7 +138,7 @@ impl FlacChannel {
                                 (samples.len() / 2) as u32,
                             );
                             if let Err(e) = res {
-                                ui_log(&format!("Flac silence: end {:?}", e));
+                                ui_log(&format!("Flac inject near silence: end {:?}", e));
                                 break;
                             }
                         }

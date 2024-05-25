@@ -251,12 +251,16 @@ impl MainForm {
         ssdp_interval.handle({
             let config_changed = config_changed.clone();
             move |b, ev| {
-                if b.value() < 0.5 {
-                    b.set_value(0.5);
-                }
+                // zero = no ssdp, else minimum ssdp discovery interval is 0,5 minutes
                 match ev {
                     Event::Leave | Event::Enter | Event::Unfocus => {
                         let mut conf = CONFIG.write();
+                        let v = match b.value() {
+                            ..=0.0 => 0.0,
+                            0.01..=0.5 => 0.5,
+                            _ => b.value(),
+                        };
+                        b.set_value(v);
                         if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
                             conf.ssdp_interval_mins = b.value();
                             ui_log(&format!(

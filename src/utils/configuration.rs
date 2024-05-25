@@ -188,7 +188,9 @@ impl Configuration {
                 configuration: config,
             }
         });
-        if config.configuration.ssdp_interval_mins < 0.5 {
+        if config.configuration.ssdp_interval_mins > 0.0
+            && config.configuration.ssdp_interval_mins < 0.5
+        {
             config.configuration.ssdp_interval_mins = 0.5;
             force_update = true;
         }

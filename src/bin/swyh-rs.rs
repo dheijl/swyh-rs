@@ -218,17 +218,19 @@ fn main() {
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
-    ui_log("Discover networks");
     let mut renderers: Vec<Renderer> = Vec::new();
     let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
-    ui_log("Starting SSDP discovery");
-    let ssdp_int = config.ssdp_interval_mins;
-    let _ = thread::Builder::new()
-        .name("ssdp_updater".into())
-        .stack_size(4 * 1024 * 1024)
-        .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
-        .unwrap();
-
+    if config.ssdp_interval_mins > 0.0 {
+        ui_log("Starting SSDP discovery");
+        let ssdp_int = config.ssdp_interval_mins;
+        let _ = thread::Builder::new()
+            .name("ssdp_updater".into())
+            .stack_size(4 * 1024 * 1024)
+            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
+            .unwrap();
+    } else {
+        ui_log("SSDP interval 0 => Skipping SSDP discovery");
+    }
     // also start the "monitor_rms" thread
     let rms_receiver = rms_channel.1;
     let mon_l = mf.rms_mon_l.clone();

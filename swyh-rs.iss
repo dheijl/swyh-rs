@@ -1,5 +1,7 @@
 ; swyh-rs.iss
 
+#include "CodeDependencies.iss"
+
 [Setup]
 AppName=swyh-rs
 AppVersion=1.10.10
@@ -33,3 +35,11 @@ Source: "Readme.md"; DestDir: "{app}"; Flags: isreadme
 
 [Icons]
 Name: "{group}\swyh-rs"; Filename: "{app}\swyh-rs.exe"
+
+[Code]
+function InitializeSetup: Boolean;
+begin
+  // Rust binaries compiled with the msvc toolchain need VC runtime
+  Dependency_AddVC2015To2022;
+  Result := True;
+end;

@@ -224,7 +224,10 @@ fn main() -> Result<(), i32> {
     };
 
     // set args ssdp_interval
-    if let Some(minutes) = args.ssdp_interval_mins {
+    if let Some(mut minutes) = args.ssdp_interval_mins {
+        if minutes < 0.5 {
+            minutes = 0.5;
+        }
         config.ssdp_interval_mins = minutes;
     }
 

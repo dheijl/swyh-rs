@@ -116,7 +116,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 
 ### Known problems
 
-- On a freshly installed Windows system you may get an error "**VCRUNTIME140.dll was not found**". Rust Windows binaries built with the MSVC toolchain need the Visual Studio 2015..2019 runtime. Because so much software relies on it, is almost always already present, but if not you can get the Visual C++ 2015..2019 runtime installer from [https://aka.ms/vs/16/release/vc_redist.x64.exe](https://aka.ms/vs/16/release/vc_redist.x64.exe). 
+- On a freshly installed Windows system you may get an error "**VCRUNTIME140.dll was not found**". Rust Windows binaries built with the MSVC toolchain need the Visual Studio 2015..2019 runtime. Because so much software relies on it, is almost always already present, but if not you can get the Visual C++ 2015..2019 runtime installer from [https://aka.ms/vs/16/release/vc_redist.x64.exe](https://aka.ms/vs/16/release/vc_redist.x64.exe).
 - On linux you may have to enable **audio monitoring** with pavucontrol to make audio capture work
 - make sure that your firewall or anti-virus do not block the default incoming HTTP port 5901 for streaming requests (or the port number you configured in the UI if not the default), and that outgoing UDP traffic is allowed for SSDP  
 - resizing a window in fltk 1.4 is not ideal, but thanks to @MoAlyousef it is now usable in swyh-rs. But if you resize vertically to a very small window you risk losing the horizontal scrollbar in the textbox at the bottom.

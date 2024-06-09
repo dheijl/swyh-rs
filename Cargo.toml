@@ -62,7 +62,7 @@ rand = "0.8.5"
 strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
-toml = "0.8.13"
+toml = "0.8.14"
 ureq = { version = "2.9.7", default-features = false, features = [
     "charset",
     "gzip",
@@ -70,14 +70,14 @@ ureq = { version = "2.9.7", default-features = false, features = [
 url = "2.5.0"
 xml-rs = "0.8.20"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.4.30", features = ["use-ninja"], optional = true }
-windows = { version = "0.56.0", features = [
+fltk = { version = "1.4.31", features = ["use-ninja"], optional = true }
+windows = { version = "0.57.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.4.30", features = ["use-ninja"], optional = true }
+fltk = { version = "1.4.31", features = ["use-ninja"], optional = true }
 libc = "0.2.155"
 
 [patch.crates-io]

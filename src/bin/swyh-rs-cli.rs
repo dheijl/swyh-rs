@@ -30,6 +30,7 @@ use swyh_rs::{
         },
         bincommon::run_silence_injector,
         commandline::Args,
+        configuration::Configuration,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::ui_log,
@@ -177,18 +178,27 @@ fn main() -> Result<(), i32> {
     }
     // args: ip_address
     if let Some(ip) = args.ip_address {
-        config.last_network = Some(ip.parse().unwrap());
+        if networks.contains(&ip) {
+            config.last_network = Some(ip.parse().unwrap());
+        }
     }
     // get the local network network address
     let local_addr: IpAddr = {
-        if let Some(ref network) = config.last_network {
-            info!("Using network {}", network);
-            network.parse().unwrap()
-        } else {
+        fn get_default_address(config: &mut Configuration) -> IpAddr {
             let addr = get_local_addr().expect("Could not obtain local address.");
             config.last_network = Some(addr.to_string());
             info!("Using network {}", addr);
             addr
+        }
+        if let Some(ref network) = config.last_network {
+            if networks.contains(network) {
+                info!("Using network {}", network);
+                network.parse().unwrap()
+            } else {
+                get_default_address(&mut config)
+            }
+        } else {
+            get_default_address(&mut config)
         }
     };
     // we need to pass some audio config data to the play function

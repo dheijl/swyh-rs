@@ -154,21 +154,28 @@ fn main() {
         source_names.push(devname);
     }
 
+    // get the list of available networks
+    let networks = get_interfaces();
+
     // get the default network that connects to the internet
     let local_addr: IpAddr = {
-        if let Some(ref net) = config.last_network {
-            net.parse().unwrap()
-        } else {
+        fn get_default_address() -> IpAddr {
             let addr = get_local_addr().expect("Could not obtain local address.");
             let mut conf = CONFIG.write();
             conf.last_network = Some(addr.to_string());
             let _ = conf.update_config();
             addr
         }
+        if let Some(ref net) = config.last_network {
+            let mut nw = net.parse().unwrap();
+            if !networks.contains(net) {
+                nw = get_default_address();
+            }
+            nw
+        } else {
+            get_default_address()
+        }
     };
-
-    // get the list of available networks
-    let networks = get_interfaces();
 
     // we need to pass some audio config data to the play function
     let audio_cfg = audio_output_device.default_config();

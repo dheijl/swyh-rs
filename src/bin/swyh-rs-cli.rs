@@ -349,7 +349,7 @@ fn main() -> Result<(), i32> {
         }
     }
 
-    let mut player: Option<&Renderer> = None;
+    let mut player: Option<Renderer> = None;
     // select the player unless only serving
     if !serve_only {
         let last_renderer = config.last_renderer.as_ref().unwrap();
@@ -358,21 +358,21 @@ fn main() -> Result<(), i32> {
             return Err(-1);
         }
         // default = first player
-        player = Some(&renderers[0]);
+        player = Some(renderers[0].clone());
         // but use the configured renderer if present
         if let Some(pl) = renderers
             .iter()
             .find(|&renderer| renderer.remote_addr == *last_renderer)
         {
-            player = Some(pl);
+            player = Some(pl.clone());
         }
         // if specified player ip not found: use default player
-        if *last_renderer != player.unwrap().remote_addr {
-            config.last_renderer = Some(player.unwrap().remote_addr.clone());
+        if *last_renderer != player.as_ref().unwrap().remote_addr {
+            config.last_renderer = Some(player.as_ref().unwrap().remote_addr.clone());
         }
         ui_log(&format!(
             "Default player ip = {}",
-            player.unwrap().remote_addr
+            player.as_ref().unwrap().remote_addr
         ));
     }
 
@@ -440,6 +440,15 @@ fn main() -> Result<(), i32> {
     }
 
     loop {
+        if !serve_only {
+            while let Ok(newr) = ssdp_rx.try_recv() {
+                renderers.push(newr.clone());
+                ui_log(&format!(
+                    "New renderer {} at {}",
+                    newr.dev_name, newr.remote_addr
+                ));
+            }
+        }
         while let Ok(streamer_feedback) = feedback_rx.try_recv() {
             match streamer_feedback.streaming_state {
                 StreamingState::Started => {}

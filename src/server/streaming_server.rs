@@ -1,8 +1,11 @@
 use crate::{
-    enums::streaming::{
-        BitDepth,
-        StreamingFormat::{self, Flac, Lpcm, Rf64, Wav},
-        StreamingState,
+    enums::{
+        messages::MessageType,
+        streaming::{
+            BitDepth,
+            StreamingFormat::{self, Flac, Lpcm, Rf64, Wav},
+            StreamingState,
+        },
     },
     globals::statics::{CLIENTS, CONFIG},
     openhome::rendercontrol::WavData,
@@ -31,7 +34,7 @@ pub fn run_server(
     local_addr: &IpAddr,
     server_port: u16,
     wd: WavData,
-    feedback_tx: &Sender<StreamerFeedBack>,
+    feedback_tx: Sender<MessageType>,
 ) {
     let addr = format!("{local_addr}:{server_port}");
     ui_log(&format!(
@@ -168,10 +171,10 @@ pub fn run_server(
                         debug!("Now have {} streaming clients", nclients);
 
                         feedback_tx_c
-                            .send(StreamerFeedBack {
+                            .send(MessageType::PlayerMessage(StreamerFeedBack {
                                 remote_ip: remote_ip.clone(),
                                 streaming_state: StreamingState::Started,
-                            })
+                            }))
                             .unwrap();
 
                         // check for upfront audio buffering needed
@@ -248,10 +251,10 @@ pub fn run_server(
                         // necessary if the connection close was not caused by our own GUI
                         // so that we can update the corresponding button state
                         feedback_tx_c
-                            .send(StreamerFeedBack {
+                            .send(MessageType::PlayerMessage(StreamerFeedBack {
                                 remote_ip,
                                 streaming_state: StreamingState::Ended,
-                            })
+                            }))
                             .unwrap();
                         ui_log(&format!("Streaming to {remote_addr} has ended"));
                     } else if matches!(rq.method(), Method::Head) {

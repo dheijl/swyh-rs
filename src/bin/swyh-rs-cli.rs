@@ -17,13 +17,16 @@ use hashbrown::HashMap;
 use log::{debug, error, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use swyh_rs::{
-    enums::streaming::{
-        StreamingFormat::{Flac, Lpcm, Rf64, Wav},
-        StreamingState,
+    enums::{
+        messages::MessageType,
+        streaming::{
+            StreamingFormat::{Flac, Lpcm, Rf64, Wav},
+            StreamingState,
+        },
     },
-    globals::statics::{APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL},
+    globals::statics::{APP_VERSION, CLIENTS, CONFIG, MSGCHANNEL},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
-    server::streaming_server::{run_server, StreamerFeedBack},
+    server::streaming_server::run_server,
     utils::{
         audiodevices::{
             capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
@@ -249,9 +252,11 @@ fn main() -> Result<(), i32> {
         *conf = config.clone();
     }
 
-    let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
-    let mut renderers: Vec<Renderer> = Vec::new();
+    // get the message channel
+    let msg_tx = MSGCHANNEL.read().0.clone();
+    let msg_rx = MSGCHANNEL.read().1.clone();
 
+    let mut renderers: Vec<Renderer> = Vec::new();
     let mut serve_only = args.serve_only.unwrap_or(false);
     // if only serving: no ssdp discovery
     if !serve_only || args.dry_run.is_some() {
@@ -260,10 +265,11 @@ fn main() -> Result<(), i32> {
         ui_log("Discover networks");
         ui_log("Starting SSDP discovery");
         let ssdp_int = config.ssdp_interval_mins;
+        let ssdp_tx = msg_tx.clone();
         let _ = thread::Builder::new()
             .name("ssdp_updater".into())
             .stack_size(4 * 1024 * 1024)
-            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
+            .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
             .unwrap();
     }
     // set args player
@@ -316,11 +322,8 @@ fn main() -> Result<(), i32> {
         *conf = config.clone();
     }
 
-    // finally start a webserver on the local address,
-    // with a Crossbeam feedback channel for connection accept/drop
-    let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
-        unbounded();
     let server_port = config.server_port;
+    let feedback_tx = msg_tx.clone();
     let _ = thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)
@@ -329,7 +332,7 @@ fn main() -> Result<(), i32> {
                 &local_addr,
                 server_port.unwrap_or_default(),
                 wd,
-                &feedback_tx,
+                feedback_tx,
             );
         })
         .unwrap();
@@ -339,13 +342,19 @@ fn main() -> Result<(), i32> {
         thread::sleep(Duration::from_secs(5));
         // get the results of the ssdp discovery
         let mut n = 0;
-        while let Ok(newr) = ssdp_rx.try_recv() {
-            renderers.push(newr.clone());
-            ui_log(&format!(
-                "Available renderer #{n}: {} at {}",
-                newr.dev_name, newr.remote_addr
-            ));
-            n += 1;
+        while let Ok(msg) = msg_rx.try_recv() {
+            match msg {
+                MessageType::SsdpMessage(newr) => {
+                    renderers.push(newr.clone());
+                    ui_log(&format!(
+                        "Available renderer #{n}: {} at {}",
+                        newr.dev_name, newr.remote_addr
+                    ));
+                    n += 1;
+                }
+                MessageType::PlayerMessage(_) => (),
+                MessageType::LogMessage(_) => (),
+            }
         }
     }
 
@@ -396,9 +405,6 @@ fn main() -> Result<(), i32> {
         return Ok(());
     }
 
-    // get the logreader channel
-    let logreader = &LOGCHANNEL.read().1;
-
     // prepare for playing
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
@@ -440,55 +446,60 @@ fn main() -> Result<(), i32> {
     }
 
     loop {
-        if !serve_only {
-            while let Ok(newr) = ssdp_rx.try_recv() {
-                renderers.push(newr.clone());
-                ui_log(&format!(
-                    "New renderer {} at {}",
-                    newr.dev_name, newr.remote_addr
-                ));
-            }
-        }
-        while let Ok(streamer_feedback) = feedback_rx.try_recv() {
-            match streamer_feedback.streaming_state {
-                StreamingState::Started => {}
-                StreamingState::Ended => {
+        while let Ok(msg) = msg_rx.try_recv() {
+            match msg {
+                MessageType::SsdpMessage(newr) => {
                     if !serve_only {
-                        // first check if the renderer has actually not started streaming again
-                        // as this can happen with Bubble/Nest Audio Openhome
-                        let still_streaming = CLIENTS
-                            .read()
-                            .values()
-                            .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
-                        if !still_streaming {
-                            let config = CONFIG.read().clone();
-                            if config.auto_resume {
-                                if let Some(r) = renderers
-                                    .iter()
-                                    .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                                {
-                                    let streaminfo = StreamInfo {
-                                        sample_rate: wd.sample_rate.0,
-                                        bits_per_sample: config.bits_per_sample.unwrap_or(16),
-                                        streaming_format: config.streaming_format.unwrap_or(Flac),
-                                    };
-                                    let _ = r.play(
-                                        &local_addr,
-                                        server_port.unwrap_or_default(),
-                                        &ui_log,
-                                        streaminfo,
-                                    );
+                        renderers.push(newr.clone());
+                        ui_log(&format!(
+                            "New renderer {} at {}",
+                            newr.dev_name, newr.remote_addr
+                        ));
+                    }
+                }
+                MessageType::PlayerMessage(streamer_feedback) => {
+                    match streamer_feedback.streaming_state {
+                        StreamingState::Started => {}
+                        StreamingState::Ended => {
+                            if !serve_only {
+                                // first check if the renderer has actually not started streaming again
+                                // as this can happen with Bubble/Nest Audio Openhome
+                                let still_streaming = CLIENTS.read().values().any(|chanstrm| {
+                                    chanstrm.remote_ip == streamer_feedback.remote_ip
+                                });
+                                if !still_streaming {
+                                    let config = CONFIG.read().clone();
+                                    if config.auto_resume {
+                                        if let Some(r) = renderers
+                                            .iter()
+                                            .find(|r| r.remote_addr == streamer_feedback.remote_ip)
+                                        {
+                                            let streaminfo = StreamInfo {
+                                                sample_rate: wd.sample_rate.0,
+                                                bits_per_sample: config
+                                                    .bits_per_sample
+                                                    .unwrap_or(16),
+                                                streaming_format: config
+                                                    .streaming_format
+                                                    .unwrap_or(Flac),
+                                            };
+                                            let _ = r.play(
+                                                &local_addr,
+                                                server_port.unwrap_or_default(),
+                                                &ui_log,
+                                                streaminfo,
+                                            );
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                MessageType::LogMessage(msg) => ui_log(&msg),
             }
         }
         // check the logchannel for new log messages to show in the logger textbox
-        while let Ok(msg) = logreader.try_recv() {
-            ui_log(&msg);
-        }
         thread::sleep(Duration::from_millis(100));
         // handle CTL-C interrupt: shutdown the player
         if shutting_down.load(Ordering::Relaxed) {
@@ -524,14 +535,14 @@ fn main() -> Result<(), i32> {
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the Crossbeam ssdp channel
-fn run_ssdp_updater(ssdp_tx: &Sender<Renderer>, ssdp_interval_mins: f64) {
+fn run_ssdp_updater(ssdp_tx: Sender<MessageType>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
         let renderers = discover(&rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             rmap.entry(r.remote_addr.clone()).or_insert_with(|| {
-                let _ = ssdp_tx.send(r.clone());
+                ssdp_tx.send(MessageType::SsdpMessage(r.clone())).unwrap();
                 thread::yield_now();
                 info!(
                     "Found new renderer {} {}  at {}",

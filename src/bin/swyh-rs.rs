@@ -37,10 +37,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 use swyh_rs::{
-    enums::streaming::{StreamingFormat::Flac, StreamingState},
-    globals::statics::{APP_VERSION, CLIENTS, CONFIG, LOGCHANNEL, SERVER_PORT},
+    enums::{
+        messages::MessageType,
+        streaming::{StreamingFormat::Flac, StreamingState},
+    },
+    globals::statics::{APP_VERSION, CLIENTS, CONFIG, MSGCHANNEL, SERVER_PORT},
     openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
-    server::streaming_server::{run_server, StreamerFeedBack},
+    server::streaming_server::run_server,
     ui::mainform::MainForm,
     utils::{
         audiodevices::{
@@ -223,17 +226,21 @@ fn main() {
         None
     };
 
+    // get the message channel
+    let msg_tx = MSGCHANNEL.read().0.clone();
+    let msg_rx = MSGCHANNEL.read().1.clone();
+
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
     let mut renderers: Vec<Renderer> = Vec::new();
-    let (ssdp_tx, ssdp_rx): (Sender<Renderer>, Receiver<Renderer>) = unbounded();
     if config.ssdp_interval_mins > 0.0 {
         ui_log("Starting SSDP discovery");
         let ssdp_int = config.ssdp_interval_mins;
+        let ssdp_tx = msg_tx.clone();
         let _ = thread::Builder::new()
             .name("ssdp_updater".into())
             .stack_size(4 * 1024 * 1024)
-            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
+            .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
             .unwrap();
     } else {
         ui_log("SSDP interval 0 => Skipping SSDP discovery");
@@ -251,22 +258,17 @@ fn main() {
         .unwrap();
 
     // finally start a webserver on the local address,
-    // with a Crossbeam feedback channel for connection accept/drop
-    let (feedback_tx, feedback_rx): (Sender<StreamerFeedBack>, Receiver<StreamerFeedBack>) =
-        unbounded();
     let server_port = config.server_port.unwrap_or(SERVER_PORT);
+    let feedback_tx = msg_tx.clone();
     let _ = thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)
         .spawn(move || {
-            run_server(&local_addr, server_port, wd, &feedback_tx);
+            run_server(&local_addr, server_port, wd, feedback_tx);
         })
         .unwrap();
     // give the webserver a chance to start
     thread::yield_now();
-
-    // get the logreader channel
-    let logreader = &LOGCHANNEL.read().1;
 
     // and now we can run the GUI event loop, app::awake() is used by the various threads to
     // trigger updates when something has changed, some threads use Crossbeam channels
@@ -279,58 +281,71 @@ fn main() {
         if config_changed.get() && app_restart(&mf) != 0 {
             config_changed.set(false);
         }
-        // check if the streaming webserver has closed a connection not caused by
-        // pushing a renderer button
-        // in that case we turn the button off as a visual feedback for the user
-        // but if auto_resume is set, we restart playing instead
-        while let Ok(streamer_feedback) = feedback_rx.try_recv() {
-            if let Some(button) = mf.buttons.get_mut(&streamer_feedback.remote_ip) {
-                match streamer_feedback.streaming_state {
-                    StreamingState::Started => {
-                        if !button.is_set() {
-                            button.set(true);
-                        }
-                    }
-                    StreamingState::Ended => {
-                        // first check if the renderer has actually not started streaming again
-                        // as this can happen with Bubble/Nest Audio Openhome
-                        let still_streaming = CLIENTS
-                            .read()
-                            .values()
-                            .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
-                        if !still_streaming {
-                            if mf.auto_resume.is_set() && button.is_set() {
-                                if let Some(r) = renderers
-                                    .iter()
-                                    .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                                {
-                                    let config = CONFIG.read().clone();
-                                    let streaminfo = StreamInfo {
-                                        sample_rate: wd.sample_rate.0,
-                                        bits_per_sample: config.bits_per_sample.unwrap_or(16),
-                                        streaming_format: config.streaming_format.unwrap_or(Flac),
-                                    };
-                                    let _ = r.play(&local_addr, server_port, &ui_log, streaminfo);
+        // handle the messages from other threads
+        while let Ok(msg) = msg_rx.try_recv() {
+            match msg {
+                // check if the streaming webserver has closed a connection not caused by
+                // pushing a renderer button
+                // in that case we turn the button off as a visual feedback for the user
+                // but if auto_resume is set, we restart playing instead
+                MessageType::PlayerMessage(streamer_feedback) => {
+                    if let Some(button) = mf.buttons.get_mut(&streamer_feedback.remote_ip) {
+                        match streamer_feedback.streaming_state {
+                            StreamingState::Started => {
+                                if !button.is_set() {
+                                    button.set(true);
                                 }
-                            } else if button.is_set() {
-                                button.set(false);
+                            }
+                            StreamingState::Ended => {
+                                // first check if the renderer has actually not started streaming again
+                                // as this can happen with Bubble/Nest Audio Openhome
+                                let still_streaming = CLIENTS.read().values().any(|chanstrm| {
+                                    chanstrm.remote_ip == streamer_feedback.remote_ip
+                                });
+                                if !still_streaming {
+                                    if mf.auto_resume.is_set() && button.is_set() {
+                                        if let Some(r) = renderers
+                                            .iter()
+                                            .find(|r| r.remote_addr == streamer_feedback.remote_ip)
+                                        {
+                                            let config = CONFIG.read().clone();
+                                            let streaminfo = StreamInfo {
+                                                sample_rate: wd.sample_rate.0,
+                                                bits_per_sample: config
+                                                    .bits_per_sample
+                                                    .unwrap_or(16),
+                                                streaming_format: config
+                                                    .streaming_format
+                                                    .unwrap_or(Flac),
+                                            };
+                                            let _ = r.play(
+                                                &local_addr,
+                                                server_port,
+                                                &ui_log,
+                                                streaminfo,
+                                            );
+                                        }
+                                    } else if button.is_set() {
+                                        button.set(false);
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                // check the ssdp discovery thread channel for newly discovered renderers
+                // add a new button below the last one for each discovered renderer
+                MessageType::SsdpMessage(mut newr) => {
+                    let vol = newr.get_volume(&ui_log);
+                    debug!("Renderer {} Volume: {vol}", newr.dev_name);
+                    mf.add_renderer_button(&newr);
+                    renderers.push(newr.clone());
+                }
+                // check the logchannel for new log messages to show in the logger textbox
+                MessageType::LogMessage(msg) => {
+                    mf.add_log_msg(&msg);
+                }
             }
-        }
-        // check the ssdp discovery thread channel for newly discovered renderers
-        // add a new button below the last one for each discovered renderer
-        while let Ok(mut newr) = ssdp_rx.try_recv() {
-            let vol = newr.get_volume(&ui_log);
-            debug!("Renderer {} Volume: {vol}", newr.dev_name);
-            mf.add_renderer_button(&newr);
-            renderers.push(newr.clone());
-        }
-        // check the logchannel for new log messages to show in the logger textbox
-        while let Ok(msg) = logreader.try_recv() {
-            mf.add_log_msg(&msg);
         }
     } // while app::wait()
 
@@ -387,14 +402,14 @@ fn app_restart(mf: &MainForm) -> i32 {
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the Crossbeam ssdp channel
-fn run_ssdp_updater(ssdp_tx: &Sender<Renderer>, ssdp_interval_mins: f64) {
+fn run_ssdp_updater(ssdp_tx: Sender<MessageType>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
         let renderers = discover(&rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             rmap.entry(r.remote_addr.clone()).or_insert_with(|| {
-                let _ = ssdp_tx.send(r.clone());
+                let _ = ssdp_tx.send(MessageType::SsdpMessage(r.clone()));
                 app::awake();
                 thread::yield_now();
                 info!(

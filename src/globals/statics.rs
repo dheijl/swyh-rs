@@ -1,4 +1,7 @@
-use crate::utils::{configuration::Configuration, rwstream::ChannelStream};
+use crate::{
+    enums::messages::MessageType,
+    utils::{configuration::Configuration, rwstream::ChannelStream},
+};
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use hashbrown::HashMap;
@@ -15,7 +18,7 @@ pub const SERVER_PORT: u16 = 5901;
 pub static CLIENTS: Lazy<RwLock<HashMap<String, ChannelStream>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 // the global GUI logger textbox channel used by all threads
-pub static LOGCHANNEL: Lazy<RwLock<(Sender<String>, Receiver<String>)>> =
+pub static MSGCHANNEL: Lazy<RwLock<(Sender<MessageType>, Receiver<MessageType>)>> =
     Lazy::new(|| RwLock::new(unbounded()));
 // the global configuration state
 pub static CONFIG: Lazy<RwLock<Configuration>> =

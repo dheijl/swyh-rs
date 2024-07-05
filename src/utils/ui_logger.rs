@@ -12,10 +12,10 @@ pub fn ui_log(s: &str) {
     };
     #[cfg(feature = "gui")]
     {
-        use crate::globals::statics::LOGCHANNEL;
+        use crate::{enums::messages::MessageType, globals::statics::MSGCHANNEL};
         use fltk::app;
-        let logger = &LOGCHANNEL.read().0;
-        logger.send(s.to_string()).unwrap();
+        let logger = &MSGCHANNEL.read().0;
+        logger.send(MessageType::LogMessage(s.to_string())).unwrap();
         app::awake();
         std::thread::yield_now();
     }

@@ -34,7 +34,7 @@ pub fn run_server(
     local_addr: &IpAddr,
     server_port: u16,
     wd: WavData,
-    feedback_tx: Sender<MessageType>,
+    feedback_tx: &Sender<MessageType>,
 ) {
     let addr = format!("{local_addr}:{server_port}");
     ui_log(&format!(

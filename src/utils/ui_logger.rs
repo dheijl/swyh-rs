@@ -14,8 +14,11 @@ pub fn ui_log(s: &str) {
     {
         use crate::{enums::messages::MessageType, globals::statics::MSGCHANNEL};
         use fltk::app;
-        let logger = &MSGCHANNEL.read().0;
-        logger.send(MessageType::LogMessage(s.to_string())).unwrap();
+        MSGCHANNEL
+            .read()
+            .0
+            .send(MessageType::LogMessage(s.to_string()))
+            .unwrap();
         app::awake();
         std::thread::yield_now();
     }

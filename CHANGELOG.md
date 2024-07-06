@@ -1,9 +1,11 @@
 # swyh-rs Changelog
 
-- 1.10.10 (unreleased)
-  - CLI: sanitize ssdp interval arg
+- 1.10.10 (Jul 6 2024 dheijl)
+  - CLI: sanitize ssdp interval argument
+  - CLI: don't ignore renderers newly discovered by ssdp
   - Windows setup: install Microsoft VC++ runtime 17 (VS 2015..2022) if not already installed, as Rust binaries compiled with the MSVC toolchain depend on it (issue #137).
   - bugfix: if the local address of the PC changes for some reason (DHCP): ignore the configured old (and wrong) value and use the current default instead.
+  - refactoring: replace the three inter-thread event channels by a single enum-based channel  
 
 - 1.10.9 (May 25 2024 dheijl)
   - optimize flac near silence injection when no sound is being captured

@@ -8,6 +8,7 @@ description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
 readme = "README.md"
+default-run = "swyh-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -63,7 +64,7 @@ strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
 toml = "0.8.14"
-ureq = { version = "2.9.7", default-features = false, features = [
+ureq = { version = "2.10.0", default-features = false, features = [
     "charset",
     "gzip",
 ] }

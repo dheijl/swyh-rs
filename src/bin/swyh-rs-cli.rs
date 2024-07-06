@@ -269,7 +269,7 @@ fn main() -> Result<(), i32> {
         let _ = thread::Builder::new()
             .name("ssdp_updater".into())
             .stack_size(4 * 1024 * 1024)
-            .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
+            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
             .unwrap();
     }
     // set args player
@@ -332,7 +332,7 @@ fn main() -> Result<(), i32> {
                 &local_addr,
                 server_port.unwrap_or_default(),
                 wd,
-                feedback_tx,
+                &feedback_tx,
             );
         })
         .unwrap();
@@ -535,19 +535,19 @@ fn main() -> Result<(), i32> {
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the Crossbeam ssdp channel
-fn run_ssdp_updater(ssdp_tx: Sender<MessageType>, ssdp_interval_mins: f64) {
+fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
         let renderers = discover(&rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             rmap.entry(r.remote_addr.clone()).or_insert_with(|| {
-                ssdp_tx.send(MessageType::SsdpMessage(r.clone())).unwrap();
-                thread::yield_now();
                 info!(
                     "Found new renderer {} {}  at {}",
                     r.dev_name, r.dev_model, r.remote_addr
                 );
+                ssdp_tx.send(MessageType::SsdpMessage(r.clone())).unwrap();
+                thread::yield_now();
                 r.clone()
             });
         }

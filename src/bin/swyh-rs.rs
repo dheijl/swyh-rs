@@ -240,7 +240,7 @@ fn main() {
         let _ = thread::Builder::new()
             .name("ssdp_updater".into())
             .stack_size(4 * 1024 * 1024)
-            .spawn(move || run_ssdp_updater(ssdp_tx, ssdp_int))
+            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
             .unwrap();
     } else {
         ui_log("SSDP interval 0 => Skipping SSDP discovery");
@@ -264,7 +264,7 @@ fn main() {
         .name("swyh_rs_webserver".into())
         .stack_size(4 * 1024 * 1024)
         .spawn(move || {
-            run_server(&local_addr, server_port, wd, feedback_tx);
+            run_server(&local_addr, server_port, wd, &feedback_tx);
         })
         .unwrap();
     // give the webserver a chance to start
@@ -402,20 +402,20 @@ fn app_restart(mf: &MainForm) -> i32 {
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to te main thread on the Crossbeam ssdp channel
-fn run_ssdp_updater(ssdp_tx: Sender<MessageType>, ssdp_interval_mins: f64) {
+fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
         let renderers = discover(&rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             rmap.entry(r.remote_addr.clone()).or_insert_with(|| {
-                let _ = ssdp_tx.send(MessageType::SsdpMessage(r.clone()));
-                app::awake();
-                thread::yield_now();
                 info!(
                     "Found new renderer {} {}  at {}",
                     r.dev_name, r.dev_model, r.remote_addr
                 );
+                ssdp_tx.send(MessageType::SsdpMessage(r.clone())).unwrap();
+                app::awake();
+                thread::yield_now();
                 r.clone()
             });
         }

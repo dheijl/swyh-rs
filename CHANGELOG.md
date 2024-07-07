@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.11.0 (unreleased)
+
 - 1.10.10 (Jul 6 2024 dheijl)
   - CLI: sanitize ssdp interval argument
   - CLI: don't ignore renderers newly discovered by ssdp

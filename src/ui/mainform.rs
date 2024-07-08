@@ -26,8 +26,13 @@ use fltk::{
 //use fltk_flow::Flow;
 use hashbrown::HashMap;
 use log::{debug, info, LevelFilter};
-use parking_lot::Mutex;
-use std::{cell::Cell, net::IpAddr, rc::Rc, str::FromStr};
+use std::{
+    cell::Cell,
+    net::IpAddr,
+    rc::Rc,
+    str::FromStr,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 pub struct MainForm {
     pub wind: DoubleWindow,
@@ -136,15 +141,13 @@ impl MainForm {
         for name in networks {
             choose_network_but.add_choice(name);
         }
-        let rlock = Mutex::new(0);
+        let rlock = AtomicBool::new(false);
         let config_ch_flag = config_changed.clone();
         let networks_c = networks.to_vec();
         choose_network_but.set_callback(move |b| {
-            let mut recursion = rlock.lock();
-            if *recursion > 0 {
+            if rlock.swap(true, Ordering::Acquire) {
                 return;
             }
-            *recursion += 1;
             let mut conf = CONFIG.write();
             let mut i = b.value();
             if i < 0 {
@@ -165,7 +168,7 @@ impl MainForm {
             ));
             config_ch_flag.set(true);
             app::awake();
-            *recursion -= 1;
+            rlock.store(false, Ordering::Release);
         });
         pnw.add(&choose_network_but);
         vpack.add(&pnw);
@@ -180,15 +183,13 @@ impl MainForm {
         for name in audio_sources {
             choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
         }
-        let rlock = Mutex::new(0);
+        let rlock = AtomicBool::new(false);
         let config_ch_flag = config_changed.clone();
         let audio_sources_c = audio_sources.to_vec();
         choose_audio_source_but.set_callback(move |b| {
-            let mut recursion = rlock.lock();
-            if *recursion > 0 {
+            if rlock.swap(true, Ordering::Acquire) {
                 return;
             }
-            *recursion += 1;
             let mut conf = CONFIG.write();
             let mut i = b.value();
             if i < 0 {
@@ -210,7 +211,7 @@ impl MainForm {
             ));
             config_ch_flag.set(true);
             app::awake();
-            *recursion -= 1;
+            rlock.store(false, Ordering::Release);
         });
         pas.add(&choose_audio_source_but);
         vpack.add(&pas);
@@ -288,15 +289,13 @@ impl MainForm {
         }
         // apparently this event can recurse on very fast machines
         // probably because it takes some time doing the file I/O, hence recursion lock
-        let rlock = Mutex::new(0);
+        let rlock = AtomicBool::new(false);
         log_level_choice.set_callback({
             let config_changed = config_changed.clone();
             move |b| {
-                let mut recursion = rlock.lock();
-                if *recursion > 0 {
+                if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                *recursion += 1;
                 let mut conf = CONFIG.write();
                 let i = b.value();
                 if i < 0 {
@@ -312,7 +311,7 @@ impl MainForm {
                 let ll = format!("Log Level: {}", conf.log_level);
                 b.set_label(&ll);
                 app::awake();
-                *recursion -= 1;
+                rlock.store(false, Ordering::Release);
             }
         });
         pconfig1.add(&log_level_choice);
@@ -347,14 +346,12 @@ impl MainForm {
         }
         // apparently this event can recurse on very fast machines
         // probably because it takes some time doing the file I/O, hence recursion lock
-        let rlock = Mutex::new(0);
+        let rlock = AtomicBool::new(false);
         fmt_choice.set_callback({
             move |b| {
-                let mut recursion = rlock.lock();
-                if *recursion > 0 {
+                if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                *recursion += 1;
                 let mut conf = CONFIG.write();
                 let i = b.value();
                 if i < 0 {
@@ -368,7 +365,7 @@ impl MainForm {
                 let fmt = format!("FMT: {format}");
                 b.set_label(&fmt);
                 app::awake();
-                *recursion -= 1;
+                rlock.store(false, Ordering::Release);
             }
         });
         pconfig2.add(&fmt_choice);
@@ -465,14 +462,12 @@ impl MainForm {
         }
         // apparently this event can recurse on very fast machines
         // probably because it takes some time doing the file I/O, hence recursion lock
-        let rlock = Mutex::new(0);
+        let rlock = AtomicBool::new(false);
         ss_choice.set_callback({
             move |b| {
-                let mut recursion = rlock.lock();
-                if *recursion > 0 {
+                if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                *recursion += 1;
                 let mut conf = CONFIG.write();
                 let i = b.value();
                 if i < 0 {
@@ -494,7 +489,7 @@ impl MainForm {
                 let fmt = format!("StrmSize: {newsize}");
                 b.set_label(&fmt);
                 app::awake();
-                *recursion -= 1;
+                rlock.store(false, Ordering::Release);
             }
         });
         pconfig3.add(&ss_choice);

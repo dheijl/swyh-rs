@@ -142,33 +142,35 @@ impl MainForm {
             choose_network_but.add_choice(name);
         }
         let rlock = AtomicBool::new(false);
-        let config_ch_flag = config_changed.clone();
         let networks_c = networks.to_vec();
-        choose_network_but.set_callback(move |b| {
-            if rlock.swap(true, Ordering::Acquire) {
-                return;
+        choose_network_but.set_callback({
+            let config_changed = config_changed.clone();
+            move |b| {
+                if rlock.swap(true, Ordering::Acquire) {
+                    return;
+                }
+                let mut conf = CONFIG.write();
+                let mut i = b.value();
+                if i < 0 {
+                    return;
+                }
+                if i as usize >= networks_c.len() {
+                    i = (networks_c.len() - 1) as i32;
+                }
+                let name = &networks_c[i as usize];
+                ui_log(&format!(
+                    "*W*W*> Network changed to {name}, restart required!!"
+                ));
+                conf.last_network = Some(name.to_string());
+                let _ = conf.update_config();
+                b.set_label(&format!(
+                    "New Network: {}",
+                    conf.last_network.as_ref().unwrap()
+                ));
+                config_changed.set(true);
+                app::awake();
+                rlock.store(false, Ordering::Release);
             }
-            let mut conf = CONFIG.write();
-            let mut i = b.value();
-            if i < 0 {
-                return;
-            }
-            if i as usize >= networks_c.len() {
-                i = (networks_c.len() - 1) as i32;
-            }
-            let name = &networks_c[i as usize];
-            ui_log(&format!(
-                "*W*W*> Network changed to {name}, restart required!!"
-            ));
-            conf.last_network = Some(name.to_string());
-            let _ = conf.update_config();
-            b.set_label(&format!(
-                "New Network: {}",
-                conf.last_network.as_ref().unwrap()
-            ));
-            config_ch_flag.set(true);
-            app::awake();
-            rlock.store(false, Ordering::Release);
         });
         pnw.add(&choose_network_but);
         vpack.add(&pnw);
@@ -184,34 +186,36 @@ impl MainForm {
             choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
         }
         let rlock = AtomicBool::new(false);
-        let config_ch_flag = config_changed.clone();
         let audio_sources_c = audio_sources.to_vec();
-        choose_audio_source_but.set_callback(move |b| {
-            if rlock.swap(true, Ordering::Acquire) {
-                return;
+        choose_audio_source_but.set_callback({
+            let config_changed = config_changed.clone();
+            move |b| {
+                if rlock.swap(true, Ordering::Acquire) {
+                    return;
+                }
+                let mut conf = CONFIG.write();
+                let mut i = b.value();
+                if i < 0 {
+                    return;
+                }
+                if i as usize >= audio_sources_c.len() {
+                    i = (audio_sources_c.len() - 1) as i32;
+                }
+                let name = &audio_sources_c[i as usize];
+                ui_log(&format!(
+                    "*W*W*> Audio source changed to {name}, restart required!!"
+                ));
+                conf.sound_source = Some(name.to_string());
+                conf.sound_source_index = Some(i);
+                let _ = conf.update_config();
+                b.set_label(&format!(
+                    "New Audio Source: {}",
+                    conf.sound_source.as_ref().unwrap()
+                ));
+                config_changed.set(true);
+                app::awake();
+                rlock.store(false, Ordering::Release);
             }
-            let mut conf = CONFIG.write();
-            let mut i = b.value();
-            if i < 0 {
-                return;
-            }
-            if i as usize >= audio_sources_c.len() {
-                i = (audio_sources_c.len() - 1) as i32;
-            }
-            let name = &audio_sources_c[i as usize];
-            ui_log(&format!(
-                "*W*W*> Audio source changed to {name}, restart required!!"
-            ));
-            conf.sound_source = Some(name.to_string());
-            conf.sound_source_index = Some(i);
-            let _ = conf.update_config();
-            b.set_label(&format!(
-                "New Audio Source: {}",
-                conf.sound_source.as_ref().unwrap()
-            ));
-            config_ch_flag.set(true);
-            app::awake();
-            rlock.store(false, Ordering::Release);
         });
         pas.add(&choose_audio_source_but);
         vpack.add(&pas);

@@ -149,7 +149,6 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let mut conf = CONFIG.write();
                 let mut i = b.value();
                 if i < 0 {
                     return;
@@ -161,6 +160,7 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Network changed to {name}, restart required!!"
                 ));
+                let mut conf = CONFIG.write();
                 conf.last_network = Some(name.to_string());
                 let _ = conf.update_config();
                 b.set_label(&format!(
@@ -193,7 +193,6 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let mut conf = CONFIG.write();
                 let mut i = b.value();
                 if i < 0 {
                     return;
@@ -205,6 +204,7 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Audio source changed to {name}, restart required!!"
                 ));
+                let mut conf = CONFIG.write();
                 conf.sound_source = Some(name.to_string());
                 conf.sound_source_index = Some(i);
                 let _ = conf.update_config();
@@ -259,13 +259,13 @@ impl MainForm {
                 // zero = no ssdp, else minimum ssdp discovery interval is 0,5 minutes
                 match ev {
                     Event::Leave | Event::Enter | Event::Unfocus => {
-                        let mut conf = CONFIG.write();
                         let v = match b.value() {
                             ..=0.0 => 0.0,
                             0.01..=0.5 => 0.5,
                             _ => b.value(),
                         };
                         b.set_value(v);
+                        let mut conf = CONFIG.write();
                         if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
                             conf.ssdp_interval_mins = b.value();
                             ui_log(&format!(
@@ -300,7 +300,6 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let mut conf = CONFIG.write();
                 let i = b.value();
                 if i < 0 {
                     return;
@@ -309,6 +308,7 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Log level changed to {level}, restart required!!"
                 ));
+                let mut conf = CONFIG.write();
                 conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
                 let _ = conf.update_config();
                 config_changed.set(true);
@@ -472,11 +472,11 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let mut conf = CONFIG.write();
                 let i = b.value();
                 if i < 0 {
                     return;
                 }
+                let mut conf = CONFIG.write();
                 let newsize = streamsizes[i as usize].clone();
                 ui_log(&format!(
                     "StreamSize for {} changed to {newsize}",
@@ -556,11 +556,11 @@ impl MainForm {
             let mut rms_mon_l = rms_mon_l.clone();
             let mut rms_mon_r = rms_mon_r.clone();
             move |b| {
+                rms_mon_l.set_value(0.0);
+                rms_mon_r.set_value(0.0);
                 let mut conf = CONFIG.write();
                 conf.monitor_rms = b.is_set();
                 let _ = conf.update_config();
-                rms_mon_l.set_value(0.0);
-                rms_mon_r.set_value(0.0);
             }
         });
         pconfig4.add(&show_rms);

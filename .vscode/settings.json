@@ -1,7 +1,3 @@
 {
-    "rust-analyzer.cargo.features": [
-        "cli",
-        "gui",
-    ],
     "files.eol": "\n",
 }

@@ -91,15 +91,6 @@ fn main() {
         }
         conf.clone()
     };
-    if let Some(config_id) = &config.config_id {
-        if !config_id.is_empty() {
-            ui_log(&format!("Loaded configuration -c {config_id}"));
-        }
-    }
-    ui_log(&format!("{config:?}"));
-    if cfg!(debug_assertions) {
-        config.log_level = LevelFilter::Debug;
-    }
 
     let config_changed: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
@@ -134,6 +125,17 @@ fn main() {
         std::env::consts::FAMILY,
         std::env::consts::OS
     );
+
+    if let Some(config_id) = &config.config_id {
+        if !config_id.is_empty() {
+            ui_log(&format!("Loaded configuration -c {config_id}"));
+        }
+    }
+    ui_log(&format!("{config:?}"));
+    if cfg!(debug_assertions) {
+        config.log_level = LevelFilter::Debug;
+    }
+
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
     }

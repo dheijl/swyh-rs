@@ -110,7 +110,7 @@ pub fn run_server(
                     if let Some(i) = remote_ip.find(':') {
                         remote_ip.truncate(i);
                     }
-                    // prpare streaming headers
+                    // prepare streaming headers
                     let conf = CONFIG.read().clone();
                     // format from config or from GET Path
                     let cf_format = conf.streaming_format.unwrap_or(Lpcm);

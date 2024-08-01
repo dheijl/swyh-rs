@@ -4,6 +4,9 @@
   - GUI: replaced the FLTK callback recursion mutex (for the choice widget popups) with an AtomicBool. See issue #10 (panic while panicking in the choice callback), but I don't know if the recursion check is still actually needed with the current FLTK version, I never could reproduce the recursion problem.
   - optimize CONFIG locking somewhat
   - make all fltk callbacks consistent
+  - GUI: delay logging until logging properly initialized
+  - update innosetup
+  - replace rand by fastrand, as rand is overkill, it's faster and also reduces dependencies
 
 - 1.10.10 (Jul 6 2024 dheijl)
   - CLI: sanitize ssdp interval argument

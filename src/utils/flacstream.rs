@@ -1,7 +1,7 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use dasp_sample::Sample;
+use fastrand::Rng;
 use flac_bound::{FlacEncoder, WriteWrapper};
-use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::{
     io::Write,
     sync::{
@@ -107,7 +107,7 @@ impl FlacChannel {
                 // read captured samples and encode
                 let shift = if bps == 24 { 8u8 } else { 16u8 };
                 // create the random generator for the white noise
-                let mut rng = StdRng::seed_from_u64(79);
+                let mut rng = fastrand::Rng::with_seed(79);
                 // init NOISE feature and preallocate the noise buffer
                 const DIVISOR: u64 = 1000 / NOISE_PERIOD_MS;
                 let noise_bufsize = ((sr * 2) / DIVISOR as u32) as usize;
@@ -157,8 +157,8 @@ impl FlacChannel {
 ///
 /// fill the pre-allocated noise buffer with white noise
 ///
-fn fill_noise_buffer(rng: &mut StdRng, noise_buf: &mut [f32]) {
+fn fill_noise_buffer(rng: &mut Rng, noise_buf: &mut [f32]) {
     for sample in noise_buf.iter_mut() {
-        *sample = (rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0;
+        *sample = (rng.f32() * 2.0) - 1.0;
     }
 }

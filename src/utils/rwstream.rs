@@ -12,8 +12,8 @@
 use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
 use crossbeam_channel::{Receiver, Sender};
 use dasp_sample::Sample;
+use fastrand::Rng;
 use log::debug;
-use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::{
     collections::VecDeque,
     io::{Read, Result as IoResult},
@@ -310,13 +310,13 @@ fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
 #[allow(dead_code)]
 fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     // create the random generator for the white noise
-    let mut rng = StdRng::seed_from_u64(79);
+    let mut rng = Rng::with_seed(79);
     let size = ((sample_rate * 2 * silence_period as u32) / 1000) as usize;
     let mut noise = Vec::with_capacity(size);
     noise.resize(size, 0.0);
     let amplitude: f32 = 0.001;
     for sample in &mut noise {
-        *sample = ((rng.sample(Uniform::new(0.0, 1.0)) * 2.0) - 1.0) * amplitude;
+        *sample = ((rng.f32() * 2.0) - 1.0) * amplitude;
     }
     noise
 }
@@ -338,6 +338,22 @@ mod tests {
         const SAMPLE_RATE: u32 = 44100;
         let sb = get_silence_buffer(SAMPLE_RATE, 250);
         assert_eq!(sb.len(), ((SAMPLE_RATE * 2) as u64 / (1000 / 250)) as usize);
+    }
+
+    #[test]
+    fn test_noise() {
+        // create the random generator for the white noise
+        let mut rng = Rng::with_seed(79);
+        let sample_rate = 44100;
+        let silence_period = 250; //msecs
+        let size = ((sample_rate * 2 * silence_period as u32) / 1000) as usize;
+        let mut noise = Vec::with_capacity(size);
+        noise.resize(size, 0.0);
+        let amplitude: f32 = 0.001;
+        for sample in &mut noise {
+            *sample = ((rng.f32() * 2.0) - 1.0) * amplitude;
+        }
+        eprintln!("{noise:?}");
     }
 
     use dasp_sample::{Sample, I24};

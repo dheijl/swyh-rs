@@ -48,7 +48,7 @@ flac-bound = { version = "0.3.0", default-features = false, features = [
 ] }
 hashbrown = "0.14.5"
 htmlescape = "0.3.1"
-if-addrs = "0.13.1"
+if-addrs = "0.13.2"
 lexopt = "0.3.0"
 local-ip-address = { version = "0.6.1", optional = true }
 log = { version = "0.4.22", features = [
@@ -58,18 +58,18 @@ log = { version = "0.4.22", features = [
 ] }
 once_cell = "1.19.0"
 parking_lot = "0.12.3"
-serde = { version = "1.0.204", features = ["derive"] }
+serde = { version = "1.0.205", features = ["derive"] }
 simplelog = "0.12.2"
 strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
 toml = "0.8.19"
-ureq = { version = "2.10.0", default-features = false, features = [
+ureq = { version = "2.10.1", default-features = false, features = [
     "charset",
     "gzip",
 ] }
 url = "2.5.2"
-xml-rs = "0.8.20"
+xml-rs = "0.8.21"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.4.33", features = ["use-ninja"], optional = true }
 windows = { version = "0.58.0", features = [

@@ -17,6 +17,7 @@ pub struct StreamingParams {
 }
 
 impl StreamingParams {
+    #[must_use]
     pub fn from_query_string(url: &str) -> StreamingParams {
         let mut result = StreamingParams {
             path: None,

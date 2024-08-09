@@ -3,7 +3,7 @@
 ///
 /// swyh-rs
 ///
-/// Basic SWYH (https://www.streamwhatyouhear.com/, source repo https://github.com/StreamWhatYouHear/SWYH) clone entirely written in rust.
+/// Basic SWYH (<https://www.streamwhatyouhear.com>, source repo <https://github.com/StreamWhatYouHear/SWYH)> clone entirely written in rust.
 ///
 /// I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 ///
@@ -353,7 +353,7 @@ fn main() {
 
     // if anyone is still streaming: stop them first
     let mut active_players: Vec<String> = Vec::new();
-    for button in mf.buttons.iter() {
+    for button in &mf.buttons {
         if button.1.is_set() {
             if let Some(r) = renderers.iter().find(|r| r.remote_addr == *button.0) {
                 active_players.push(r.remote_addr.clone());

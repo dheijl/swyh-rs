@@ -70,12 +70,12 @@ impl MainForm {
         const FW: i32 = 600;
         const XPOS: i32 = 30;
         const YPOS: i32 = 5;
+        const WW: i32 = 660;
+        const WH: i32 = 660;
 
         let title_color: Color = Color::from_u32(0x00e6_fff0);
         let app = app::App::default().with_scheme(app::Scheme::Gtk);
         app::background(247, 247, 247);
-        const WW: i32 = 660;
-        const WH: i32 = 660;
         let mut wind = DoubleWindow::default()
             .with_size(WW, WH)
             .with_label(&format!("swyh-rs UPNP/DLNA Media Renderers V{app_version}"));

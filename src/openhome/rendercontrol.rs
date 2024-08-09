@@ -1,7 +1,7 @@
 ///
 /// rendercontrol.rs
 ///
-/// controller for avmedia renderers (audio only) using `OpenHome` and `AVTransport`` protocol
+/// controller for avmedia renderers (audio only) using `OpenHome` and `AVTransport` protocol
 ///
 ///
 use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
@@ -140,7 +140,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
-/// AV get Volume template, uses RenderingControl service
+/// AV get Volume template, uses `RenderingControl` service
 static AV_GET_VOL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
@@ -153,7 +153,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
-/// AV set Volume template, uses RenderingControl service
+/// AV set Volume template, uses `RenderingControl` service
 static AV_SET_VOL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \

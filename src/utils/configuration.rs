@@ -317,7 +317,7 @@ impl Configuration {
                 };
             };
         }
-        println!("ARG override configfile (-C): {:?}", path);
+        println!("ARG override configfile (-C): {path:?}");
         path
     }
 }

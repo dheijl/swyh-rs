@@ -60,6 +60,7 @@ pub(crate) const U64MAXNOTCHUNKED: (Option<usize>, usize) =
     (Some((u64::MAX - 1) as usize), u64::MAX as usize);
 
 impl StreamSize {
+    #[must_use]
     pub fn values(&self) -> (Option<usize>, usize) {
         match self {
             StreamSize::NoneChunked => NONECHUNKED,

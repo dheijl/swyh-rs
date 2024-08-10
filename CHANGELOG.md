@@ -1,12 +1,13 @@
 # swyh-rs Changelog
 
-- 1.11.0 (unreleased)
+- 1.11.0 (Aug 10 2024 dheijl)
   - GUI: replaced the FLTK callback recursion mutex (for the choice widget popups) with an AtomicBool. See issue #10 (panic while panicking in the choice callback), but I don't know if the recursion check is still actually needed with the current FLTK version, I never could reproduce the recursion problem.
   - optimize CONFIG locking somewhat
   - make all fltk callbacks consistently follow the same pattern
   - GUI: delay logging until logging properly initialized
   - update innosetup
   - replace rand by fastrand, as rand is overkill here, it's faster and also reduces dependencies
+  - some clippy
 
 - 1.10.10 (Jul 6 2024 dheijl)
   - CLI: sanitize ssdp interval argument

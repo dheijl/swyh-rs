@@ -3,7 +3,7 @@ resolver = "2"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2021"
 name = "swyh-rs"
-version = "1.11.0"
+version = "1.11.1"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -58,7 +58,7 @@ log = { version = "0.4.22", features = [
 ] }
 once_cell = "1.19.0"
 parking_lot = "0.12.3"
-serde = { version = "1.0.205", features = ["derive"] }
+serde = { version = "1.0.206", features = ["derive"] }
 simplelog = "0.12.2"
 strfmt = "0.2.4"
 stringreader = "0.1.1"

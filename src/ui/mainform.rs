@@ -133,23 +133,23 @@ impl MainForm {
         // change themes (dark themes)
         fn change_theme_by_name(name: &str) {
              match name {
-                 "SHAKE_THEME" => {
+                 "Shake" => {
                      let theme = ColorTheme::new(color_themes::SHAKE_THEME);
                      theme.apply();
                  }
-                 "GRAY_THEME" => {
+                 "Gray" => {
                      let theme = ColorTheme::new(color_themes::GRAY_THEME);
                      theme.apply();
                  }
-                 "TAN_THEME" => {
+                 "Tan" => {
                      let theme = ColorTheme::new(color_themes::TAN_THEME);
                      theme.apply();
                  }
-                 "DARK_THEME" => {
+                 "Dark" => {
                      let theme = ColorTheme::new(color_themes::DARK_THEME);
                      theme.apply();
                  }
-                 "BLACK_THEME" => {
+                 "Black" => {
                      let theme = ColorTheme::new(color_themes::BLACK_THEME);
                      theme.apply();
                  }
@@ -163,7 +163,7 @@ impl MainForm {
         // Theme
         let mut ptheme = Pack::new(0, 0, GW, 25, "");
         ptheme.end();
-        let themes = vec!["SHAKE_THEME", "GRAY_THEME", "TAN_THEME","DARK_THEME","BLACK_THEME"];
+        let themes = vec!["Shake", "Gray", "Tan", "Dark", "Black"];
         let cur_theme = "Choose  Theme";
         let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_theme);
         for name in themes.iter() {

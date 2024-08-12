@@ -26,8 +26,11 @@ use fltk::{
 //use fltk_flow::Flow;
 use hashbrown::HashMap;
 use log::{debug, info, LevelFilter};
+
+use fltk_theme::{ColorTheme, color_themes};
+
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     net::IpAddr,
     rc::Rc,
     str::FromStr,
@@ -126,6 +129,66 @@ impl MainForm {
         vpack.add(&p1);
 
         // show config option widgets
+
+        // change themes (dark themes)
+        fn change_theme_by_name(name: &str) {
+             match name {
+                 "SHAKE_THEME" => {
+                     let theme = ColorTheme::new(color_themes::SHAKE_THEME);
+                     theme.apply();
+                 }
+                 "GRAY_THEME" => {
+                     let theme = ColorTheme::new(color_themes::GRAY_THEME);
+                     theme.apply();
+                 }
+                 "TAN_THEME" => {
+                     let theme = ColorTheme::new(color_themes::TAN_THEME);
+                     theme.apply();
+                 }
+                 "DARK_THEME" => {
+                     let theme = ColorTheme::new(color_themes::DARK_THEME);
+                     theme.apply();
+                 }
+                 "BLACK_THEME" => {
+                     let theme = ColorTheme::new(color_themes::BLACK_THEME);
+                     theme.apply();
+                 }
+                 _ => {
+                     // Handle unknown theme name 
+                     println!("Unknown theme: {}", name);
+                 }
+             }
+        }
+
+        // Theme
+        let mut ptheme = Pack::new(0, 0, GW, 25, "");
+        ptheme.end();
+        let themes = vec!["SHAKE_THEME", "GRAY_THEME", "TAN_THEME","DARK_THEME","BLACK_THEME"];
+        let cur_theme = "Choose  Theme";
+        let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_theme);
+        for name in themes.iter() {
+            theme_button.add_choice(name);
+        }
+        let themes_c=themes.to_vec();
+        let main_window_ref = Rc::new(RefCell::new(wind.clone()));
+        theme_button.set_callback(move |b| {
+            
+            let mut i = b.value();
+            if i < 0 {
+                return;
+            }
+            if i as usize >= themes_c.len() {
+                i = (themes_c.len() - 1) as i32;
+            }
+            let name = themes_c[i as usize];
+           
+            b.set_label(name);
+            change_theme_by_name(&name);
+            main_window_ref.borrow_mut().redraw();
+            // Additional code you want to execute when dark mode changes
+        });
+        ptheme.add(&theme_button);
+        vpack.add(&ptheme);
 
         // network selection
         let mut pnw = Flex::new(0, 0, GW, 25, "");

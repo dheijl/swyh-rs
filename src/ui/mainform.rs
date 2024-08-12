@@ -27,7 +27,7 @@ use fltk::{
 use hashbrown::HashMap;
 use log::{debug, info, LevelFilter};
 
-use fltk_theme::{ColorTheme, color_themes};
+use fltk_theme::{color_themes, ColorTheme};
 
 use std::{
     cell::{Cell, RefCell},
@@ -132,47 +132,46 @@ impl MainForm {
 
         // change themes (dark themes)
         fn change_theme_by_name(name: &str) {
-             match name {
-                 "Shake" => {
-                     let theme = ColorTheme::new(color_themes::SHAKE_THEME);
-                     theme.apply();
-                 }
-                 "Gray" => {
-                     let theme = ColorTheme::new(color_themes::GRAY_THEME);
-                     theme.apply();
-                 }
-                 "Tan" => {
-                     let theme = ColorTheme::new(color_themes::TAN_THEME);
-                     theme.apply();
-                 }
-                 "Dark" => {
-                     let theme = ColorTheme::new(color_themes::DARK_THEME);
-                     theme.apply();
-                 }
-                 "Black" => {
-                     let theme = ColorTheme::new(color_themes::BLACK_THEME);
-                     theme.apply();
-                 }
-                 _ => {
-                     // Handle unknown theme name 
-                     println!("Unknown theme: {}", name);
-                 }
-             }
+            match name {
+                "Shake" => {
+                    let theme = ColorTheme::new(color_themes::SHAKE_THEME);
+                    theme.apply();
+                }
+                "Gray" => {
+                    let theme = ColorTheme::new(color_themes::GRAY_THEME);
+                    theme.apply();
+                }
+                "Tan" => {
+                    let theme = ColorTheme::new(color_themes::TAN_THEME);
+                    theme.apply();
+                }
+                "Dark" => {
+                    let theme = ColorTheme::new(color_themes::DARK_THEME);
+                    theme.apply();
+                }
+                "Black" => {
+                    let theme = ColorTheme::new(color_themes::BLACK_THEME);
+                    theme.apply();
+                }
+                _ => {
+                    // Handle unknown theme name
+                    println!("Unknown theme: {}", name);
+                }
+            }
         }
 
         // Theme
         let mut ptheme = Pack::new(0, 0, GW, 25, "");
         ptheme.end();
-        let themes = vec!["Shake", "Gray", "Tan", "Dark", "Black"];
+        let themes = ["Shake", "Gray", "Tan", "Dark", "Black"];
         let cur_theme = "Choose  Theme";
-        let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_theme);
-        for name in themes.iter() {
+        let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(cur_theme);
+        for name in &themes {
             theme_button.add_choice(name);
         }
-        let themes_c=themes.to_vec();
+        let themes_c = themes.to_vec();
         let main_window_ref = Rc::new(RefCell::new(wind.clone()));
         theme_button.set_callback(move |b| {
-            
             let mut i = b.value();
             if i < 0 {
                 return;
@@ -181,9 +180,9 @@ impl MainForm {
                 i = (themes_c.len() - 1) as i32;
             }
             let name = themes_c[i as usize];
-           
+
             b.set_label(name);
-            change_theme_by_name(&name);
+            change_theme_by_name(name);
             main_window_ref.borrow_mut().redraw();
             // Additional code you want to execute when dark mode changes
         });

@@ -46,6 +46,7 @@ fastrand = "2.1.0"
 flac-bound = { version = "0.3.0", default-features = false, features = [
     "libflac-noogg",
 ] }
+fltk-theme = "0.7.2"
 hashbrown = "0.14.5"
 htmlescape = "0.3.1"
 if-addrs = "0.13.2"

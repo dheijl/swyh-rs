@@ -659,7 +659,7 @@ impl MainForm {
             choose_audio_source_but,
             tb,
             buttons,
-            btn_index: 8,
+            btn_index: 10,
             bwidth: frame.width(),
             bheight: frame.height(),
             wd: *wd,

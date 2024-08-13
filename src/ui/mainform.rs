@@ -152,18 +152,17 @@ impl MainForm {
                     4 => Some(ColorTheme::new(color_themes::BLACK_THEME)),
                     _ => None,
                 };
-                if theme.is_some() {
-                    theme.unwrap().apply();
+                if let Some(th) = theme {
+                    th.apply();
                     // todo: update config with chosen theme
                 } else {
                     // todo update config with None theme
-                    ui_log(&format!("*W*W*>removing a theme requires a retart!"));
+                    ui_log("*W*W*>removing a theme requires a retart!");
                     config_changed.set(true);
                     return;
                 }
-                let names = themes.split('|').collect::<Vec<&str>>();
-                b.set_label(names[i]);
-                // Additional code you want to execute when dark mode changes
+                let name = themes.split('|').nth(i).unwrap_or("???");
+                b.set_label(name);
             }
         });
         ptheme.add(&theme_button);

@@ -1,13 +1,11 @@
 use if_addrs::IfAddr;
 #[cfg(feature = "cli")]
 use local_ip_address::local_ip;
-#[cfg(feature = "cli")]
 use std::net::IpAddr;
 #[cfg(feature = "gui")]
-use std::net::{IpAddr, UdpSocket};
+use std::net::UdpSocket;
 
 /// `get_local_address` - get the local ip address, return an `Option<String>`. when it fails, return `None`.
-#[must_use]
 #[cfg(feature = "gui")]
 pub fn get_local_addr() -> Option<IpAddr> {
     // bind to IN_ADDR_ANY, can be multiple interfaces/addresses
@@ -30,7 +28,7 @@ pub fn get_local_addr() -> Option<IpAddr> {
 pub fn get_local_addr() -> Result<IpAddr, local_ip_address::Error> {
     local_ip()
 }
-#[must_use]
+
 pub fn get_interfaces() -> Vec<String> {
     let mut interfaces: Vec<String> = Vec::new();
     let ifaces = if_addrs::get_if_addrs().expect("could not get interfaces");

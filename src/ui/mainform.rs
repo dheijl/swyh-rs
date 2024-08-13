@@ -133,26 +133,38 @@ impl MainForm {
         // Theme
         let mut ptheme = Pack::new(0, 0, GW, 25, "");
         ptheme.end();
-        let themes = ["Shake", "Gray", "Tan", "Dark", "Black"];
         let cur_theme = "Choose  Theme";
         let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(cur_theme);
-        for name in &themes {
-            theme_button.add_choice(name);
-        }
-        let themes_c = themes.to_vec();
-        theme_button.set_callback(move |b| {
-            let mut i = b.value();
-            if i < 0 {
-                return;
+        let themes = "Shake|Gray|Tan|Dark|Black|None";
+        theme_button.add_choice(themes);
+        theme_button.set_callback({
+            let config_changed = config_changed.clone();
+            move |b| {
+                if b.value() < 0 {
+                    return;
+                }
+                let i = b.value() as usize;
+                let theme = match i {
+                    0 => Some(ColorTheme::new(color_themes::SHAKE_THEME)),
+                    1 => Some(ColorTheme::new(color_themes::GRAY_THEME)),
+                    2 => Some(ColorTheme::new(color_themes::TAN_THEME)),
+                    3 => Some(ColorTheme::new(color_themes::DARK_THEME)),
+                    4 => Some(ColorTheme::new(color_themes::BLACK_THEME)),
+                    _ => None,
+                };
+                if theme.is_some() {
+                    theme.unwrap().apply();
+                    // todo: update config with chosen theme
+                } else {
+                    // todo update config with None theme
+                    ui_log(&format!("*W*W*>removing a theme requires a retart!"));
+                    config_changed.set(true);
+                    return;
+                }
+                let names = themes.split('|').collect::<Vec<&str>>();
+                b.set_label(names[i]);
+                // Additional code you want to execute when dark mode changes
             }
-            if i as usize >= themes_c.len() {
-                i = (themes_c.len() - 1) as i32;
-            }
-            let name = themes_c[i as usize];
-
-            b.set_label(name);
-            change_theme_by_name(name);
-            // Additional code you want to execute when dark mode changes
         });
         ptheme.add(&theme_button);
         vpack.add(&ptheme);
@@ -762,36 +774,6 @@ impl MainForm {
                 pbut.turn_on(true);
                 pbut.do_callback();
             }
-        }
-    }
-}
-
-// change themes (dark themes)
-fn change_theme_by_name(name: &str) {
-    match name {
-        "Shake" => {
-            let theme = ColorTheme::new(color_themes::SHAKE_THEME);
-            theme.apply();
-        }
-        "Gray" => {
-            let theme = ColorTheme::new(color_themes::GRAY_THEME);
-            theme.apply();
-        }
-        "Tan" => {
-            let theme = ColorTheme::new(color_themes::TAN_THEME);
-            theme.apply();
-        }
-        "Dark" => {
-            let theme = ColorTheme::new(color_themes::DARK_THEME);
-            theme.apply();
-        }
-        "Black" => {
-            let theme = ColorTheme::new(color_themes::BLACK_THEME);
-            theme.apply();
-        }
-        _ => {
-            // Handle unknown theme name
-            println!("Unknown theme: {}", name);
         }
     }
 }

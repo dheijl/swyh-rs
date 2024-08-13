@@ -18,7 +18,7 @@ codegen-units = 1
 lto = "thin"
 
 [features]
-gui = ["dep:fltk"]
+gui = ["dep:fltk", "dep:fltk-theme"]
 cli = ["dep:local-ip-address"]
 default = ["gui"]
 
@@ -46,7 +46,6 @@ fastrand = "2.1.0"
 flac-bound = { version = "0.3.0", default-features = false, features = [
     "libflac-noogg",
 ] }
-fltk-theme = "0.7.2"
 hashbrown = "0.14.5"
 htmlescape = "0.3.1"
 if-addrs = "0.13.2"
@@ -73,6 +72,7 @@ url = "2.5.2"
 xml-rs = "0.8.21"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.4.33", features = ["use-ninja"], optional = true }
+fltk-theme = { version = "0.7.2", optional = true } 
 windows = { version = "0.58.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
@@ -80,6 +80,7 @@ windows = { version = "0.58.0", features = [
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.4.33", features = ["use-ninja"], optional = true }
+fltk-theme = { version = "0.7.2", optional = true } 
 libc = "0.2.155"
 
 [patch.crates-io]

@@ -107,6 +107,8 @@ pub struct Configuration {
     pub config_id: Option<String>,
     #[serde(alias = "ReadOnly", default)]
     pub read_only: bool,
+    #[serde(alias = "ColorTheme", default)]
+    pub color_theme: Option<u8>,
 }
 
 impl Default for Configuration {
@@ -144,6 +146,7 @@ impl Configuration {
             config_dir: Self::get_config_dir(),
             config_id: Some(Self::get_config_id()),
             read_only: false,
+            color_theme: None,
         }
     }
 
@@ -230,6 +233,12 @@ impl Configuration {
             if let Ok(meta) = meta {
                 config.configuration.read_only = meta.permissions().readonly();
             }
+        }
+        if config.configuration.color_theme.is_some()
+            && !(0..=5).contains(&config.configuration.color_theme.unwrap())
+        {
+            config.configuration.color_theme = None;
+            force_update = true;
         }
         if force_update && !config.configuration.read_only {
             config.configuration.update_config().unwrap();

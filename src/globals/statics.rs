@@ -23,3 +23,5 @@ pub static MSGCHANNEL: Lazy<RwLock<(Sender<MessageType>, Receiver<MessageType>)>
 // the global configuration state
 pub static CONFIG: Lazy<RwLock<Configuration>> =
     Lazy::new(|| RwLock::new(Configuration::read_config()));
+// the list of knowb fltk theme naes
+pub static THEMES: [&str; 6] = ["Shake", "Gray", "Tan", "Dark", "Black", "None"];

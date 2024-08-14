@@ -4,7 +4,7 @@ use crate::{
         StreamSize,
         StreamingFormat::{self, Flac},
     },
-    globals::statics::CONFIG,
+    globals::statics::{CONFIG, THEMES},
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
 };
@@ -131,34 +131,26 @@ impl MainForm {
         // show config option widgets
 
         // Theme
+        let cur_theme = if let Some(theme) = config.color_theme {
+            let name = Self::apply_theme(theme.into());
+            &("Color Theme: ".to_string() + &name)
+        } else {
+            "Choose Color Theme"
+        };
         let mut ptheme = Pack::new(0, 0, GW, 25, "");
         ptheme.end();
-        let cur_theme = "Choose  Theme";
         let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(cur_theme);
-        let themes = "Shake|Gray|Tan|Dark|Black|None";
-        theme_button.add_choice(themes);
+        theme_button.add_choice(&THEMES.join("|"));
         theme_button.set_callback(move |b| {
             if b.value() < 0 {
                 return;
             }
-            let i = b.value() as usize;
-            let theme = match i {
-                0 => Some(ColorTheme::new(color_themes::SHAKE_THEME)),
-                1 => Some(ColorTheme::new(color_themes::GRAY_THEME)),
-                2 => Some(ColorTheme::new(color_themes::TAN_THEME)),
-                3 => Some(ColorTheme::new(color_themes::DARK_THEME)),
-                4 => Some(ColorTheme::new(color_themes::BLACK_THEME)),
-                _ => None,
-            };
-            if let Some(th) = theme {
-                th.apply();
-                // todo: update config with chosen theme
-            } else {
-                fltk_theme::reset_color_map();
-                // todo update config with None theme
-            }
-            let name = "Color theme: ".to_string() + themes.split('|').nth(i).unwrap_or("???");
-            b.set_label(&name);
+            let name = Self::apply_theme(b.value() as usize);
+            let cur_theme = "Color theme: ".to_string() + &name;
+            b.set_label(&cur_theme);
+            let mut conf = CONFIG.write();
+            conf.color_theme = Some(b.value() as u8);
+            let _ = conf.update_config();
         });
         ptheme.add(&theme_button);
         vpack.add(&ptheme);
@@ -769,5 +761,37 @@ impl MainForm {
                 pbut.do_callback();
             }
         }
+    }
+
+    fn apply_theme(theme_index: usize) -> String {
+        let (theme, name) = match theme_index {
+            0 => (
+                Some(ColorTheme::new(color_themes::SHAKE_THEME)),
+                THEMES[0].to_string(),
+            ),
+            1 => (
+                Some(ColorTheme::new(color_themes::GRAY_THEME)),
+                THEMES[1].to_string(),
+            ),
+            2 => (
+                Some(ColorTheme::new(color_themes::TAN_THEME)),
+                THEMES[2].to_string(),
+            ),
+            3 => (
+                Some(ColorTheme::new(color_themes::DARK_THEME)),
+                THEMES[3].to_string(),
+            ),
+            4 => (
+                Some(ColorTheme::new(color_themes::BLACK_THEME)),
+                THEMES[4].to_string(),
+            ),
+            _ => (None, THEMES[5].to_string()),
+        };
+        if let Some(th) = theme {
+            th.apply();
+        } else {
+            fltk_theme::reset_color_map();
+        }
+        name
     }
 }

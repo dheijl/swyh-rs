@@ -2,6 +2,9 @@
 
 - 1.11.1 (unreleased)
   - Rust 1.80.1
+  - merge PR #139 by @Villardo that adds FLTK Theme support
+  - add possibility to restore the theme to FLTK defaults (thanks @MoAlyousef for adding this feature to fltk-theme)
+  - make theme change persistent in the config file
 
 - 1.11.0 (Aug 10 2024 dheijl)
   - GUI: replaced the FLTK callback recursion mutex (for the choice widget popups) with an AtomicBool. See issue #10 (panic while panicking in the choice callback), but I don't know if the recursion check is still actually needed with the current FLTK version, I never could reproduce the recursion problem.

@@ -133,7 +133,7 @@ impl MainForm {
         // Theme
         let cur_theme = if let Some(theme) = config.color_theme {
             let name = Self::apply_theme(theme.into());
-            &("Color Theme: ".to_string() + &name)
+            &("Color Theme: ".to_string() + name)
         } else {
             "Choose Color Theme"
         };
@@ -146,7 +146,7 @@ impl MainForm {
                 return;
             }
             let name = Self::apply_theme(b.value() as usize);
-            let cur_theme = "Color theme: ".to_string() + &name;
+            let cur_theme = "Color theme: ".to_string() + name;
             b.set_label(&cur_theme);
             let mut conf = CONFIG.write();
             conf.color_theme = Some(b.value() as u8);
@@ -763,29 +763,14 @@ impl MainForm {
         }
     }
 
-    fn apply_theme(theme_index: usize) -> String {
+    fn apply_theme(theme_index: usize) -> &'static str {
         let (theme, name) = match theme_index {
-            0 => (
-                Some(ColorTheme::new(color_themes::SHAKE_THEME)),
-                THEMES[0].to_string(),
-            ),
-            1 => (
-                Some(ColorTheme::new(color_themes::GRAY_THEME)),
-                THEMES[1].to_string(),
-            ),
-            2 => (
-                Some(ColorTheme::new(color_themes::TAN_THEME)),
-                THEMES[2].to_string(),
-            ),
-            3 => (
-                Some(ColorTheme::new(color_themes::DARK_THEME)),
-                THEMES[3].to_string(),
-            ),
-            4 => (
-                Some(ColorTheme::new(color_themes::BLACK_THEME)),
-                THEMES[4].to_string(),
-            ),
-            _ => (None, THEMES[5].to_string()),
+            0 => (Some(ColorTheme::new(color_themes::SHAKE_THEME)), THEMES[0]),
+            1 => (Some(ColorTheme::new(color_themes::GRAY_THEME)), THEMES[1]),
+            2 => (Some(ColorTheme::new(color_themes::TAN_THEME)), THEMES[2]),
+            3 => (Some(ColorTheme::new(color_themes::DARK_THEME)), THEMES[3]),
+            4 => (Some(ColorTheme::new(color_themes::BLACK_THEME)), THEMES[4]),
+            _ => (None, THEMES[5]),
         };
         if let Some(th) = theme {
             th.apply();

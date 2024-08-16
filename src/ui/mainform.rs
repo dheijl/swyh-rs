@@ -141,7 +141,11 @@ impl MainForm {
         ptheme.end();
         let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(cur_theme);
         theme_button.add_choice(&THEMES.join("|"));
+        let rlock = AtomicBool::new(false);
         theme_button.set_callback(move |b| {
+            if rlock.swap(true, Ordering::Acquire) {
+                return;
+            }
             if b.value() < 0 {
                 return;
             }
@@ -151,6 +155,7 @@ impl MainForm {
             let mut conf = CONFIG.write();
             conf.color_theme = Some(b.value() as u8);
             let _ = conf.update_config();
+            rlock.store(false, Ordering::Release);
         });
         ptheme.add(&theme_button);
         vpack.add(&ptheme);

@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
-- 1.11.1 (unreleased)
+- 1.11.2 (unreleased)
+
+- 1.11.1 (Aug 16 2024 dheijl)
   - Rust 1.80.1
   - merge PR #139 by @Villardo that adds FLTK Theme support
   - add possibility to restore the theme to FLTK defaults (thanks @MoAlyousef for adding this feature to fltk-theme)

@@ -3,7 +3,7 @@ resolver = "2"
 authors = ["dheijl <danny.heijl@telenet.be>"]
 edition = "2021"
 name = "swyh-rs"
-version = "1.11.1"
+version = "1.11.2"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -72,7 +72,7 @@ url = "2.5.2"
 xml-rs = "0.8.21"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.4.33", features = ["use-ninja"], optional = true }
-fltk-theme = { version = "0.7.3", optional = true } 
+fltk-theme = { version = "0.7.3", optional = true }
 windows = { version = "0.58.0", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
@@ -80,7 +80,7 @@ windows = { version = "0.58.0", features = [
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.4.33", features = ["use-ninja"], optional = true }
-fltk-theme = { version = "0.7.3", optional = true } 
+fltk-theme = { version = "0.7.3", optional = true }
 libc = "0.2.156"
 
 [patch.crates-io]

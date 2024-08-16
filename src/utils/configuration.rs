@@ -1,5 +1,6 @@
 use crate::{
-    enums::streaming::StreamSize, enums::streaming::StreamingFormat, globals::statics::SERVER_PORT,
+    enums::streaming::{StreamSize, StreamingFormat},
+    globals::statics::{SERVER_PORT, THEMES},
 };
 use lexopt::{prelude::*, Parser};
 use log::LevelFilter;
@@ -235,7 +236,7 @@ impl Configuration {
             }
         }
         if config.configuration.color_theme.is_some()
-            && !(0..=5).contains(&config.configuration.color_theme.unwrap())
+            && config.configuration.color_theme.unwrap() >= THEMES.len() as u8
         {
             config.configuration.color_theme = None;
             force_update = true;

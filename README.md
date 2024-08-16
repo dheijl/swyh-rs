@@ -24,7 +24,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.11.0, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is 1.11.1, refer to the [Changelog](CHANGELOG.md) for more details.
 
 ## Why this SWYH alternative ?
 
@@ -164,6 +164,7 @@ The icon was designed by @numanair, thanks!
   - there are now build files for the Nix build system and the possibility to install swyh-rs-cli as a service using Nix
   - a more flexible CLI configuration with new -C (configfile) switch and automatic serve mode is no player specified
 - Since 1.10.5 you can enable **initial buffering** audio for a number of milliseconds before streaming starts, this may help to prevent stuttering on flaky (WiFi) networks or with streamers that don't have a configurable buffer size or that have a flaky system clock.
+- Since 1.11.1 you can select one of the FLTK color themes, using a new dropdown near the top of the window (PR #139 by @Villardo) 
 
 ### The CLI binary
 
@@ -252,4 +253,4 @@ MAC: I'm sorry but I don't have one... If you have one and would like to contrib
 
 ### Screenshot
 
-![afbeelding](https://github.com/dheijl/swyh-rs/assets/2384545/29ecfb4e-ebfc-4598-86a7-0887248937a0)
+![swyh-rs-1 11 1](https://github.com/user-attachments/assets/f1217119-31dd-47eb-96bc-bfb6b2ecf59a)

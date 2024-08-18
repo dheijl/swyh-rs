@@ -1,7 +1,6 @@
 # swyh-rs Changelog
 
 - 1.11.2 (unreleased)
-  - increase allowed memory buffer when streaming stalls
 
 - 1.11.1 (Aug 16 2024 dheijl)
   - Rust 1.80.1

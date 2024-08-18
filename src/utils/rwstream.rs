@@ -106,6 +106,7 @@ impl ChannelStream {
     // called by the wave_reader to write the f32 samples to the input channel
     pub fn write(&self, samples: &[f32]) {
         // don't blow up memory if streaming stalls for some reason
+        // 10_000 messages (capture buffers, not samples) is a quite a lot
         if self.s.len() < 10_000 {
             self.s.send(samples.to_vec()).unwrap();
         }

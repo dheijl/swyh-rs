@@ -95,10 +95,13 @@ fn main() {
     let config_changed: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
     // configure simplelogger
-    let loglevel = config.log_level;
     let config_id = config.config_id.clone().unwrap();
     let logfilename = "log{}.txt".replace("{}", &config_id);
     let logfile = Path::new(&config.log_dir()).join(logfilename);
+    if cfg!(debug_assertions) {
+        config.log_level = LevelFilter::Debug;
+    }
+    let loglevel = config.log_level;
     // disable TermLogger on susbsystem Windows because it panics now with Rust edition 2021
     if cfg!(debug_assertions) || cfg!(target_os = "linux") {
         let _ = CombinedLogger::init(vec![
@@ -125,6 +128,9 @@ fn main() {
         std::env::consts::FAMILY,
         std::env::consts::OS
     );
+    if cfg!(debug_assertions) {
+        ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
+    }
 
     if let Some(config_id) = &config.config_id {
         if !config_id.is_empty() {
@@ -132,13 +138,7 @@ fn main() {
         }
     }
     ui_log(&format!("{config:?}"));
-    if cfg!(debug_assertions) {
-        config.log_level = LevelFilter::Debug;
-    }
 
-    if cfg!(debug_assertions) {
-        ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
-    }
     info!("Config: {:?}", config);
 
     // get the output device from the config and get all available audio source names

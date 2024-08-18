@@ -2,6 +2,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use dasp_sample::Sample;
 use fastrand::Rng;
 use flac_bound::{FlacEncoder, WriteWrapper};
+use log::info;
 use std::{
     io::Write,
     sync::{
@@ -10,8 +11,6 @@ use std::{
     },
     time::Duration,
 };
-
-use crate::utils::ui_logger::ui_log;
 
 const NOISE_PERIOD_MS: u64 = 250; // milliseconds
 
@@ -122,8 +121,13 @@ impl FlacChannel {
                             .iter()
                             .map(|s| s.to_sample::<i32>() >> shift)
                             .collect::<Vec<i32>>();
-                        enc.process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
-                            .unwrap();
+                        if enc
+                            .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
+                            .is_err()
+                        {
+                            info!("Flac encoding interrupted.");
+                            break;
+                        }
                     } else {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
                         // if no samples for a certain time: send very faint near silence bursts
@@ -133,12 +137,11 @@ impl FlacChannel {
                                 .iter()
                                 .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
                                 .collect::<Vec<i32>>();
-                            let res = enc.process_interleaved(
-                                samples.as_slice(),
-                                (samples.len() / 2) as u32,
-                            );
-                            if let Err(e) = res {
-                                ui_log(&format!("Flac inject near silence: end {e:?}"));
+                            if enc
+                                .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
+                                .is_err()
+                            {
+                                info!("Flac inject near silence interrupted.");
                                 break;
                             }
                         }

@@ -689,14 +689,14 @@ impl MainForm {
             let local_addr = self.local_addr;
             let wd = self.wd;
             move |b| {
-                debug!(
+                info!(
                     "Pushed renderer #{} {} {}, state = {}",
                     bi,
                     newr_c.dev_model,
                     newr_c.dev_name,
-                    if b.is_set() { "ON" } else { "OFF" }
+                    if b.is_on() { "ON" } else { "OFF" },
                 );
-                if b.is_set() {
+                if b.is_on() {
                     {
                         let mut conf = CONFIG.write();
                         conf.last_renderer = Some(b.label());

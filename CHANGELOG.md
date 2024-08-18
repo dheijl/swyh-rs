@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.11.2 (unreleased)
+- 1.11.2 (Aug 18 2024 dheijl)
   - clean up log initializing mess
   - handle flac encoding interruption better
 

@@ -148,17 +148,14 @@ impl Read for ChannelStream {
                         i += 2;
                     } else {
                         let sample = i32::from_sample(f32sample) >> 8;
-                        if self.use_wave_format {
-                            let b = sample.to_le_bytes();
-                            buf[i] = b[0];
-                            buf[i + 1] = b[1];
-                            buf[i + 2] = b[2];
+                        let (b, j) = if self.use_wave_format {
+                            (sample.to_le_bytes(), 0)
                         } else {
-                            let b = sample.to_be_bytes();
-                            buf[i] = b[1];
-                            buf[i + 1] = b[2];
-                            buf[i + 2] = b[3];
-                        }
+                            (sample.to_be_bytes(), 1)
+                        };
+                        buf[i] = b[j];
+                        buf[i + 1] = b[j + 1];
+                        buf[i + 2] = b[j + 2];
                         i += 3;
                     }
                 } else if let Ok(chunk) = self.r.recv_timeout(time_out) {

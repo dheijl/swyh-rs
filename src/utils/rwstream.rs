@@ -134,38 +134,81 @@ impl Read for ChannelStream {
                 self.wav_hdr.clear();
             }
             let bytes_per_sample = (self.bits_per_sample / 8) as usize;
-            while i < buf.len() - bytes_per_sample {
-                if let Some(f32sample) = self.fifo.pop_front() {
-                    if self.bits_per_sample == 16 {
-                        let sample = i16::from_sample(f32sample);
-                        let b = if self.use_wave_format {
-                            sample.to_le_bytes()
-                        } else {
-                            sample.to_be_bytes()
-                        };
-                        buf[i] = b[0];
-                        buf[i + 1] = b[1];
-                        i += 2;
+            // return a buffer with an integral number of samples
+            let buflen = buf.len() - bytes_per_sample;
+            while i < buflen {
+                // eprintln!("samples left in fifo: {}", self.fifo.len());
+                if self.fifo.is_empty() {
+                    if let Ok(chunk) = self.r.recv_timeout(time_out) {
+                        self.fifo.extend(chunk);
+                        self.sending_silence = false;
                     } else {
-                        let sample = i32::from_sample(f32sample) >> 8;
-                        let (b, j) = if self.use_wave_format {
-                            (sample.to_le_bytes(), 0)
-                        } else {
-                            (sample.to_be_bytes(), 1)
-                        };
-                        buf[i] = b[j];
-                        buf[i + 1] = b[j + 1];
-                        buf[i + 2] = b[j + 2];
-                        i += 3;
+                        self.fifo.extend(self.silence.clone());
+                        self.sending_silence = true;
                     }
-                } else if let Ok(chunk) = self.r.recv_timeout(time_out) {
-                    self.fifo.extend(chunk);
-                    self.sending_silence = false;
+                }
+                let bytes_needed = buflen - i;
+                let samples_needed = if bytes_per_sample == 2 {
+                    bytes_needed / 2
                 } else {
-                    self.fifo.extend(self.silence.clone());
-                    self.sending_silence = true;
+                    bytes_needed / 3
+                };
+                let samples_available = self.fifo.len();
+                let process = if samples_needed <= samples_available {
+                    0..samples_needed
+                } else {
+                    0..samples_available
+                };
+                let samples = self.fifo.drain(process);
+                // eprintln!("Processing {} samples", samples.len());
+                // use drain iterator instead of pop_front() combined with manually loop unswitching
+                match self.bits_per_sample {
+                    16 => match self.use_wave_format {
+                        true => {
+                            for s in samples {
+                                let sample = i16::from_sample(s);
+                                let b = sample.to_le_bytes();
+                                buf[i] = b[0];
+                                buf[i + 1] = b[1];
+                                i += 2;
+                            }
+                        }
+                        false => {
+                            for s in samples {
+                                let sample = i16::from_sample(s);
+                                let b = sample.to_be_bytes();
+                                buf[i] = b[0];
+                                buf[i + 1] = b[1];
+                                i += 2;
+                            }
+                        }
+                    },
+                    24 => match self.use_wave_format {
+                        true => {
+                            for s in samples {
+                                let sample = i32::from_sample(s) >> 8;
+                                let (b, j) = (sample.to_le_bytes(), 0);
+                                buf[i] = b[j];
+                                buf[i + 1] = b[j + 1];
+                                buf[i + 2] = b[j + 2];
+                                i += 3;
+                            }
+                        }
+                        false => {
+                            for s in samples {
+                                let sample = i32::from_sample(s) >> 8;
+                                let (b, j) = (sample.to_be_bytes(), 1);
+                                buf[i] = b[j];
+                                buf[i + 1] = b[j + 1];
+                                buf[i + 2] = b[j + 2];
+                                i += 3;
+                            }
+                        }
+                    },
+                    _ => (),
                 }
             }
+            //eprintln!("**returned buffer**({i})");
             Ok(i)
         } else {
             // FLAC

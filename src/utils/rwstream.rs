@@ -137,7 +137,7 @@ impl Read for ChannelStream {
             // return a buffer with an integral number of samples
             let buflen = buf.len();
             while i < buflen {
-                eprintln!("samples left in fifo: {}", self.fifo.len());
+                //eprintln!("samples left in fifo: {}", self.fifo.len());
                 if self.fifo.is_empty() {
                     if let Ok(chunk) = self.r.recv_timeout(time_out) {
                         self.fifo.extend(chunk);
@@ -153,23 +153,21 @@ impl Read for ChannelStream {
                     break;
                 }
                 let samples_available = self.fifo.len();
-                eprintln!(
-                    "Samples available: {samples_available}, needed: {samples_needed}, buffer: {i}"
-                );
-                let process = if samples_needed <= samples_available {
+                // eprintln!("Available: {samples_available}, Needed: {samples_needed}, Buffer: {i}");
+                let process_range = if samples_needed <= samples_available {
                     0..samples_needed
                 } else {
                     0..samples_available
                 };
-                let samples = self.fifo.drain(process);
-                eprintln!("Processing {} samples", samples.len());
+                let samples = self.fifo.drain(process_range);
+                // eprintln!("Processing {} samples", samples.len());
                 // use drain iterator instead of pop_front() combined with manually loop unswitching
                 match self.bits_per_sample {
                     16 => match self.use_wave_format {
                         true => {
                             for s in samples {
-                                let sample = i16::from_sample(s);
-                                let b = sample.to_le_bytes();
+                                let i16_sample = i16::from_sample(s);
+                                let b = i16_sample.to_le_bytes();
                                 buf[i] = b[0];
                                 buf[i + 1] = b[1];
                                 i += bytes_per_sample;
@@ -177,8 +175,8 @@ impl Read for ChannelStream {
                         }
                         false => {
                             for s in samples {
-                                let sample = i16::from_sample(s);
-                                let b = sample.to_be_bytes();
+                                let i16_sample = i16::from_sample(s);
+                                let b = i16_sample.to_be_bytes();
                                 buf[i] = b[0];
                                 buf[i + 1] = b[1];
                                 i += bytes_per_sample;
@@ -188,8 +186,8 @@ impl Read for ChannelStream {
                     24 => match self.use_wave_format {
                         true => {
                             for s in samples {
-                                let sample = i32::from_sample(s) >> 8;
-                                let b = sample.to_le_bytes();
+                                let i24_sample = i32::from_sample(s) >> 8;
+                                let b = i24_sample.to_le_bytes();
                                 buf[i] = b[0];
                                 buf[i + 1] = b[1];
                                 buf[i + 2] = b[2];
@@ -198,8 +196,8 @@ impl Read for ChannelStream {
                         }
                         false => {
                             for s in samples {
-                                let sample = i32::from_sample(s) >> 8;
-                                let b = sample.to_be_bytes();
+                                let i24_sample = i32::from_sample(s) >> 8;
+                                let b = i24_sample.to_be_bytes();
                                 buf[i] = b[1];
                                 buf[i + 1] = b[2];
                                 buf[i + 2] = b[3];
@@ -210,7 +208,7 @@ impl Read for ChannelStream {
                     _ => (),
                 }
             }
-            eprintln!("**returned buffer**({i})");
+            //eprintln!("Returned buffer: ({i})");
             Ok(i)
         } else {
             // FLAC

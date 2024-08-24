@@ -135,9 +135,9 @@ impl Read for ChannelStream {
             }
             let bytes_per_sample = (self.bits_per_sample / 8) as usize;
             // return a buffer with an integral number of samples
-            let buflen = buf.len() - bytes_per_sample;
+            let buflen = buf.len();
             while i < buflen {
-                // eprintln!("samples left in fifo: {}", self.fifo.len());
+                eprintln!("samples left in fifo: {}", self.fifo.len());
                 if self.fifo.is_empty() {
                     if let Ok(chunk) = self.r.recv_timeout(time_out) {
                         self.fifo.extend(chunk);
@@ -148,19 +148,21 @@ impl Read for ChannelStream {
                     }
                 }
                 let bytes_needed = buflen - i;
-                let samples_needed = if bytes_per_sample == 2 {
-                    bytes_needed / 2
-                } else {
-                    bytes_needed / 3
-                };
+                let samples_needed = bytes_needed / bytes_per_sample;
+                if samples_needed == 0 {
+                    break;
+                }
                 let samples_available = self.fifo.len();
+                eprintln!(
+                    "Samples available: {samples_available}, needed: {samples_needed}, buffer: {i}"
+                );
                 let process = if samples_needed <= samples_available {
                     0..samples_needed
                 } else {
                     0..samples_available
                 };
                 let samples = self.fifo.drain(process);
-                // eprintln!("Processing {} samples", samples.len());
+                eprintln!("Processing {} samples", samples.len());
                 // use drain iterator instead of pop_front() combined with manually loop unswitching
                 match self.bits_per_sample {
                     16 => match self.use_wave_format {
@@ -170,7 +172,7 @@ impl Read for ChannelStream {
                                 let b = sample.to_le_bytes();
                                 buf[i] = b[0];
                                 buf[i + 1] = b[1];
-                                i += 2;
+                                i += bytes_per_sample;
                             }
                         }
                         false => {
@@ -179,7 +181,7 @@ impl Read for ChannelStream {
                                 let b = sample.to_be_bytes();
                                 buf[i] = b[0];
                                 buf[i + 1] = b[1];
-                                i += 2;
+                                i += bytes_per_sample;
                             }
                         }
                     },
@@ -187,28 +189,28 @@ impl Read for ChannelStream {
                         true => {
                             for s in samples {
                                 let sample = i32::from_sample(s) >> 8;
-                                let (b, j) = (sample.to_le_bytes(), 0);
-                                buf[i] = b[j];
-                                buf[i + 1] = b[j + 1];
-                                buf[i + 2] = b[j + 2];
-                                i += 3;
+                                let b = sample.to_le_bytes();
+                                buf[i] = b[0];
+                                buf[i + 1] = b[1];
+                                buf[i + 2] = b[2];
+                                i += bytes_per_sample;
                             }
                         }
                         false => {
                             for s in samples {
                                 let sample = i32::from_sample(s) >> 8;
-                                let (b, j) = (sample.to_be_bytes(), 1);
-                                buf[i] = b[j];
-                                buf[i + 1] = b[j + 1];
-                                buf[i + 2] = b[j + 2];
-                                i += 3;
+                                let b = sample.to_be_bytes();
+                                buf[i] = b[1];
+                                buf[i + 1] = b[2];
+                                buf[i + 2] = b[3];
+                                i += bytes_per_sample;
                             }
                         }
                     },
                     _ => (),
                 }
             }
-            //eprintln!("**returned buffer**({i})");
+            eprintln!("**returned buffer**({i})");
             Ok(i)
         } else {
             // FLAC

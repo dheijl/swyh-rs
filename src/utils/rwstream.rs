@@ -154,6 +154,8 @@ impl Read for ChannelStream {
                 }
                 let samples_available = self.fifo.len();
                 // eprintln!("Available: {samples_available}, Needed: {samples_needed}, Buffer: {i}");
+
+                // use the drain iterator instead of pop_front() combined with manually loop unswitching
                 let process_range = if samples_needed <= samples_available {
                     0..samples_needed
                 } else {
@@ -161,7 +163,6 @@ impl Read for ChannelStream {
                 };
                 let samples = self.fifo.drain(process_range);
                 // eprintln!("Processing {} samples", samples.len());
-                // use drain iterator instead of pop_front() combined with manually loop unswitching
                 match self.bits_per_sample {
                     16 => match self.use_wave_format {
                         true => {

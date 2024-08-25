@@ -26,8 +26,9 @@ pub struct StreamerFeedBack {
 
 /// `run_server` - run a tiny-http webserver to serve streaming requests from renderers
 ///
-/// all music is sent in audio/l16 PCM format (i16) with the sample rate of the source
-/// the samples are read from a crossbeam channel fed by the `wave_reader`
+/// all music is sent with the sample rate of the source in the requested audio format (lpcm/wav/rf64/flac)
+/// in the requested bit depth (16 or 24)
+/// the samples are read as f32 slices from a crossbeam channel fed by the `wave_reader`
 /// a `ChannelStream` is created for this purpose, and inserted in the array of active
 /// "clients" for the `wave_reader`
 pub fn run_server(

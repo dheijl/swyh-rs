@@ -64,21 +64,20 @@ impl StreamingParams {
         // extract bd (bit depth) and ss (streamsize) if found
         let query_string = parts[1];
         if !query_string.is_empty() {
-            let parts: Vec<&str> = query_string.split('&').collect();
-            let kv_iter = parts.iter().filter_map(|part| {
-                let mut kv = part.splitn(2, '=');
-                match (kv.next(), kv.next()) {
-                    (Some(k), Some(v)) => Some((k, v)),
-                    _ => None,
-                }
-            });
-            for (k, v) in kv_iter {
-                match k {
-                    "bd" => result.bd = Some(BitDepth::from_str(v).unwrap()),
-                    "ss" => result.ss = Some(StreamSize::from_str(v).unwrap()),
+            query_string
+                .split('&')
+                .filter_map(|part| {
+                    let mut kv_pair = part.splitn(2, '=');
+                    match (kv_pair.next(), kv_pair.next()) {
+                        (Some(k), Some(v)) => Some((k, v)),
+                        _ => None,
+                    }
+                })
+                .for_each(|kv_pair| match kv_pair.0 {
+                    "bd" => result.bd = Some(BitDepth::from_str(kv_pair.1).unwrap()),
+                    "ss" => result.ss = Some(StreamSize::from_str(kv_pair.1).unwrap()),
                     _ => (),
-                }
-            }
+                });
         }
         result
     }

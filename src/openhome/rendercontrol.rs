@@ -752,27 +752,35 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                         continue; // ignore
                     }
 
-                    let iter = response.iter().filter_map(|l| {
-                        let mut split = l.splitn(2, ':');
-                        match (split.next(), split.next()) {
-                            (Some(header), Some(value)) => Some((header, value.trim())),
-                            _ => None,
-                        }
-                    });
                     let mut dev_url = String::new();
                     let mut oh_device = false;
                     let mut av_device = false;
-                    for (header, value) in iter {
-                        if header.to_ascii_uppercase() == "LOCATION" {
-                            dev_url = value.to_string();
-                        } else if header.to_ascii_uppercase() == "ST" {
-                            if value.contains("urn:schemas-upnp-org:service:RenderingControl:1") {
-                                av_device = true;
-                            } else if value.contains("urn:av-openhome-org:service:Product:1") {
-                                oh_device = true;
+                    response
+                        .iter()
+                        .filter_map(|l| {
+                            let mut split = l.splitn(2, ':');
+                            match (split.next(), split.next()) {
+                                (Some(header), Some(value)) => Some((header, value.trim())),
+                                _ => None,
                             }
-                        }
-                    }
+                        })
+                        .for_each(|hv_pair| match hv_pair.0.to_ascii_uppercase().as_str() {
+                            "LOCATION" => dev_url = hv_pair.1.to_string(),
+                            "ST" => {
+                                if hv_pair
+                                    .1
+                                    .contains("urn:schemas-upnp-org:service:RenderingControl:1")
+                                {
+                                    av_device = true;
+                                } else if hv_pair
+                                    .1
+                                    .contains("urn:av-openhome-org:service:Product:1")
+                                {
+                                    oh_device = true;
+                                }
+                            }
+                            _ => (),
+                        });
                     if oh_device {
                         oh_devices.push((dev_url.clone(), from));
                         debug!("SSDP Discovery: OH renderer: {dev_url}");

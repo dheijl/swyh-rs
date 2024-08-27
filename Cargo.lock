@@ -1184,6 +1184,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
+ "toml_edit",
 ]
 
 [[package]]

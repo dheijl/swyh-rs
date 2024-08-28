@@ -125,54 +125,57 @@ impl ChannelStream {
     }
 
     // get the next le16 sample
-    fn get_le16(&mut self) -> [u8; 2] {
+    #[inline]
+    fn get_le16_sample(&mut self) -> [u8; 2] {
         if self.fifo.is_empty() {
             self.get_samples();
         }
         let i16sample = i16::from_sample(self.fifo.pop_front().unwrap());
-        let s = i16sample.to_le_bytes();
-        s
+        i16sample.to_le_bytes()
     }
 
     // get the next be16 sample
-    fn get_be16(&mut self) -> [u8; 2] {
+    #[inline]
+    fn get_be16_sample(&mut self) -> [u8; 2] {
         if self.fifo.is_empty() {
             self.get_samples();
         }
         let i16sample = i16::from_sample(self.fifo.pop_front().unwrap());
-        let s = i16sample.to_be_bytes();
-        s
+        i16sample.to_be_bytes()
     }
 
     // get the next le24 sample
-    fn get_le24(&mut self) -> [u8; 3] {
+    #[inline]
+    fn get_le24_sample(&mut self) -> [u8; 3] {
         if self.fifo.is_empty() {
             self.get_samples();
         }
         let i24sample = i32::from_sample(self.fifo.pop_front().unwrap()) >> 8;
         let b = i24sample.to_le_bytes();
         let mut s = [0u8; 3];
-        s.clone_from_slice(&b[0..3]);
+        s.copy_from_slice(&b[0..3]);
         s
     }
 
     // get the next be24sample
-    fn get_be24(&mut self) -> [u8; 3] {
+    #[inline]
+    fn get_be24_sample(&mut self) -> [u8; 3] {
         if self.fifo.is_empty() {
             self.get_samples();
         }
         let i24sample = i32::from_sample(self.fifo.pop_front().unwrap()) >> 8;
         let b = i24sample.to_be_bytes();
         let mut s = [0u8; 3];
-        s.clone_from_slice(&b[1..4]);
+        s.copy_from_slice(&b[1..4]);
         s
     }
 }
 
 /// implement the Read trait for the HTTP writer
 ///
-/// for LPCM/WAV the f32 samples are read from the f32 input channel and pushed
-/// on the fifo `VecDeque` that is then read for conversion to LPCM and transmission
+/// for LPCM/WAV/RF64 the f32 samples are read from the f32 input channel and pushed
+/// on the fifo `VecDeque` that is then read for conversion to LPCM/WAV/RF64 samples and
+/// stored in the transmission buffer as needed
 ///
 /// for FLAC the f32 samples have already been encoded to FLAC and written to the
 /// `flac_out` channel of the `FlacChannel` encoder.
@@ -194,28 +197,24 @@ impl Read for ChannelStream {
                 2 => match self.use_wave_format {
                     true => {
                         buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            let s = self.get_le16();
-                            chunk.copy_from_slice(&s);
+                            chunk.copy_from_slice(&self.get_le16_sample());
                         });
                     }
                     false => {
                         buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            let s = self.get_be16();
-                            chunk.copy_from_slice(&s);
+                            chunk.copy_from_slice(&self.get_be16_sample());
                         });
                     }
                 },
                 3 => match self.use_wave_format {
                     true => {
                         buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            let s = self.get_le24();
-                            chunk.copy_from_slice(&s);
+                            chunk.copy_from_slice(&self.get_le24_sample());
                         });
                     }
                     false => {
                         buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            let s = self.get_be24();
-                            chunk.copy_from_slice(&s);
+                            chunk.copy_from_slice(&self.get_be24_sample());
                         });
                     }
                 },

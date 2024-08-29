@@ -152,9 +152,7 @@ impl ChannelStream {
         }
         let i24sample = i32::from_sample(self.fifo.pop_front().unwrap()) >> 8;
         let b = i24sample.to_le_bytes();
-        let mut s = [0u8; 3];
-        s.copy_from_slice(&b[0..3]);
-        s
+        [b[0], b[1], b[2]]
     }
 
     // get the next be24sample
@@ -165,9 +163,7 @@ impl ChannelStream {
         }
         let i24sample = i32::from_sample(self.fifo.pop_front().unwrap()) >> 8;
         let b = i24sample.to_be_bytes();
-        let mut s = [0u8; 3];
-        s.copy_from_slice(&b[1..4]);
-        s
+        [b[1], b[2], b[3]]
     }
 }
 

@@ -1,6 +1,9 @@
 # swyh-rs Changelog
 
-- 1.11.3 (unreleased)
+- 1.11.3 (Aug 30 2024 dheijl)
+  - some tweaks:
+    - avoid unnecessary allocations
+    - rewrite how samples are serialized in the streaming buffer, it's safer, cleaner and should be faster too
 
 - 1.11.2 (Aug 18 2024 dheijl)
   - clean up log initializing mess

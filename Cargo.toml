@@ -50,7 +50,7 @@ hashbrown = "0.14.5"
 htmlescape = "0.3.1"
 if-addrs = "0.13.3"
 lexopt = "0.3.0"
-local-ip-address = { version = "0.6.1", optional = true }
+local-ip-address = { version = "0.6.2", optional = true }
 log = { version = "0.4.22", features = [
     "max_level_trace",
     "release_max_level_debug",

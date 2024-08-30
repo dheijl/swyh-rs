@@ -127,43 +127,51 @@ impl ChannelStream {
     // get the next le16 sample
     #[inline]
     fn get_le16_sample(&mut self) -> [u8; 2] {
-        if self.fifo.is_empty() {
+        if let Some(f32_sample) = self.fifo.pop_front() {
+            let i16sample = i16::from_sample(f32_sample);
+            i16sample.to_le_bytes()
+        } else {
             self.get_samples();
+            self.get_le16_sample()
         }
-        let i16sample = i16::from_sample(self.fifo.pop_front().unwrap());
-        i16sample.to_le_bytes()
     }
 
     // get the next be16 sample
     #[inline]
     fn get_be16_sample(&mut self) -> [u8; 2] {
-        if self.fifo.is_empty() {
+        if let Some(f32_sample) = self.fifo.pop_front() {
+            let i16sample = i16::from_sample(f32_sample);
+            i16sample.to_be_bytes()
+        } else {
             self.get_samples();
+            self.get_be16_sample()
         }
-        let i16sample = i16::from_sample(self.fifo.pop_front().unwrap());
-        i16sample.to_be_bytes()
     }
 
     // get the next le24 sample
     #[inline]
     fn get_le24_sample(&mut self) -> [u8; 3] {
-        if self.fifo.is_empty() {
+        if let Some(f32_sample) = self.fifo.pop_front() {
+            let i24sample = i32::from_sample(f32_sample) >> 8;
+            let b = i24sample.to_le_bytes();
+            [b[0], b[1], b[2]]
+        } else {
             self.get_samples();
+            self.get_le24_sample()
         }
-        let i24sample = i32::from_sample(self.fifo.pop_front().unwrap()) >> 8;
-        let b = i24sample.to_le_bytes();
-        [b[0], b[1], b[2]]
     }
 
     // get the next be24sample
     #[inline]
     fn get_be24_sample(&mut self) -> [u8; 3] {
-        if self.fifo.is_empty() {
+        if let Some(f32_sample) = self.fifo.pop_front() {
+            let i24sample = i32::from_sample(f32_sample) >> 8;
+            let b = i24sample.to_be_bytes();
+            [b[1], b[2], b[3]]
+        } else {
             self.get_samples();
+            self.get_be24_sample()
         }
-        let i24sample = i32::from_sample(self.fifo.pop_front().unwrap()) >> 8;
-        let b = i24sample.to_be_bytes();
-        [b[1], b[2], b[3]]
     }
 }
 

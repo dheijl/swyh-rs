@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.11.4 (unreleased)
+  - tweak inline
+
 - 1.11.3 (Aug 30 2024 dheijl)
   - some tweaks:
     - avoid unnecessary allocations

@@ -113,6 +113,7 @@ impl ChannelStream {
     }
 
     // fill the samples buffer with samples or with silence if no samples are coming
+    #[inline(never)]
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
@@ -125,7 +126,7 @@ impl ChannelStream {
     }
 
     // get the next le16 sample
-    #[inline]
+    #[inline(always)]
     fn get_le16_sample(&mut self) -> [u8; 2] {
         if let Some(f32_sample) = self.fifo.pop_front() {
             let i16sample = i16::from_sample(f32_sample);
@@ -137,7 +138,7 @@ impl ChannelStream {
     }
 
     // get the next be16 sample
-    #[inline]
+    #[inline(always)]
     fn get_be16_sample(&mut self) -> [u8; 2] {
         if let Some(f32_sample) = self.fifo.pop_front() {
             let i16sample = i16::from_sample(f32_sample);

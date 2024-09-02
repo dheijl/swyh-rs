@@ -231,7 +231,10 @@ pub fn capture_output_audio(
             capture_err_fn,
             None,
         ) {
-            Ok(stream) => Some(stream),
+            Ok(stream) => {
+                ui_log("Audio capture sample format = F32");
+                Some(stream)
+            }
             Err(e) => {
                 ui_log(&format!("Error capturing f32 audio stream: {e}"));
                 None
@@ -244,7 +247,10 @@ pub fn capture_output_audio(
                 capture_err_fn,
                 None,
             ) {
-                Ok(stream) => Some(stream),
+                Ok(stream) => {
+                    ui_log("Audio capture sample format = I16");
+                    Some(stream)
+                }
                 Err(e) => {
                     ui_log(&format!("Error capturing i16 audio stream: {e}"));
                     None
@@ -258,7 +264,10 @@ pub fn capture_output_audio(
                 capture_err_fn,
                 None,
             ) {
-                Ok(stream) => Some(stream),
+                Ok(stream) => {
+                    ui_log("Audio capture sample format = U16");
+                    Some(stream)
+                }
                 Err(e) => {
                     ui_log(&format!("Error capturing u16 audio stream: {e}"));
                     None

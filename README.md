@@ -164,7 +164,7 @@ The icon was designed by @numanair, thanks!
   - there are now build files for the Nix build system and the possibility to install swyh-rs-cli as a service using Nix
   - a more flexible CLI configuration with new -C (configfile) switch and automatic serve mode is no player specified
 - Since 1.10.5 you can enable **initial buffering** audio for a number of milliseconds before streaming starts, this may help to prevent stuttering on flaky (WiFi) networks or with streamers that don't have a configurable buffer size or that have a flaky system clock.
-- Since 1.11.1 you can select one of the FLTK color themes, using a new dropdown near the top of the window (PR #139 by @Villardo) 
+- Since 1.11.1 you can select one of the FLTK color themes, using a new dropdown near the top of the window (PR #139 by @Villardo)
 
 ### The CLI binary
 

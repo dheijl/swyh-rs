@@ -193,16 +193,22 @@ impl Read for ChannelStream {
         } else {
             // FLAC
             let flac_in = self.flac_channel.as_ref().unwrap().flac_in.clone();
-            let mut i: usize = 0;
-            while i < buf.len() {
-                if let Some(flacbyte) = self.flac_fifo.pop_front() {
-                    buf[i] = flacbyte;
-                    i += 1;
-                } else if let Ok(chunk) = flac_in.recv() {
+            // make sure we have enough data for this read buffer
+            while self.flac_fifo.len() < buf.len() {
+                if let Ok(chunk) = flac_in.recv() {
+                    //eprintln!("flac chunk: {}", chunk.len());
                     self.flac_fifo.extend(chunk);
                 }
             }
-            Ok(i)
+            // drain the fifo with the number of FLAC bytes needed
+            let mut drain = self.flac_fifo.drain(0..buf.len());
+            // eprintln!("buf.len(): {}, drain.len(): {}", buf.len(), drain.len());
+            // and store them in the buffer
+            for b in buf.iter_mut() {
+                *b = drain.next().unwrap();
+            }
+            // eprintln!("Returned buffer: {}", buf.len());
+            Ok(buf.len())
         }
     }
 }

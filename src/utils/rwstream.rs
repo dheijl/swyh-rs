@@ -124,56 +124,6 @@ impl ChannelStream {
             self.sending_silence = true;
         }
     }
-
-    // get the next le16 sample
-    #[inline(always)]
-    fn get_le16_sample(&mut self) -> [u8; 2] {
-        if let Some(f32_sample) = self.fifo.pop_front() {
-            let i16sample = i16::from_sample(f32_sample);
-            i16sample.to_le_bytes()
-        } else {
-            self.get_samples();
-            self.get_le16_sample()
-        }
-    }
-
-    // get the next be16 sample
-    #[inline(always)]
-    fn get_be16_sample(&mut self) -> [u8; 2] {
-        if let Some(f32_sample) = self.fifo.pop_front() {
-            let i16sample = i16::from_sample(f32_sample);
-            i16sample.to_be_bytes()
-        } else {
-            self.get_samples();
-            self.get_be16_sample()
-        }
-    }
-
-    // get the next le24 sample
-    #[inline]
-    fn get_le24_sample(&mut self) -> [u8; 3] {
-        if let Some(f32_sample) = self.fifo.pop_front() {
-            let i24sample = i32::from_sample(f32_sample) >> 8;
-            let b = i24sample.to_le_bytes();
-            [b[0], b[1], b[2]]
-        } else {
-            self.get_samples();
-            self.get_le24_sample()
-        }
-    }
-
-    // get the next be24sample
-    #[inline]
-    fn get_be24_sample(&mut self) -> [u8; 3] {
-        if let Some(f32_sample) = self.fifo.pop_front() {
-            let i24sample = i32::from_sample(f32_sample) >> 8;
-            let b = i24sample.to_be_bytes();
-            [b[1], b[2], b[3]]
-        } else {
-            self.get_samples();
-            self.get_be24_sample()
-        }
-    }
 }
 
 /// implement the Read trait for the HTTP writer
@@ -196,37 +146,49 @@ impl Read for ChannelStream {
                 self.wav_hdr.clear();
                 return Ok(i);
             }
+            // make sure we have enough samples ready to fill the read buffer
             let bytes_per_sample = (self.bits_per_sample / 8) as usize;
+            let samples_needed = buf.len() / bytes_per_sample;
+            while self.fifo.len() < samples_needed {
+                self.get_samples();
+            }
+            // drain the fifo of the samples needed to fill the buffer
+            // this way we don't need the expensive pop_front()
+            let mut drain = self.fifo.drain(0..samples_needed);
+            /* eprintln!("Samples needed: {samples_needed}, draining {} samples", drain.len()); */
             // return a buffer with an integral number of samples
+            // the drain now contains the exact number of samples needed to fill the streaming buffer
             match bytes_per_sample {
                 2 => match self.use_wave_format {
                     true => {
                         buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            chunk.copy_from_slice(&self.get_le16_sample());
+                            chunk.copy_from_slice(&get_le16_sample(drain.next().unwrap()));
                         });
                     }
                     false => {
                         buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            chunk.copy_from_slice(&self.get_be16_sample());
+                            chunk.copy_from_slice(&get_be16_sample(drain.next().unwrap()));
                         });
                     }
                 },
                 3 => match self.use_wave_format {
                     true => {
                         buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            chunk.copy_from_slice(&self.get_le24_sample());
+                            chunk.copy_from_slice(&get_le24_sample(drain.next().unwrap()));
                         });
                     }
                     false => {
                         buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            chunk.copy_from_slice(&self.get_be24_sample());
+                            chunk.copy_from_slice(&get_be24_sample(drain.next().unwrap()));
                         });
                     }
                 },
                 _ => (),
             }
-            //let i = (buf.len() / bytes_per_sample) * bytes_per_sample;
-            //eprintln!("Returned buffer: ({i})");
+            /*debug
+            let i = (buf.len() / bytes_per_sample) * bytes_per_sample;
+            eprintln!("Returned buffer: ({i})");
+            */
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
         } else {
             // FLAC
@@ -243,6 +205,36 @@ impl Read for ChannelStream {
             Ok(i)
         }
     }
+}
+
+// get the next le16 sample
+#[inline(always)]
+fn get_le16_sample(f32_sample: f32) -> [u8; 2] {
+    let i16sample = i16::from_sample(f32_sample);
+    i16sample.to_le_bytes()
+}
+
+// get the next be16 sample
+#[inline(always)]
+fn get_be16_sample(f32_sample: f32) -> [u8; 2] {
+    let i16sample = i16::from_sample(f32_sample);
+    i16sample.to_be_bytes()
+}
+
+// get the next le24 sample
+#[inline]
+fn get_le24_sample(f32_sample: f32) -> [u8; 3] {
+    let i24sample = i32::from_sample(f32_sample) >> 8;
+    let b = i24sample.to_le_bytes();
+    [b[0], b[1], b[2]]
+}
+
+// get the next be24sample
+#[inline]
+fn get_be24_sample(f32_sample: f32) -> [u8; 3] {
+    let i24sample = i32::from_sample(f32_sample) >> 8;
+    let b = i24sample.to_be_bytes();
+    [b[1], b[2], b[3]]
 }
 
 // create an "infinite size" wav hdr

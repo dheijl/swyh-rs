@@ -154,33 +154,42 @@ impl Read for ChannelStream {
             }
             // drain the fifo of the samples needed to fill the buffer
             // this way we don't need the expensive pop_front()
-            let mut drain = self.fifo.drain(0..samples_needed);
-            /* eprintln!("Samples needed: {samples_needed}, draining {} samples", drain.len()); */
+            let drain = self.fifo.drain(0..samples_needed);
+            debug_assert!(drain.len() == samples_needed);
             // return a buffer with an integral number of samples
             // the drain now contains the exact number of samples needed to fill the streaming buffer
+            // so we can zip them
             match bytes_per_sample {
                 2 => match self.use_wave_format {
                     true => {
-                        buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            chunk.copy_from_slice(&get_le16_sample(drain.next().unwrap()));
-                        });
+                        buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
+                            |(chunk, f32_sample)| {
+                                chunk.copy_from_slice(&get_le16_sample(f32_sample))
+                            },
+                        );
                     }
                     false => {
-                        buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            chunk.copy_from_slice(&get_be16_sample(drain.next().unwrap()));
-                        });
+                        buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
+                            |(chunk, f32_sample)| {
+                                chunk.copy_from_slice(&get_be16_sample(f32_sample))
+                            },
+                        );
                     }
                 },
                 3 => match self.use_wave_format {
                     true => {
-                        buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            chunk.copy_from_slice(&get_le24_sample(drain.next().unwrap()));
-                        });
+                        buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
+                            |(chunk, f32_sample)| {
+                                chunk.copy_from_slice(&get_le24_sample(f32_sample))
+                            },
+                        );
                     }
                     false => {
-                        buf.chunks_exact_mut(bytes_per_sample).for_each(|chunk| {
-                            chunk.copy_from_slice(&get_be24_sample(drain.next().unwrap()));
-                        });
+                        buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
+                            |(chunk, f32_sample)| {
+                                chunk.copy_from_slice(&get_be24_sample(f32_sample))
+                            },
+                        );
                     }
                 },
                 _ => (),
@@ -201,12 +210,10 @@ impl Read for ChannelStream {
                 }
             }
             // drain the fifo with the number of FLAC bytes needed
-            let mut drain = self.flac_fifo.drain(0..buf.len());
-            // eprintln!("buf.len(): {}, drain.len(): {}", buf.len(), drain.len());
+            let drain = self.flac_fifo.drain(0..buf.len());
+            debug_assert!(buf.len() == drain.len(), "FLAC: buf.len <> drain.len");
             // and store them in the buffer
-            for b in buf.iter_mut() {
-                *b = drain.next().unwrap();
-            }
+            buf.iter_mut().zip(drain).for_each(|(b, f)| *b = f);
             // eprintln!("Returned buffer: {}", buf.len());
             Ok(buf.len())
         }

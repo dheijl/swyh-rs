@@ -139,7 +139,7 @@ impl ChannelStream {
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         if self.flac_channel.is_none() {
-            // naked LPCM or WAV LPCM
+            // LPCM (naked LPCM or WAV/RF64)
             if self.use_wave_format && !self.wav_hdr.is_empty() {
                 let i = self.wav_hdr.len();
                 buf[..i].copy_from_slice(&self.wav_hdr);
@@ -155,7 +155,10 @@ impl Read for ChannelStream {
             // drain the fifo of the samples needed to fill the buffer
             // this way we don't need the expensive pop_front()
             let drain = self.fifo.drain(0..samples_needed);
-            debug_assert!(drain.len() == samples_needed);
+            debug_assert!(
+                drain.len() == samples_needed,
+                "PCM: drain.len <> samples_needed"
+            );
             // return a buffer with an integral number of samples
             // the drain now contains the exact number of samples needed to fill the streaming buffer
             // so we can zip them
@@ -194,10 +197,7 @@ impl Read for ChannelStream {
                 },
                 _ => (),
             }
-            /*debug
-            let i = (buf.len() / bytes_per_sample) * bytes_per_sample;
-            eprintln!("Returned buffer: ({i})");
-            */
+            //eprintln!("Returned buffer: {}", (buf.len() / bytes_per_sample) * bytes_per_sample);
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
         } else {
             // FLAC

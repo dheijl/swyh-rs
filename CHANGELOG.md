@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.11.5 (unreleased)
+
 - 1.11.4 (Sep 4 2024, dheijl)
   - more tweaks filling the streaming buffers:
     - replace the vec_deque pop_front() with a drain iterator

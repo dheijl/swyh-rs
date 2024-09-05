@@ -24,7 +24,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.11.3, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is 1.11.4, refer to the [Changelog](CHANGELOG.md) for more details.
 
 ## Why this SWYH alternative ?
 

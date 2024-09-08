@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.11.5 (unreleased)
+  - replace reading the CONFIG value (rwlock!) for every captured audio frame with a simple AtomicBool read
 
 - 1.11.4 (Sep 4 2024, dheijl)
   - more tweaks filling the streaming buffers:

@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicBool;
+
 use crate::{
     enums::messages::MessageType,
     utils::{configuration::Configuration, rwstream::ChannelStream},
@@ -25,3 +27,5 @@ pub static CONFIG: Lazy<RwLock<Configuration>> =
     Lazy::new(|| RwLock::new(Configuration::read_config()));
 // the list of knowb fltk theme naes
 pub static THEMES: [&str; 6] = ["Shake", "Gray", "Tan", "Dark", "Black", "None"];
+// the global "enable rms monitor" flag
+pub static RUN_RMS_MONITOR: AtomicBool = AtomicBool::new(false);

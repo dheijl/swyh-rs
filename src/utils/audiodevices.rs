@@ -1,5 +1,5 @@
 use crate::{
-    globals::statics::{CLIENTS, CONFIG},
+    globals::statics::{CLIENTS, CONFIG, RUN_RMS_MONITOR},
     utils::ui_logger::ui_log,
 };
 use cpal::{
@@ -10,6 +10,7 @@ use crossbeam_channel::Sender;
 use dasp_sample::ToSample;
 use log::debug;
 use parking_lot::Once;
+use std::sync::atomic::Ordering;
 
 /// A [`cpal::Device`] with either a default input or default output config.
 ///
@@ -295,6 +296,9 @@ where
     static INITIALIZER: Once = Once::new();
     INITIALIZER.call_once(|| {
         ui_log("The wave_reader is now receiving samples");
+        if CONFIG.read().monitor_rms {
+            RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
+        }
     });
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
@@ -302,7 +306,7 @@ where
         .read()
         .iter()
         .for_each(|(_, client)| client.write(f32_samples));
-    if CONFIG.read().monitor_rms {
+    if RUN_RMS_MONITOR.load(Ordering::Acquire) {
         rms_sender.send(Vec::from(f32_samples.as_slice())).unwrap();
     }
 }

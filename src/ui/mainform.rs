@@ -4,7 +4,7 @@ use crate::{
         StreamSize,
         StreamingFormat::{self, Flac},
     },
-    globals::statics::{CONFIG, THEMES},
+    globals::statics::{CONFIG, RUN_RMS_MONITOR, THEMES},
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
 };
@@ -591,8 +591,10 @@ impl MainForm {
             move |b| {
                 rms_mon_l.set_value(0.0);
                 rms_mon_r.set_value(0.0);
+                let run_rms = b.is_set();
+                RUN_RMS_MONITOR.store(run_rms, Ordering::Release);
                 let mut conf = CONFIG.write();
-                conf.monitor_rms = b.is_set();
+                conf.monitor_rms = run_rms;
                 let _ = conf.update_config();
             }
         });

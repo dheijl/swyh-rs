@@ -7,6 +7,7 @@
   - more tweaks filling the streaming buffers:
     - replace the vec_deque pop_front() with a drain iterator
     - replace all indexing in the streaming buffers with iterators, fill the buffers "in one shot" without jumping, and zip the 2 iterators
+  - show the audio capture sample format when the capture starts
 
 - 1.11.3 (Aug 30 2024 dheijl)
   - some tweaks:

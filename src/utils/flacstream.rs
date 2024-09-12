@@ -164,5 +164,4 @@ fn fill_noise_buffer(rng: &mut Rng, noise_buf: &mut [f32]) {
     noise_buf
         .iter_mut()
         .for_each(|sample| *sample = (rng.f32() * 2.0) - 1.0);
-    eprintln!("noise: {noise_buf:?}");
 }

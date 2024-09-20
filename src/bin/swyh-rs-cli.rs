@@ -52,7 +52,7 @@ fn main() -> Result<(), i32> {
     .expect("Error setting Ctrl-C handler");
 
     // collect command line arguments
-    let args = Args::new().parse();
+    let mut args = Args::new().parse();
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     // but it's possible that there is no default audio device
     let mut audio_output_device_opt = get_default_audio_output_device();
@@ -272,14 +272,6 @@ fn main() -> Result<(), i32> {
             .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
             .unwrap();
     }
-    // set args player
-    if let Some(player_ip) = args.player_ip {
-        config.last_renderer = Some(player_ip);
-    }
-    // if no player specified: switch to serve mode
-    if config.last_renderer.is_none() {
-        serve_only = true;
-    }
     // set args autoresume
     config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
     // set args server port
@@ -307,21 +299,8 @@ fn main() -> Result<(), i32> {
     if args.upfront_buffer.is_some() {
         config.buffering_delay_msec = args.upfront_buffer;
     }
-    // in serve-only mode (-x): disable auto_reconnect else it's always on
-    if serve_only {
-        config.auto_reconnect = false;
-    } else {
-        // else autoreconnect is always on
-        config.auto_reconnect = true;
-    }
-    // update config with new args
-    let _ = config.update_config();
-    // update in_memory shared config for other threads
-    {
-        let mut conf = CONFIG.write();
-        *conf = config.clone();
-    }
 
+    // start the webserver
     let server_port = config.server_port;
     let feedback_tx = msg_tx.clone();
     let _ = thread::Builder::new()
@@ -337,7 +316,8 @@ fn main() -> Result<(), i32> {
         })
         .unwrap();
 
-    if !serve_only || args.dry_run.is_some() {
+    // we may have to translate player names to IP addresses
+    if !serve_only && (args.player_ip.is_some() || config.last_renderer.is_some()) {
         // give the webserver a chance to start and wait for ssdp to complete
         thread::sleep(Duration::from_secs(5));
         // get the results of the ssdp discovery
@@ -356,6 +336,54 @@ fn main() -> Result<(), i32> {
                 MessageType::LogMessage(_) => (),
             }
         }
+        // now check for player names(s) instead of ip addresses
+        if let Some(r) = renderers
+            .iter()
+            .find(|r| r.dev_name.contains(args.player_ip.as_ref().unwrap()))
+        {
+            ui_log(&format!(
+                "Default renderer ip: {} => {}",
+                args.player_ip.as_ref().unwrap(),
+                r.remote_addr
+            ));
+            args.player_ip = Some(r.remote_addr.clone());
+        }
+        if args.active_players.is_some() {
+            let mut ip_players: Vec<String> = Vec::new();
+            args.active_players.as_ref().unwrap().iter().for_each(|ap| {
+                if let Some(r) = renderers.iter().find(|r| r.dev_name.contains(ap)) {
+                    ip_players.push(r.remote_addr.clone());
+                    ui_log(&format!("Active renderer: {ap} => {} ", r.remote_addr));
+                }
+            });
+            if !ip_players.is_empty() {
+                args.active_players = Some(ip_players);
+            }
+        }
+    }
+
+    // set args player
+    if let Some(player_ip) = args.player_ip {
+        config.last_renderer = Some(player_ip);
+    }
+    // if no player specified: switch to serve mode
+    if config.last_renderer.is_none() {
+        serve_only = true;
+    }
+
+    // in serve-only mode (-x): disable auto_reconnect else it's always on
+    if serve_only {
+        config.auto_reconnect = false;
+    } else {
+        // else autoreconnect is always on
+        config.auto_reconnect = true;
+    }
+    // update config with new args
+    let _ = config.update_config();
+    // update in_memory shared config for other threads
+    {
+        let mut conf = CONFIG.write();
+        *conf = config.clone();
     }
 
     let mut player: Option<Renderer> = None;

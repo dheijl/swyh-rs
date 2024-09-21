@@ -38,7 +38,7 @@ I wrote this because
 - SWYH did not work well with Volumio (push streaming did not work)
 - SWYH has a substantial memory leak due to the use of an old and unmaintained Intel .Net UPNP/DLNA library it uses.
 
-**NOTE** swyh-rs does not support lossy mp3 or aac re-encoding, only lossess LPCM/WAV/RF64/FLAC for obvious reasons.
+**NOTE** swyh-rs does not support lossy mp3 or aac re-encoding, only lossless LPCM/WAV/RF64/FLAC for obvious reasons.
 
 It has been tested with
 

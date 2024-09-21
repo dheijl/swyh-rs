@@ -24,7 +24,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.11.4, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is 1.11.5, refer to the [Changelog](CHANGELOG.md) for more details.
 
 ## Why this SWYH alternative ?
 
@@ -48,7 +48,7 @@ It has been tested with
 - Denon Heos devices
 - Sony AV streamers & Bravia TVs
 - Chromecast devices defined as an OpenHome or DLNA device in Bubble UPNP Server (thanks Bubblesoft for providing the necessary information!)
-- **Sonos** speakers/soundbars using the **WAV** format (thanks @Cunkers !). **update:** A recent update to the Sonos Play 1 also enabled **FLAC**. Depending on your network a Sonos may stutter when using WAV, if you are affected you should use FLAC if your device supports it. See issues #84 and #75. Software version "15.9 (Build 75146030)" on the Play:1 is known to support FLAC without stuttering (thanks @beWAYNE !).
+- **Sonos** speakers/soundbars using the **WAV** format (thanks @Cunkers !). **update:** A recent update to the Sonos Play 1 also enabled **FLAC**. Depending on your network a Sonos may stutter when using WAV, if you are affected you should use FLAC if your device supports it. See issues #84 and #75. Software version "15.9 (Build 75146030)" on the Play:1 is known to support FLAC without stuttering (thanks @beWAYNE !). **Important**: if you are streaming to a stereo pair, you should only stream to the **master** of the pair, and never to both, as this can/will break the stereo pair (see issue #141)!
   - If you want to pause music without losing the connection you can enable the  **Inject Silence** option for LPCM/WAV/RF64. The InjectSilence flag is automatically added to the config file when you first start version 1.4.5 and defaults to _false_. Contributed by @genekellyjr, see issue #71, and @DanteDT. Note that Inject Silence is ineffective and incompatible with FLAC, as the FLAC format will compress the silence away resulting in large gaps between the FLAC frames probably cutting the connection. For FLAC near-silence is always automatically injected, as the InjectSilence option is ineffective because FLAC compresses the silence away. Do **NOT** enable InjectSilence for FLAC.
   - injecting silence will eat a neglegible amount of cpu cycles.
   - it seems that stuttering can occur with Sonos gear, especially with WiFi connections. You can try to set an initial buffering value to prevent this. According to @konyong installing ccproxy can also help, refer to issue #130 for more details.
@@ -187,7 +187,7 @@ Recognized options:
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
     -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM] optionally followed by a plus sign and a streamsize[LPCM+U64maxNotChunked] 
-    -o (--player_ip) string : the player ip address [last used player]
+    -o (--player_ip) string : the player ip address [last used player] or the player device name (can be comma-seperated list if multiple players are selected)
     -e (--ip_address) string : ip address of the network interface [last used]
     -x (--serve_only) bool : skip ssdp discovery and start serving immediately [false]
     -u (--upfront-buffer) i32: initial audio bufferign before streaming starts [0]
@@ -202,6 +202,8 @@ Other boolean options accept an optional true/false, because they are remembered
 Hint: use the **-n (dry-run) mode** to get the index of the sound source device and the ip address of the receiver that you need to pass as commandline parameter.
 
 You can also specify a sounde source **name** instead of an index, or a unique substring of the name. If you have multiple identically named soundcards, you can append _:n_ to the name, where n is a zero-based index in the duplicates.
+
+For the player(s) **-o** you can also use the name(s) or a sub-string unique to the player name(s) instead of the IP address(es)I'm glad that your issue seems solved! As an aside, even `-o 3842` should work as  this sub-string is unique  to the device name of the master.
 
 Streaming is started automatically, and you can stop and restart streaming with the remote of your player as long as the app is running.
 The only way to stop the cli app is by killing it,  with "CONTROL C" or task manager or any other way you use to kill processes.

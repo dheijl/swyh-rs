@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.11.6 (unreleased)
+
 - 1.11.5 (Sep 20 2024 dheijl)
   - replace reading the CONFIG value (rwlock!) for every captured audio frame with a simple AtomicBool read
   - CLI: allow to use the device name(s) instead of the IP address(es). A substring unique to a device name is also OK (case sensitive) (see issue #141 by @boydfields).

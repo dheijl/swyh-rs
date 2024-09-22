@@ -538,8 +538,14 @@ fn main() -> Result<(), i32> {
             println!("Received ^C -> exiting.");
             if !serve_only && player.is_some() && CLIENTS.read().len() > 0 {
                 for pl in playing {
-                    println!("^C: Stopping streaming to {}", pl.dev_name);
-                    pl.stop_play(&ui_log);
+                    if CLIENTS
+                        .read()
+                        .values()
+                        .any(|cs| cs.remote_ip == pl.remote_addr)
+                    {
+                        println!("^C: Stopping streaming to {}", pl.dev_name);
+                        pl.stop_play(&ui_log);
+                    }
                 }
                 // also wait some time for the player(s) to drop the HTTP streaming connection
                 for _ in 0..100 {

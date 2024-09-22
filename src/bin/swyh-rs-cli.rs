@@ -337,16 +337,18 @@ fn main() -> Result<(), i32> {
             }
         }
         // now check for player names(s) instead of ip addresses
-        if let Some(r) = renderers
-            .iter()
-            .find(|r| r.dev_name.contains(args.player_ip.as_ref().unwrap()))
-        {
-            ui_log(&format!(
-                "Default renderer ip: {} => {}",
-                args.player_ip.as_ref().unwrap(),
-                r.remote_addr
-            ));
-            args.player_ip = Some(r.remote_addr.clone());
+        if args.player_ip.is_some() {
+            if let Some(r) = renderers
+                .iter()
+                .find(|r| r.dev_name.contains(args.player_ip.as_ref().unwrap()))
+            {
+                ui_log(&format!(
+                    "Default renderer ip: {} => {}",
+                    args.player_ip.as_ref().unwrap(),
+                    r.remote_addr
+                ));
+                args.player_ip = Some(r.remote_addr.clone());
+            }
         }
         if args.active_players.is_some() {
             let mut ip_players: Vec<String> = Vec::new();
@@ -362,10 +364,14 @@ fn main() -> Result<(), i32> {
         }
     }
 
-    // set args player
+    // set args last_renderer and active players
     if let Some(player_ip) = args.player_ip {
         config.last_renderer = Some(player_ip);
     }
+    if let Some(ref active_players) = args.active_players {
+        config.active_renderers.clone_from(active_players);
+    }
+
     // if no player specified: switch to serve mode
     if config.last_renderer.is_none() {
         serve_only = true;
@@ -412,10 +418,6 @@ fn main() -> Result<(), i32> {
             player.as_ref().unwrap().remote_addr
         ));
     }
-
-    config
-        .active_renderers
-        .clone_from(&args.active_players.unwrap_or_default());
 
     // update config with new args
     let _ = config.update_config();

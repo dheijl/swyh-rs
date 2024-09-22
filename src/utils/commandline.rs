@@ -223,18 +223,13 @@ Recognized options:
                 }
                 Short('o') | Long("player") => {
                     if let Ok(player) = argparser.value() {
-                        let mut active_players: Vec<String> = Vec::new();
                         let output = player.string().unwrap_or_default();
-                        if output.contains(',') {
-                            let parts: Vec<&str> = output.split(',').collect();
-                            active_players = parts.into_iter().map(|x| x.to_string()).collect();
-                            self.player_ip = Some(active_players[0].clone());
-                            self.active_players = Some(active_players);
-                        } else {
-                            self.player_ip = Some(output.clone());
-                            active_players.push(output);
-                            self.active_players = Some(active_players);
-                        }
+                        let active_players = output
+                            .split(',')
+                            .map(|x| x.to_string())
+                            .collect::<Vec<String>>();
+                        self.player_ip = Some(active_players[0].clone());
+                        self.active_players = Some(active_players);
                     }
                 }
                 Short('e') | Long("ip_address") => {

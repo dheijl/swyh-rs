@@ -448,6 +448,7 @@ fn main() -> Result<(), i32> {
     };
 
     // start playing unless only serving
+    let mut playing = Vec::new();
     if serve_only {
         let port = config.server_port.unwrap_or(5901);
         ui_log(&format!("Serving started on port {port}..."));
@@ -471,6 +472,7 @@ fn main() -> Result<(), i32> {
                 );
                 let pl_name = &player.dev_url;
                 ui_log(&format!("Playing to {pl_name}"));
+                playing.push(player);
             }
         }
     }
@@ -531,24 +533,18 @@ fn main() -> Result<(), i32> {
         }
         // check the logchannel for new log messages to show in the logger textbox
         thread::sleep(Duration::from_millis(100));
-        // handle CTL-C interrupt: shutdown the player
+        // handle CTL-C interrupt: shutdown the player(s)
         if shutting_down.load(Ordering::Relaxed) {
             println!("Received ^C -> exiting.");
             if !serve_only && player.is_some() && CLIENTS.read().len() > 0 {
-                let pl = player.unwrap().clone();
-                println!("^C: Stopping streaming to {}", pl.dev_name);
-                pl.stop_play(&ui_log);
-                // also wait some time for the player to drop the HTTP streaming connection
-                println!(
-                    "^C: Waiting for HTTP streaming to {} to end.",
-                    pl.remote_addr
-                );
+                for pl in playing {
+                    println!("^C: Stopping streaming to {}", pl.dev_name);
+                    pl.stop_play(&ui_log);
+                }
+                // also wait some time for the player(s) to drop the HTTP streaming connection
                 for _ in 0..100 {
                     if CLIENTS.read().len() == 0 {
-                        println!(
-                            "^C: HTTP streaming connection with {} closed.",
-                            pl.remote_addr
-                        );
+                        println!("^C: No HTTP streaming connections active");
                         break;
                     }
                     thread::sleep(Duration::from_millis(100));

@@ -361,7 +361,7 @@ fn main() {
             }
         }
     }
-    // remeber active players in config for auto_reconnect
+    // remember active players in config for auto_reconnect
     {
         let mut config = CONFIG.write();
         config.active_renderers = active_players;

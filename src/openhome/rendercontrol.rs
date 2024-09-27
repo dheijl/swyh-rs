@@ -943,25 +943,16 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                     service = AvService::new();
                 }
             }
-            Ok(XmlEvent::Characters(value)) => {
-                match cur_elem {
-                    _ if cur_elem.contains("serviceType") => service.service_type = value,
-                    _ if cur_elem.contains("serviceId") => service.service_id = value,
-                    _ if cur_elem.contains("controlURL") => {
-                        service.control_url = value;
-                        // sometimes the control url is not prefixed with a '/'
-                        if !service.control_url.is_empty() && !service.control_url.starts_with('/')
-                        {
-                            service.control_url.insert(0, '/');
-                        }
-                    }
-                    _ if cur_elem.contains("modelName") => renderer.dev_model = value,
-                    _ if cur_elem.contains("friendlyName") => renderer.dev_name = value,
-                    _ if cur_elem.contains("deviceType") => renderer.dev_type = value,
-                    _ if cur_elem.contains("URLBase") => renderer.dev_url = value,
-                    _ => (),
-                }
-            }
+            Ok(XmlEvent::Characters(value)) => match cur_elem {
+                _ if cur_elem.contains("serviceType") => service.service_type = value,
+                _ if cur_elem.contains("serviceId") => service.service_id = value,
+                _ if cur_elem.contains("modelName") => renderer.dev_model = value,
+                _ if cur_elem.contains("friendlyName") => renderer.dev_name = value,
+                _ if cur_elem.contains("deviceType") => renderer.dev_type = value,
+                _ if cur_elem.contains("URLBase") => renderer.dev_url = value,
+                _ if cur_elem.contains("controlURL") => service.control_url = normalize_url(&value),
+                _ => (),
+            },
             Err(e) => {
                 error!("SSDP Get Renderer Description Error: {e}");
                 return None;
@@ -971,6 +962,18 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
     }
 
     Some(renderer)
+}
+
+/// sometimes the control url is not prefixed with a '/'
+fn normalize_url(value: &str) -> String {
+    if value.is_empty() {
+        return String::new();
+    }
+    let mut control_url = value.to_string();
+    if !control_url.starts_with('/') {
+        control_url.insert(0, '/');
+    }
+    control_url
 }
 
 #[cfg(test)]
@@ -1044,5 +1047,13 @@ mod tests {
         };
         assert!(req_format == StreamingFormat::Lpcm);
         assert!(req_bps == 16);
+    }
+
+    #[test]
+    fn test_normalize() {
+        let mut url = "/ctl".to_string();
+        assert!(normalize_url(&url) == "/ctl".to_string());
+        url = "ctl".to_string();
+        assert!(normalize_url(&url) == "/ctl".to_string());
     }
 }

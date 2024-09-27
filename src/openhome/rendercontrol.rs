@@ -918,44 +918,48 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
             Ok(XmlEvent::EndElement { name }) => {
                 let end_elem = name.local_name;
                 if end_elem == "service" {
-                    if service.service_id.contains("Playlist")
-                        && service.service_id.contains("urn:av-openhome-org:service")
-                    {
-                        renderer.oh_control_url.clone_from(&service.control_url);
-                        renderer.supported_protocols |= SupportedProtocols::OPENHOME;
-                    } else if service.service_id.contains(":AVTransport") {
-                        renderer.av_control_url.clone_from(&service.control_url);
-                        renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
-                    } else if service.service_id.contains(":Volume")
-                        && service.service_id.contains("urn:av-openhome-org:service")
-                    {
-                        renderer.oh_volume_url.clone_from(&service.control_url);
-                    } else if service.service_id.contains(":RenderingControl") {
-                        renderer.av_volume_url.clone_from(&service.control_url);
+                    match service.service_id {
+                        _ if service.service_id.contains("Playlist")
+                            && service.service_id.contains("urn:av-openhome-org:service") =>
+                        {
+                            renderer.oh_control_url.clone_from(&service.control_url);
+                            renderer.supported_protocols |= SupportedProtocols::OPENHOME;
+                        }
+                        _ if service.service_id.contains(":AVTransport") => {
+                            renderer.av_control_url.clone_from(&service.control_url);
+                            renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
+                        }
+                        _ if service.service_id.contains(":Volume")
+                            && service.service_id.contains("urn:av-openhome-org:service") =>
+                        {
+                            renderer.oh_volume_url.clone_from(&service.control_url);
+                        }
+                        _ if service.service_id.contains(":RenderingControl") => {
+                            renderer.av_volume_url.clone_from(&service.control_url);
+                        }
+                        _ => (),
                     }
                     renderer.services.push(service);
                     service = AvService::new();
                 }
             }
             Ok(XmlEvent::Characters(value)) => {
-                if cur_elem.contains("serviceType") {
-                    service.service_type = value;
-                } else if cur_elem.contains("serviceId") {
-                    service.service_id = value;
-                } else if cur_elem.contains("controlURL") {
-                    service.control_url = value;
-                    // sometimes the control url is not prefixed with a '/'
-                    if !service.control_url.is_empty() && !service.control_url.starts_with('/') {
-                        service.control_url.insert(0, '/');
+                match cur_elem {
+                    _ if cur_elem.contains("serviceType") => service.service_type = value,
+                    _ if cur_elem.contains("serviceId") => service.service_id = value,
+                    _ if cur_elem.contains("controlURL") => {
+                        service.control_url = value;
+                        // sometimes the control url is not prefixed with a '/'
+                        if !service.control_url.is_empty() && !service.control_url.starts_with('/')
+                        {
+                            service.control_url.insert(0, '/');
+                        }
                     }
-                } else if cur_elem.contains("modelName") {
-                    renderer.dev_model = value;
-                } else if cur_elem.contains("friendlyName") {
-                    renderer.dev_name = value;
-                } else if cur_elem.contains("deviceType") {
-                    renderer.dev_type = value;
-                } else if cur_elem.contains("URLBase") {
-                    renderer.dev_url = value;
+                    _ if cur_elem.contains("modelName") => renderer.dev_model = value,
+                    _ if cur_elem.contains("friendlyName") => renderer.dev_name = value,
+                    _ if cur_elem.contains("deviceType") => renderer.dev_type = value,
+                    _ if cur_elem.contains("URLBase") => renderer.dev_url = value,
+                    _ => (),
                 }
             }
             Err(e) => {

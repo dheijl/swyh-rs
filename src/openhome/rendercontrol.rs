@@ -966,14 +966,11 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
 
 /// sometimes the control url is not prefixed with a '/'
 fn normalize_url(value: &str) -> String {
-    if value.is_empty() {
-        return String::new();
+    if value.is_empty() || value.starts_with('/') {
+        value.to_owned()
+    } else {
+        '/'.to_string() + value
     }
-    let mut control_url = value.to_string();
-    if !control_url.starts_with('/') {
-        control_url.insert(0, '/');
-    }
-    control_url
 }
 
 #[cfg(test)]
@@ -1055,5 +1052,7 @@ mod tests {
         assert!(normalize_url(&url) == "/ctl".to_string());
         url = "ctl".to_string();
         assert!(normalize_url(&url) == "/ctl".to_string());
+        url = String::new();
+        assert!(normalize_url(&url) == url);
     }
 }

@@ -4,6 +4,7 @@
   - CLI: optimize player argument parsing (-o)
   - CLI: bugfix when multiple players specified
   - CLI: bugfix in ^C handling: ask all players to stop instead of only the default player, and check that they are still playing before doing that.
+  - replace some "if else if..." chains with match guards
 
 - 1.11.5 (Sep 20 2024 dheijl)
   - replace reading the CONFIG value (rwlock!) for every captured audio frame with a simple AtomicBool read

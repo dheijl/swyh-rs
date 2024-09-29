@@ -919,22 +919,26 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                 let end_elem = name.local_name;
                 if end_elem == "service" {
                     match service.service_id {
-                        _ if service.service_id.contains("Playlist")
-                            && service.service_id.contains("urn:av-openhome-org:service") =>
+                        ref id
+                            if ["Playlist", "urn:av-openhome-org:service"]
+                                .iter()
+                                .all(|&p| id.contains(p)) =>
                         {
                             renderer.oh_control_url.clone_from(&service.control_url);
                             renderer.supported_protocols |= SupportedProtocols::OPENHOME;
                         }
-                        _ if service.service_id.contains(":AVTransport") => {
-                            renderer.av_control_url.clone_from(&service.control_url);
-                            renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
-                        }
-                        _ if service.service_id.contains(":Volume")
-                            && service.service_id.contains("urn:av-openhome-org:service") =>
+                        ref id
+                            if ["Volume", "urn:av-openhome-org:service"]
+                                .iter()
+                                .all(|&p| id.contains(p)) =>
                         {
                             renderer.oh_volume_url.clone_from(&service.control_url);
                         }
-                        _ if service.service_id.contains(":RenderingControl") => {
+                        ref id if id.contains(":AVTransport") => {
+                            renderer.av_control_url.clone_from(&service.control_url);
+                            renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
+                        }
+                        ref id if id.contains(":RenderingControl") => {
                             renderer.av_volume_url.clone_from(&service.control_url);
                         }
                         _ => (),
@@ -944,13 +948,13 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                 }
             }
             Ok(XmlEvent::Characters(value)) => match cur_elem {
-                _ if cur_elem.contains("serviceType") => service.service_type = value,
-                _ if cur_elem.contains("serviceId") => service.service_id = value,
-                _ if cur_elem.contains("modelName") => renderer.dev_model = value,
-                _ if cur_elem.contains("friendlyName") => renderer.dev_name = value,
-                _ if cur_elem.contains("deviceType") => renderer.dev_type = value,
-                _ if cur_elem.contains("URLBase") => renderer.dev_url = value,
-                _ if cur_elem.contains("controlURL") => service.control_url = normalize_url(&value),
+                ref el if el.contains("serviceType") => service.service_type = value,
+                ref el if el.contains("serviceId") => service.service_id = value,
+                ref el if el.contains("modelName") => renderer.dev_model = value,
+                ref el if el.contains("friendlyName") => renderer.dev_name = value,
+                ref el if el.contains("deviceType") => renderer.dev_type = value,
+                ref el if el.contains("URLBase") => renderer.dev_url = value,
+                ref el if el.contains("controlURL") => service.control_url = normalize_url(&value),
                 _ => (),
             },
             Err(e) => {

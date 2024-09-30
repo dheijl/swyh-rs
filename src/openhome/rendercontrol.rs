@@ -215,7 +215,7 @@ pub struct SupportedProtocols: u32 {
 }
 
 /// Renderer struct describers a media renderer,
-/// info is collected from GetDescription.xml
+/// info is collected from the GetDescription.xml
 #[derive(Debug, Clone)]
 pub struct Renderer {
     pub dev_name: String,
@@ -903,7 +903,7 @@ fn get_service_description(dev_url: &str) -> Option<String> {
     }
 }
 
-/// build a renderer struct by parsing the GetDescription.xml
+/// build a renderer struct by (roughly) parsing the GetDescription.xml
 fn get_renderer(xml: &str) -> Option<Renderer> {
     let xmlstream = StringReader::new(xml);
     let parser = EventReader::new(xmlstream);
@@ -948,6 +948,7 @@ fn get_renderer(xml: &str) -> Option<Renderer> {
                 }
             }
             Ok(XmlEvent::Characters(value)) => match cur_elem {
+                // these values come from various tags, ignoring xml hierarchy
                 ref el if el.contains("serviceType") => service.service_type = value,
                 ref el if el.contains("serviceId") => service.service_id = value,
                 ref el if el.contains("modelName") => renderer.dev_model = value,

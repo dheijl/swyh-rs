@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.0 (unreleased)
+  - Github CI added by @theavege, thanks!
 
 - 1.11.6 (Sep 30 2024 dheijl)
   - CLI: optimize player argument parsing (-o)

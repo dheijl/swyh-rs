@@ -1,0 +1,60 @@
+---
+name: Build
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron:  '30 13 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - macos-latest
+          - ubuntu-latest
+
+    steps:
+    - name: Download deps
+      shell: bash
+      run: |
+        if [[ ${RUNNER_OS} == "Linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y lib{pango1.0,x11,xext,xft,xinerama,mpv}-dev\
+                lib{xcursor,xrender,xfixes,webkit2gtk-4.1,vlc,png,gl1-mesa}-dev\
+                ninja-build libglu1-mesa-dev
+        fi
+    - uses: actions/checkout@v2
+    - uses: seanmiddleditch/gha-setup-ninja@master
+    - name: build cfltk
+      run: |
+        git clone https://github.com/MoAlyousef/cfltk
+        pushd cfltk || return 1
+        git submodule update --init --recursive
+        case ${RUNNER_OS} in
+            Linux ) cmake -Bbin -GNinja -DFLTK_USE_SYSTEM_LIBPNG=OFF -DFLTK_USE_SYSTEM_LIBJPEG=OFF -DFLTK_USE_SYSTEM_ZLIB=OFF -DCFLTK_LINK_IMAGES=ON -DOpenGL_GL_PREFERENCE=GLVND -DFLTK_BUILD_GL=ON -DCFLTK_USE_OPENGL=ON -DCFLTK_SINGLE_THREADED=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCFLTK_CARGO_BUILD=ON -DFLTK_BUILD_EXAMPLES=OFF -DFLTK_BUILD_TEST=OFF -DFLTK_OPTION_LARGE_FILE=ON -DFLTK_BUILD_HTML_DOCS=OFF -DFLTK_BUILD_PDF_DOCS=OFF -DCMAKE_INSTALL_PREFIX=bin -DCMAKE_BUILD_TYPE=Release -DFLTK_GRAPHICS_CAIRO=ON -DFLTK_USE_PANGO=ON -DFLTK_BACKEND_WAYLAND=OFF;;
+            macOS ) cmake -Bbin -GNinja -DFLTK_USE_SYSTEM_LIBPNG=OFF -DFLTK_USE_SYSTEM_LIBJPEG=OFF -DFLTK_USE_SYSTEM_ZLIB=OFF -DCFLTK_LINK_IMAGES=ON -DOpenGL_GL_PREFERENCE=GLVND -DFLTK_BUILD_GL=ON -DCFLTK_USE_OPENGL=ON -DCFLTK_SINGLE_THREADED=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCFLTK_CARGO_BUILD=ON -DFLTK_BUILD_EXAMPLES=OFF -DFLTK_BUILD_TEST=OFF -DFLTK_OPTION_LARGE_FILE=ON -DFLTK_BUILD_HTML_DOCS=OFF -DFLTK_BUILD_PDF_DOCS=OFF -DCMAKE_INSTALL_PREFIX=bin -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64;;
+            * )     cmake -Bbin -GNinja -DFLTK_USE_SYSTEM_LIBPNG=OFF -DFLTK_USE_SYSTEM_LIBJPEG=OFF -DFLTK_USE_SYSTEM_ZLIB=OFF -DCFLTK_LINK_IMAGES=ON -DOpenGL_GL_PREFERENCE=GLVND -DFLTK_BUILD_GL=ON -DCFLTK_USE_OPENGL=ON -DCFLTK_SINGLE_THREADED=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCFLTK_CARGO_BUILD=ON -DFLTK_BUILD_EXAMPLES=OFF -DFLTK_BUILD_TEST=OFF -DFLTK_OPTION_LARGE_FILE=ON -DFLTK_BUILD_HTML_DOCS=OFF -DFLTK_BUILD_PDF_DOCS=OFF -DCMAKE_INSTALL_PREFIX=bin -DCMAKE_BUILD_TYPE=Release;;
+        esac
+        cmake --build bin --parallel --target install
+        export CFLTK_BUNDLE_DIR="${PWD}/bin/lib"
+      shell: bash
+    - name: Build app
+      working-directory: src
+      shell: bash
+      run: |
+        if [[ ${RUNNER_OS} == "Linux" ]]; then
+            cargo build --quiet || cargo build --verbose
+        fi

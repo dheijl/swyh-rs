@@ -36,7 +36,7 @@ jobs:
                 lib{xcursor,xrender,xfixes,webkit2gtk-4.1,vlc,png,gl1-mesa}-dev\
                 ninja-build libglu1-mesa-dev librust-alsa-sys-dev
         fi
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: seanmiddleditch/gha-setup-ninja@master
     - name: build cfltk
       run: |

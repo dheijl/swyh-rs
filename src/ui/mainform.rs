@@ -26,6 +26,7 @@ use fltk::{
 //use fltk_flow::Flow;
 use hashbrown::HashMap;
 use log::{debug, info, LevelFilter};
+use cascade::cascade;
 
 use fltk_theme::{color_themes, ColorTheme};
 
@@ -111,20 +112,24 @@ impl MainForm {
             }
         });
 
-        let mut vpack: Pack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
-        vpack.make_resizable(true);
-        vpack.set_type(PackType::Vertical);
-        vpack.set_spacing(15);
-        vpack.end();
+        let mut vpack: Pack = cascade!(
+            Pack::new(XPOS, YPOS, GW, WH - 10, "");
+            ..make_resizable(true);
+            ..set_type(PackType::Vertical);
+            ..set_spacing(15);
+            ..end();
+        );
         wind.add(&vpack);
 
         // title frame
         let mut p1 = Flex::new(0, 0, GW, 25, "");
         p1.end();
-        let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
-        opt_frame.set_frame(FrameType::BorderBox);
-        opt_frame.set_label("Configuration Options");
-        opt_frame.set_color(title_color);
+        let opt_frame = cascade!(
+            Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
+            ..set_frame(FrameType::BorderBox);
+            ..set_label("Configuration Options");
+            ..set_color(title_color);
+        );
         p1.add(&opt_frame);
         vpack.add(&p1);
 
@@ -171,9 +176,7 @@ impl MainForm {
             }
         };
         let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);
-        for name in networks {
-            choose_network_but.add_choice(name);
-        }
+        choose_network_but.add_choice(&networks.join("|"));
         let rlock = AtomicBool::new(false);
         let networks_c = networks.to_vec();
         choose_network_but.set_callback({
@@ -254,10 +257,12 @@ impl MainForm {
         vpack.add(&pas);
 
         // all other options
-        let mut pconfig1 = Flex::new(0, 0, GW, 20, "");
-        pconfig1.set_spacing(10);
-        pconfig1.set_type(FlexType::Row);
-        pconfig1.end();
+        let mut pconfig1 = cascade!(
+            Flex::new(0, 0, GW, 20, "");
+            ..set_spacing(10);
+            ..set_type(FlexType::Row);
+            ..end();
+        );
 
         // auto_resume button for AVTransport autoresume play
         let mut auto_resume = CheckButton::new(0, 0, 0, 0, "Autoresume play");
@@ -425,25 +430,27 @@ impl MainForm {
         });
         pconfig2.add(&b24_bit);
         // HTTP server listen port
-        let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
-        listen_port.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
-        listen_port.set_maximum_size(5);
-        listen_port.set_callback({
-            let config_changed = config_changed.clone();
-            move |lp| {
-                let new_value: u32 = lp.value().parse().unwrap();
-                if new_value > 65535 {
-                    lp.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
-                    return;
+        let listen_port = cascade!(
+            IntInput::new(0, 0, 0, 0, "HTTP Port:");
+            ..set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
+            ..set_maximum_size(5);
+            ..set_callback({
+                let config_changed = config_changed.clone();
+                move |lp| {
+                    let new_value: u32 = lp.value().parse().unwrap();
+                    if new_value > 65535 {
+                        lp.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
+                        return;
+                    }
+                    if new_value as u16 != CONFIG.read().server_port.unwrap_or_default() {
+                        let mut conf = CONFIG.write();
+                        conf.server_port = Some(new_value as u16);
+                        let _ = conf.update_config();
+                        config_changed.set(true);
+                    }
                 }
-                if new_value as u16 != CONFIG.read().server_port.unwrap_or_default() {
-                    let mut conf = CONFIG.write();
-                    conf.server_port = Some(new_value as u16);
-                    let _ = conf.update_config();
-                    config_changed.set(true);
-                }
-            }
-        });
+            });
+        );
 
         pconfig2.add(&listen_port);
         // inject continuous silence into audio stream checkbox

@@ -112,6 +112,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "428d9aa8fbc0670b7b8d6030a7fadd0f86151cae55e4dbbece15f3780a3dfaf3"
 
 [[package]]
+name = "cascade"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d499b43edbf784dd81e16f0395f5b4350a35b477da8a074251087adefc11cb52"
+
+[[package]]
 name = "cc"
 version = "1.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1005,6 +1011,7 @@ name = "swyh-rs"
 version = "1.12.0"
 dependencies = [
  "bitflags 2.6.0",
+ "cascade",
  "cpal",
  "crossbeam-channel",
  "ctrlc",

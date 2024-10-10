@@ -25,7 +25,7 @@ jobs:
         if [[ ${RUNNER_OS} == "Linux" ]]; then
             sudo apt-get update
             sudo apt-get install -y lib{pango1.0,x11,xext,xft,xinerama}-dev\
-                lib{xcursor,xrender,xfixes,png,gl1-mesa}-dev\
+                lib{xcursor,xrender,xfixes,png,gl1-mesa,rust-alsa-sys}-dev\
                 libglu1-mesa-dev
         fi
     - uses: actions/checkout@v4

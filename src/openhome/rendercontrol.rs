@@ -605,7 +605,7 @@ impl Renderer {
             AV_GET_VOL_TEMPLATE,
         )
         .unwrap_or("<Error/>".to_string());
-        debug!("oh_get_volume response: {vol_xml}");
+        debug!("av_get_volume response: {vol_xml}");
         let xmlstream = StringReader::new(&vol_xml);
         let parser = EventReader::new(xmlstream);
         let mut cur_elem = String::new();
@@ -625,7 +625,7 @@ impl Renderer {
                     }
                 }
                 Err(e) => {
-                    error!("OH Volume XML parse error: {e}");
+                    error!("AV Volume XML parse error: {e}");
                 }
                 _ => {}
             }
@@ -733,7 +733,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
             Ok((received, from)) => {
                 resp = std::str::from_utf8(&buf[0..received]).unwrap().to_string();
                 debug!(
-                    "UDP response at {} from {}: \r\n{}",
+                    "SSDP: HTTP response at {} from {}: \r\n{}",
                     start.elapsed().as_millis(),
                     from,
                     resp
@@ -749,6 +749,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                         .unwrap_or(0);
 
                     if status_code != 200 {
+                        error!("SSDP: HTTP error response status={status_code}");
                         continue; // ignore
                     }
 

@@ -1021,7 +1021,6 @@ dependencies = [
  "libc",
  "local-ip-address",
  "log",
- "once_cell",
  "parking_lot",
  "serde",
  "simplelog",

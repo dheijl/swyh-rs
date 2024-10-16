@@ -293,8 +293,8 @@ fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender
 where
     T: Sample + ToSample<f32>,
 {
-    static INITIALIZER: Once = Once::new();
-    INITIALIZER.call_once(|| {
+    static ONFIRSTCALL: Once = Once::new();
+    ONFIRSTCALL.call_once(|| {
         ui_log("The wave_reader is now receiving samples");
         if CONFIG.read().monitor_rms {
             RUN_RMS_MONITOR.store(true, Ordering::Relaxed);

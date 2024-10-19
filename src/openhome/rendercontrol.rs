@@ -743,7 +743,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                     let status_code = response[0]
                         .trim_start_matches("HTTP/1.1 ")
                         .chars()
-                        .take_while(|x| x.is_numeric())
+                        .take_while(|x| x.is_ascii_digit())
                         .collect::<String>()
                         .parse::<u32>()
                         .unwrap_or(0);

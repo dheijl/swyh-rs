@@ -134,7 +134,7 @@ Recognized options:
                         // numeric = the index, otherwise the name
                         let ss_idx_or_nm = ssi.to_str();
                         if let Some(si) = ss_idx_or_nm {
-                            if si.chars().all(|c| c.is_numeric()) {
+                            if si.chars().all(|c| c.is_ascii_digit()) {
                                 self.sound_source_index = Some(si.parse::<i32>().unwrap());
                                 self.sound_source_name = None;
                             } else {

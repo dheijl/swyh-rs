@@ -176,6 +176,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmk"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fd5de2a10e31b3ec3e8d75e7ccf8281ab3ee55de68f7ab6ffa9e21be8d82f22"
+
+[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -352,9 +358,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.4.34"
+version = "1.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8f81f9ebf85aeaad76e43362cc2bb1d926e5daca1327dc0a094d00c86a95ebb"
+checksum = "b01c29354c150d6b80a9ddf3fa5711a359c5de5d035bdb5359880a7e8d2b4024"
 dependencies = [
  "bitflags 2.6.0",
  "crossbeam-channel",
@@ -366,11 +372,12 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.4.34"
+version = "1.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30bbe32c3f9f72469e2cf2a62edc74ef990b81c2caf082f53fd67060ce0c9893"
+checksum = "de79eda8e018209b50e62d409e41b68af76ba25162b799a116aec5e9c23d9aa8"
 dependencies = [
  "cmake",
+ "cmk",
 ]
 
 [[package]]
@@ -1191,9 +1198,9 @@ dependencies = [
 
 [[package]]
 name = "ttf-parser"
-version = "0.24.1"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5be21190ff5d38e8b4a2d3b6a3ae57f612cc39c96e83cedeaf7abc338a8bac4a"
+checksum = "5902c5d130972a0000f60860bfbf46f7ca3db5391eddfedd1b8728bd9dc96c0e"
 
 [[package]]
 name = "unicode-bidi"

@@ -767,29 +767,27 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                         })
                         .for_each(|hv_pair| match hv_pair.0.to_ascii_uppercase().as_str() {
                             "LOCATION" => dev_url = hv_pair.1.to_string(),
-                            "ST" => {
-                                if hv_pair
-                                    .1
-                                    .contains("urn:schemas-upnp-org:service:RenderingControl:1")
+                            "ST" => match hv_pair.1 {
+                                schema
+                                    if schema.contains(
+                                        "urn:schemas-upnp-org:service:RenderingControl:1",
+                                    ) =>
                                 {
                                     av_device = true;
-                                } else if hv_pair
-                                    .1
-                                    .contains("urn:av-openhome-org:service:Product:1")
+                                    av_devices.push((dev_url.clone(), from));
+                                    debug!("SSDP Discovery: AV renderer: {dev_url}");
+                                }
+                                schema
+                                    if schema.contains("urn:av-openhome-org:service:Product:1") =>
                                 {
                                     oh_device = true;
+                                    oh_devices.push((dev_url.clone(), from));
+                                    debug!("SSDP Discovery: OH renderer: {dev_url}");
                                 }
-                            }
+                                _ => (),
+                            },
                             _ => (),
                         });
-                    if oh_device {
-                        oh_devices.push((dev_url.clone(), from));
-                        debug!("SSDP Discovery: OH renderer: {dev_url}");
-                    }
-                    if av_device {
-                        av_devices.push((dev_url.clone(), from));
-                        debug!("SSDP Discovery: AV renderer: {dev_url}");
-                    }
                 }
             }
             Err(e) => {

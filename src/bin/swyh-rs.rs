@@ -144,19 +144,20 @@ fn main() {
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices();
     let mut source_names: Vec<String> = Vec::new();
+    let config_name = config.sound_source.as_ref().unwrap();
     for (index, adev) in audio_devices.into_iter().enumerate() {
-        let devname = adev.name().to_owned();
-        if let Some(id) = config.sound_source_index {
+        let adevname = adev.name().to_string();
+        if let Some(config_id) = config.sound_source_index {
             // index is needed for duplicate audio device names in Windows
-            if id == index as i32 && devname == *config.sound_source.as_ref().unwrap() {
+            if config_id == index as i32 && adevname == *config_name {
                 audio_output_device = adev;
-                info!("Selected audio source: {}[#{}]", devname, index);
+                info!("Selected audio source: {}[#{}]", adevname, index);
             }
-        } else if devname == *config.sound_source.as_ref().unwrap() {
+        } else if adevname == *config_name {
             audio_output_device = adev;
-            info!("Selected audio source: {}", devname);
+            info!("Selected audio source: {}", adevname);
         }
-        source_names.push(devname);
+        source_names.push(adevname);
     }
 
     // get the list of available networks

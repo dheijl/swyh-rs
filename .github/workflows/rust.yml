@@ -38,6 +38,6 @@ jobs:
       working-directory: src
       shell: bash
       run: |
-        cargo build --verbose --bin swyh-rs
-        cargo build --verbose --bin swyh-rs-cli --features cli --no-default-features
+        cargo build --bin swyh-rs
+        cargo build --bin swyh-rs-cli --features cli --no-default-features
 

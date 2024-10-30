@@ -662,12 +662,14 @@ impl MainForm {
     }
 
     pub fn add_log_msg(&mut self, msg: &str) {
-        self.tb.buffer().unwrap().append(msg);
-        self.tb.buffer().unwrap().append("\n");
-        let buflen = self.tb.buffer().unwrap().length();
-        self.tb.set_insert_position(buflen);
-        let buflines = self.tb.count_lines(0, buflen, true);
-        self.tb.scroll(buflines, 0);
+        if let Some(mut textbuffer) = self.tb.buffer() {
+            textbuffer.append(msg);
+            textbuffer.append("\n");
+            let buflen = textbuffer.length();
+            self.tb.set_insert_position(buflen);
+            let buflines = self.tb.count_lines(0, buflen, true);
+            self.tb.scroll(buflines, 0);
+        }
     }
 
     pub fn add_renderer_button(&mut self, new_renderer: &Renderer) {

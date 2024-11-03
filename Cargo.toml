@@ -86,5 +86,5 @@ libc = "0.2.161"
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
 #cpal = { git = "https://github.com/RustAudio/cpal" }
-#flac-bound = { git = "https://github.com/dheijl/flac-bound" }
+flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }

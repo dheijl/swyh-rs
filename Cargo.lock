@@ -340,8 +340,7 @@ checksum = "e8c02a5121d4ea3eb16a80748c74f5549a5665e4c21333c6098f283870fbdea6"
 [[package]]
 name = "flac-bound"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d438dc79612e982e62d0d86a1fd434b4f536cddf156ce02063cd56fc3d8d426c"
+source = "git+https://github.com/dheijl/flac-bound#459f92f6e3f47db5c009a76d3a1a203ee0d0a0c5"
 dependencies = [
  "libflac-sys",
 ]
@@ -543,9 +542,9 @@ checksum = "8e9489c2807c139ffd9c1794f4af0ebe86a828db53ecdc7fea2111d0fed085d1"
 
 [[package]]
 name = "libflac-sys"
-version = "0.2.2"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "358a7beee1a8a2b28876814d6dbf06126255b062a59f02779143ec68cb9e54e7"
+checksum = "5b0d9b582c1affe84b051d5a0faf3665e4da0c0b7b0e3b391213e3a5a670365b"
 dependencies = [
  "cmake",
  "libc",

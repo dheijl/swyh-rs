@@ -101,6 +101,7 @@ impl FlacChannel {
                     .bits_per_sample(bps)
                     .sample_rate(sr)
                     .compression_level(0)
+                    .set_limit_min_bitrate(1)
                     .init_write(&mut outw)
                     .unwrap();
                 // read captured samples and encode

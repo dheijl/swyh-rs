@@ -46,7 +46,7 @@ fastrand = "2.1.1"
 flac-bound = { version = "0.4.0", default-features = false, features = [
     "libflac-noogg",
 ] }
-hashbrown = "0.15.0"
+hashbrown = "0.15.1"
 htmlescape = "0.3.1"
 if-addrs = "0.13.3"
 lexopt = "0.3.0"
@@ -67,7 +67,7 @@ ureq = { version = "2.10.1", default-features = false, features = [
     "charset",
     "gzip",
 ] }
-url = "2.5.2"
+url = "2.5.3"
 xml-rs = "0.8.22"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.4.35", features = ["use-ninja"], optional = true }
@@ -86,5 +86,5 @@ libc = "0.2.161"
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
 #cpal = { git = "https://github.com/RustAudio/cpal" }
-#flac-bound = { git = "https://github.com/dheijl/flac-bound" }
+flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }

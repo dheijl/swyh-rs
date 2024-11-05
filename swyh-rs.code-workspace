@@ -4,4 +4,7 @@
             "path": "."
         }
     ],
+    "settings": {
+        "rust-analyzer.cargo.features": "all"
+    },
 }

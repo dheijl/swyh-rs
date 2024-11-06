@@ -1,3 +1,5 @@
+![CI status](https://github.com/dheijl/swyh-rs/actions/workflows/rust.yml/badge.svg)
+
 # swyh-rs
 
 ![rs-tall](https://user-images.githubusercontent.com/2384545/112133026-8ae7c880-8bcb-11eb-835e-f6aaed25bea3.png)

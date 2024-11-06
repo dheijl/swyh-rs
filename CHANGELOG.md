@@ -1,14 +1,14 @@
 # swyh-rs Changelog
 
-- 1.12.0 (unreleased)
+- 1.12.0 (Nov 6 2024 dheijl)
   - Github CI added by @theavege, thanks!
   - replace ```once_cell::sync::Lazy``` with ```std::sync::LazyLock```, so now swyh-rs requires Rustc version __1.80__ or later!!
   - swyh-rs now is compiled with Rustc 1.82.0
   - get rid of a couple of unwraps
   - update flac-bound to 0.5.0 so that
-    - libflac-sys (0.3.1) and libflac (1.4.3) are now the latest versions
-    - swyh-rs can use the new ```set_limit_min_bitrate()``` for the flac encoder to prevent connection loss when streaming/injecting silence.
-    This should enable the "inject silence" option to work for FLAC too!
+    - libflac-sys (0.3.1) and libflac (1.4.3) are now the current versions
+    - swyh-rs can now use the new ```set_limit_min_bitrate()``` for the flac encoder to prevent connection loss when streaming/injecting silence.
+    - This enables the "inject silence" option to work for FLAC too. Enabling the inject silence option also automatically disables the old FLAC faint white noise injection that swyh-rs inserted when no sound is being captured. Downside: silence injection will introduce a delay when sound is resumed.
 
 - 1.11.6 (Sep 30 2024 dheijl)
   - CLI: optimize player argument parsing (-o)

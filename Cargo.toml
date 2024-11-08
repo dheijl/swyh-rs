@@ -10,7 +10,7 @@ authors = [
 ]
 edition = "2021"
 name = "swyh-rs"
-version = "1.12.0"
+version = "1.12.1"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -49,7 +49,7 @@ crossbeam-channel = "0.5.13"
 ctrlc = { version = "3.4.5", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "5.0.1"
-fastrand = "2.1.1"
+fastrand = "2.2.0"
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",
 ] }

@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.12.1 (unreleased)
+
 - 1.12.0 (Nov 6 2024 dheijl)
   - Github CI added by @theavege, thanks!
   - replace ```once_cell::sync::Lazy``` with ```std::sync::LazyLock```, so now swyh-rs requires Rustc version __1.80__ or later!!

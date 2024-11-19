@@ -11,7 +11,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 ### Contents
 
 - [Why this SWYH alternative ?](#why-this-swyh-alternative-)
-- [Current release](#current-release)
+- [Current release and binaries](#current-release)
 - [Changelog](CHANGELOG.md)
 - [swyh-rs as your local internet radio station](#swyh-rs-as-your-local-internet-radio-station)
 - [Todo](#todo)
@@ -26,7 +26,9 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is 1.12.0, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is 1.12.0, refer to the [Changelog](CHANGELOG.md) for more details. 
+You can find x86/64  Windows and Linux (Ubuntu/Debian) binaries in [Releases](https://github.com/dheijl/swyh-rs/releases).
+You can find Arm binaries [here](https://github.com/dheijl/swyh-rs/releases). They are privded by Jamie Duk (@Jay), I have not tested them.
 
 ## Why this SWYH alternative ?
 

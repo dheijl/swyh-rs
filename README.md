@@ -28,7 +28,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 The current release is 1.12.0, refer to the [Changelog](CHANGELOG.md) for more details. 
 You can find x86/64  Windows and Linux (Ubuntu/Debian) binaries in [Releases](https://github.com/dheijl/swyh-rs/releases).
-You can find Arm binaries [here](https://github.com/dheijl/swyh-rs/releases). They are privded by Jamie Duk (@Jay), I have not tested them.
+You can find Arm binaries [here](https://github.com/jamieduk/SWYH-ARM-64Bit-Linux/releases). They are privded by Jamie Duk (@Jay), I have not tested them.
 
 ## Why this SWYH alternative ?
 

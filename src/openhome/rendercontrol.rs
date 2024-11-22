@@ -766,7 +766,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                             }
                         })
                         .for_each(|hv_pair| match hv_pair.0.to_ascii_uppercase().as_str() {
-                            "LOCATION" => dev_url = hv_pair.1.to_string(),
+                            "LOCATION" | "Location" => dev_url = hv_pair.1.to_string(),
                             "ST" => match hv_pair.1 {
                                 schema
                                     if schema.contains(

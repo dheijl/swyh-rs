@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
-- 1.12.1 (unreleased)
+- 1.12.1 (Nov 23 2024 dheijl)
+  - Bubble UPNP failed SSDP discovery because it does not use uppercase header names lake everyone else. Fixes issue #157.
 
 - 1.12.0 (Nov 6 2024 dheijl)
   - Github CI added by @theavege, thanks!

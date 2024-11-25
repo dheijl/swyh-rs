@@ -1,6 +1,9 @@
 # swyh-rs Changelog
 
-- 1.12.2(Nov 25 2024 dheijl)
+- 1.12.3 (unreleased)
+  - support multiple players at the same IP address and port
+
+- 1.12.2 (Nov 25 2024 dheijl)
   - properly handle Bubble UPNP SSDP response
 
 - 1.12.0 (Nov 6 2024 dheijl)

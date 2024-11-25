@@ -53,7 +53,7 @@ fastrand = "2.2.0"
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",
 ] }
-hashbrown = "0.15.1"
+hashbrown = "0.15.2"
 htmlescape = "0.3.1"
 if-addrs = "0.13.3"
 lexopt = "0.3.0"

@@ -1064,4 +1064,63 @@ mod tests {
         url = String::new();
         assert!(normalize_url(&url) == url);
     }
+
+    #[test]
+    fn test_bubble() {
+        static BUBBLE_SSDP: &str = "HTTP/1.1 200 OK
+Ext:
+St: urn:schemas-upnp-org:service:RenderingControl:1
+Server: Linux/6.8.4-3-pve UPnP/1.0 BubbleUPnPServer/0.9-update49
+Usn: uuid:e8dbf26b-de8f-4c96-0000-0000002ea642::urn:schemas-upnp-org:service:RenderingControl:1
+Cache-control: max-age=1800\r\n
+Location: http://192.168.1.181:33065/dev/e8dbf26b-de8f-4c96-0000-0000002ea642/desc.xml
+";
+        let response: Vec<&str> = BUBBLE_SSDP.split("\n").collect();
+        if !response.is_empty() {
+            let status_code = response[0]
+                .trim_start_matches("HTTP/1.1 ")
+                .chars()
+                .take_while(|x| x.is_ascii_digit())
+                .collect::<String>()
+                .parse::<u32>()
+                .unwrap_or(0);
+
+            assert!(status_code == 200);
+
+            let mut dev_url = String::new();
+            let mut oh_device = false;
+            let mut av_device = false;
+            response
+                .iter()
+                .filter_map(|l| {
+                    let mut split = l.splitn(2, ':');
+                    match (split.next(), split.next()) {
+                        (Some(header), Some(value)) => Some((header, value.trim())),
+                        _ => None,
+                    }
+                })
+                .for_each(|hv_pair| match hv_pair.0.to_ascii_uppercase().as_str() {
+                    "LOCATION" => dev_url = hv_pair.1.to_string(),
+                    "ST" => match hv_pair.1 {
+                        schema
+                            if schema
+                                .contains("urn:schemas-upnp-org:service:RenderingControl:1") =>
+                        {
+                            av_device = true;
+                        }
+                        schema if schema.contains("urn:av-openhome-org:service:Product:1") => {
+                            oh_device = true;
+                        }
+                        _ => (),
+                    },
+                    _ => eprintln!("{} = {}", hv_pair.0, hv_pair.1),
+                });
+            eprintln!("{dev_url}");
+            eprintln!("{oh_device}");
+            eprintln!("{av_device}");
+            assert!(!dev_url.is_empty());
+            assert!(av_device);
+            assert!(!oh_device);
+        }
+    }
 }

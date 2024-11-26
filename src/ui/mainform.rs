@@ -756,7 +756,7 @@ impl MainForm {
         // and add the volume slider too if GetVolume worked
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons
-            .insert(new_renderer.remote_addr.clone(), pbut.clone()); // and keep a reference to it for bookkeeping
+            .insert(new_renderer.location.clone(), pbut.clone()); // and keep a reference to it for bookkeeping
         app::redraw();
         // check if autoreconnect is set for this renderer
         if self.auto_reconnect.is_set() {

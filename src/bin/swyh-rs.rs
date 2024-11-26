@@ -292,48 +292,57 @@ fn main() {
                 // in that case we turn the button off as a visual feedback for the user
                 // but if auto_resume is set, we restart playing instead
                 MessageType::PlayerMessage(streamer_feedback) => {
-                    if let Some(button) = mf.buttons.get_mut(&streamer_feedback.remote_ip) {
-                        match streamer_feedback.streaming_state {
-                            StreamingState::Started => {
-                                if !button.is_set() {
-                                    button.set(true);
+                    // check for multiple renderers at same ip address (Bubble UPNP)
+                    let same_ip: Vec<&Renderer> = renderers
+                        .iter()
+                        .filter(|r| r.remote_addr == streamer_feedback.remote_ip)
+                        .collect();
+                    if same_ip.is_empty() {
+                        if let Some(button) = mf.buttons.get_mut(&streamer_feedback.remote_ip) {
+                            match streamer_feedback.streaming_state {
+                                StreamingState::Started => {
+                                    if !button.is_set() {
+                                        button.set(true);
+                                    }
                                 }
-                            }
-                            StreamingState::Ended => {
-                                // first check if the renderer has actually not started streaming again
-                                // as this can happen with Bubble/Nest Audio Openhome
-                                let still_streaming = CLIENTS.read().values().any(|chanstrm| {
-                                    chanstrm.remote_ip == streamer_feedback.remote_ip
-                                });
-                                if !still_streaming {
-                                    if mf.auto_resume.is_set() && button.is_set() {
-                                        if let Some(r) = renderers
-                                            .iter()
-                                            .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                                        {
-                                            let config = CONFIG.read().clone();
-                                            let streaminfo = StreamInfo {
-                                                sample_rate: wd.sample_rate.0,
-                                                bits_per_sample: config
-                                                    .bits_per_sample
-                                                    .unwrap_or(16),
-                                                streaming_format: config
-                                                    .streaming_format
-                                                    .unwrap_or(Flac),
-                                            };
-                                            let _ = r.play(
-                                                &local_addr,
-                                                server_port,
-                                                &ui_log,
-                                                streaminfo,
-                                            );
+                                StreamingState::Ended => {
+                                    // first check if the renderer has actually not started streaming again
+                                    // as this can happen with Bubble/Nest Audio Openhome
+                                    let still_streaming = CLIENTS.read().values().any(|chanstrm| {
+                                        chanstrm.remote_ip == streamer_feedback.remote_ip
+                                    });
+                                    if !still_streaming {
+                                        if mf.auto_resume.is_set() && button.is_set() {
+                                            if let Some(r) = renderers.iter().find(|r| {
+                                                r.remote_addr == streamer_feedback.remote_ip
+                                            }) {
+                                                let config = CONFIG.read().clone();
+                                                let streaminfo = StreamInfo {
+                                                    sample_rate: wd.sample_rate.0,
+                                                    bits_per_sample: config
+                                                        .bits_per_sample
+                                                        .unwrap_or(16),
+                                                    streaming_format: config
+                                                        .streaming_format
+                                                        .unwrap_or(Flac),
+                                                };
+                                                let _ = r.play(
+                                                    &local_addr,
+                                                    server_port,
+                                                    &ui_log,
+                                                    streaminfo,
+                                                );
+                                            }
+                                        } else if button.is_set() {
+                                            button.set(false);
                                         }
-                                    } else if button.is_set() {
-                                        button.set(false);
                                     }
                                 }
                             }
                         }
+                    } else {
+                        // we have multiple renderers at this IP address, no correlation to a button
+                        ()
                     }
                 }
                 // check the ssdp discovery thread channel for newly discovered renderers

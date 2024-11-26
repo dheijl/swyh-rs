@@ -411,7 +411,7 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     loop {
         let renderers = discover(&rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
-            rmap.entry(r.dev_url.clone()).or_insert_with(|| {
+            rmap.entry(r.location.clone()).or_insert_with(|| {
                 info!(
                     "Found new renderer {} {}  at {}",
                     r.dev_name, r.dev_model, r.remote_addr

@@ -229,6 +229,7 @@ pub struct Renderer {
     pub volume: i32,
     pub supported_protocols: SupportedProtocols,
     pub remote_addr: String,
+    pub location: String,
     pub services: Vec<AvService>,
 }
 
@@ -246,6 +247,7 @@ impl Renderer {
             volume: -1,
             supported_protocols: SupportedProtocols::NONE,
             remote_addr: String::new(),
+            location: String::new(),
             services: Vec::new(),
         }
     }
@@ -837,6 +839,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
     for (dev, from) in devices {
         if let Some(xml) = get_service_description(&dev) {
             if let Some(mut rend) = get_renderer(&xml) {
+                rend.location = dev.clone();
                 let mut s = from.to_string();
                 if let Some(i) = s.find(':') {
                     s.truncate(i);
@@ -862,11 +865,11 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
 
     for r in &renderers {
         debug!(
-            "Renderer {} {} ip {} at urlbase {} has {} services",
+            "Renderer {} {} ip {} at location {} has {} services",
             r.dev_name,
             r.dev_model,
             r.remote_addr,
-            r.dev_url,
+            r.location,
             r.services.len()
         );
         debug!(

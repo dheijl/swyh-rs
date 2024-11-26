@@ -365,7 +365,7 @@ fn main() {
     let mut active_players: Vec<String> = Vec::new();
     for button in &mf.buttons {
         if button.1.is_set() {
-            if let Some(r) = renderers.iter().find(|r| r.remote_addr == *button.0) {
+            if let Some(r) = renderers.iter().find(|r| r.location == *button.0) {
                 active_players.push(r.remote_addr.clone());
                 r.stop_play(&ui_log);
             }

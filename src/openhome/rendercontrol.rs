@@ -755,7 +755,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                         continue; // ignore
                     }
 
-                    let mut dev_url = String::new();
+                    let mut dev_location = String::new();
                     let mut oh_device = false;
                     let mut av_device = false;
                     response
@@ -768,7 +768,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                             }
                         })
                         .for_each(|hv_pair| match hv_pair.0.to_ascii_uppercase().as_str() {
-                            "LOCATION" => dev_url = hv_pair.1.to_string(),
+                            "LOCATION" => dev_location = hv_pair.1.to_string(),
                             "ST" => match hv_pair.1 {
                                 schema
                                     if schema.contains(
@@ -786,13 +786,13 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                             },
                             _ => (),
                         });
-                    if !dev_url.is_empty() {
+                    if !dev_location.is_empty() {
                         if av_device {
-                            av_devices.push((dev_url.clone(), from));
-                            debug!("SSDP Discovery: AV renderer: {dev_url}");
+                            av_devices.push((dev_location.clone(), from));
+                            debug!("SSDP Discovery: AV renderer: {dev_location}");
                         } else if oh_device {
-                            oh_devices.push((dev_url.clone(), from));
-                            debug!("SSDP Discovery: OH renderer: {dev_url}");
+                            oh_devices.push((dev_location.clone(), from));
+                            debug!("SSDP Discovery: OH renderer: {dev_location}");
                         }
                     }
                 }
@@ -812,23 +812,23 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
 
     // only keep OH devices and AV devices that are not OH capable
     let mut usable_devices: Vec<(String, SocketAddr)> = Vec::new();
-    for (oh_url, sa) in &oh_devices {
-        usable_devices.push((oh_url.to_string(), *sa));
+    for (oh_location, sa) in &oh_devices {
+        usable_devices.push((oh_location.to_string(), *sa));
     }
-    for (av_url, sa) in &av_devices {
-        if usable_devices.iter().any(|d| d.0 == *av_url) {
-            debug!("SSDP Discovery: skipping AV renderer {av_url} as it is also OH");
+    for (av_location, sa) in &av_devices {
+        if usable_devices.iter().any(|d| d.0 == *av_location) {
+            debug!("SSDP Discovery: skipping AV renderer {av_location} as it is also OH");
         } else {
-            usable_devices.push((av_url.to_string(), *sa));
+            usable_devices.push((av_location.to_string(), *sa));
         }
     }
     // now filter out devices we already know about
-    for (url, sa) in &usable_devices {
-        if rmap.iter().any(|m| url.contains(&m.1.dev_url)) {
-            info!("SSDP discovery: Skipping known Renderer at {url}");
+    for (location, sa) in &usable_devices {
+        if rmap.iter().any(|m| *location == m.1.location) {
+            info!("SSDP discovery: Skipping known Renderer at {location}");
         } else {
-            info!("SSDP discovery: new Renderer found at : {}", url);
-            devices.push((url.to_string(), *sa));
+            info!("SSDP discovery: new Renderer found at : {}", location);
+            devices.push((location.to_string(), *sa));
         }
     }
 
@@ -836,10 +836,10 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
     debug!("Getting new renderer descriptions");
     let mut renderers: Vec<Renderer> = Vec::new();
 
-    for (dev, from) in devices {
-        if let Some(xml) = get_service_description(&dev) {
+    for (location, from) in devices {
+        if let Some(xml) = get_service_description(&location) {
             if let Some(mut rend) = get_renderer(&xml) {
-                rend.location = dev.clone();
+                rend.location = location.clone();
                 let mut s = from.to_string();
                 if let Some(i) = s.find(':') {
                     s.truncate(i);
@@ -847,8 +847,8 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                 rend.remote_addr = s;
                 // check for an absent URLBase in the description
                 // or devices like Yamaha WXAD-10 with bad URLBase port number
-                if rend.dev_url.is_empty() || !dev.contains(&rend.dev_url) {
-                    let mut url_base = dev;
+                if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {
+                    let mut url_base = location;
                     if url_base.contains("http://") {
                         url_base = url_base["http://".to_string().len()..].to_string();
                         let pos = url_base.find('/').unwrap_or_default();
@@ -885,9 +885,9 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
 }
 
 /// `get_service_description` - get the upnp service description xml for a media renderer
-fn get_service_description(dev_url: &str) -> Option<String> {
-    debug!("Get service description for {}", dev_url.to_string());
-    let url = dev_url.to_string();
+fn get_service_description(location: &str) -> Option<String> {
+    debug!("Get service description for {}", location.to_string());
+    let url = location.to_string();
     match ureq::get(url.as_str())
         .set("User-Agent", "swyh-rs-Rust")
         .set("Content-Type", "text/xml")

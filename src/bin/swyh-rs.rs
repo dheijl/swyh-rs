@@ -297,8 +297,11 @@ fn main() {
                         .iter()
                         .filter(|r| r.remote_addr == streamer_feedback.remote_ip)
                         .collect();
-                    if same_ip.is_empty() {
-                        if let Some(button) = mf.buttons.get_mut(&streamer_feedback.remote_ip) {
+                    if same_ip.len() == 1 {
+                        // got the only renderer with this IP address
+                        let renderer = same_ip[0];
+                        // get the button associated with this renderer
+                        if let Some(button) = mf.buttons.get_mut(&renderer.location) {
                             match streamer_feedback.streaming_state {
                                 StreamingState::Started => {
                                     if !button.is_set() {

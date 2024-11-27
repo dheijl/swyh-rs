@@ -1,7 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.3 (unreleased)
-  - support multiple players at the same IP address and port
+  - support multiple players at the same IP address and port (e.g. Bubble UPNP exposing multiple Chromecast devices), see issue #157
 
 - 1.12.2 (Nov 25 2024 dheijl)
   - properly handle Bubble UPNP SSDP response

@@ -345,7 +345,7 @@ fn main() {
                         }
                     } else {
                         // we have multiple renderers at this IP address, no correlation to a button
-                        ()
+                        // so there's nothing we can do here...
                     }
                 }
                 // check the ssdp discovery thread channel for newly discovered renderers

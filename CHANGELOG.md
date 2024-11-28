@@ -1,7 +1,8 @@
 # swyh-rs Changelog
 
-- 1.12.3 (unreleased)
-  - support multiple players at the same IP address and port (e.g. Bubble UPNP exposing multiple Chromecast devices), see issue #157
+- 1.12.3 (Nov 28 2024 dheijl)
+  - support multiple players at the same IP address and port (e.g. Bubble UPNP exposing multiple Chromecast devices), see issue #157. Players are no longer identified by their IP address but by their SSDP "Location".
+  - built with Rust 1.83.0
 
 - 1.12.2 (Nov 25 2024 dheijl)
   - properly handle Bubble UPNP SSDP response

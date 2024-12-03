@@ -53,6 +53,7 @@ It has been tested with
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
 - Denon Heos devices
 - Sony AV streamers & Bravia TVs
+- Goldenwave HiFiMan DAC/Headphone amlpifiers using WAV/RF64/FLAC.
 - **Chromecast** devices exposed as an OpenHome or DLNA devices in **Bubble UPNP Server** (thanks Bubblesoft for providing the necessary information!). If you have multiple devices in the same Bubble UPNP server, you need version 1.12.3 or later, because there are multiple devices at the same IP address. At a certain point Bubble changed the SSDP headers causing swyh-rs to no longer "see" these device. This is also fixed in 1.12.3. See issue #157 (thanks @kenkuo). Prior to 1.12.3 devices were identified by their IP address, from 1.12.3 on they are identified by their SSDP "Location".
 - **Sonos** speakers/soundbars using the **WAV** format (thanks @Cunkers !). **update:** A recent update to the Sonos Play 1 also enabled **FLAC**. Depending on your network a Sonos may stutter when using WAV, if you are affected you should use FLAC if your device supports it. See issues #84 and #75. Software version "15.9 (Build 75146030)" on the Play:1 is known to support FLAC without stuttering (thanks @beWAYNE !). **Important**: if you are streaming to a stereo pair, you should only stream to the **master** of the pair, and never to both, as this can/will break the stereo pair (see issue #141)!
 - If you want to pause music without losing the connection you can enable the  **Inject Silence** option. The InjectSilence flag is automatically added to the config file when you first start version 1.4.5 and defaults to _false_. Contributed by @genekellyjr, see issue #71, and @DanteDT. Since 1.12.0 Inject Silence should work with FLAC too. If you don't enable Inject Silence for FLAC, swyh-rs will automatically periodically inject some faint white noise in the absence of sound so that you hopefully don't loose the connection.
@@ -223,6 +224,8 @@ If you do not specify a player swyh-rs-cli switches to serve_only mode.
 ### Latency and streaming format and stream duration
 
 - For minimal latency, use LPCM (if your receiver supports it). On many devices LPCM will only work with 16 bit samples.
+- WAV and RF64 have a slightly higher latency than LPCM, because it often causes an extra HTTP request at the start.
+- FLAC will always have a hihger latency than LPCM/WAV/RF64 due the compression. But it causes less network traffic and has an advantage on flaky WiFi networks.    
 - A higher bit depth and/or sample rate will reduce latency because it will fill the buffer of the receiver faster.
 - For unlimited streamsize and duration, use NoneChunked. If it doesn't work try one of the other options.
 - WAV is in theory limited to 4 GB streaming, so it's possible that it only works with an u32Max streamsize. But you can try if NoneChunked works. 4 GB is only a couple of hours of streaming depending on sample size and sample rate. On MoodeAudio WAV only works with U32MaxNotChunked, but RF64 and FLAC work with anything. It depends on the decoder used in the receiver.

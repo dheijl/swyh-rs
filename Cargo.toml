@@ -70,7 +70,7 @@ strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
 toml = "0.8.19"
-ureq = { version = "2.12.0", default-features = false, features = [
+ureq = { version = "2.12.1", default-features = false, features = [
     "charset",
     "gzip",
 ] }

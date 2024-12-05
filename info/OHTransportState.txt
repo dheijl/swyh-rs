@@ -1,0 +1,30 @@
+POST /uuid-1323e494-696d-cb13-fdb9-061f6bb0af67/ctl-urn-av-openhome-org-service-Playlist-1 HTTP/1.1
+Host: 192.168.138.2:49152
+Connection: close
+User-Agent: foobar2000/2.x
+Accept: */*
+Soapaction: "urn:av-openhome-org:service:Playlist:1#TransportState"
+Content-Length: 295
+Content-Type: text/xml; charset="utf-8"
+
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+<s:Body><u:TransportState xmlns:u="urn:av-openhome-org:service:Playlist:1"></u:TransportState>
+</s:Body></s:Envelope>
+
+
+HTTP/1.1 200 OK
+Date: Thu, 01 Jan 1970 00:16:49 GMT
+Connection: close
+SERVER: Linux/4.14.111 UPnP/1.0 Upmpdcli/1.5.12
+Content-Type: text/xml; charset="utf-8"
+Content-Length: 305
+
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<u:TransportStateResponse xmlns:u="urn:av-openhome-org:service:Playlist:1">
+<Value>Playing</Value>
+</u:TransportStateResponse>
+</s:Body></s:Envelope>
+

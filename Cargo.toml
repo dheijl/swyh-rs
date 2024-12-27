@@ -64,7 +64,7 @@ log = { version = "0.4.22", features = [
     "serde",
 ] }
 parking_lot = "0.12.3"
-serde = { version = "1.0.216", features = ["derive"] }
+serde = { version = "1.0.217", features = ["derive"] }
 simplelog = "0.12.2"
 strfmt = "0.2.4"
 stringreader = "0.1.1"

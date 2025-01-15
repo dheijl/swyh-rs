@@ -43,7 +43,7 @@ required-features = ["cli"]
 winres = "0.1.12"
 
 [dependencies]
-bitflags = "2.7.0"
+bitflags = "2.8.0"
 cpal = "0.15.3"
 crossbeam-channel = "0.5.14"
 ctrlc = { version = "3.4.5", features = ["termination"] }
@@ -58,7 +58,7 @@ htmlescape = "0.3.1"
 if-addrs = "0.13.3"
 lexopt = "0.3.0"
 local-ip-address = { version = "0.6.3", optional = true }
-log = { version = "0.4.22", features = [
+log = { version = "0.4.25", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",

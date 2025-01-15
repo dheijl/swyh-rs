@@ -1,5 +1,6 @@
 [package]
 resolver = "3"
+rust-version = "1.84"
 authors = [
     "dheijl",
     "joshuamegnauth54",

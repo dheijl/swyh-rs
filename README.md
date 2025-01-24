@@ -155,7 +155,7 @@ The icon was designed by @numanair, thanks!
 - there is (since 1.3.13) an input box to select the _HTTP listener port_ for the streaming server. Default is 5901. If you use a firewall, this port should allow incoming HTTP connections from your renderer(s).
 - there is (since 1.3.6) an option to enable visualization of the RMS value (L+R channel) of the captured PCM audio signal. It will only add an insignificant amount of CPU use.
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio at <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
-- the program tries to run at a priority "above normal" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary priviliges (renice).
+- the program tries to run at a priority "`above normal`" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary priviliges (renice), for instance on Debian Bookworm you can add yourself to the `pipewire` group to get this privilege.
 - the SSDP discovery process is rerun every x minutes in the background, any newly discovered renderers will be automatically added to the GUI. Existing renderers that "disappear" during discovery are not deleted from the GUI, as SSDP discovery is not guaranteed to be failsafe (it uses UDP packets). The SSDP discovery interval is configurable, minimum value is 0.5 minutes, there is no maximum value.
 - after a configuration change that needs a program restart, you get a "restart" popup dialog. Click "Restart" to restart the app, or "Cancel" to ignore.
 - Since version 1.2.2, swyh-rs will peridically send silence to connected renderers if no sound is being captured because no audio is currently being played. This prevents some renderers from disconnecting because they have not received any sound for some time (Bubble UPNP Server with Chromecast/Nest Audio). Apparently sending silence keeps them happy. For FLAC streaming white noise at -90 db is sent because silence is compressed away in FLAC.
@@ -225,7 +225,7 @@ If you do not specify a player swyh-rs-cli switches to serve_only mode.
 
 - For minimal latency, use LPCM (if your receiver supports it). On many devices LPCM will only work with 16 bit samples.
 - WAV and RF64 have a slightly higher latency than LPCM, because it often causes an extra HTTP request at the start.
-- FLAC will always have a hihger latency than LPCM/WAV/RF64 due the compression. But it causes less network traffic and has an advantage on flaky WiFi networks.    
+- FLAC will always have a hihger latency than LPCM/WAV/RF64 due the compression. But it causes less network traffic and has an advantage on flaky WiFi networks.
 - A higher bit depth and/or sample rate will reduce latency because it will fill the buffer of the receiver faster.
 - For unlimited streamsize and duration, use NoneChunked. If it doesn't work try one of the other options.
 - WAV is in theory limited to 4 GB streaming, so it's possible that it only works with an u32Max streamsize. But you can try if NoneChunked works. 4 GB is only a couple of hours of streaming depending on sample size and sample rate. On MoodeAudio WAV only works with U32MaxNotChunked, but RF64 and FLAC work with anything. It depends on the decoder used in the receiver.

@@ -25,16 +25,19 @@ pub fn raise_priority() {
 pub fn raise_priority() {
     // the following only works when you're root on Linux
     // or if you give the program CAP_SYS_NICE (cf. setcap)
+    // or are a user of the pipewire group
     use libc::{getpriority, setpriority, PRIO_PROCESS};
     unsafe {
-        let pri = getpriority(PRIO_PROCESS, 0);
-        let newpri = pri - 5;
-        let rc = setpriority(PRIO_PROCESS, 0, newpri);
-        if rc != 0 {
-            ui_log("Sorry, but you don't have permissions to raise priority...");
-        } else {
-            ui_log(&format!("Now running at nice value {newpri}"));
+        let mut pri = getpriority(PRIO_PROCESS, 0);
+        if pri >= 0 {
+            pri = -10;
+            let rc = setpriority(PRIO_PROCESS, 0, pri);
+            if rc != 0 {
+                ui_log("Sorry, but you don't have permissions to raise priority...");
+            } else {
+            }
         }
+        ui_log(&format!("Running at nice value {pri}"));
     }
 }
 

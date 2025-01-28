@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.12.4 (unreleased)
+  - switch to attohtpc from ureq due to too many breaking and undocumented changes in ureq 3. Migrating to attohttpc took less than a minute.
+
 - 1.12.3 (Nov 28 2024 dheijl)
   - support multiple players at the same IP address and port (e.g. Bubble UPNP exposing multiple Chromecast devices), see issue #157. Players are no longer identified by their IP address but by their SSDP "Location".
   - built with Rust 1.83.0

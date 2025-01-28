@@ -279,16 +279,17 @@ impl Renderer {
             soap_action,
             body
         );
-        match ureq::post(url)
-            .set("Connection", "close")
-            .set("User-Agent", "swyh-rs-Rust/0.x")
-            .set("Accept", "*/*")
-            .set("SOAPAction", &format!("\"{soap_action}\""))
-            .set("Content-Type", "text/xml; charset=\"utf-8\"")
-            .send_string(body)
+        match attohttpc::post(url)
+            .header("Connection", "close")
+            .header("User-Agent", "swyh-rs-Rust/0.x")
+            .header("Accept", "*/*")
+            .header("SOAPAction", &format!("\"{soap_action}\""))
+            .header("Content-Type", "text/xml; charset=\"utf-8\"")
+            .text(body)
+            .send()
         {
             Ok(resp) => {
-                let xml = resp.into_string().unwrap_or_default();
+                let xml = resp.text().unwrap_or_default();
                 debug!("<=SOAP response: {}\r\n", xml);
                 Some(xml)
             }
@@ -888,13 +889,14 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
 fn get_service_description(location: &str) -> Option<String> {
     debug!("Get service description for {}", location.to_string());
     let url = location.to_string();
-    match ureq::get(url.as_str())
-        .set("User-Agent", "swyh-rs-Rust")
-        .set("Content-Type", "text/xml")
-        .send_string("")
+    match attohttpc::get(url.as_str())
+        .header("User-Agent", "swyh-rs-Rust")
+        .header("Content-Type", "text/xml")
+        .text("")
+        .send()
     {
         Ok(resp) => {
-            let descr_xml = resp.into_string().unwrap_or_default();
+            let descr_xml = resp.text().unwrap_or_default();
             debug!("Service description:");
             debug!("{}", descr_xml);
             if descr_xml.is_empty() {

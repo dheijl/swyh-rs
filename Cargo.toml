@@ -44,7 +44,7 @@ required-features = ["cli"]
 winres = "0.1.12"
 
 [dependencies]
-attohttpc = "0.28.2"
+attohttpc = { version = "0.28.2", features = ["compress", "charsets"] }
 bitflags = "2.8.0"
 cpal = "0.15.3"
 crossbeam-channel = "0.5.14"

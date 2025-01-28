@@ -283,7 +283,7 @@ impl Renderer {
             .header("Connection", "close")
             .header("User-Agent", "swyh-rs-Rust/0.x")
             .header("Accept", "*/*")
-            .header("SOAPAction", &format!("\"{soap_action}\""))
+            .header("SOAPAction", format!("\"{soap_action}\""))
             .header("Content-Type", "text/xml; charset=\"utf-8\"")
             .text(body)
             .send()

@@ -34,7 +34,6 @@ pub fn raise_priority() {
             let rc = setpriority(PRIO_PROCESS, 0, pri);
             if rc != 0 {
                 ui_log("Sorry, but you don't have permissions to raise priority...");
-            } else {
             }
         }
         ui_log(&format!("Running at nice value {pri}"));

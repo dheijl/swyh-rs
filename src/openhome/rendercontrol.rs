@@ -4,7 +4,10 @@
 /// controller for avmedia renderers (audio only) using `OpenHome` and `AVTransport` protocol
 ///
 ///
-use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
+use crate::{
+    enums::streaming::StreamingFormat,
+    globals::statics::{APP_VERSION, CONFIG},
+};
 use bitflags::bitflags;
 use hashbrown::HashMap;
 use log::{debug, error, info};
@@ -281,7 +284,7 @@ impl Renderer {
         );
         match attohttpc::post(url)
             .header("Connection", "close")
-            .header("User-Agent", "swyh-rs-Rust/0.x")
+            .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
             .header("Accept", "*/*")
             .header("SOAPAction", format!("\"{soap_action}\""))
             .header("Content-Type", "text/xml; charset=\"utf-8\"")
@@ -890,7 +893,7 @@ fn get_service_description(location: &str) -> Option<String> {
     debug!("Get service description for {}", location.to_string());
     let url = location.to_string();
     match attohttpc::get(url.as_str())
-        .header("User-Agent", "swyh-rs-Rust")
+        .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
         .header("Content-Type", "text/xml")
         .text("")
         .send()

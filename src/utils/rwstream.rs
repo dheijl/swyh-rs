@@ -61,7 +61,7 @@ impl ChannelStream {
         } else {
             None
         };
-        let capture_timout = u64::from(CONFIG.read().capture_timeout.unwrap());
+        let capture_timout = u64::from(CONFIG.read().unwrap().capture_timeout.unwrap());
         let chs = ChannelStream {
             s: tx,
             r: rx,

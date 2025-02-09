@@ -7,7 +7,7 @@ use crate::{
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use hashbrown::HashMap;
-use parking_lot::RwLock;
+use std::sync::RwLock;
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");

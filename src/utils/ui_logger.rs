@@ -16,6 +16,7 @@ pub fn ui_log(s: &str) {
         use fltk::app;
         MSGCHANNEL
             .read()
+            .unwrap()
             .0
             .send(MessageType::LogMessage(s.to_string()))
             .unwrap();

@@ -9,8 +9,7 @@ use cpal::{
 use crossbeam_channel::Sender;
 use dasp_sample::ToSample;
 use log::debug;
-use parking_lot::Once;
-use std::sync::atomic::Ordering;
+use std::sync::{atomic::Ordering, Once};
 
 /// A [`cpal::Device`] with either a default input or default output config.
 ///
@@ -296,7 +295,7 @@ where
     static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(|| {
         ui_log("The wave_reader is now receiving samples");
-        if CONFIG.read().monitor_rms {
+        if CONFIG.read().unwrap().monitor_rms {
             RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
         }
     });
@@ -304,6 +303,7 @@ where
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
     CLIENTS
         .read()
+        .unwrap()
         .iter()
         .for_each(|(_, client)| client.write(f32_samples));
     if RUN_RMS_MONITOR.load(Ordering::Acquire) {

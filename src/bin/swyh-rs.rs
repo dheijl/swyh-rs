@@ -84,7 +84,7 @@ fn main() {
 
     // initialize config
     let mut config = {
-        let mut conf = CONFIG.write();
+        let mut conf = CONFIG.write().unwrap();
         if conf.sound_source.is_none() {
             conf.sound_source = Some(audio_output_device.name().into());
             let _ = conf.update_config();
@@ -167,7 +167,7 @@ fn main() {
     let local_addr: IpAddr = {
         fn get_default_address() -> IpAddr {
             let addr = get_local_addr().expect("Could not obtain local address.");
-            let mut conf = CONFIG.write();
+            let mut conf = CONFIG.write().unwrap();
             conf.last_network = Some(addr.to_string());
             let _ = conf.update_config();
             addr
@@ -222,7 +222,7 @@ fn main() {
     }
 
     // If silence injector is on, create a silence injector stream.
-    let _silence_stream = if let Some(true) = CONFIG.read().inject_silence {
+    let _silence_stream = if let Some(true) = CONFIG.read().unwrap().inject_silence {
         ui_log("Injecting silence into the output stream");
         Some(run_silence_injector(&audio_output_device))
     } else {
@@ -230,8 +230,8 @@ fn main() {
     };
 
     // get the message channel
-    let msg_tx = MSGCHANNEL.read().0.clone();
-    let msg_rx = MSGCHANNEL.read().1.clone();
+    let msg_tx = MSGCHANNEL.read().unwrap().0.clone();
+    let msg_rx = MSGCHANNEL.read().unwrap().1.clone();
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     // the discovered renderers will be kept in this list
@@ -311,15 +311,16 @@ fn main() {
                                 StreamingState::Ended => {
                                     // first check if the renderer has actually not started streaming again
                                     // as this can happen with Bubble/Nest Audio Openhome
-                                    let still_streaming = CLIENTS.read().values().any(|chanstrm| {
-                                        chanstrm.remote_ip == streamer_feedback.remote_ip
-                                    });
+                                    let still_streaming =
+                                        CLIENTS.read().unwrap().values().any(|chanstrm| {
+                                            chanstrm.remote_ip == streamer_feedback.remote_ip
+                                        });
                                     if !still_streaming {
                                         if mf.auto_resume.is_set() && button.is_set() {
                                             if let Some(r) = renderers.iter().find(|r| {
                                                 r.remote_addr == streamer_feedback.remote_ip
                                             }) {
-                                                let config = CONFIG.read().clone();
+                                                let config = CONFIG.read().unwrap().clone();
                                                 let streaminfo = StreamInfo {
                                                     sample_rate: wd.sample_rate.0,
                                                     bits_per_sample: config
@@ -377,19 +378,19 @@ fn main() {
     }
     // remember active players in config for auto_reconnect
     {
-        let mut config = CONFIG.write();
+        let mut config = CONFIG.write().unwrap();
         config.active_renderers = active_players;
         let _ = config.update_config();
     }
     // and now wait some time for them to stop the HTTP streaming connection too
     for _ in 0..50 {
-        if CLIENTS.read().len() == 0 {
+        if CLIENTS.read().unwrap().len() == 0 {
             info!("No active HTTP streaming connections - exiting.");
             break;
         }
         thread::sleep(Duration::from_millis(100));
     }
-    if CLIENTS.read().len() > 0 {
+    if CLIENTS.read().unwrap().len() > 0 {
         info!("Time-out waiting for HTTP streaming shutdown - exiting.");
     }
 }

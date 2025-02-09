@@ -59,7 +59,7 @@ fn main() -> Result<(), i32> {
 
     // initialize config
     let mut config = {
-        let mut conf = CONFIG.write();
+        let mut conf = CONFIG.write().unwrap();
         if conf.sound_source.is_none() && conf.sound_source_index.is_none() {
             if let Some(ref audio_output_device) = audio_output_device_opt {
                 conf.sound_source = Some(audio_output_device.name().into());
@@ -229,7 +229,7 @@ fn main() -> Result<(), i32> {
         return Err(-2);
     }
     // If silence injector is on, create a silence injector stream.
-    let _silence_stream = if let Some(true) = CONFIG.read().inject_silence {
+    let _silence_stream = if let Some(true) = CONFIG.read().unwrap().inject_silence {
         ui_log("Injecting silence into the output stream");
         Some(run_silence_injector(&audio_output_device))
     } else {
@@ -248,13 +248,13 @@ fn main() -> Result<(), i32> {
     let _ = config.update_config();
     // update in_memory shared config for other threads
     {
-        let mut conf = CONFIG.write();
+        let mut conf = CONFIG.write().unwrap();
         *conf = config.clone();
     }
 
     // get the message channel
-    let msg_tx = MSGCHANNEL.read().0.clone();
-    let msg_rx = MSGCHANNEL.read().1.clone();
+    let msg_tx = MSGCHANNEL.read().unwrap().0.clone();
+    let msg_rx = MSGCHANNEL.read().unwrap().1.clone();
 
     let mut renderers: Vec<Renderer> = Vec::new();
     let mut serve_only = args.serve_only.unwrap_or(false);
@@ -388,7 +388,7 @@ fn main() -> Result<(), i32> {
     let _ = config.update_config();
     // update in_memory shared config for other threads
     {
-        let mut conf = CONFIG.write();
+        let mut conf = CONFIG.write().unwrap();
         *conf = config.clone();
     }
 
@@ -423,7 +423,7 @@ fn main() -> Result<(), i32> {
     let _ = config.update_config();
     // update in_memory shared config for other threads
     {
-        let mut conf = CONFIG.write();
+        let mut conf = CONFIG.write().unwrap();
         *conf = config.clone();
     }
 
@@ -496,11 +496,12 @@ fn main() -> Result<(), i32> {
                             if !serve_only {
                                 // first check if the renderer has actually not started streaming again
                                 // as this can happen with Bubble/Nest Audio Openhome
-                                let still_streaming = CLIENTS.read().values().any(|chanstrm| {
-                                    chanstrm.remote_ip == streamer_feedback.remote_ip
-                                });
+                                let still_streaming =
+                                    CLIENTS.read().unwrap().values().any(|chanstrm| {
+                                        chanstrm.remote_ip == streamer_feedback.remote_ip
+                                    });
                                 if !still_streaming {
-                                    let config = CONFIG.read().clone();
+                                    let config = CONFIG.read().unwrap().clone();
                                     if config.auto_resume {
                                         if let Some(r) = renderers
                                             .iter()
@@ -536,10 +537,11 @@ fn main() -> Result<(), i32> {
         // handle CTL-C interrupt: shutdown the player(s)
         if shutting_down.load(Ordering::Relaxed) {
             println!("Received ^C -> exiting.");
-            if !serve_only && player.is_some() && CLIENTS.read().len() > 0 {
+            if !serve_only && player.is_some() && CLIENTS.read().unwrap().len() > 0 {
                 for pl in playing {
                     if CLIENTS
                         .read()
+                        .unwrap()
                         .values()
                         .any(|cs| cs.remote_ip == pl.remote_addr)
                     {
@@ -549,13 +551,13 @@ fn main() -> Result<(), i32> {
                 }
                 // also wait some time for the player(s) to drop the HTTP streaming connection
                 for _ in 0..100 {
-                    if CLIENTS.read().len() == 0 {
+                    if CLIENTS.read().unwrap().len() == 0 {
                         println!("^C: No HTTP streaming connections active");
                         break;
                     }
                     thread::sleep(Duration::from_millis(100));
                 }
-                if CLIENTS.read().len() > 0 {
+                if CLIENTS.read().unwrap().len() > 0 {
                     println!("^C: Time-out waiting for HTTP streaming shutdown - exiting.");
                 }
             }

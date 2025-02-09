@@ -12,11 +12,10 @@ pub fn ui_log(s: &str) {
     };
     #[cfg(feature = "gui")]
     {
-        use crate::{enums::messages::MessageType, globals::statics::MSGCHANNEL};
+        use crate::enums::messages::MessageType;
+        use crate::globals::statics::get_msgchannel;
         use fltk::app;
-        MSGCHANNEL
-            .read()
-            .unwrap()
+        get_msgchannel()
             .0
             .send(MessageType::LogMessage(s.to_string()))
             .unwrap();

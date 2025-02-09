@@ -1,5 +1,5 @@
 use crate::{
-    globals::statics::{CLIENTS, CONFIG, RUN_RMS_MONITOR},
+    globals::statics::{get_clients, get_config, RUN_RMS_MONITOR},
     utils::ui_logger::ui_log,
 };
 use cpal::{
@@ -295,15 +295,13 @@ where
     static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(|| {
         ui_log("The wave_reader is now receiving samples");
-        if CONFIG.read().unwrap().monitor_rms {
+        if get_config().monitor_rms {
             RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
         }
     });
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
-    CLIENTS
-        .read()
-        .unwrap()
+    get_clients()
         .iter()
         .for_each(|(_, client)| client.write(f32_samples));
     if RUN_RMS_MONITOR.load(Ordering::Acquire) {

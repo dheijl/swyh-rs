@@ -1,4 +1,4 @@
-use std::sync::{atomic::AtomicBool, LazyLock};
+use std::sync::{atomic::AtomicBool, LazyLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     enums::messages::MessageType,
@@ -28,3 +28,23 @@ pub static CONFIG: LazyLock<RwLock<Configuration>> =
 pub static THEMES: [&str; 6] = ["Shake", "Gray", "Tan", "Dark", "Black", "None"];
 // the global "enable rms monitor" flag
 pub static RUN_RMS_MONITOR: AtomicBool = AtomicBool::new(false);
+
+pub fn get_clients() -> RwLockReadGuard<'static, HashMap<String, ChannelStream>> {
+    CLIENTS.read().unwrap()
+}
+
+pub fn get_clients_mut() -> RwLockWriteGuard<'static, HashMap<String, ChannelStream>> {
+    CLIENTS.write().unwrap()
+}
+
+pub fn get_config() -> RwLockReadGuard<'static, Configuration> {
+    CONFIG.read().unwrap()
+}
+
+pub fn get_config_mut() -> RwLockWriteGuard<'static, Configuration> {
+    CONFIG.write().unwrap()
+}
+
+pub fn get_msgchannel() -> RwLockReadGuard<'static, (Sender<MessageType>, Receiver<MessageType>)> {
+    MSGCHANNEL.read().unwrap()
+}

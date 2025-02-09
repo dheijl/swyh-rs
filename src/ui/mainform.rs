@@ -4,7 +4,7 @@ use crate::{
         StreamSize,
         StreamingFormat::{self, Flac},
     },
-    globals::statics::{CONFIG, RUN_RMS_MONITOR, THEMES},
+    globals::statics::{get_config, get_config_mut, RUN_RMS_MONITOR, THEMES},
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
 };
@@ -152,7 +152,7 @@ impl MainForm {
             let name = Self::apply_theme(b.value() as usize);
             let cur_theme = "Color theme: ".to_string() + name;
             b.set_label(&cur_theme);
-            let mut conf = CONFIG.write().unwrap();
+            let mut conf = get_config_mut();
             conf.color_theme = Some(b.value() as u8);
             let _ = conf.update_config();
             rlock.store(false, Ordering::Release);
@@ -193,7 +193,7 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Network changed to {name}, restart required!!"
                 ));
-                let mut conf = CONFIG.write().unwrap();
+                let mut conf = get_config_mut();
                 conf.last_network = Some(name.to_string());
                 let _ = conf.update_config();
                 b.set_label(&format!(
@@ -237,7 +237,7 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Audio source changed to {name}, restart required!!"
                 ));
-                let mut conf = CONFIG.write().unwrap();
+                let mut conf = get_config_mut();
                 conf.sound_source = Some(name.to_string());
                 conf.sound_source_index = Some(i);
                 let _ = conf.update_config();
@@ -265,7 +265,7 @@ impl MainForm {
             auto_resume.set(true);
         }
         auto_resume.set_callback(move |b| {
-            let mut conf = CONFIG.write().unwrap();
+            let mut conf = get_config_mut();
             conf.auto_resume = b.is_set();
             let _ = conf.update_config();
         });
@@ -277,7 +277,7 @@ impl MainForm {
             auto_reconnect.set(true);
         }
         auto_reconnect.set_callback(move |b| {
-            let mut conf = CONFIG.write().unwrap();
+            let mut conf = get_config_mut();
             conf.auto_reconnect = b.is_set();
             let _ = conf.update_config();
         });
@@ -298,7 +298,7 @@ impl MainForm {
                             _ => b.value(),
                         };
                         b.set_value(v);
-                        let mut conf = CONFIG.write().unwrap();
+                        let mut conf = get_config_mut();
                         if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
                             conf.ssdp_interval_mins = b.value();
                             ui_log(&format!(
@@ -341,7 +341,7 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Log level changed to {level}, restart required!!"
                 ));
-                let mut conf = CONFIG.write().unwrap();
+                let mut conf = get_config_mut();
                 conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
                 let _ = conf.update_config();
                 config_changed.set(true);
@@ -389,7 +389,7 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let mut conf = CONFIG.write().unwrap();
+                let mut conf = get_config_mut();
                 let i = b.value();
                 if i < 0 {
                     return;
@@ -414,7 +414,7 @@ impl MainForm {
         }
         b24_bit.set_callback({
             move |b| {
-                let mut conf = CONFIG.write().unwrap();
+                let mut conf = get_config_mut();
                 if b.is_set() {
                     conf.bits_per_sample = Some(24);
                 } else {
@@ -426,32 +426,18 @@ impl MainForm {
         pconfig2.add(&b24_bit);
         // HTTP server listen port
         let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
-        listen_port.set_value(
-            &CONFIG
-                .read()
-                .unwrap()
-                .server_port
-                .unwrap_or_default()
-                .to_string(),
-        );
+        listen_port.set_value(&get_config().server_port.unwrap_or_default().to_string());
         listen_port.set_maximum_size(5);
         listen_port.set_callback({
             let config_changed = config_changed.clone();
             move |lp| {
                 let new_value: u32 = lp.value().parse().unwrap();
                 if new_value > 65535 {
-                    lp.set_value(
-                        &CONFIG
-                            .read()
-                            .unwrap()
-                            .server_port
-                            .unwrap_or_default()
-                            .to_string(),
-                    );
+                    lp.set_value(&get_config().server_port.unwrap_or_default().to_string());
                     return;
                 }
-                if new_value as u16 != CONFIG.read().unwrap().server_port.unwrap_or_default() {
-                    let mut conf = CONFIG.write().unwrap();
+                if new_value as u16 != get_config().server_port.unwrap_or_default() {
+                    let mut conf = get_config_mut();
                     conf.server_port = Some(new_value as u16);
                     let _ = conf.update_config();
                     config_changed.set(true);
@@ -469,7 +455,7 @@ impl MainForm {
         inj_silence.set_callback({
             let config_changed = config_changed.clone();
             move |b| {
-                let mut conf = CONFIG.write().unwrap();
+                let mut conf = get_config_mut();
                 conf.inject_silence = Some(b.is_set());
                 let _ = conf.update_config();
                 config_changed.set(true);
@@ -523,7 +509,7 @@ impl MainForm {
                 if i < 0 {
                     return;
                 }
-                let mut conf = CONFIG.write().unwrap();
+                let mut conf = get_config_mut();
                 let newsize = streamsizes[i as usize].clone();
                 ui_log(&format!(
                     "StreamSize for {} changed to {newsize}",
@@ -563,7 +549,7 @@ impl MainForm {
                     b = 5_000;
                 }
                 if b as u32 != b_config {
-                    let mut conf = CONFIG.write().unwrap();
+                    let mut conf = get_config_mut();
                     conf.buffering_delay_msec = Some(b as u32);
                     let _ = conf.update_config();
                 }
@@ -607,7 +593,7 @@ impl MainForm {
                 rms_mon_r.set_value(0.0);
                 let run_rms = b.is_set();
                 RUN_RMS_MONITOR.store(run_rms, Ordering::Release);
-                let mut conf = CONFIG.write().unwrap();
+                let mut conf = get_config_mut();
                 conf.monitor_rms = run_rms;
                 let _ = conf.update_config();
             }
@@ -716,11 +702,11 @@ impl MainForm {
                 );
                 if b.is_on() {
                     {
-                        let mut conf = CONFIG.write().unwrap();
+                        let mut conf = get_config_mut();
                         conf.last_renderer = Some(b.label());
                         let _ = conf.update_config();
                     }
-                    let config = CONFIG.read().unwrap().clone();
+                    let config = get_config().clone();
                     let streaminfo = StreamInfo {
                         sample_rate: wd.sample_rate.0,
                         bits_per_sample: config.bits_per_sample.unwrap_or(16),
@@ -774,7 +760,7 @@ impl MainForm {
         app::redraw();
         // check if autoreconnect is set for this renderer
         if self.auto_reconnect.is_set() {
-            let active_players = CONFIG.read().unwrap().active_renderers.clone();
+            let active_players = get_config().active_renderers.clone();
             info!("AutoReconnect: Active Renderers = {:?}", active_players);
             if active_players
                 .iter()

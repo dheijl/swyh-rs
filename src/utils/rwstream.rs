@@ -9,7 +9,7 @@
 /// to the media Renderer
 ///
 */
-use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
+use crate::{enums::streaming::StreamingFormat, globals::statics::get_config};
 use crossbeam_channel::{Receiver, Sender};
 use dasp_sample::Sample;
 use fastrand::Rng;
@@ -61,7 +61,7 @@ impl ChannelStream {
         } else {
             None
         };
-        let capture_timout = u64::from(CONFIG.read().unwrap().capture_timeout.unwrap());
+        let capture_timout = u64::from(get_config().capture_timeout.unwrap());
         let chs = ChannelStream {
             s: tx,
             r: rx,

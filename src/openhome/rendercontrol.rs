@@ -6,7 +6,7 @@
 ///
 use crate::{
     enums::streaming::StreamingFormat,
-    globals::statics::{APP_VERSION, CONFIG},
+    globals::statics::{get_config, APP_VERSION},
 };
 use bitflags::bitflags;
 use hashbrown::HashMap;
@@ -703,13 +703,7 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
     debug!("SSDP discovery started");
 
     // get the address of the selected interface
-    let ip = CONFIG
-        .read()
-        .unwrap()
-        .last_network
-        .as_ref()
-        .unwrap()
-        .clone();
+    let ip = get_config().last_network.as_ref().unwrap().clone();
     info!("running SSDP on {ip}");
     let local_addr: IpAddr = ip.parse().unwrap();
     let bind_addr = SocketAddr::new(local_addr, 0);

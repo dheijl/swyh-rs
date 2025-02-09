@@ -7,7 +7,7 @@ use crate::{
             StreamingState,
         },
     },
-    globals::statics::{CLIENTS, CONFIG},
+    globals::statics::{get_clients_mut, get_config},
     openhome::rendercontrol::WavData,
     server::query_params::StreamingParams,
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
@@ -42,7 +42,7 @@ pub fn run_server(
         "The streaming server is listening on http://{addr}/stream/swyh.wav"
     ));
     let logmsg = {
-        let cfg = CONFIG.read().unwrap();
+        let cfg = get_config();
         format!(
             "Default streaming sample rate: {}, bits per sample: {}, format: {}",
             wd.sample_rate.0,
@@ -112,7 +112,7 @@ pub fn run_server(
                         remote_ip.truncate(i);
                     }
                     // prepare streaming headers
-                    let conf = CONFIG.read().unwrap().clone();
+                    let conf = get_config().clone();
                     // format from config or from GET Path
                     let cf_format = conf.streaming_format.unwrap_or(Lpcm);
                     let format = if let Some(fmt) = sp.fmt {
@@ -165,7 +165,7 @@ pub fn run_server(
                             format,
                         );
                         let nclients = {
-                            let mut clients = CLIENTS.write().unwrap();
+                            let mut clients = get_clients_mut();
                             clients.insert(remote_addr.clone(), channel_stream.clone());
                             clients.len()
                         };
@@ -241,7 +241,7 @@ pub fn run_server(
                             ));
                         }
                         let nclients = {
-                            let mut clients = CLIENTS.write().unwrap();
+                            let mut clients = get_clients_mut();
                             if let Some(chs) = clients.remove(&remote_addr) {
                                 chs.stop_flac_encoder();
                             };

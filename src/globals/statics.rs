@@ -30,21 +30,21 @@ pub static THEMES: [&str; 6] = ["Shake", "Gray", "Tan", "Dark", "Black", "None"]
 pub static RUN_RMS_MONITOR: AtomicBool = AtomicBool::new(false);
 
 pub fn get_clients() -> RwLockReadGuard<'static, HashMap<String, ChannelStream>> {
-    CLIENTS.read().unwrap()
+    CLIENTS.read().expect("CLIENTS read lock poisoned")
 }
 
 pub fn get_clients_mut() -> RwLockWriteGuard<'static, HashMap<String, ChannelStream>> {
-    CLIENTS.write().unwrap()
+    CLIENTS.write().expect("CLIENTS write lock poisoned")
 }
 
 pub fn get_config() -> RwLockReadGuard<'static, Configuration> {
-    CONFIG.read().unwrap()
+    CONFIG.read().expect("CONFIG read lock poisoned")
 }
 
 pub fn get_config_mut() -> RwLockWriteGuard<'static, Configuration> {
-    CONFIG.write().unwrap()
+    CONFIG.write().expect("CONFIG write lock poisoned")
 }
 
 pub fn get_msgchannel() -> RwLockReadGuard<'static, (Sender<MessageType>, Receiver<MessageType>)> {
-    MSGCHANNEL.read().unwrap()
+    MSGCHANNEL.read().expect("MSGCHANNEL read lock poisonned")
 }

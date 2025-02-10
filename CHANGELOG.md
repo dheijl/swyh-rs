@@ -1,7 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.4 (unreleased)
-  - switch to attohtpc from ureq due to too many breaking and undocumented changes in ureq 3. Migrating to attohttpc took less than a minute.
+  - migrate ureq to version 3.0.x api
   - Linux: fix the nice value at -10, and document that the pipewire group has the necessary privilege to raise priority.
   - add version to HTTP User-Agent string
   - remove parking_lot in favour of std

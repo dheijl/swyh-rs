@@ -1,10 +1,10 @@
 # swyh-rs Changelog
 
 - 1.12.4 (unreleased)
-  - migrate ureq to version 3.0.x api
+  - migrate ureq to version 3.0 api (with connection pooling)
   - Linux: fix the nice value at -10, and document that the pipewire group has the necessary privilege to raise priority.
   - add version to HTTP User-Agent string
-  - remove parking_lot in favour of std
+  - replace parking_lot RwLock with std RwLock
   
 - 1.12.3 (Nov 28 2024 dheijl)
   - support multiple players at the same IP address and port (e.g. Bubble UPNP exposing multiple Chromecast devices), see issue #157. Players are no longer identified by their IP address but by their SSDP "Location".

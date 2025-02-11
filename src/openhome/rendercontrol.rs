@@ -275,15 +275,21 @@ impl Renderer {
     }
 
     /// `oh_soap_request` - send an `OpenHome` SOAP message to a renderer
-    fn soap_request(url: &str, soap_action: &str, body: &str) -> Option<String> {
+    fn soap_request(
+        agent: &ureq::Agent,
+        url: &str,
+        soap_action: &str,
+        body: &str,
+    ) -> Option<String> {
         debug!(
             "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
             url.to_string(),
             soap_action,
             body
         );
-        match ureq::post(url)
-            .header("Connection", "close")
+        match agent
+            .post(url)
+            //.header("Connection", "close")
             .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
             .header("Accept", "*/*")
             .header("SOAPAction", format!("\"{soap_action}\""))
@@ -426,7 +432,8 @@ impl Renderer {
         fmt_vars: &StdHashMap<String, String>,
     ) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
-        self.oh_stop_play(log);
+        let agent = ureq::agent();
+        self.oh_stop_play(&agent, log);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
         let (host, port) = Self::parse_url(&self.dev_url, log);
         log(&format!(
@@ -442,6 +449,7 @@ impl Renderer {
         };
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
         let _resp = Self::soap_request(
+            &agent,
             &url,
             "urn:av-openhome-org:service:Playlist:1#Insert",
             &xmlbody,
@@ -453,6 +461,7 @@ impl Renderer {
             self.dev_name
         ));
         let _resp = Self::soap_request(
+            &agent,
             &url,
             "urn:av-openhome-org:service:Playlist:1#Play",
             OH_PLAY_PL_TEMPLATE,
@@ -470,9 +479,10 @@ impl Renderer {
         log: &dyn Fn(&str),
         fmt_vars: &StdHashMap<String, String>,
     ) -> Result<(), &str> {
+        let agent = ureq::agent();
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
-        self.av_stop_play(log);
+        self.av_stop_play(&agent, log);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
         let xmlbody = match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
             Ok(s) => s,
@@ -484,6 +494,7 @@ impl Renderer {
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.av_control_url);
         let _resp = Self::soap_request(
+            &agent,
             &url,
             "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
             &xmlbody,
@@ -493,6 +504,7 @@ impl Renderer {
         std::thread::sleep(Duration::from_millis(100));
         // send play command
         let _resp = Self::soap_request(
+            &agent,
             &url,
             "urn:schemas-upnp-org:service:AVTransport:1#Play",
             AV_PLAY_TEMPLATE,
@@ -503,23 +515,24 @@ impl Renderer {
 
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
     pub fn stop_play(&self, log: &dyn Fn(&str)) {
+        let agent = ureq::agent();
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            self.oh_stop_play(log);
+            self.oh_stop_play(&agent, log);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            self.av_stop_play(log);
+            self.av_stop_play(&agent, log);
         } else {
             log("ERROR: stop_play: no supported renderer protocol found");
         }
     }
 
     /// `oh_stop_play` - delete the playlist on the `OpenHome` renderer, so that it stops playing
-    fn oh_stop_play(&self, log: &dyn Fn(&str)) {
+    fn oh_stop_play(&self, agent: &ureq::Agent, log: &dyn Fn(&str)) {
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_control_url);
         log(&format!(
@@ -529,6 +542,7 @@ impl Renderer {
 
         // delete current playlist
         let _resp = Self::soap_request(
+            agent,
             &url,
             "urn:av-openhome-org:service:Playlist:1#DeleteAll",
             OH_DELETE_PL_TEMPLATE,
@@ -537,7 +551,7 @@ impl Renderer {
     }
 
     /// `av_stop_play` - stop playing on the AV renderer
-    fn av_stop_play(&self, log: &dyn Fn(&str)) {
+    fn av_stop_play(&self, agent: &ureq::Agent, log: &dyn Fn(&str)) {
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.av_control_url);
         log(&format!(
@@ -547,6 +561,7 @@ impl Renderer {
 
         // delete current playlist
         let _resp = Self::soap_request(
+            agent,
             &url,
             "urn:schemas-upnp-org:service:AVTransport:1#Stop",
             AV_STOP_PLAY_TEMPLATE,
@@ -555,11 +570,13 @@ impl Renderer {
     }
 
     fn oh_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
+        let agent = ureq::agent();
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.oh_volume_url);
 
         // get current volume
         let vol_xml = Self::soap_request(
+            &agent,
             &url,
             "urn:av-openhome-org:service:Volume:1#Volume",
             OH_GET_VOL_TEMPLATE,
@@ -600,11 +617,13 @@ impl Renderer {
     }
 
     fn av_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
+        let agent = ureq::agent();
         let (host, port) = Self::parse_url(&self.dev_url, log);
         let url = format!("http://{host}:{port}{}", self.av_volume_url);
 
         // get current volume
         let vol_xml = Self::soap_request(
+            &agent,
             &url,
             "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
             AV_GET_VOL_TEMPLATE,
@@ -644,6 +663,7 @@ impl Renderer {
     }
 
     fn oh_set_volume(&mut self, log: &dyn Fn(&str)) {
+        let agent = ureq::agent();
         let vol = self.volume;
         let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
         let (host, port) = Self::parse_url(&self.dev_url, log);
@@ -654,6 +674,7 @@ impl Renderer {
         ));
         // set new volume
         let vol_xml = Self::soap_request(
+            &agent,
             &url,
             "urn:av-openhome-org:service:Volume:1#SetVolume",
             &tmpl,
@@ -663,6 +684,7 @@ impl Renderer {
     }
 
     fn av_set_volume(&mut self, log: &dyn Fn(&str)) {
+        let agent = ureq::agent();
         let vol = self.volume;
         let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
         let (host, port) = Self::parse_url(&self.dev_url, log);
@@ -673,6 +695,7 @@ impl Renderer {
         ));
         // set new volume
         let vol_xml = Self::soap_request(
+            &agent,
             &url,
             "urn:schemas-upnp-org:service:RenderingControl:1#SetVolume",
             &tmpl,

@@ -913,8 +913,10 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
 /// `get_service_description` - get the upnp service description xml for a media renderer
 fn get_service_description(location: &str) -> Option<String> {
     debug!("Get service description for {}", location.to_string());
+    let agent = ureq::agent();
     let url = location.to_string();
-    match ureq::get(url.as_str())
+    match agent
+        .get(url.as_str())
         .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
         .header("Content-Type", "text/xml")
         .call()

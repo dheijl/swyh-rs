@@ -234,6 +234,8 @@ pub struct Renderer {
     pub remote_addr: String,
     pub location: String,
     pub services: Vec<AvService>,
+    host: String,
+    port: u16,
 }
 
 impl Renderer {
@@ -252,6 +254,8 @@ impl Renderer {
             remote_addr: String::new(),
             location: String::new(),
             services: Vec::new(),
+            host: String::new(),
+            port: 0,
         }
     }
 
@@ -348,7 +352,6 @@ impl Renderer {
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = StdHashMap::new();
-        let (host, port) = Self::parse_url(&self.dev_url, log);
         let addr = format!("{local_addr}:{server_port}");
 
         let local_url = match streaminfo.streaming_format {
@@ -404,16 +407,17 @@ impl Renderer {
             .contains(SupportedProtocols::OPENHOME)
         {
             log(&format!(
-            "OH Start playing on {} host={host} port={port} from {local_addr} using OH Playlist",
-            self.dev_name));
+                "OH Start playing on {} host={} port={} from {local_addr} using OH Playlist",
+                self.dev_name, self.host, self.port
+            ));
             return self.oh_play(log, &fmt_vars);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
             log(&format!(
-                "AV Start playing on {} host={host} port={port} from {local_addr} using AV Play",
-                self.dev_name
+                "AV Start playing on {} host={} port={} from {local_addr} using AV Play",
+                self.dev_name, self.host, self.port
             ));
             return self.av_play(log, &fmt_vars);
         }
@@ -432,13 +436,12 @@ impl Renderer {
     ) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         let agent = ureq::agent();
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.oh_control_url);
+        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
         self.oh_stop_play(&agent, &url, log);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
         log(&format!(
-            "OH Inserting new playlist on {} host={host} port={port}",
-            self.dev_name
+            "OH Inserting new playlist on {} host={} port={}",
+            self.dev_name, self.host, self.port
         ));
         let xmlbody = match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
             Ok(s) => s,
@@ -456,8 +459,8 @@ impl Renderer {
         .unwrap_or_default();
         // send the Play command
         log(&format!(
-            "OH Play on {} host={host} port={port}",
-            self.dev_name
+            "OH Play on {} host={} port={}",
+            self.dev_name, self.host, self.port
         ));
         let _resp = Self::soap_request(
             &agent,
@@ -479,8 +482,7 @@ impl Renderer {
         fmt_vars: &StdHashMap<String, String>,
     ) -> Result<(), &str> {
         let agent = ureq::agent();
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.av_control_url);
+        let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(&agent, &url, log);
@@ -515,8 +517,7 @@ impl Renderer {
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
     pub fn stop_play(&self, log: &dyn Fn(&str)) {
         let agent = ureq::agent();
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.oh_control_url);
+        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
@@ -568,8 +569,7 @@ impl Renderer {
 
     fn oh_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
         let agent = ureq::agent();
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.oh_volume_url);
+        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
 
         // get current volume
         let vol_xml = Self::soap_request(
@@ -607,16 +607,15 @@ impl Renderer {
         }
         self.volume = str_volume.parse::<i32>().unwrap_or(-1);
         log(&format!(
-            "OH Get Volume on {} host={host} port={port} = {}%",
-            self.dev_name, self.volume,
+            "OH Get Volume on {} host={} port={} = {}%",
+            self.dev_name, self.host, self.port, self.volume,
         ));
         self.volume
     }
 
     fn av_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
         let agent = ureq::agent();
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.av_volume_url);
+        let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
 
         // get current volume
         let vol_xml = Self::soap_request(
@@ -653,8 +652,8 @@ impl Renderer {
         }
         self.volume = str_volume.parse::<i32>().unwrap_or(-1);
         log(&format!(
-            "AV Get Volume on {} host={host} port={port} = {}%",
-            self.dev_name, self.volume,
+            "AV Get Volume on {} host={} port={} = {}%",
+            self.dev_name, self.host, self.port, self.volume,
         ));
         self.volume
     }
@@ -663,11 +662,10 @@ impl Renderer {
         let agent = ureq::agent();
         let vol = self.volume;
         let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.oh_volume_url);
+        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
         log(&format!(
-            "OH Set New Volume on {} host={host} port={port}: {vol}%",
-            self.dev_name
+            "OH Set New Volume on {} host={} port={}: {vol}%",
+            self.dev_name, self.host, self.port
         ));
         // set new volume
         let vol_xml = Self::soap_request(
@@ -684,11 +682,10 @@ impl Renderer {
         let agent = ureq::agent();
         let vol = self.volume;
         let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.av_volume_url);
+        let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
         log(&format!(
-            "AV Set New Volume on {} host={host} port={port}: {vol}%",
-            self.dev_name
+            "AV Set New Volume on {} host={} port={}: {vol}%",
+            self.dev_name, self.host, self.port
         ));
         // set new volume
         let vol_xml = Self::soap_request(
@@ -881,6 +878,9 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
                     }
                     rend.dev_url = format!("http://{url_base}/");
                 }
+                let (host, port) = Renderer::parse_url(&rend.dev_url, logger);
+                rend.host = host;
+                rend.port = port;
                 renderers.push(rend);
             }
         }

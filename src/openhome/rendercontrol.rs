@@ -289,7 +289,6 @@ impl Renderer {
         );
         match agent
             .post(url)
-            //.header("Connection", "close")
             .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
             .header("Accept", "*/*")
             .header("SOAPAction", format!("\"{soap_action}\""))
@@ -433,9 +432,10 @@ impl Renderer {
     ) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         let agent = ureq::agent();
-        self.oh_stop_play(&agent, log);
-        // Send the InsertPlayList command with metadate(DIDL-Lite)
         let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_control_url);
+        self.oh_stop_play(&agent, &url, log);
+        // Send the InsertPlayList command with metadate(DIDL-Lite)
         log(&format!(
             "OH Inserting new playlist on {} host={host} port={port}",
             self.dev_name
@@ -447,7 +447,6 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
-        let url = format!("http://{host}:{port}{}", self.oh_control_url);
         let _resp = Self::soap_request(
             &agent,
             &url,
@@ -480,9 +479,11 @@ impl Renderer {
         fmt_vars: &StdHashMap<String, String>,
     ) -> Result<(), &str> {
         let agent = ureq::agent();
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_control_url);
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
-        self.av_stop_play(&agent, log);
+        self.av_stop_play(&agent, &url, log);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
         let xmlbody = match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
             Ok(s) => s,
@@ -491,8 +492,6 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.av_control_url);
         let _resp = Self::soap_request(
             &agent,
             &url,
@@ -516,34 +515,34 @@ impl Renderer {
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
     pub fn stop_play(&self, log: &dyn Fn(&str)) {
         let agent = ureq::agent();
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_control_url);
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            self.oh_stop_play(&agent, log);
+            self.oh_stop_play(&agent, &url, log);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            self.av_stop_play(&agent, log);
+            self.av_stop_play(&agent, &url, log);
         } else {
             log("ERROR: stop_play: no supported renderer protocol found");
         }
     }
 
     /// `oh_stop_play` - delete the playlist on the `OpenHome` renderer, so that it stops playing
-    fn oh_stop_play(&self, agent: &ureq::Agent, log: &dyn Fn(&str)) {
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.oh_control_url);
+    fn oh_stop_play(&self, agent: &ureq::Agent, url: &str, log: &dyn Fn(&str)) {
         log(&format!(
-            "OH Deleting current playlist on {} host={host} port={port}",
-            self.dev_name
+            "OH Delete playlist on {} => {}",
+            self.dev_name, self.remote_addr
         ));
 
         // delete current playlist
         let _resp = Self::soap_request(
             agent,
-            &url,
+            url,
             "urn:av-openhome-org:service:Playlist:1#DeleteAll",
             OH_DELETE_PL_TEMPLATE,
         )
@@ -551,18 +550,16 @@ impl Renderer {
     }
 
     /// `av_stop_play` - stop playing on the AV renderer
-    fn av_stop_play(&self, agent: &ureq::Agent, log: &dyn Fn(&str)) {
-        let (host, port) = Self::parse_url(&self.dev_url, log);
-        let url = format!("http://{host}:{port}{}", self.av_control_url);
+    fn av_stop_play(&self, agent: &ureq::Agent, url: &str, log: &dyn Fn(&str)) {
         log(&format!(
-            "AV Stop playing on {} host={host} port={port}",
-            self.dev_name
+            "AV Stop playing on {} => {}",
+            self.dev_name, self.remote_addr
         ));
 
         // delete current playlist
         let _resp = Self::soap_request(
             agent,
-            &url,
+            url,
             "urn:schemas-upnp-org:service:AVTransport:1#Stop",
             AV_STOP_PLAY_TEMPLATE,
         )

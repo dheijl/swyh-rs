@@ -318,7 +318,7 @@ fn main() {
                                     });
                                     if !still_streaming {
                                         if mf.auto_resume.is_set() && button.is_set() {
-                                            if let Some(r) = renderers.iter().find(|r| {
+                                            if let Some(r) = renderers.iter_mut().find(|r| {
                                                 r.remote_addr == streamer_feedback.remote_ip
                                             }) {
                                                 let config = get_config().clone();
@@ -371,7 +371,7 @@ fn main() {
     let mut active_players: Vec<String> = Vec::new();
     for button in &mf.buttons {
         if button.1.is_set() {
-            if let Some(r) = renderers.iter().find(|r| r.location == *button.0) {
+            if let Some(r) = renderers.iter_mut().find(|r| r.location == *button.0) {
                 active_players.push(r.remote_addr.clone());
                 r.stop_play(&ui_log);
             }

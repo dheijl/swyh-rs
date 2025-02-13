@@ -688,7 +688,7 @@ impl MainForm {
                 new_renderer.dev_model, new_renderer.dev_name
             ));
         pbut.set_callback({
-            let newr_c = new_renderer.clone();
+            let mut newr_c = new_renderer.clone();
             let bi = self.buttons.len();
             let local_addr = self.local_addr;
             let wd = self.wd;

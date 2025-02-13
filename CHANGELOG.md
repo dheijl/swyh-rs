@@ -1,7 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.4 (unreleased)
-  - migrate ureq to version 3.0 api (with connection pooling)
+  - migrate ureq to version 3.0 api (with connection pooling), and give Renderer an ureq::Agent to maximize connection reuse
   - Linux: fix the nice value at -10, and document that the pipewire group has the necessary privilege to raise priority.
   - add version to HTTP User-Agent string
   - replace parking_lot RwLock with std RwLock

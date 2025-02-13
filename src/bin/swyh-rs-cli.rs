@@ -503,7 +503,7 @@ fn main() -> Result<(), i32> {
                                     let config = get_config().clone();
                                     if config.auto_resume {
                                         if let Some(r) = renderers
-                                            .iter()
+                                            .iter_mut()
                                             .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                                         {
                                             let streaminfo = StreamInfo {
@@ -537,7 +537,7 @@ fn main() -> Result<(), i32> {
         if shutting_down.load(Ordering::Relaxed) {
             println!("Received ^C -> exiting.");
             if !serve_only && player.is_some() && get_clients().len() > 0 {
-                for pl in playing {
+                for mut pl in playing {
                     if get_clients()
                         .values()
                         .any(|cs| cs.remote_ip == pl.remote_addr)

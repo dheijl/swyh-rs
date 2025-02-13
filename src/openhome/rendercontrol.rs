@@ -849,9 +849,10 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
     // now get the new renderers description xml
     debug!("Getting new renderer descriptions");
     let mut renderers: Vec<Renderer> = Vec::new();
+    let agent = ureq::agent();
 
     for (location, from) in devices {
-        if let Some(xml) = get_service_description(&location) {
+        if let Some(xml) = get_service_description(&agent, &location) {
             if let Some(mut rend) = get_renderer(&xml) {
                 rend.location = location.clone();
                 let mut s = from.to_string();
@@ -900,9 +901,8 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
 }
 
 /// `get_service_description` - get the upnp service description xml for a media renderer
-fn get_service_description(location: &str) -> Option<String> {
+fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String> {
     debug!("Get service description for {}", location.to_string());
-    let agent = ureq::agent();
     let url = location.to_string();
     match agent
         .get(url.as_str())

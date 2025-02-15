@@ -936,7 +936,7 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
     let parser = EventReader::new(xmlstream);
     let mut cur_elem = String::new();
     let mut service = AvService::new();
-    let mut renderer = Renderer::new(&agent);
+    let mut renderer = Renderer::new(agent);
     for e in parser {
         match e {
             Ok(XmlEvent::StartElement { name, .. }) => {

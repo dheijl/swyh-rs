@@ -421,10 +421,11 @@ fn app_restart(mf: &MainForm) -> i32 {
 /// and detect new renderers
 /// send any new renderers to te main thread on the Crossbeam ssdp channel
 fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
+    let agent = ureq::agent();
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
-        let renderers = discover(&rmap, &ui_log).unwrap_or_default();
+        let renderers = discover(agent.clone(), &rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             rmap.entry(r.location.clone()).or_insert_with(|| {
                 info!(

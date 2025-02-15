@@ -569,8 +569,9 @@ fn main() -> Result<(), i32> {
 fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
+    let agent = ureq::agent();
     loop {
-        let renderers = discover(&rmap, &ui_log).unwrap_or_default();
+        let renderers = discover(agent.clone(), &rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             rmap.entry(r.remote_addr.clone()).or_insert_with(|| {
                 info!(

@@ -240,7 +240,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    fn new() -> Renderer {
+    fn new(agent: &ureq::Agent) -> Renderer {
         Renderer {
             dev_name: String::new(),
             dev_model: String::new(),
@@ -257,7 +257,7 @@ impl Renderer {
             services: Vec::new(),
             host: String::new(),
             port: 0,
-            agent: ureq::agent(),
+            agent: agent.clone(),
         }
     }
 
@@ -705,7 +705,11 @@ MX: 3\r\n\r\n";
 //
 // returns a list of all AVTransport DLNA and Openhome rendering devices
 //
-pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Option<Vec<Renderer>> {
+pub fn discover(
+    agent: ureq::Agent,
+    rmap: &HashMap<String, Renderer>,
+    logger: &dyn Fn(&str),
+) -> Option<Vec<Renderer>> {
     const OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
     const AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
     const DEFAULT_SEARCH_TTL: u32 = 2;
@@ -849,11 +853,10 @@ pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Opti
     // now get the new renderers description xml
     debug!("Getting new renderer descriptions");
     let mut renderers: Vec<Renderer> = Vec::new();
-    let agent = ureq::agent();
 
     for (location, from) in devices {
         if let Some(xml) = get_service_description(&agent, &location) {
-            if let Some(mut rend) = get_renderer(&xml) {
+            if let Some(mut rend) = get_renderer(&agent, &xml) {
                 rend.location = location.clone();
                 let mut s = from.to_string();
                 if let Some(i) = s.find(':') {
@@ -928,12 +931,12 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
 }
 
 /// build a renderer struct by (roughly) parsing the GetDescription.xml
-fn get_renderer(xml: &str) -> Option<Renderer> {
+fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
     let xmlstream = StringReader::new(xml);
     let parser = EventReader::new(xmlstream);
     let mut cur_elem = String::new();
     let mut service = AvService::new();
-    let mut renderer = Renderer::new();
+    let mut renderer = Renderer::new(&agent);
     for e in parser {
         match e {
             Ok(XmlEvent::StartElement { name, .. }) => {
@@ -1010,7 +1013,7 @@ mod tests {
 
     #[test]
     fn renderer() {
-        let mut rend = Renderer::new();
+        let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://192.168.1.26:80/".to_string();
         rend.parse_url(&log);
         assert_eq!(rend.host, "192.168.1.26");

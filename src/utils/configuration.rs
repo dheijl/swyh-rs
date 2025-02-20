@@ -2,7 +2,7 @@ use crate::{
     enums::streaming::{StreamSize, StreamingFormat},
     globals::statics::{SERVER_PORT, THEMES},
 };
-use lexopt::{prelude::*, Parser};
+use lexopt::{Parser, prelude::*};
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::{

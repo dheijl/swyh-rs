@@ -1,15 +1,15 @@
 use crate::{
-    globals::statics::{get_clients, get_config, RUN_RMS_MONITOR},
+    globals::statics::{RUN_RMS_MONITOR, get_clients, get_config},
     utils::ui_logger::ui_log,
 };
 use cpal::{
-    traits::{DeviceTrait, HostTrait},
     DefaultStreamConfigError, Sample, SupportedStreamConfig,
+    traits::{DeviceTrait, HostTrait},
 };
 use crossbeam_channel::Sender;
 use dasp_sample::ToSample;
 use log::debug;
-use std::sync::{atomic::Ordering, Once};
+use std::sync::{Once, atomic::Ordering};
 
 /// A [`cpal::Device`] with either a default input or default output config.
 ///
@@ -66,14 +66,17 @@ impl Device {
 
         // Only use the default config for output or input
         // Prefer output if a device supports both
-        let (kind, stream_config) = if let Ok(conf) = device.default_output_config() {
-            debug!("    Default output stream config:\n      {:?}", conf);
-            (DeviceKind::Output(device), conf)
-        } else {
-            // If there's no output AND no input then return the error.
-            let conf = device.default_input_config()?;
-            debug!("    Default input stream config:\n      {:?}", conf);
-            (DeviceKind::Input(device), conf)
+        let (kind, stream_config) = match device.default_output_config() {
+            Ok(conf) => {
+                debug!("    Default output stream config:\n      {:?}", conf);
+                (DeviceKind::Output(device), conf)
+            }
+            _ => {
+                // If there's no output AND no input then return the error.
+                let conf = device.default_input_config()?;
+                debug!("    Default input stream config:\n      {:?}", conf);
+                (DeviceKind::Input(device), conf)
+            }
         };
 
         Ok(Self {
@@ -183,10 +186,13 @@ pub fn get_output_audio_devices() -> Vec<Device> {
             // List all of the supported stream configs per device.
             log_stream_configs(device.supported_output_configs(), "output", device_index);
             log_stream_configs(device.supported_input_configs(), "input", device_index);
-            if let Ok(device) = Device::from_device(device) {
-                result.push(device);
-            } else {
-                debug!("  Device seems to not support either input or output.");
+            match Device::from_device(device) {
+                Ok(device) => {
+                    result.push(device);
+                }
+                _ => {
+                    debug!("  Device seems to not support either input or output.");
+                }
             }
         }
     }

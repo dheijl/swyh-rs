@@ -1,11 +1,11 @@
-use std::sync::{atomic::AtomicBool, LazyLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{LazyLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
 
 use crate::{
     enums::messages::MessageType,
     utils::{configuration::Configuration, rwstream::ChannelStream},
 };
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use hashbrown::HashMap;
 use std::sync::RwLock;
 

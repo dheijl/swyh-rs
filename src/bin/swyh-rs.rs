@@ -42,9 +42,9 @@ use swyh_rs::{
         streaming::{StreamingFormat::Flac, StreamingState},
     },
     globals::statics::{
-        get_clients, get_config, get_config_mut, get_msgchannel, APP_VERSION, SERVER_PORT,
+        APP_VERSION, SERVER_PORT, get_clients, get_config, get_config_mut, get_msgchannel,
     },
-    openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
+    openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,
     ui::mainform::MainForm,
     utils::{
@@ -58,15 +58,15 @@ use swyh_rs::{
     },
 };
 
-use cpal::{traits::StreamTrait, Sample};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use cpal::{Sample, traits::StreamTrait};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use fltk::{
     app, dialog,
     misc::Progress,
     prelude::{ButtonExt, WidgetExt},
 };
 use hashbrown::HashMap;
-use log::{debug, info, LevelFilter};
+use log::{LevelFilter, debug, info};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use std::{cell::Cell, fs::File, net::IpAddr, path::Path, rc::Rc, thread, time::Duration};
 
@@ -224,11 +224,12 @@ fn main() {
     }
 
     // If silence injector is on, create a silence injector stream.
-    let _silence_stream = if let Some(true) = get_config().inject_silence {
-        ui_log("Injecting silence into the output stream");
-        Some(run_silence_injector(&audio_output_device))
-    } else {
-        None
+    let _silence_stream = match get_config().inject_silence {
+        Some(true) => {
+            ui_log("Injecting silence into the output stream");
+            Some(run_silence_injector(&audio_output_device))
+        }
+        _ => None,
     };
 
     // get the message channel

@@ -4,17 +4,17 @@ use std::{
     net::IpAddr,
     path::Path,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     thread,
     time::Duration,
 };
 
 use cpal::traits::StreamTrait;
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use hashbrown::HashMap;
-use log::{debug, error, info, LevelFilter};
+use log::{LevelFilter, debug, error, info};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
 use swyh_rs::{
     enums::{
@@ -24,8 +24,8 @@ use swyh_rs::{
             StreamingState,
         },
     },
-    globals::statics::{get_clients, get_config, get_config_mut, get_msgchannel, APP_VERSION},
-    openhome::rendercontrol::{discover, Renderer, StreamInfo, WavData},
+    globals::statics::{APP_VERSION, get_clients, get_config, get_config_mut, get_msgchannel},
+    openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,
     utils::{
         audiodevices::{

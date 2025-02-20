@@ -6,7 +6,7 @@
 ///
 use crate::{
     enums::streaming::StreamingFormat,
-    globals::statics::{get_config, APP_VERSION},
+    globals::statics::{APP_VERSION, get_config},
 };
 use bitflags::bitflags;
 use hashbrown::HashMap;
@@ -55,8 +55,7 @@ static L16_PROT_INFO: &str = "http-get:*:audio/L16;rate={sample_rate};channels=2
 static L24_PROT_INFO: &str = "http-get:*:audio/L24;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
 static WAV_PROT_INFO: &str = "http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_CI=0;\
     DLNA.ORG_FLAGS=03700000000000000000000000000000";
-static FLAC_PROT_INFO: &str =
-    "http-get:*:audio/flac:DLNA.ORG_PN=FLAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0;\
+static FLAC_PROT_INFO: &str = "http-get:*:audio/flac:DLNA.ORG_PN=FLAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0;\
     DLNA.ORG_FLAGS=01700000000000000000000000000000";
 
 /// didl metadata template

@@ -12,7 +12,7 @@ use crate::{
     server::query_params::StreamingParams,
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
 };
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use log::debug;
 use std::{net::IpAddr, sync::Arc, thread, time::Duration};
 use tiny_http::{Header, Method, Response, Server};

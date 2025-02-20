@@ -213,7 +213,9 @@ Recognized options:
                                 "U64MAXNOTCHUNKED" => Some(StreamSize::U64maxNotChunked),
                                 _ => {
                                     println!("invalid streamsize {streamsize}");
-                                    println!("valid options: NONECHUNKED,U32MAXCHUNKED,U32MAXNOTCHUNKED,U64MAXCHUNKED,U64MAXNOTCHUNKED");
+                                    println!(
+                                        "valid options: NONECHUNKED,U32MAXCHUNKED,U32MAXNOTCHUNKED,U64MAXCHUNKED,U64MAXNOTCHUNKED"
+                                    );
                                     self.usage();
                                     Some(StreamSize::U64maxNotChunked)
                                 }

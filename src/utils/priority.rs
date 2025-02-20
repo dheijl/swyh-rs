@@ -5,7 +5,7 @@ pub fn raise_priority() {
     use windows::Win32::{
         Foundation::GetLastError,
         System::Threading::{
-            GetCurrentProcess, GetCurrentProcessId, SetPriorityClass, ABOVE_NORMAL_PRIORITY_CLASS,
+            ABOVE_NORMAL_PRIORITY_CLASS, GetCurrentProcess, GetCurrentProcessId, SetPriorityClass,
         },
     };
     unsafe {
@@ -26,7 +26,7 @@ pub fn raise_priority() {
     // the following only works when you're root on Linux
     // or if you give the program CAP_SYS_NICE (cf. setcap)
     // or are a user of the pipewire group
-    use libc::{getpriority, setpriority, PRIO_PROCESS};
+    use libc::{PRIO_PROCESS, getpriority, setpriority};
     unsafe {
         let mut pri = getpriority(PRIO_PROCESS, 0);
         if pri >= 0 {

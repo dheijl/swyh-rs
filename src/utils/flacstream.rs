@@ -1,4 +1,4 @@
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use dasp_sample::Sample;
 use fastrand::Rng;
 use flac_bound::{FlacEncoder, WriteWrapper};
@@ -6,8 +6,8 @@ use log::info;
 use std::{
     io::Write,
     sync::{
-        atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
+        atomic::{AtomicBool, Ordering::Relaxed},
     },
     time::Duration,
 };
@@ -116,34 +116,40 @@ impl FlacChannel {
                 // read and FLAC encode samples
                 let mut time_out = Duration::from_millis(NOISE_PERIOD_MS);
                 while l_active.load(Relaxed) {
-                    if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
-                        time_out = Duration::from_millis(NOISE_PERIOD_MS);
-                        let samples = f32_samples
-                            .iter()
-                            .map(|s| s.to_sample::<i32>() >> shift)
-                            .collect::<Vec<i32>>();
-                        if enc
-                            .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
-                            .is_err()
-                        {
-                            info!("Flac encoding interrupted.");
-                            break;
-                        }
-                    } else {
-                        time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
-                        // if no samples for a certain time: send very faint near silence bursts
-                        if l_active.load(Relaxed) {
-                            fill_noise_buffer(&mut rng, &mut noise_buf);
-                            let samples = noise_buf
+                    match samples_rdr.recv_timeout(time_out) {
+                        Ok(f32_samples) => {
+                            time_out = Duration::from_millis(NOISE_PERIOD_MS);
+                            let samples = f32_samples
                                 .iter()
-                                .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
+                                .map(|s| s.to_sample::<i32>() >> shift)
                                 .collect::<Vec<i32>>();
                             if enc
                                 .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                                 .is_err()
                             {
-                                info!("Flac inject near silence interrupted.");
+                                info!("Flac encoding interrupted.");
                                 break;
+                            }
+                        }
+                        _ => {
+                            time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
+                            // if no samples for a certain time: send very faint near silence bursts
+                            if l_active.load(Relaxed) {
+                                fill_noise_buffer(&mut rng, &mut noise_buf);
+                                let samples = noise_buf
+                                    .iter()
+                                    .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
+                                    .collect::<Vec<i32>>();
+                                if enc
+                                    .process_interleaved(
+                                        samples.as_slice(),
+                                        (samples.len() / 2) as u32,
+                                    )
+                                    .is_err()
+                                {
+                                    info!("Flac inject near silence interrupted.");
+                                    break;
+                                }
                             }
                         }
                     }

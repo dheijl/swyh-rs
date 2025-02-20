@@ -116,12 +116,15 @@ impl ChannelStream {
     #[inline(never)]
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
-        if let Ok(chunk) = self.r.recv_timeout(time_out) {
-            self.fifo.extend(chunk);
-            self.sending_silence = false;
-        } else {
-            self.fifo.extend(self.silence.clone());
-            self.sending_silence = true;
+        match self.r.recv_timeout(time_out) {
+            Ok(chunk) => {
+                self.fifo.extend(chunk);
+                self.sending_silence = false;
+            }
+            _ => {
+                self.fifo.extend(self.silence.clone());
+                self.sending_silence = true;
+            }
         }
     }
 }
@@ -420,7 +423,7 @@ mod tests {
         eprintln!("{noise:?}");
     }
 
-    use dasp_sample::{Sample, I24};
+    use dasp_sample::{I24, Sample};
     // just to prove that ((i32 >> 8) & 0xffffff) is indeed I24
     #[test]
     fn test_i24() {

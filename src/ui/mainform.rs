@@ -4,7 +4,7 @@ use crate::{
         StreamSize,
         StreamingFormat::{self, Flac},
     },
-    globals::statics::{get_config, get_config_mut, RUN_RMS_MONITOR, THEMES},
+    globals::statics::{RUN_RMS_MONITOR, THEMES, get_config, get_config_mut},
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
 };
@@ -25,9 +25,9 @@ use fltk::{
 };
 //use fltk_flow::Flow;
 use hashbrown::HashMap;
-use log::{debug, info, LevelFilter};
+use log::{LevelFilter, debug, info};
 
-use fltk_theme::{color_themes, ColorTheme};
+use fltk_theme::{ColorTheme, color_themes};
 
 use std::{
     cell::Cell,

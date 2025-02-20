@@ -1,6 +1,6 @@
 [package]
 resolver = "3"
-rust-version = "1.84"
+rust-version = "1.85"
 authors = [
     "dheijl",
     "joshuamegnauth54",
@@ -9,7 +9,7 @@ authors = [
     "theavege",
     "MoAlyousef",
 ]
-edition = "2021"
+edition = "2024"
 name = "swyh-rs"
 version = "1.12.4"
 description = "Stream What You Hear written in Rust"
@@ -64,13 +64,13 @@ log = { version = "0.4.25", features = [
     "release_max_level_debug",
     "serde",
 ] }
-serde = { version = "1.0.217", features = ["derive"] }
+serde = { version = "1.0.218", features = ["derive"] }
 simplelog = "0.12.2"
 strfmt = "0.2.4"
 stringreader = "0.1.1"
 tiny_http = "0.12.0"
 toml = "0.8.20"
-ureq = { version = "3.0.5", default-features = false, features = [
+ureq = { version = "3.0.6", default-features = false, features = [
     "charset",
     "gzip",
 ] }

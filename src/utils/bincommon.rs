@@ -1,8 +1,8 @@
 //! Tools common to both the swyh-rs GUI and CLI.
 
 use cpal::{
-    traits::{DeviceTrait, StreamTrait},
     Sample, SampleFormat, Stream, StreamConfig,
+    traits::{DeviceTrait, StreamTrait},
 };
 use log::warn;
 

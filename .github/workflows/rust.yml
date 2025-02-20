@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 120
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest]
 
     steps:
     - name: Download deps

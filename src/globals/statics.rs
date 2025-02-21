@@ -42,7 +42,7 @@ pub fn get_config_mut() -> RwLockWriteGuard<'static, Configuration> {
     CONFIG.write().expect("CONFIG write lock poisoned")
 }
 
-// the list of known fltk theme naes
+// the list of known fltk theme names
 pub static THEMES: [&str; 6] = ["Shake", "Gray", "Tan", "Dark", "Black", "None"];
 
 // the global "enable rms monitor" flag

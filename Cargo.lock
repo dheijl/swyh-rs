@@ -369,9 +369,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.5.3"
+version = "1.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb758c4870c7b43e68a1af16c37e77da66dfc1776a0431588754e251307c6254"
+checksum = "74e9cd956bb97d6d35fcabd549973dde55b2a12bee7d9d61171910f5d762af68"
 dependencies = [
  "bitflags 2.8.0",
  "crossbeam-channel",
@@ -383,9 +383,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.5.3"
+version = "1.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8df05fd871c189e237f0ed0ca7ef3f1361efe4d1b979bd729f069b84b7db7b14"
+checksum = "db5c603b4416ff5665df2ec5dc0c102781a5fb56f2720de0abd11a0ffa8abd23"
 dependencies = [
  "cmake",
  "cmk",
@@ -701,9 +701,9 @@ checksum = "baff4b617f7df3d896f97fe922b64817f6cd9a756bb81d40f8883f2f66dcb401"
 
 [[package]]
 name = "libc"
-version = "0.2.169"
+version = "0.2.170"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5aba8db14291edd000dfcc4d620c7ebfb122c613afb886ca8803fa4e128a20a"
+checksum = "875b3680cb2f8f71bdcf9a30f38d48282f5d3c95cbf9b3fa57269bb5d5c06828"
 
 [[package]]
 name = "libflac-sys"
@@ -785,9 +785,9 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "miniz_oxide"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3b1c9bd4fe1f0f8b387f6eb9eb3b4a1aa26185e5750efb9140301703f62cd1b"
+checksum = "8e3e04debbb59698c15bacbb6d93584a8c0ca9cc3213cb423d31f760d8843ce5"
 dependencies = [
  "adler2",
 ]

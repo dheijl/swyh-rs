@@ -110,7 +110,7 @@ impl ChannelStream {
         if self.s.len() < 10_000 {
             self.s.send(samples.to_vec()).unwrap();
             /*let nonzero = samples.iter().any(|&s| s != 0.0);
-            println!("writing sample buffer, nonzero = {nonzero}"); D*/
+            debug!("writing sample buffer, nonzero = {nonzero}"); D*/
         }
     }
 
@@ -120,13 +120,13 @@ impl ChannelStream {
         let time_out = self.capture_timeout;
         match self.r.recv_timeout(time_out) {
             Ok(chunk) => {
-                /*eprintln!("got sample chunk"); D*/
+                /*debug!("got sample chunk"); D*/
                 self.fifo.extend(chunk);
                 self.sending_silence = false;
             }
             _ => {
                 self.fifo.extend(self.silence.clone());
-                /*eprintln!("sending silence"); D*/
+                /*debug!("sending silence"); D*/
                 self.sending_silence = true;
             }
         }
@@ -204,7 +204,7 @@ impl Read for ChannelStream {
                 },
                 _ => (),
             }
-            /*eprintln!("Returned buffer: {}", (buf.len() / bytes_per_sample) * bytes_per_sample); D*/
+            /*debug!("Returned buffer: {}", (buf.len() / bytes_per_sample) * bytes_per_sample); D*/
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
         } else {
             // FLAC
@@ -212,7 +212,7 @@ impl Read for ChannelStream {
             // make sure we have enough data for this read buffer
             while self.flac_fifo.len() < buf.len() {
                 if let Ok(chunk) = flac_in.recv() {
-                    /*eprintln!("got flac encoded chunk({})", chunk.len()); D*/
+                    /*debug!("got flac encoded chunk({})", chunk.len()); D*/
                     self.flac_fifo.extend(chunk);
                 }
             }
@@ -221,7 +221,7 @@ impl Read for ChannelStream {
             debug_assert!(buf.len() == drain.len(), "FLAC: buf.len <> drain.len");
             // and store them in the buffer
             buf.iter_mut().zip(drain).for_each(|(b, f)| *b = f);
-            /*eprintln!("Returned FLAC buffer: {}", buf.len()); D*/
+            /*debug!("Returned FLAC buffer: {}", buf.len()); D*/
             Ok(buf.len())
         }
     }

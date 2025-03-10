@@ -119,7 +119,7 @@ impl FlacChannel {
                     match samples_rdr.recv_timeout(time_out) {
                         Ok(f32_samples) => {
                             /*let nonzero = f32_samples.iter().any(|&s| s != 0.0);
-                            eprintln!(
+                            debug!(
                                 "Encoding {} flac samples, nonzero = {nonzero}",
                                 f32_samples.len()
                             ); D*/
@@ -145,7 +145,7 @@ impl FlacChannel {
                                     .iter()
                                     .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
                                     .collect::<Vec<i32>>();
-                                /*eprintln!("Encoding FLAC silence"); D*/
+                                /*debug!("Encoding FLAC silence"); D*/
                                 if enc
                                     .process_interleaved(
                                         samples.as_slice(),

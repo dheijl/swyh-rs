@@ -118,6 +118,11 @@ impl FlacChannel {
                 while l_active.load(Relaxed) {
                     match samples_rdr.recv_timeout(time_out) {
                         Ok(f32_samples) => {
+                            /*let nonzero = f32_samples.iter().any(|&s| s != 0.0);
+                            eprintln!(
+                                "Encoding {} flac samples, nonzero = {nonzero}",
+                                f32_samples.len()
+                            ); D*/
                             time_out = Duration::from_millis(NOISE_PERIOD_MS);
                             let samples = f32_samples
                                 .iter()
@@ -140,6 +145,7 @@ impl FlacChannel {
                                     .iter()
                                     .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
                                     .collect::<Vec<i32>>();
+                                /*eprintln!("Encoding FLAC silence"); D*/
                                 if enc
                                     .process_interleaved(
                                         samples.as_slice(),

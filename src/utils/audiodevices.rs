@@ -307,6 +307,11 @@ where
     });
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
+    /*let allzero = f32_samples.iter().all(|&s| s == 0.0);
+    eprintln!(
+        "wave_reader: got {} samples, allzero = {allzero}",
+        f32_samples.len()
+    ); D*/
     get_clients()
         .iter()
         .for_each(|(_, client)| client.write(f32_samples));

@@ -204,7 +204,7 @@ fn main() -> Result<(), i32> {
             get_default_address(&mut config)
         }
     };
-    // we need to pass some audio config data to the play function
+    // we need to pass some audio config data to the streaming server
     let audio_cfg = audio_output_device.default_config().clone();
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
@@ -221,13 +221,17 @@ fn main() -> Result<(), i32> {
     // capture system audio
     debug!("Try capturing system audio");
     let stream: cpal::Stream;
-    if let Some(s) = capture_output_audio(&audio_output_device, rms_channel.0) {
-        stream = s;
-        stream.play().unwrap();
-    } else {
-        ui_log("*E*E*> Could not capture audio ...Please check configuration.");
-        return Err(-2);
+    match capture_output_audio(&audio_output_device, rms_channel.0) {
+        Some(s) => {
+            stream = s;
+        }
+        None => {
+            ui_log("*E*E*> Could not capture audio ...Please check configuration.");
+            return Err(-2);
+        }
     }
+    stream.play().unwrap();
+
     // If silence injector is on, create a silence injector stream.
     let _silence_stream = if let Some(true) = get_config().inject_silence {
         ui_log("Injecting silence into the output stream");

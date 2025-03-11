@@ -109,8 +109,11 @@ impl ChannelStream {
         // 10_000 messages (capture buffers, not samples) is a quite a lot
         if self.s.len() < 10_000 {
             self.s.send(samples.to_vec()).unwrap();
-            /*let nonzero = samples.iter().any(|&s| s != 0.0);
-            debug!("writing sample buffer, nonzero = {nonzero}"); D*/
+            #[cfg(feature = "trace_samples")]
+            {
+                let nonzero = samples.iter().any(|&s| s != 0.0);
+                debug!("writing sample buffer, nonzero = {nonzero}");
+            }
         }
     }
 
@@ -120,13 +123,19 @@ impl ChannelStream {
         let time_out = self.capture_timeout;
         match self.r.recv_timeout(time_out) {
             Ok(chunk) => {
-                /*debug!("got sample chunk"); D*/
+                #[cfg(feature = "trace_samples")]
+                {
+                    debug!("got sample chunk");
+                }
                 self.fifo.extend(chunk);
                 self.sending_silence = false;
             }
             _ => {
                 self.fifo.extend(self.silence.clone());
-                /*debug!("sending silence"); D*/
+                #[cfg(feature = "trace_samples")]
+                {
+                    debug!("sending silence");
+                }
                 self.sending_silence = true;
             }
         }
@@ -204,7 +213,13 @@ impl Read for ChannelStream {
                 },
                 _ => (),
             }
-            /*debug!("Returned buffer: {}", (buf.len() / bytes_per_sample) * bytes_per_sample); D*/
+            #[cfg(feature = "trace_samples")]
+            {
+                debug!(
+                    "Returned buffer: {}",
+                    (buf.len() / bytes_per_sample) * bytes_per_sample
+                );
+            }
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
         } else {
             // FLAC
@@ -212,7 +227,10 @@ impl Read for ChannelStream {
             // make sure we have enough data for this read buffer
             while self.flac_fifo.len() < buf.len() {
                 if let Ok(chunk) = flac_in.recv() {
-                    /*debug!("got flac encoded chunk({})", chunk.len()); D*/
+                    #[cfg(feature = "trace_samples")]
+                    {
+                        debug!("got flac encoded chunk({})", chunk.len());
+                    }
                     self.flac_fifo.extend(chunk);
                 }
             }
@@ -221,7 +239,10 @@ impl Read for ChannelStream {
             debug_assert!(buf.len() == drain.len(), "FLAC: buf.len <> drain.len");
             // and store them in the buffer
             buf.iter_mut().zip(drain).for_each(|(b, f)| *b = f);
-            /*debug!("Returned FLAC buffer: {}", buf.len()); D*/
+            #[cfg(feature = "trace_samples")]
+            {
+                debug!("Returned FLAC buffer: {}", buf.len());
+            }
             Ok(buf.len())
         }
     }

@@ -28,6 +28,7 @@ lto = "thin"
 [features]
 gui = ["dep:fltk", "dep:fltk-theme"]
 cli = ["dep:local-ip-address"]
+trace_samples = []
 default = ["gui"]
 
 [[bin]]

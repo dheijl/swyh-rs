@@ -111,8 +111,12 @@ impl ChannelStream {
             self.s.send(samples.to_vec()).unwrap();
             #[cfg(feature = "trace_samples")]
             {
-                let nonzero = samples.iter().any(|&s| s != 0.0);
-                debug!("writing sample buffer, nonzero = {nonzero}");
+                let zs = if samples.iter().any(|&s| s != 0.0) {
+                    "nonero"
+                } else {
+                    "nonzero"
+                };
+                debug!("writing {zs} sample buffer");
             }
         }
     }

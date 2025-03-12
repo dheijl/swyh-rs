@@ -122,11 +122,12 @@ impl FlacChannel {
                         Ok(f32_samples) => {
                             #[cfg(feature = "trace_samples")]
                             {
-                                let nonzero = f32_samples.iter().any(|&s| s != 0.0);
-                                debug!(
-                                    "Encoding {} flac samples, nonzero = {nonzero}",
-                                    f32_samples.len()
-                                );
+                                let zs = if f32_samples.iter().any(|&s| s != 0.0) {
+                                    "nonero"
+                                } else {
+                                    "nonzero"
+                                };
+                                debug!("Encoding {} flac {zs} samples", f32_samples.len());
                             }
                             time_out = Duration::from_millis(NOISE_PERIOD_MS);
                             let samples = f32_samples

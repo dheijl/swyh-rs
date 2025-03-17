@@ -220,16 +220,13 @@ fn main() -> Result<(), i32> {
 
     // capture system audio
     debug!("Try capturing system audio");
-    let stream: cpal::Stream;
-    match capture_output_audio(&audio_output_device, rms_channel.0) {
-        Some(s) => {
-            stream = s;
-        }
+    let stream: cpal::Stream = match capture_output_audio(&audio_output_device, rms_channel.0) {
+        Some(s) => s,
         None => {
             ui_log("*E*E*> Could not capture audio ...Please check configuration.");
             return Err(-2);
         }
-    }
+    };
     stream.play().unwrap();
 
     // If silence injector is on, create a silence injector stream.

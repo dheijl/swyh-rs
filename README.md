@@ -20,6 +20,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 - [Artwork Credits](#artwork-credits)
 - [How does it work](#how-does-it-work)
 - [The CLI binary](#the-cli-binary)
+- [Windows tray-icon code (Python) by @phil2sat](https://github.com/dheijl/swyh-rs/blob/master/tray_icon/howto.md)
 - [Latency, streaming format and stream duration](#latency-and-streaming-format-and-stream-duration)
 - [Audio quality and Windows WasApi Loopback capture](#audio-quality-and-windows-wasapi-loopback-capture)
 - [Releases](#releases)

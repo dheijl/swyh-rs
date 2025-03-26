@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.5 (unreleased)
+  - add tray icon Python code contributed by @phil2sat
 
 - 1.12.4 (Feb 20 2025 dheijl)
   - migrate ureq to version 3.0 api (with connection pooling/reuse), and give Renderer an ureq::Agent to maximize connection reuse

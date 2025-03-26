@@ -60,7 +60,7 @@ htmlescape = "0.3.1"
 if-addrs = "0.13.4"
 lexopt = "0.3.0"
 local-ip-address = { version = "0.6.3", optional = true }
-log = { version = "0.4.26", features = [
+log = { version = "0.4.27", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",
@@ -78,7 +78,7 @@ ureq = { version = "3.0.10", default-features = false, features = [
 url = "2.5.4"
 xml-rs = "0.8.25"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.5.4", features = ["use-ninja"], optional = true }
+fltk = { version = "1.5.5", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.5", optional = true }
 windows = { version = "0.61.1", features = [
     "Win32_Foundation",
@@ -86,7 +86,7 @@ windows = { version = "0.61.1", features = [
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.5.4", features = ["use-ninja"], optional = true }
+fltk = { version = "1.5.5", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.5", optional = true }
 libc = "0.2.171"
 

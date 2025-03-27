@@ -52,7 +52,7 @@ It has been tested with
 - [Moode audio 8](https://moodeaudio.org/), with Moode configured as UPNP renderer in _Openhome_ mode, and using FLAC (preferable) or LPCM (since 1.8.7) or WAV format. Note that the WAV format will cause MPD to issue 2 GET requests, one for the WAV header and another one for the PCM data.
 - [Volumio](https://volumio.org/)
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
-- Denon Heos devices
+- **Denon** Heos devices. Wav Format with NoneChunked streamsize seems to work best with Denon. And if you change format or streamsize you may have to restart swyh-rs to make the Denon recognize this. See issue #183. If you select an invalid combination the Denon app will also tell you this.
 - Sony AV streamers & Bravia TVs
 - Goldenwave HiFiMan Serenade DAC/Headphone amlpifier using WAV/RF64/FLAC.
 - **Chromecast** devices exposed as an OpenHome or DLNA devices in **Bubble UPNP Server** (thanks Bubblesoft for providing the necessary information!). If you have multiple devices in the same Bubble UPNP server, you need version 1.12.3 or later, because there are multiple devices at the same IP address. At a certain point Bubble changed the SSDP headers causing swyh-rs to no longer "see" these device. This is also fixed in 1.12.3. See issue #157 (thanks @kenkuo). Prior to 1.12.3 devices were identified by their IP address, from 1.12.3 on they are identified by their SSDP "Location".

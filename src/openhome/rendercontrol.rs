@@ -286,9 +286,7 @@ impl Renderer {
     fn soap_request(&mut self, url: &str, soap_action: &str, body: &str) -> Option<String> {
         debug!(
             "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
-            url.to_string(),
-            soap_action,
-            body
+            url, soap_action, body
         );
         match self
             .agent
@@ -904,7 +902,7 @@ pub fn discover(
 
 /// `get_service_description` - get the upnp service description xml for a media renderer
 fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String> {
-    debug!("Get service description for {}", location.to_string());
+    debug!("Get service description for {}", location);
     let url = location.to_string();
     match agent
         .get(url.as_str())

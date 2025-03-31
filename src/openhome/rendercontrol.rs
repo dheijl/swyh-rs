@@ -902,10 +902,9 @@ pub fn discover(
 
 /// `get_service_description` - get the upnp service description xml for a media renderer
 fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String> {
-    debug!("Get service description for {}", location);
-    let url = location.to_string();
+    debug!("Get service description for {location}");
     match agent
-        .get(url.as_str())
+        .get(location)
         .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
         .header("Content-Type", "text/xml")
         .call()
@@ -921,7 +920,7 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
             }
         }
         Err(e) => {
-            error!("Error {e} getting service description for {url}");
+            error!("Error {e} getting service description for {location}");
             None
         }
     }

@@ -78,7 +78,7 @@ ureq = { version = "3.0.10", default-features = false, features = [
 url = "2.5.4"
 xml-rs = "0.8.25"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.5.5", features = ["use-ninja"], optional = true }
+fltk = { version = "1.5.6", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.5", optional = true }
 windows = { version = "0.61.1", features = [
     "Win32_Foundation",
@@ -86,7 +86,7 @@ windows = { version = "0.61.1", features = [
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.5.5", features = ["use-ninja"], optional = true }
+fltk = { version = "1.5.6", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.5", optional = true }
 libc = "0.2.171"
 

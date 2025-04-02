@@ -145,7 +145,7 @@ fn main() {
 
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices();
-    let mut source_names: Vec<String> = Vec::new();
+    let mut source_names: Vec<String> = Vec::with_capacity(audio_devices.len());
     let config_name = config.sound_source.as_ref().unwrap();
     for (index, adev) in audio_devices.into_iter().enumerate() {
         let adevname = adev.name().to_string();

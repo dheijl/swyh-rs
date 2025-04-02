@@ -253,7 +253,7 @@ impl Renderer {
             supported_protocols: SupportedProtocols::NONE,
             remote_addr: String::new(),
             location: String::new(),
-            services: Vec::new(),
+            services: Vec::with_capacity(8),
             host: String::new(),
             port: 0,
             agent: agent.clone(),
@@ -826,7 +826,8 @@ pub fn discover(
     }
 
     // only keep OH devices and AV devices that are not OH capable
-    let mut usable_devices: Vec<(String, SocketAddr)> = Vec::new();
+    let mut usable_devices: Vec<(String, SocketAddr)> =
+        Vec::with_capacity(oh_devices.len() + av_devices.len());
     for (oh_location, sa) in &oh_devices {
         usable_devices.push((oh_location.to_string(), *sa));
     }
@@ -849,7 +850,7 @@ pub fn discover(
 
     // now get the new renderers description xml
     debug!("Getting new renderer descriptions");
-    let mut renderers: Vec<Renderer> = Vec::new();
+    let mut renderers: Vec<Renderer> = Vec::with_capacity(devices.len());
 
     for (location, from) in devices {
         if let Some(xml) = get_service_description(&agent, &location) {

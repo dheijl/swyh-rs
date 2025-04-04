@@ -1,7 +1,8 @@
 # swyh-rs Changelog
 
-- 1.12.5 (unreleased)
+- 1.12.5 (Apr 4 2025 dheijl)
   - add tray icon Python code contributed by @phil2sat
+  - sync volume sliders by using shift key while dragging (issue #185 by @dutchbreeze)
 
 - 1.12.4 (Feb 20 2025 dheijl)
   - migrate ureq to version 3.0 api (with connection pooling/reuse), and give Renderer an ureq::Agent to maximize connection reuse

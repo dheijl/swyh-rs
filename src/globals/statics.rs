@@ -2,6 +2,7 @@ use std::sync::{LazyLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool}
 
 use crate::{
     enums::messages::MessageType,
+    openhome::rendercontrol::Renderer,
     utils::{configuration::Configuration, rwstream::ChannelStream},
 };
 
@@ -23,6 +24,16 @@ pub fn get_clients() -> RwLockReadGuard<'static, HashMap<String, ChannelStream>>
 }
 pub fn get_clients_mut() -> RwLockWriteGuard<'static, HashMap<String, ChannelStream>> {
     CLIENTS.write().expect("CLIENTS write lock poisoned")
+}
+
+// all currentlyknown renderers as discovered by SSDP
+pub static RENDERERS: LazyLock<RwLock<Vec<Renderer>>> =
+    LazyLock::new(|| RwLock::new(Vec::<Renderer>::new()));
+pub fn get_renderers() -> RwLockReadGuard<'static, Vec<Renderer>> {
+    RENDERERS.read().expect("RENDERERS read lock poisened")
+}
+pub fn get_renderers_mut() -> RwLockWriteGuard<'static, Vec<Renderer>> {
+    RENDERERS.write().expect("RENDERERS write lock poisened")
 }
 
 // the global GUI logger textbox channel used by all threads

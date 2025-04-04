@@ -43,6 +43,7 @@ use swyh_rs::{
     },
     globals::statics::{
         APP_VERSION, SERVER_PORT, get_clients, get_config, get_config_mut, get_msgchannel,
+        get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,
@@ -358,7 +359,10 @@ fn main() {
                     let vol = newr.get_volume(&ui_log);
                     debug!("Renderer {} Volume: {vol}", newr.dev_name);
                     mf.add_renderer_button(&newr);
+                    // update the local renderers list
                     renderers.push(newr.clone());
+                    // update the global renderers list
+                    get_renderers_mut().push(newr.clone());
                 }
                 // check the logchannel for new log messages to show in the logger textbox
                 MessageType::LogMessage(msg) => {

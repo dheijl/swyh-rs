@@ -4,7 +4,7 @@ use crate::{
         StreamSize,
         StreamingFormat::{self, Flac},
     },
-    globals::statics::{RUN_RMS_MONITOR, THEMES, get_config, get_config_mut},
+    globals::statics::{RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers},
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
 };
@@ -34,8 +34,21 @@ use std::{
     net::IpAddr,
     rc::Rc,
     str::FromStr,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
+        atomic::{AtomicBool, Ordering},
+    },
 };
+
+// globals for fltk callback(s)
+static SLIDERS: LazyLock<RwLock<Vec<HorNiceSlider>>> =
+    LazyLock::new(|| RwLock::new(Vec::<HorNiceSlider>::new()));
+pub fn get_sliders() -> RwLockReadGuard<'static, Vec<HorNiceSlider>> {
+    SLIDERS.read().expect("SLIDERS read lock poisened")
+}
+pub fn get_sliders_mut() -> RwLockWriteGuard<'static, Vec<HorNiceSlider>> {
+    SLIDERS.write().expect("SLIDERS write lock poisened")
+}
 
 pub struct MainForm {
     pub wind: DoubleWindow,
@@ -747,11 +760,26 @@ impl MainForm {
                 let mut newr_c = new_renderer.clone();
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
-                    debug!("Setting new volume for {}: {vol}", newr_c.dev_name);
-                    newr_c.set_volume(&ui_log, vol);
+                    let f64vol = s.value();
+                    if app::is_event_shift() {
+                        debug!("Syncing volume for all renderers");
+                        let renderers = get_renderers().clone();
+                        for mut rend in renderers {
+                            rend.set_volume(&ui_log, vol);
+                        }
+                        // adjust sliders
+                        let sliders = get_sliders().clone();
+                        for mut slider in sliders {
+                            slider.set_value(f64vol);
+                        }
+                    } else {
+                        debug!("Setting new volume for {}: {vol}", newr_c.dev_name);
+                        newr_c.set_volume(&ui_log, vol);
+                    }
                 }
             });
             pbutton.add(&sl);
+            get_sliders_mut().push(sl.clone());
         }
         // and add the volume slider too if GetVolume worked
         self.vpack.insert(&pbutton, self.btn_index);

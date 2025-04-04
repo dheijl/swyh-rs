@@ -390,13 +390,13 @@ fn main() {
     }
     // and now wait some time for them to stop the HTTP streaming connection too
     for _ in 0..50 {
-        if get_clients().len() == 0 {
+        if get_clients().is_empty() {
             info!("No active HTTP streaming connections - exiting.");
             break;
         }
         thread::sleep(Duration::from_millis(100));
     }
-    if get_clients().len() > 0 {
+    if !get_clients().is_empty() {
         info!("Time-out waiting for HTTP streaming shutdown - exiting.");
     }
 }

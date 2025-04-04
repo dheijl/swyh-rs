@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.12.6 (unreleased)
+
 - 1.12.5 (Apr 4 2025 dheijl)
   - add tray icon Python code contributed by @phil2sat
   - sync volume sliders by using shift key while dragging (issue #185 by @dutchbreeze)

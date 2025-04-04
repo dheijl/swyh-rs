@@ -537,7 +537,7 @@ fn main() -> Result<(), i32> {
         // handle CTL-C interrupt: shutdown the player(s)
         if shutting_down.load(Ordering::Relaxed) {
             println!("Received ^C -> exiting.");
-            if !serve_only && player.is_some() && get_clients().len() > 0 {
+            if !serve_only && player.is_some() && !get_clients().is_empty() {
                 for mut pl in playing {
                     if get_clients()
                         .values()
@@ -549,13 +549,13 @@ fn main() -> Result<(), i32> {
                 }
                 // also wait some time for the player(s) to drop the HTTP streaming connection
                 for _ in 0..100 {
-                    if get_clients().len() == 0 {
+                    if get_clients().is_empty() {
                         println!("^C: No HTTP streaming connections active");
                         break;
                     }
                     thread::sleep(Duration::from_millis(100));
                 }
-                if get_clients().len() > 0 {
+                if !get_clients().is_empty() {
                     println!("^C: Time-out waiting for HTTP streaming shutdown - exiting.");
                 }
             }

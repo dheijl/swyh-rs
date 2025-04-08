@@ -415,7 +415,7 @@ fn app_restart(mf: &MainForm) -> i32 {
         std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
             .spawn()
             .expect("Unable to spawn myself!");
-        std::process::exit(0);
+        std::process::exit(0)
     } else {
         // cancel
         1

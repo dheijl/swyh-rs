@@ -637,6 +637,9 @@ impl MainForm {
         pbuttons.add(&frame);
         vpack.add(&pbuttons);
 
+        // ssdp discovered renderer buttons go here
+        let btn_insert_index = vpack.children();
+
         // setup feedback textbox at the bottom
         let mut pfeedback = Flex::new(0, 0, GW, 156, "");
         pfeedback.end();
@@ -666,7 +669,7 @@ impl MainForm {
             choose_audio_source_but,
             tb,
             buttons,
-            btn_index: 10,
+            btn_index: btn_insert_index,
             bwidth: frame.width(),
             bheight: frame.height(),
             wd: *wd,

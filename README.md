@@ -27,7 +27,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is **1.12.5**, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is **1.12.6**, refer to the [Changelog](CHANGELOG.md) for more details.
 
 You can find x86/64  Windows and Linux (Ubuntu/Debian) binaries in [Releases](https://github.com/dheijl/swyh-rs/releases).
 
@@ -147,7 +147,7 @@ The icon was designed by @numanair, thanks!
 - you can (and probably should) use the "_RMS monitor_" feature to verify that swyh-rs is actually capturing audio.
 - a built-in audio streaming web server is started on port 5901.
 - all media renderers are discoverded using **SSDP** on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen (so that on a multihomed Windows machine the most likely interface is selected). If necessary you can choose another network from the network dropdown, for instance if you use a VPN. The SSDP discovery interval is configurable in the GUI. You can **disable SSDP discovery by setting the discovery interval to 0.0**. This puts swyh-rs GUI in "_serve only_" mode, so that you can only use it as an internet radio station.
-- then a button is shown for every renderer found by the SSDP discovery, together with a volume slider if the player supports changing the volume. You drag the slider to change the volume. When pressing the shift key while dragging, all sliders/players will copy the new volume of the dragged slider. 
+- then a button is shown for every renderer found by the SSDP discovery, together with a volume slider if the player supports changing the volume. You drag the slider to change the volume. When pressing the shift key while dragging, all sliders/players will copy the new volume of the dragged slider.
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source, unless you enable 24 bit LPCM (see below).
 - some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "_Autoresume_" checkbox if you encounter this problem. But always try to disable the "_Chunked Transfer Encoding_" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
@@ -159,7 +159,7 @@ The icon was designed by @numanair, thanks!
 - you can also enter the webserver url in the renderer, for instance in Volumio as a web radio at <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
 - the program tries to run at a priority "`above normal`" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary priviliges (renice), for instance on Debian Bookworm you can add yourself to the `pipewire` group to get this privilege.
 - the SSDP discovery process is rerun every x minutes in the background, any newly discovered renderers will be automatically added to the GUI. Existing renderers that "disappear" during discovery are not deleted from the GUI, as SSDP discovery is not guaranteed to be failsafe (it uses UDP packets). The SSDP discovery interval is configurable, minimum value is 0.5 minutes, there is no maximum value.
-- after a configuration change that needs a program restart, you get a "restart" popup dialog. Click "Restart" to restart the app, or "Cancel" to ignore.
+- after one or more configuration changes that need a program restart, a new button shows to apply the changes. It simply restarts swyh-rs.
 - Since version 1.2.2, swyh-rs will peridically send silence to connected renderers if no sound is being captured because no audio is currently being played. This prevents some renderers from disconnecting because they have not received any sound for some time (Bubble UPNP Server with Chromecast/Nest Audio). Apparently sending silence keeps them happy. For FLAC streaming white noise at -90 db is sent because silence is compressed away in FLAC.
 - the Inject Silence checkbox will continuously mix silence into the input stream, as an alternative for the above. Since version 1.12.0 this also works for FLAC streaming. Previously FLAC compressed the digital silence away resulting in large gaps between frames, sometimes causing connection loss.  
 - Since version 1.5 you can have multiple instances running where each instance uses a different configuration file. An optional command line parameter _-c config_ or _--configuration config_ has been added to enable this (using a shortcut or starting swyh-rs from the command line). This _config_ parameter is then used as part of the config.toml filename for the swyh-rs instance. The default _config_ is empty. Examples: _swyh-rs -c 1_ or _swyh-rs --configuration vb-audio_. This way you can **stream different audio sources** to different receivers simultaneously.

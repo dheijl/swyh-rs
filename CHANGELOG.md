@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.6 (unreleased)
+  - get rid of the annoying restart dialog pop-up, it is replaced by a restart button that only shows when config change needs a restart to apply the changes.
 
 - 1.12.5 (Apr 4 2025 dheijl)
   - add tray icon Python code contributed by @phil2sat

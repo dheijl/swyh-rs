@@ -10,7 +10,7 @@ use crate::{
 };
 use fltk::{
     app,
-    button::{CheckButton, LightButton},
+    button::{Button, CheckButton, LightButton},
     enums::{Align, Color, Event, FrameType},
     frame::Frame,
     group::{Flex, FlexType, Pack, PackType},
@@ -65,6 +65,7 @@ pub struct MainForm {
     pub tb: TextDisplay,
     pub buttons: HashMap<String, LightButton>,
     vpack: Pack,
+    restartbutton: Flex,
     bwidth: i32,
     bheight: i32,
     btn_index: i32,
@@ -627,6 +628,21 @@ impl MainForm {
         pconfig4.make_resizable(true);
         vpack.add(&pconfig4);
 
+        // hidden restart button
+        let mut prestart = Flex::new(0, 0, GW, 25, "");
+        let mut restartbutton =
+            Button::default().with_label("Press to apply configuration changes");
+        restartbutton.set_label_color(Color::Red);
+        restartbutton.set_callback(|_| {
+            std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
+                .spawn()
+                .expect("Unable to spawn myself!");
+            std::process::exit(0)
+        });
+        prestart.add(&restartbutton);
+        prestart.hide();
+        vpack.add(&prestart);
+
         // show renderer buttons title with our local ip address
         let mut pbuttons = Flex::new(0, 0, GW, 25, "");
         pbuttons.end();
@@ -657,6 +673,7 @@ impl MainForm {
         MainForm {
             wind,
             vpack,
+            restartbutton: prestart,
             auto_resume,
             auto_reconnect,
             ssdp_interval,
@@ -677,6 +694,7 @@ impl MainForm {
         }
     }
 
+    // show a log message in the text box
     pub fn add_log_msg(&mut self, msg: &str) {
         if let Some(mut textbuffer) = self.tb.buffer() {
             textbuffer.append(msg);
@@ -688,6 +706,14 @@ impl MainForm {
         }
     }
 
+    // show the restart button after a config change that needs a restart
+    // to take effect
+    pub fn show_restart_button(&mut self) {
+        self.restartbutton.show();
+        app::redraw();
+    }
+
+    // show a new renderer button for a renderer discovered by ssdp
     pub fn add_renderer_button(&mut self, new_renderer: &Renderer) {
         // check if the renderer responded to GetVolume and make room for the slider if yes
         let (show_vol_slider, pbwidth, slwidth) = if new_renderer.volume >= 0 {
@@ -803,6 +829,7 @@ impl MainForm {
         }
     }
 
+    // change the theme
     fn apply_theme(theme_index: usize) -> &'static str {
         let (theme, name) = match theme_index {
             0 => (Some(ColorTheme::new(color_themes::SHAKE_THEME)), THEMES[0]),

@@ -61,11 +61,7 @@ use swyh_rs::{
 
 use cpal::{Sample, traits::StreamTrait};
 use crossbeam_channel::{Receiver, Sender, unbounded};
-use fltk::{
-    app, dialog,
-    misc::Progress,
-    prelude::{ButtonExt, WidgetExt},
-};
+use fltk::{app, misc::Progress, prelude::ButtonExt};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, info};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
@@ -285,8 +281,8 @@ fn main() {
             break;
         }
         // test for a configuration change that needs an app restart to take effect
-        if config_changed.get() && app_restart(&mf) != 0 {
-            config_changed.set(false);
+        if config_changed.get() {
+            mf.show_restart_button();
         }
         // handle the messages from other threads
         while let Ok(msg) = msg_rx.try_recv() {
@@ -398,27 +394,6 @@ fn main() {
     }
     if !get_clients().is_empty() {
         info!("Time-out waiting for HTTP streaming shutdown - exiting.");
-    }
-}
-
-fn app_restart(mf: &MainForm) -> i32 {
-    let c = dialog::choice2(
-        mf.wind.x() + mf.wind.width() / 5,
-        mf.wind.y() + (mf.wind.height() / 2) + 20,
-        "Configuration value changed!",
-        "Restart",
-        "Cancel",
-        "",
-    );
-    if c == Some(0) {
-        // restart
-        std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
-            .spawn()
-            .expect("Unable to spawn myself!");
-        std::process::exit(0)
-    } else {
-        // cancel
-        1
     }
 }
 

@@ -574,8 +574,7 @@ impl Renderer {
             .unwrap_or("<Error/>".to_string());
         // parse response to extract volume
         debug!("oh_get_volume response: {vol_xml}");
-        let xmlstream = vol_xml.as_bytes();
-        let parser = EventReader::new(xmlstream);
+        let parser = EventReader::new(vol_xml.as_bytes());
         let mut cur_elem = String::new();
         let mut have_vol_response = false;
         let mut str_volume = "-1".to_string();
@@ -618,8 +617,7 @@ impl Renderer {
             )
             .unwrap_or("<Error/>".to_string());
         debug!("av_get_volume response: {vol_xml}");
-        let xmlstream = vol_xml.as_bytes();
-        let parser = EventReader::new(xmlstream);
+        let parser = EventReader::new(vol_xml.as_bytes());
         let mut cur_elem = String::new();
         let mut have_vol_response = false;
         let mut str_volume = "-1".to_string();
@@ -928,8 +926,7 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
 
 /// build a renderer struct by (roughly) parsing the GetDescription.xml
 fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
-    let xmlstream = xml.as_bytes();
-    let parser = EventReader::new(xmlstream);
+    let parser = EventReader::new(xml.as_bytes());
     let mut cur_elem = String::new();
     let mut service = AvService::new();
     let mut renderer = Renderer::new(agent);

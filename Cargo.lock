@@ -720,9 +720,9 @@ checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
 
 [[package]]
 name = "libflac-sys"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0d9b582c1affe84b051d5a0faf3665e4da0c0b7b0e3b391213e3a5a670365b"
+checksum = "52bcb1d7bca17b79de2638e212534ad0e5a32eacdffcdff6bad5ad8c3c87b1f0"
 dependencies = [
  "cmake",
  "libc",

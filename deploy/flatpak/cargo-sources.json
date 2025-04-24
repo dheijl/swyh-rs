@@ -639,14 +639,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/getrandom/getrandom-0.2.15.crate",
-        "sha256": "c4567c8db10ae91089c99af84c68c38da3ec2f087c3f82960bcdbf3656b6f4d7",
-        "dest": "cargo/vendor/getrandom-0.2.15"
+        "url": "https://static.crates.io/crates/getrandom/getrandom-0.2.16.crate",
+        "sha256": "335ff9f135e4384c8150d6f27c6daed433577f86b4750418338c01a1a2528592",
+        "dest": "cargo/vendor/getrandom-0.2.16"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"c4567c8db10ae91089c99af84c68c38da3ec2f087c3f82960bcdbf3656b6f4d7\", \"files\": {}}",
-        "dest": "cargo/vendor/getrandom-0.2.15",
+        "contents": "{\"package\": \"335ff9f135e4384c8150d6f27c6daed433577f86b4750418338c01a1a2528592\", \"files\": {}}",
+        "dest": "cargo/vendor/getrandom-0.2.16",
         "dest-filename": ".cargo-checksum.json"
     },
     {

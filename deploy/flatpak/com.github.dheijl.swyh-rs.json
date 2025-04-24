@@ -1,0 +1,44 @@
+{
+    "app-id": "com.github.dheijl.swyh-rs",
+    "runtime": "org.freedesktop.Platform",
+    "runtime-version": "24.08",
+    "sdk": "org.freedesktop.Sdk",
+    "sdk-extensions" : [
+        "org.freedesktop.Sdk.Extension.rust-stable"
+    ],
+    "command": "swyh-rs",
+    "finish-args": [
+        "--share=network",
+        "--share=ipc",
+        "--socket=fallback-x11",
+        "--socket=wayland",
+        "--device=all",
+        "--filesystem=host",
+        "--socket=pulseaudio"
+    ],
+    "build-options": {
+        "append-path" : "/usr/lib/sdk/rust-stable/bin",
+        "env" : {
+            "CARGO_HOME" : "/run/build/swyh-rs/.cargo"
+        }
+    },
+    "modules": [
+        {
+            "name": "swyh-rs",
+            "buildsystem": "simple",
+            "build-commands": [
+                "cargo --offline fetch --verbose",
+                "cargo --offline build --release --verbose",
+                "install -Dm755 ./target/release/swyh-rs -t /app/bin/",
+                "cp -ra ./packaging/rootfs/usr/share /app/",
+                "mkdir -p /app/share/swyh-rs",
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "../../"
+                }
+            ]
+        }
+    ]
+}

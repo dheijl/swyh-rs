@@ -1,8 +1,8 @@
 {
     "app-id": "com.github.dheijl.swyh-rs",
-    "runtime": "org.freedesktop.Platform",
-    "runtime-version": "24.08",
-    "sdk": "org.freedesktop.Sdk",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "48",
+    "sdk": "org.gnome.Sdk",
     "sdk-extensions" : [
         "org.freedesktop.Sdk.Extension.rust-stable"
     ],
@@ -23,7 +23,19 @@
         }
     },
     "modules": [
-        {
+	{
+	    "name": "libpangoxft-1.0",
+	    "buildsystem": "meson",
+	    "config-opts": [
+		""
+	    ],
+	    "sources": [
+		{
+		    "type": "archive",
+		    "url": "https://download.gnome.org/sources/pangox-compat/0.0/pangox-compat-0.0.1.tar.xz",
+		    "sha256": "c2f46569698c080061f258847ff4030c409846ec69fe3b28fa78d199982b8f3b"
+		}
+	    ],  
             "name": "swyh-rs",
             "buildsystem": "simple",
             "build-commands": [
@@ -31,7 +43,7 @@
                 "cargo --offline build --release --verbose",
                 "install -Dm755 ./target/release/swyh-rs -t /app/bin/",
                 "cp -ra ./packaging/rootfs/usr/share /app/",
-                "mkdir -p /app/share/swyh-rs",
+                "mkdir -p /app/share/swyh-rs"
             ],
             "sources": [
                 {

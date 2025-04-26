@@ -13,11 +13,13 @@ cargo vendor --locked vendor | sed 's/^directory = ".*"/directory = "vendor"/g' 
 # Install the required Flatpak runtime and SDK
 flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 flatpak install flathub --user org.freedesktop.Sdk//24.08 -y
+flatpak install flathub --user org.gnome.Sdk//48 -y
 flatpak install flathub --user org.freedesktop.Platform//24.08 -y
+flatpak install flathub --user org.gnome.Platform//48 -y
 flatpak install flathub --user org.freedesktop.Sdk.Extension.rust-stable//24.08 -y
 
 # Build the Flathub package
 rm -rf target/ # Don't copy all the planet into the Flatpak build dir
 rm -rf repo/
-flatpak-builder --install repo deploy/flatpak/com.github.dheijl.swyh-rs.json --user -y
+flatpak run org.flatpak.Builder --install repo deploy/flatpak/com.github.dheijl.swyh-rs.json --user -y
 

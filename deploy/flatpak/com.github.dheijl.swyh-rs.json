@@ -27,7 +27,7 @@
             "name": "libpango-1.0",
             "buildsystem": "meson",
             "config-opts": [
-                "-Dxft=enabled"
+                "-Dxft=enabled", "-Dfreetype=enabled"
             ],
             "sources": [
                 {
@@ -42,7 +42,7 @@
             "buildsystem": "simple",
             "build-commands": [
                 "cargo --offline fetch --verbose",
-                "cargo --offline build --release --verbose",
+                "RUSTFLAGS='-L /app/lib/' cargo --offline build --release --verbose",
                 "install -Dm755 ./target/release/swyh-rs -t /app/bin/",
                 "cp -ra ./packaging/rootfs/usr/share /app/",
                 "mkdir -p /app/share/swyh-rs"

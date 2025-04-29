@@ -11,6 +11,7 @@ fi
 done
 #cargo clippy --all --fix --allow-dirty --features=cli -- -W clippy::all -W clippy::pedantic
 #cargo clippy --all --fix --allow-dirty --features=gui -- -W clippy::all -W clippy::pedantic
+rm -rf .cargo ## flatpak vendored
 cargo fmt --all
 cargo build --bin swyh-rs-cli --features cli --no-default-features
 cargo build --bin swyh-rs

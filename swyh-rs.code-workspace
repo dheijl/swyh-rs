@@ -5,6 +5,13 @@
         }
     ],
     "settings": {
-        "rust-analyzer.cargo.features": "all"
+        "rust-analyzer.cargo.features": "all",
+        "rust-analyzer.workspace.discoverConfig": null,
+        "rust-analyzer.files.exclude": [
+            ".cargo",
+            ".flatpak-builder",
+            "vendor",
+            "repo"
+        ]
     },
 }

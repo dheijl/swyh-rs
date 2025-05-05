@@ -114,7 +114,7 @@
             "buildsystem": "simple",
             "build-commands": [
                 "cargo --offline fetch --verbose",
-                "RUSTFLAGS='-L /app/lib/ -L /app/lib/lib64' cargo --offline build --release --verbose",
+                "RUSTFLAGS='-L /app/lib/ -L /app/lib64' cargo --offline build --release --verbose",
                 "install -Dm755 ./target/release/swyh-rs -t /app/bin/",
                 "cp -ra ./packaging/rootfs/usr/share /app/",
                 "mkdir -p /app/share/swyh-rs"

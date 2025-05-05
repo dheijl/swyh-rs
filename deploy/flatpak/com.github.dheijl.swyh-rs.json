@@ -116,7 +116,7 @@
                 "cargo --offline fetch --verbose",
                 "RUSTFLAGS='-L /app/lib/ -L /app/lib64' cargo --offline build --release --verbose",
                 "install -Dm755 ./target/release/swyh-rs -t /app/bin/",
-                "cp -ra ./packaging/rootfs/usr/share /app/",
+                "#cp -ra ./packaging/rootfs/usr/share /app/",
                 "mkdir -p /app/share/swyh-rs"
             ],
             "sources": [

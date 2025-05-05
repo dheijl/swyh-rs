@@ -44,7 +44,7 @@
             "buildsystem": "autotools",
             "sources": [
                 {
-                    "type": "achive",
+                    "type": "archive",
                     "url": "https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.0.tar.xz",
                     "sha256": "06a378df13501248c1b2db5aa977a2c8126ae849a9d9b7be2546fb4a9c26d993"
                 }
@@ -114,7 +114,7 @@
             "buildsystem": "simple",
             "build-commands": [
                 "cargo --offline fetch --verbose",
-                "RUSTFLAGS='-L /app/lib/' cargo --offline build --release --verbose",
+                "RUSTFLAGS='-L /app/lib/ -L /app/lib/lib64' cargo --offline build --release --verbose",
                 "install -Dm755 ./target/release/swyh-rs -t /app/bin/",
                 "cp -ra ./packaging/rootfs/usr/share /app/",
                 "mkdir -p /app/share/swyh-rs"

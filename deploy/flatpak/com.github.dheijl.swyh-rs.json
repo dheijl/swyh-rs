@@ -14,6 +14,7 @@
         "--socket=wayland",
         "--device=all",
         "--filesystem=host",
+        "--filesystem=xdg-run/pipewire-0",
         "--socket=pulseaudio"
     ],
     "build-options": {

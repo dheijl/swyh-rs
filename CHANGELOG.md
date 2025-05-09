@@ -2,6 +2,7 @@
 
 - 1.12.7 (unreleased)
   - replace deprecated Stringreader with as_bytes for parsing soap xml with xml-rs
+  - improve volume sync logic: only sync active players (issue #196 by @dutchbreeze)
 
 - 1.12.6 (Apr 9 2025 dheijl)
   - get rid of the annoying restart dialog pop-up, it is replaced by a restart button that only shows when config change needs a restart to apply the changes. See also issue #171.

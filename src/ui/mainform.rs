@@ -786,29 +786,22 @@ impl MainForm {
             sl.set_trigger(fltk::enums::CallbackTrigger::Release);
             // slider callback
             sl.set_callback({
-                let mut selected_renderer = new_renderer.clone();
+                let mut this_renderer = new_renderer.clone();
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
+                    debug!("Setting new volume for {}: {vol}", this_renderer.dev_name);
+                    this_renderer.set_volume(&ui_log, vol);
                     if app::is_event_shift() {
-                        debug!("Syncing volume for all active renderers");
+                        debug!("Syncing volume for other active renderers");
                         let renderers = get_renderers().clone().into_iter().enumerate();
                         let mut sliders = get_sliders().clone();
                         for (i, mut rend) in renderers {
-                            if rend.playing {
-                                debug!(
-                                    "Setting new volume for {}: {vol}",
-                                    selected_renderer.dev_name
-                                );
+                            if rend.playing && (this_renderer.remote_addr != rend.remote_addr) {
+                                debug!("Setting new volume for {}: {vol}", rend.dev_name);
                                 rend.set_volume(&ui_log, vol);
                                 sliders[i].set_value(s.value());
                             }
                         }
-                    } else {
-                        debug!(
-                            "Setting new volume for {}: {vol}",
-                            selected_renderer.dev_name
-                        );
-                        selected_renderer.set_volume(&ui_log, vol);
                     }
                 }
             });

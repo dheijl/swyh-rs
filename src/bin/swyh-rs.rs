@@ -304,6 +304,11 @@ fn main() {
                         if let Some(button) = mf.buttons.get_mut(&renderer.location) {
                             match streamer_feedback.streaming_state {
                                 StreamingState::Started => {
+                                    get_renderers_mut()
+                                        .iter_mut()
+                                        .find(|r| r.remote_addr == streamer_feedback.remote_ip)
+                                        .expect("Global Renderers list unconsistent with local Renderers")
+                                        .playing = true;
                                     if !button.is_set() {
                                         button.set(true);
                                     }
@@ -315,6 +320,11 @@ fn main() {
                                         chanstrm.remote_ip == streamer_feedback.remote_ip
                                     });
                                     if !still_streaming {
+                                        get_renderers_mut()
+                                        .iter_mut()
+                                        .find(|r| r.remote_addr == streamer_feedback.remote_ip)
+                                        .expect("Global Renderers list unconsistent with local Renderers")
+                                        .playing = false;
                                         if mf.auto_resume.is_set() && button.is_set() {
                                             if let Some(r) = renderers.iter_mut().find(|r| {
                                                 r.remote_addr == streamer_feedback.remote_ip
@@ -336,8 +346,10 @@ fn main() {
                                                     streaminfo,
                                                 );
                                             }
-                                        } else if button.is_set() {
-                                            button.set(false);
+                                        } else {
+                                            if button.is_set() {
+                                                button.set(false);
+                                            }
                                         }
                                     }
                                 }

@@ -786,24 +786,29 @@ impl MainForm {
             sl.set_trigger(fltk::enums::CallbackTrigger::Release);
             // slider callback
             sl.set_callback({
-                let mut newr_c = new_renderer.clone();
+                let mut selected_renderer = new_renderer.clone();
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
-                    let f64vol = s.value();
                     if app::is_event_shift() {
-                        debug!("Syncing volume for all renderers");
-                        let renderers = get_renderers().clone();
-                        for mut rend in renderers {
-                            rend.set_volume(&ui_log, vol);
-                        }
-                        // adjust sliders
-                        let sliders = get_sliders().clone();
-                        for mut slider in sliders {
-                            slider.set_value(f64vol);
+                        debug!("Syncing volume for all active renderers");
+                        let renderers = get_renderers().clone().into_iter().enumerate();
+                        let mut sliders = get_sliders().clone();
+                        for (i, mut rend) in renderers {
+                            if rend.playing {
+                                debug!(
+                                    "Setting new volume for {}: {vol}",
+                                    selected_renderer.dev_name
+                                );
+                                rend.set_volume(&ui_log, vol);
+                                sliders[i].set_value(s.value());
+                            }
                         }
                     } else {
-                        debug!("Setting new volume for {}: {vol}", newr_c.dev_name);
-                        newr_c.set_volume(&ui_log, vol);
+                        debug!(
+                            "Setting new volume for {}: {vol}",
+                            selected_renderer.dev_name
+                        );
+                        selected_renderer.set_volume(&ui_log, vol);
                     }
                 }
             });

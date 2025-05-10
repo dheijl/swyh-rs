@@ -42,7 +42,7 @@ assert withGui || withCli; let
     then "swyh-rs-gui"
     else "swyh-rs-cli";
   swyh-rs = rustPlatform.buildRustPackage rec {
-    version = "1.12.7";
+    version = "1.12.8";
     inherit nativeBuildInputs buildInputs pname;
     # Filter-out generated, version-control and nix-related files to prevent
     # cache invalidation while editing them

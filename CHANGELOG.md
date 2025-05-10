@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
-- 1.12.7 (unreleased)
+- 1.12.8 (unreleased)
+
+- 1.12.7 (May 9 2025 dheijl)
   - replace deprecated Stringreader with as_bytes for parsing soap xml with xml-rs
   - improve volume sync logic: only sync active players (issue #196 by @dutchbreeze)
 

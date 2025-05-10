@@ -393,9 +393,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-theme"
-version = "0.7.5"
+version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40d05a4e6dbc150473f5d765e1e1839961f86bf3a9169b0e06e0c91ba65eb843"
+checksum = "9bbbdceb09533364a89857fca37178caca3dba94f8fb6d011956123f3c02a8ec"
 dependencies = [
  "fltk",
 ]
@@ -1133,7 +1133,7 @@ checksum = "7a8348af2d9fc3258c8733b8d9d8db2e56f54b2363a4b5b81585c7875ed65e65"
 
 [[package]]
 name = "swyh-rs"
-version = "1.12.7"
+version = "1.12.8"
 dependencies = [
  "bitflags 2.9.0",
  "cpal",

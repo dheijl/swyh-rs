@@ -27,7 +27,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is **1.12.6**, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is **1.12.7**, refer to the [Changelog](CHANGELOG.md) for more details.
 
 You can find x86/64  Windows and Linux (Ubuntu/Debian) binaries in [Releases](https://github.com/dheijl/swyh-rs/releases).
 
@@ -147,7 +147,7 @@ The icon was designed by @numanair, thanks!
 - you can (and probably should) use the "_RMS monitor_" feature to verify that swyh-rs is actually capturing audio.
 - a built-in audio streaming web server is started on port 5901.
 - all media renderers are discoverded using **SSDP** on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen (so that on a multihomed Windows machine the most likely interface is selected). If necessary you can choose another network from the network dropdown, for instance if you use a VPN. The SSDP discovery interval is configurable in the GUI. You can **disable SSDP discovery by setting the discovery interval to 0.0**. This puts swyh-rs GUI in "_serve only_" mode, so that you can only use it as an internet radio station.
-- then a button is shown for every renderer found by the SSDP discovery, together with a volume slider if the player supports changing the volume. You drag the slider to change the volume. When pressing the shift key while dragging, all sliders/players will copy the new volume of the dragged slider.
+- then a button is shown for every renderer found by the SSDP discovery, together with a volume slider if the player supports changing the volume. You drag the slider to change the volume. When pressing the shift key while dragging, all _currently active_ sliders/players will copy the new volume of the dragged slider.
 - if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
 - audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source, unless you enable 24 bit LPCM (see below).
 - some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "_Autoresume_" checkbox if you encounter this problem. But always try to disable the "_Chunked Transfer Encoding_" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).

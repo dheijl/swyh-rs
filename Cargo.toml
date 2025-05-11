@@ -48,7 +48,7 @@ winres = "0.1.12"
 bitflags = "2.9.0"
 cpal = "0.15.3"
 crossbeam-channel = "0.5.15"
-ctrlc = { version = "3.4.6", features = ["termination"] }
+ctrlc = { version = "3.4.7", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "6.0.0"
 fastrand = "2.3.0"
@@ -78,7 +78,7 @@ url = "2.5.4"
 xml-rs = "0.8.26"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.8", features = ["use-ninja"], optional = true }
-fltk-theme = { version = "0.7.7", optional = true }
+fltk-theme = { version = "0.7.8", optional = true }
 windows = { version = "0.61.1", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
@@ -86,7 +86,7 @@ windows = { version = "0.61.1", features = [
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.8", features = ["use-ninja"], optional = true }
-fltk-theme = { version = "0.7.7", optional = true }
+fltk-theme = { version = "0.7.8", optional = true }
 libc = "0.2.172"
 
 [patch.crates-io]

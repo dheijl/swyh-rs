@@ -43,23 +43,29 @@ use std::{
 // fltk themes
 struct ThemeDesc {
     colormap: &'static [ColorMap],
+    name: &'static str,
 }
-
-static THEMES_ARRAY: [ThemeDesc; 5] = [
+// keep in sync with global THEMES name array
+const THEMES_ARRAY: &[ThemeDesc; 5] = &[
     ThemeDesc {
         colormap: color_themes::SHAKE_THEME,
+        name: THEMES[0],
     },
     ThemeDesc {
         colormap: color_themes::GRAY_THEME,
+        name: THEMES[1],
     },
     ThemeDesc {
         colormap: color_themes::TAN_THEME,
+        name: THEMES[2],
     },
     ThemeDesc {
         colormap: color_themes::DARK_THEME,
+        name: THEMES[3],
     },
     ThemeDesc {
         colormap: color_themes::BLACK_THEME,
+        name: THEMES[4],
     },
 ];
 
@@ -187,6 +193,7 @@ impl MainForm {
                 return;
             }
             let name = Self::apply_theme(b.value() as usize);
+            debug!("New theme = {name}");
             let cur_theme = "Color theme: ".to_string() + name;
             b.set_label(&cur_theme);
             let mut conf = get_config_mut();
@@ -853,15 +860,15 @@ impl MainForm {
     // change the theme
     fn apply_theme(theme_index: usize) -> &'static str {
         // number of available themes (excluding the last dummy one, "None")
-        const NTHEMES: usize = THEMES.len() - 2;
+        const NTHEMES: usize = THEMES.len() - 1;
         match theme_index {
-            0..=NTHEMES => {
+            0..NTHEMES => {
                 ColorTheme::new(THEMES_ARRAY[theme_index].colormap).apply();
-                THEMES[theme_index]
+                THEMES_ARRAY[theme_index].name
             }
             _ => {
                 fltk_theme::reset_color_map();
-                THEMES[NTHEMES - 1]
+                THEMES[NTHEMES]
             }
         }
     }

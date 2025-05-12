@@ -27,7 +27,7 @@ use fltk::{
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, info};
 
-use fltk_theme::{ColorTheme, color_themes};
+use fltk_theme::{ColorMap, ColorTheme, color_themes};
 
 use std::{
     cell::Cell,
@@ -39,6 +39,29 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
+
+// fltk themes
+struct ThemeDesc {
+    colormap: &'static [ColorMap],
+}
+
+static THEMES_ARRAY: [ThemeDesc; 5] = [
+    ThemeDesc {
+        colormap: color_themes::SHAKE_THEME,
+    },
+    ThemeDesc {
+        colormap: color_themes::GRAY_THEME,
+    },
+    ThemeDesc {
+        colormap: color_themes::TAN_THEME,
+    },
+    ThemeDesc {
+        colormap: color_themes::DARK_THEME,
+    },
+    ThemeDesc {
+        colormap: color_themes::BLACK_THEME,
+    },
+];
 
 // globals for fltk callback(s)
 static SLIDERS: LazyLock<RwLock<Vec<HorNiceSlider>>> =
@@ -829,19 +852,17 @@ impl MainForm {
 
     // change the theme
     fn apply_theme(theme_index: usize) -> &'static str {
-        let (theme, name) = match theme_index {
-            0 => (Some(ColorTheme::new(color_themes::SHAKE_THEME)), THEMES[0]),
-            1 => (Some(ColorTheme::new(color_themes::GRAY_THEME)), THEMES[1]),
-            2 => (Some(ColorTheme::new(color_themes::TAN_THEME)), THEMES[2]),
-            3 => (Some(ColorTheme::new(color_themes::DARK_THEME)), THEMES[3]),
-            4 => (Some(ColorTheme::new(color_themes::BLACK_THEME)), THEMES[4]),
-            _ => (None, THEMES[5]),
-        };
-        if let Some(th) = theme {
-            th.apply();
-        } else {
-            fltk_theme::reset_color_map();
+        // number of available themes (excluding the last dummy one, "None")
+        const NTHEMES: usize = THEMES.len() - 2;
+        match theme_index {
+            0..=NTHEMES => {
+                ColorTheme::new(THEMES_ARRAY[theme_index].colormap).apply();
+                THEMES[theme_index]
+            }
+            _ => {
+                fltk_theme::reset_color_map();
+                THEMES[NTHEMES - 1]
+            }
         }
-        name
     }
 }

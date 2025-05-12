@@ -346,10 +346,8 @@ fn main() {
                                                     streaminfo,
                                                 );
                                             }
-                                        } else {
-                                            if button.is_set() {
-                                                button.set(false);
-                                            }
+                                        } else if button.is_set() {
+                                            button.set(false);
                                         }
                                     }
                                 }

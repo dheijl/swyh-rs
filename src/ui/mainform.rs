@@ -45,8 +45,8 @@ struct ThemeDesc {
     colormap: &'static [ColorMap],
     name: &'static str,
 }
-// keep in sync with global THEMES name array
-const THEMES_ARRAY: &[ThemeDesc; 5] = &[
+// keep in sync with global::statics::THEMES array
+const THEMES_ARRAY: &[ThemeDesc] = &[
     ThemeDesc {
         colormap: color_themes::SHAKE_THEME,
         name: THEMES[0],

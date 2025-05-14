@@ -54,7 +54,7 @@ pub fn get_config_mut() -> RwLockWriteGuard<'static, Configuration> {
 }
 
 // the list of known fltk theme names
-pub const THEMES: &[&str; 6] = &["Shake", "Gray", "Tan", "Dark", "Black", "None"];
+pub const THEMES: &[&str] = &["Shake", "Gray", "Tan", "Dark", "Black", "None"];
 
 // the global "enable rms monitor" flag
 pub static RUN_RMS_MONITOR: AtomicBool = AtomicBool::new(false);

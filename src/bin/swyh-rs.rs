@@ -366,9 +366,9 @@ fn main() {
                     debug!("Renderer {} Volume: {vol}", newr.dev_name);
                     mf.add_renderer_button(&newr);
                     // update the local renderers list
-                    renderers.push(newr.clone());
+                    renderers.push(*newr.clone());
                     // update the global renderers list
-                    get_renderers_mut().push(newr.clone());
+                    get_renderers_mut().push(*newr.clone());
                 }
                 // check the logchannel for new log messages to show in the logger textbox
                 MessageType::LogMessage(msg) => {
@@ -422,7 +422,9 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
                     "Found new renderer {} {}  at {}",
                     r.dev_name, r.dev_model, r.remote_addr
                 );
-                ssdp_tx.send(MessageType::SsdpMessage(r.clone())).unwrap();
+                ssdp_tx
+                    .send(MessageType::SsdpMessage(Box::new(r.clone())))
+                    .unwrap();
                 app::awake();
                 thread::yield_now();
                 r.clone()

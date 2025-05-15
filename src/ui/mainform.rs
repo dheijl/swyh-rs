@@ -847,10 +847,7 @@ impl MainForm {
         if self.auto_reconnect.is_set() {
             let active_players = get_config().active_renderers.clone();
             info!("AutoReconnect: Active Renderers = {:?}", active_players);
-            if active_players
-                .iter()
-                .any(|p| *p == new_renderer.remote_addr)
-            {
+            if active_players.contains(&new_renderer.remote_addr) {
                 pbut.turn_on(true);
                 pbut.do_callback();
             }

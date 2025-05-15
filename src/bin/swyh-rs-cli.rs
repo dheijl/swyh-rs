@@ -326,7 +326,7 @@ fn main() -> Result<(), i32> {
         while let Ok(msg) = msg_rx.try_recv() {
             match msg {
                 MessageType::SsdpMessage(newr) => {
-                    renderers.push(newr.clone());
+                    renderers.push(*newr.clone());
                     ui_log(&format!(
                         "Available renderer #{n}: {} at {}",
                         newr.dev_name, newr.remote_addr
@@ -483,7 +483,7 @@ fn main() -> Result<(), i32> {
             match msg {
                 MessageType::SsdpMessage(newr) => {
                     if !serve_only {
-                        renderers.push(newr.clone());
+                        renderers.push(*newr.clone());
                         ui_log(&format!(
                             "New renderer {} at {}",
                             newr.dev_name, newr.remote_addr
@@ -579,7 +579,9 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
                     "Found new renderer {} {}  at {}",
                     r.dev_name, r.dev_model, r.remote_addr
                 );
-                ssdp_tx.send(MessageType::SsdpMessage(r.clone())).unwrap();
+                ssdp_tx
+                    .send(MessageType::SsdpMessage(Box::new(r.clone())))
+                    .unwrap();
                 thread::yield_now();
                 r.clone()
             });

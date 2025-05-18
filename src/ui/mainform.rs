@@ -34,10 +34,7 @@ use std::{
     net::IpAddr,
     rc::Rc,
     str::FromStr,
-    sync::{
-        LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 // fltk themes
@@ -69,16 +66,6 @@ const THEMES_ARRAY: &[ThemeDesc] = &[
     },
 ];
 
-// globals for fltk callback(s)
-static SLIDERS: LazyLock<RwLock<Vec<HorNiceSlider>>> =
-    LazyLock::new(|| RwLock::new(Vec::<HorNiceSlider>::new()));
-pub fn get_sliders() -> RwLockReadGuard<'static, Vec<HorNiceSlider>> {
-    SLIDERS.read().expect("SLIDERS read lock poisened")
-}
-pub fn get_sliders_mut() -> RwLockWriteGuard<'static, Vec<HorNiceSlider>> {
-    SLIDERS.write().expect("SLIDERS write lock poisened")
-}
-
 pub struct MainForm {
     pub wind: DoubleWindow,
     pub auto_resume: CheckButton,
@@ -93,6 +80,7 @@ pub struct MainForm {
     pub choose_audio_source_but: MenuButton,
     pub tb: TextDisplay,
     pub buttons: HashMap<String, LightButton>,
+    sliders: Vec<HorNiceSlider>,
     vpack: Pack,
     restartbutton: Flex,
     bwidth: i32,
@@ -716,6 +704,7 @@ impl MainForm {
             choose_audio_source_but,
             tb,
             buttons,
+            sliders: Vec::new(),
             btn_index: btn_insert_index,
             bwidth: frame.width(),
             bheight: frame.height(),
@@ -817,6 +806,7 @@ impl MainForm {
             // slider callback
             sl.set_callback({
                 let mut this_renderer = new_renderer.clone();
+                let mut sliders = self.sliders.clone();
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
                     debug!("Setting new volume for {}: {vol}", this_renderer.dev_name);
@@ -824,7 +814,6 @@ impl MainForm {
                     if app::is_event_shift() {
                         debug!("Syncing volume for other active renderers");
                         let renderers = get_renderers().clone().into_iter().enumerate();
-                        let mut sliders = get_sliders().clone();
                         for (i, mut rend) in renderers {
                             if rend.playing && (this_renderer.remote_addr != rend.remote_addr) {
                                 debug!("Setting new volume for {}: {vol}", rend.dev_name);
@@ -836,7 +825,7 @@ impl MainForm {
                 }
             });
             pbutton.add(&sl);
-            get_sliders_mut().push(sl.clone());
+            self.sliders.push(sl.clone());
         }
         // and add the volume slider too if GetVolume worked
         self.vpack.insert(&pbutton, self.btn_index);

@@ -215,7 +215,7 @@ fn main() {
             stream = s;
             stream.play().unwrap();
         }
-        None => {
+        _ => {
             ui_log("*E*E*> Could not capture audio ...Please check configuration.");
         }
     }

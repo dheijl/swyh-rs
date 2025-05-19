@@ -222,7 +222,7 @@ fn main() -> Result<(), i32> {
     debug!("Try capturing system audio");
     let stream: cpal::Stream = match capture_output_audio(&audio_output_device, rms_channel.0) {
         Some(s) => s,
-        None => {
+        _ => {
             ui_log("*E*E*> Could not capture audio ...Please check configuration.");
             return Err(-2);
         }

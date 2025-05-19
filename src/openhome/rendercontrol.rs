@@ -1048,10 +1048,10 @@ mod tests {
         let ok_errors = ["10060", "os error 11", "os error 35"];
         let mut e = "bla bla os error 11 bla bla";
         let to_ignore = ok_errors.iter().any(|s| e.contains(*s));
-        assert!(to_ignore == true);
+        assert!(to_ignore);
         e = "bla bla os error 12 bla bla";
         let to_ignore = ok_errors.iter().any(|s| e.contains(*s));
-        assert!(to_ignore == false);
+        assert!(!to_ignore);
     }
 
     #[test]
@@ -1079,9 +1079,9 @@ mod tests {
     #[test]
     fn test_normalize() {
         let mut url = "/ctl".to_string();
-        assert!(normalize_url(&url) == "/ctl".to_string());
+        assert!(normalize_url(&url) == *"/ctl");
         url = "ctl".to_string();
-        assert!(normalize_url(&url) == "/ctl".to_string());
+        assert!(normalize_url(&url) == *"/ctl");
         url = String::new();
         assert!(normalize_url(&url) == url);
     }

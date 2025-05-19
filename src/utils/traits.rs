@@ -81,6 +81,6 @@ mod tests {
         assert_eq!("garbage".sanitize_bool(), "garbage");
         let arg: OsString = "T".into();
         let b: bool = arg.string().unwrap().sanitize_bool().parse().unwrap();
-        assert_eq!(b, true);
+        assert!(b);
     }
 }

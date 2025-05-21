@@ -17,7 +17,7 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const SERVER_PORT: u16 = 5901;
 
 // streaming clients of the webserver
-pub static CLIENTS: LazyLock<RwLock<HashMap<String, ChannelStream>>> =
+static CLIENTS: LazyLock<RwLock<HashMap<String, ChannelStream>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 pub fn get_clients() -> RwLockReadGuard<'static, HashMap<String, ChannelStream>> {
     CLIENTS.read().expect("CLIENTS read lock poisoned")
@@ -27,7 +27,7 @@ pub fn get_clients_mut() -> RwLockWriteGuard<'static, HashMap<String, ChannelStr
 }
 
 // all currentlyknown renderers as discovered by SSDP
-pub static RENDERERS: LazyLock<RwLock<Vec<Renderer>>> =
+static RENDERERS: LazyLock<RwLock<Vec<Renderer>>> =
     LazyLock::new(|| RwLock::new(Vec::<Renderer>::new()));
 pub fn get_renderers() -> RwLockReadGuard<'static, Vec<Renderer>> {
     RENDERERS.read().expect("RENDERERS read lock poisened")
@@ -37,14 +37,14 @@ pub fn get_renderers_mut() -> RwLockWriteGuard<'static, Vec<Renderer>> {
 }
 
 // the global GUI logger textbox channel used by all threads
-pub static MSGCHANNEL: LazyLock<RwLock<(Sender<MessageType>, Receiver<MessageType>)>> =
+static MSGCHANNEL: LazyLock<RwLock<(Sender<MessageType>, Receiver<MessageType>)>> =
     LazyLock::new(|| RwLock::new(unbounded()));
 pub fn get_msgchannel() -> RwLockReadGuard<'static, (Sender<MessageType>, Receiver<MessageType>)> {
     MSGCHANNEL.read().expect("MSGCHANNEL read lock poisoned")
 }
 
 // the global configuration state
-pub static CONFIG: LazyLock<RwLock<Configuration>> =
+static CONFIG: LazyLock<RwLock<Configuration>> =
     LazyLock::new(|| RwLock::new(Configuration::read_config()));
 pub fn get_config() -> RwLockReadGuard<'static, Configuration> {
     CONFIG.read().expect("CONFIG read lock poisoned")

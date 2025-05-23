@@ -320,11 +320,7 @@ fn main() {
                                         chanstrm.remote_ip == streamer_feedback.remote_ip
                                     });
                                     if !still_streaming {
-                                        get_renderers_mut()
-                                        .iter_mut()
-                                        .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                                        .expect("Global Renderers list unconsistent with local Renderers")
-                                        .playing = false;
+                                        set_renderer_playing(&streamer_feedback.remote_ip, false);
                                         if mf.auto_resume.is_set() && button.is_set() {
                                             if let Some(r) = renderers.iter_mut().find(|r| {
                                                 r.remote_addr == streamer_feedback.remote_ip
@@ -344,6 +340,10 @@ fn main() {
                                                     server_port,
                                                     &ui_log,
                                                     streaminfo,
+                                                );
+                                                set_renderer_playing(
+                                                    &streamer_feedback.remote_ip,
+                                                    true,
                                                 );
                                             }
                                         } else if button.is_set() {
@@ -405,6 +405,15 @@ fn main() {
     if !get_clients().is_empty() {
         info!("Time-out waiting for HTTP streaming shutdown - exiting.");
     }
+}
+
+/// flag a renderer as playing/not playing in the global renderes list
+fn set_renderer_playing(remote_addr: &str, playing: bool) {
+    get_renderers_mut()
+        .iter_mut()
+        .find(|r| r.remote_addr == remote_addr)
+        .expect("Global Renderers list unconsistent with local Renderers")
+        .playing = playing;
 }
 
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery

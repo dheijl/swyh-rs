@@ -485,11 +485,11 @@ fn main() -> Result<(), i32> {
             match msg {
                 MessageType::SsdpMessage(newr) => {
                     if !serve_only {
-                        get_renderers_mut().push(*newr.clone());
                         ui_log(&format!(
                             "New renderer {} at {}",
                             newr.dev_name, newr.remote_addr
                         ));
+                        get_renderers_mut().push(*newr);
                     }
                 }
                 MessageType::PlayerMessage(streamer_feedback) => {

@@ -304,7 +304,7 @@ fn main() {
                         if let Some(button) = mf.buttons.get_mut(&renderer.location) {
                             match streamer_feedback.streaming_state {
                                 StreamingState::Started => {
-                                    set_renderer_playing(&streamer_feedback.remote_ip, true);
+                                    update_playstate(&streamer_feedback.remote_ip, true);
                                     if !button.is_set() {
                                         button.set(true);
                                     }
@@ -316,7 +316,7 @@ fn main() {
                                         chanstrm.remote_ip == streamer_feedback.remote_ip
                                     });
                                     if !still_streaming {
-                                        set_renderer_playing(&streamer_feedback.remote_ip, false);
+                                        update_playstate(&streamer_feedback.remote_ip, false);
                                         if mf.auto_resume.is_set() && button.is_set() {
                                             let config = get_config().clone();
                                             let streaminfo = StreamInfo {
@@ -334,17 +334,14 @@ fn main() {
                                                 &ui_log,
                                                 streaminfo,
                                             );
-                                            set_renderer_playing(
-                                                &streamer_feedback.remote_ip,
-                                                true,
-                                            );
+                                            update_playstate(&streamer_feedback.remote_ip, true);
                                         } else if button.is_set() {
                                             button.set(false);
                                         }
                                     } else {
-                                        // still streaming, possible with Bubble/Nest
+                                        // still streaming, this is possible with Bubble/Nest
                                         button.set(true);
-                                        set_renderer_playing(&streamer_feedback.remote_ip, true);
+                                        update_playstate(&streamer_feedback.remote_ip, true);
                                     }
                                 }
                             }
@@ -360,9 +357,10 @@ fn main() {
                 MessageType::SsdpMessage(mut newr) => {
                     let vol = newr.get_volume(&ui_log);
                     debug!("Renderer {} Volume: {vol}", newr.dev_name);
+                    // add a button for the new player
                     mf.add_renderer_button(&newr);
-                    // update the global renderers list
-                    get_renderers_mut().push(*newr.clone());
+                    // add the new player to the list of renderers
+                    get_renderers_mut().push(*newr);
                 }
                 // check the logchannel for new log messages to show in the logger textbox
                 MessageType::LogMessage(msg) => {
@@ -404,8 +402,8 @@ fn main() {
     }
 }
 
-/// flag a renderer as playing/not playing in the global renderes list
-fn set_renderer_playing(remote_addr: &str, playing: bool) {
+/// update the playstate for the renderer with this ip address
+fn update_playstate(remote_addr: &str, playing: bool) {
     get_renderers_mut()
         .iter_mut()
         .find(|r| r.remote_addr == remote_addr)

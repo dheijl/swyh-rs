@@ -291,23 +291,20 @@ fn main() {
                 // but if auto_resume is set, we restart playing instead
                 MessageType::PlayerMessage(streamer_feedback) => {
                     // check for multiple renderers at same ip address (Bubble UPNP)
-                    let same_ip: Vec<Renderer> = get_renderers()
+                    let mut same_ip: Vec<Renderer> = get_renderers()
                         .iter()
                         .filter(|r| r.remote_addr == streamer_feedback.remote_ip)
                         .cloned()
                         .collect();
+                    // the following only works for players with a unique IP address
                     if same_ip.len() == 1 {
-                        // got the only renderer with this IP address
-                        let mut renderer = same_ip[0].clone();
+                        // we have only one renderer with this IP address
+                        let renderer = &mut same_ip[0];
                         // get the button associated with this renderer
                         if let Some(button) = mf.buttons.get_mut(&renderer.location) {
                             match streamer_feedback.streaming_state {
                                 StreamingState::Started => {
-                                    get_renderers_mut()
-                                        .iter_mut()
-                                        .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                                        .expect("Global Renderers list unconsistent with local Renderers")
-                                        .playing = true;
+                                    set_renderer_playing(&streamer_feedback.remote_ip, true);
                                     if !button.is_set() {
                                         button.set(true);
                                     }
@@ -344,12 +341,16 @@ fn main() {
                                         } else if button.is_set() {
                                             button.set(false);
                                         }
+                                    } else {
+                                        // still streaming, possible with Bubble/Nest
+                                        button.set(true);
+                                        set_renderer_playing(&streamer_feedback.remote_ip, true);
                                     }
                                 }
                             }
                         }
                     } else {
-                        // we have multiple renderers at this IP address, no correlation to a button
+                        // we have multiple renderers at this IP address, so no correlation to a button
                         // so there's nothing we can do here...
                         // except perhaps inquire each player with same_ip for the current transport state ?
                     }

@@ -24,7 +24,10 @@ use swyh_rs::{
             StreamingState,
         },
     },
-    globals::statics::{APP_VERSION, get_clients, get_config, get_config_mut, get_msgchannel},
+    globals::statics::{
+        APP_VERSION, get_clients, get_config, get_config_mut, get_msgchannel, get_renderers,
+        get_renderers_mut,
+    },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,
     utils::{
@@ -257,7 +260,6 @@ fn main() -> Result<(), i32> {
     let msg_tx = get_msgchannel().0.clone();
     let msg_rx = get_msgchannel().1.clone();
 
-    let mut renderers: Vec<Renderer> = Vec::new();
     let mut serve_only = args.serve_only.unwrap_or(false);
     // if only serving: no ssdp discovery
     if !serve_only || args.dry_run.is_some() {
@@ -326,7 +328,7 @@ fn main() -> Result<(), i32> {
         while let Ok(msg) = msg_rx.try_recv() {
             match msg {
                 MessageType::SsdpMessage(newr) => {
-                    renderers.push(*newr.clone());
+                    get_renderers_mut().push(*newr.clone());
                     ui_log(&format!(
                         "Available renderer #{n}: {} at {}",
                         newr.dev_name, newr.remote_addr
@@ -339,7 +341,7 @@ fn main() -> Result<(), i32> {
         }
         // now check for player names(s) instead of ip addresses
         if args.player_ip.is_some() {
-            if let Some(r) = renderers
+            if let Some(r) = get_renderers()
                 .iter()
                 .find(|r| r.dev_name.contains(args.player_ip.as_ref().unwrap()))
             {
@@ -354,7 +356,7 @@ fn main() -> Result<(), i32> {
         if args.active_players.is_some() {
             let mut ip_players: Vec<String> = Vec::new();
             args.active_players.as_ref().unwrap().iter().for_each(|ap| {
-                if let Some(r) = renderers.iter().find(|r| r.dev_name.contains(ap)) {
+                if let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(ap)) {
                     ip_players.push(r.remote_addr.clone());
                     ui_log(&format!("Active renderer: {ap} => {} ", r.remote_addr));
                 }
@@ -397,14 +399,14 @@ fn main() -> Result<(), i32> {
     // select the player unless only serving
     if !serve_only {
         let last_renderer = config.last_renderer.as_ref().unwrap();
-        if renderers.is_empty() {
+        if get_renderers().is_empty() {
             error!("No renderers found!!!");
             return Err(-1);
         }
         // default = first player
-        player = Some(renderers[0].clone());
+        player = Some(get_renderers()[0].clone());
         // but use the configured renderer if present
-        if let Some(pl) = renderers
+        if let Some(pl) = get_renderers()
             .iter()
             .find(|&renderer| renderer.remote_addr == *last_renderer)
         {
@@ -455,7 +457,7 @@ fn main() -> Result<(), i32> {
         ui_log(&format!("Serving started on port {port}..."));
     } else {
         for ip in config.active_renderers {
-            if let Some(pl) = renderers
+            if let Some(pl) = get_renderers()
                 .iter()
                 .find(|&renderer| renderer.remote_addr == ip)
             {
@@ -483,7 +485,7 @@ fn main() -> Result<(), i32> {
             match msg {
                 MessageType::SsdpMessage(newr) => {
                     if !serve_only {
-                        renderers.push(*newr.clone());
+                        get_renderers_mut().push(*newr.clone());
                         ui_log(&format!(
                             "New renderer {} at {}",
                             newr.dev_name, newr.remote_addr
@@ -503,7 +505,7 @@ fn main() -> Result<(), i32> {
                                 if !still_streaming {
                                     let config = get_config().clone();
                                     if config.auto_resume {
-                                        if let Some(r) = renderers
+                                        if let Some(r) = get_renderers_mut()
                                             .iter_mut()
                                             .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                                         {

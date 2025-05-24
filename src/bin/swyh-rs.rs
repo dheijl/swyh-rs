@@ -43,7 +43,7 @@ use swyh_rs::{
     },
     globals::statics::{
         APP_VERSION, SERVER_PORT, get_clients, get_config, get_config_mut, get_msgchannel,
-        get_renderers_mut,
+        get_renderers, get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,
@@ -234,8 +234,6 @@ fn main() {
     let msg_rx = get_msgchannel().1.clone();
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
-    // the discovered renderers will be kept in this list
-    let mut renderers: Vec<Renderer> = Vec::new();
     if config.ssdp_interval_mins > 0.0 {
         ui_log("Starting SSDP discovery");
         let ssdp_int = config.ssdp_interval_mins;
@@ -293,13 +291,14 @@ fn main() {
                 // but if auto_resume is set, we restart playing instead
                 MessageType::PlayerMessage(streamer_feedback) => {
                     // check for multiple renderers at same ip address (Bubble UPNP)
-                    let same_ip: Vec<&Renderer> = renderers
+                    let same_ip: Vec<Renderer> = get_renderers()
                         .iter()
                         .filter(|r| r.remote_addr == streamer_feedback.remote_ip)
+                        .cloned()
                         .collect();
                     if same_ip.len() == 1 {
                         // got the only renderer with this IP address
-                        let renderer = same_ip[0];
+                        let mut renderer = same_ip[0].clone();
                         // get the button associated with this renderer
                         if let Some(button) = mf.buttons.get_mut(&renderer.location) {
                             match streamer_feedback.streaming_state {
@@ -322,30 +321,26 @@ fn main() {
                                     if !still_streaming {
                                         set_renderer_playing(&streamer_feedback.remote_ip, false);
                                         if mf.auto_resume.is_set() && button.is_set() {
-                                            if let Some(r) = renderers.iter_mut().find(|r| {
-                                                r.remote_addr == streamer_feedback.remote_ip
-                                            }) {
-                                                let config = get_config().clone();
-                                                let streaminfo = StreamInfo {
-                                                    sample_rate: wd.sample_rate.0,
-                                                    bits_per_sample: config
-                                                        .bits_per_sample
-                                                        .unwrap_or(16),
-                                                    streaming_format: config
-                                                        .streaming_format
-                                                        .unwrap_or(Flac),
-                                                };
-                                                let _ = r.play(
-                                                    &local_addr,
-                                                    server_port,
-                                                    &ui_log,
-                                                    streaminfo,
-                                                );
-                                                set_renderer_playing(
-                                                    &streamer_feedback.remote_ip,
-                                                    true,
-                                                );
-                                            }
+                                            let config = get_config().clone();
+                                            let streaminfo = StreamInfo {
+                                                sample_rate: wd.sample_rate.0,
+                                                bits_per_sample: config
+                                                    .bits_per_sample
+                                                    .unwrap_or(16),
+                                                streaming_format: config
+                                                    .streaming_format
+                                                    .unwrap_or(Flac),
+                                            };
+                                            let _ = renderer.play(
+                                                &local_addr,
+                                                server_port,
+                                                &ui_log,
+                                                streaminfo,
+                                            );
+                                            set_renderer_playing(
+                                                &streamer_feedback.remote_ip,
+                                                true,
+                                            );
                                         } else if button.is_set() {
                                             button.set(false);
                                         }
@@ -365,8 +360,6 @@ fn main() {
                     let vol = newr.get_volume(&ui_log);
                     debug!("Renderer {} Volume: {vol}", newr.dev_name);
                     mf.add_renderer_button(&newr);
-                    // update the local renderers list
-                    renderers.push(*newr.clone());
                     // update the global renderers list
                     get_renderers_mut().push(*newr.clone());
                 }
@@ -382,7 +375,10 @@ fn main() {
     let mut active_players: Vec<String> = Vec::new();
     for button in &mf.buttons {
         if button.1.is_set() {
-            if let Some(r) = renderers.iter_mut().find(|r| r.location == *button.0) {
+            if let Some(r) = get_renderers_mut()
+                .iter_mut()
+                .find(|r| r.location == *button.0)
+            {
                 active_players.push(r.remote_addr.clone());
                 r.stop_play(&ui_log);
             }

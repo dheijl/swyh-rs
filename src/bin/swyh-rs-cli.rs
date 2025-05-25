@@ -503,20 +503,22 @@ fn main() -> Result<(), i32> {
                                     chanstrm.remote_ip == streamer_feedback.remote_ip
                                 });
                                 if !still_streaming {
-                                    let config = get_config().clone();
-                                    if config.auto_resume {
+                                    if get_config().auto_resume {
                                         if let Some(r) = get_renderers_mut()
                                             .iter_mut()
                                             .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                                         {
-                                            let streaminfo = StreamInfo {
-                                                sample_rate: wd.sample_rate.0,
-                                                bits_per_sample: config
-                                                    .bits_per_sample
-                                                    .unwrap_or(16),
-                                                streaming_format: config
-                                                    .streaming_format
-                                                    .unwrap_or(Flac),
+                                            let streaminfo = {
+                                                let config = get_config();
+                                                StreamInfo {
+                                                    sample_rate: wd.sample_rate.0,
+                                                    bits_per_sample: config
+                                                        .bits_per_sample
+                                                        .unwrap_or(16),
+                                                    streaming_format: config
+                                                        .streaming_format
+                                                        .unwrap_or(Flac),
+                                                }
                                             };
                                             let _ = r.play(
                                                 &local_addr,

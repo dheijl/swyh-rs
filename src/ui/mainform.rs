@@ -770,18 +770,18 @@ impl MainForm {
                         conf.last_renderer = Some(b.label());
                         let _ = conf.update_config();
                     }
-                    let config = get_config().clone();
-                    let streaminfo = StreamInfo {
-                        sample_rate: wd.sample_rate.0,
-                        bits_per_sample: config.bits_per_sample.unwrap_or(16),
-                        streaming_format: config.streaming_format.unwrap_or(Flac),
+                    let (streaminfo, server_port) = {
+                        let config = get_config();
+                        (
+                            StreamInfo {
+                                sample_rate: wd.sample_rate.0,
+                                bits_per_sample: config.bits_per_sample.unwrap_or(16),
+                                streaming_format: config.streaming_format.unwrap_or(Flac),
+                            },
+                            config.server_port.unwrap_or_default(),
+                        )
                     };
-                    let _ = newr_c.play(
-                        &local_addr,
-                        config.server_port.unwrap_or_default(),
-                        &ui_log,
-                        streaminfo,
-                    );
+                    let _ = newr_c.play(&local_addr, server_port, &ui_log, streaminfo);
                 } else {
                     newr_c.stop_play(&ui_log);
                 }

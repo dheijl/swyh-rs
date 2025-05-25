@@ -318,15 +318,17 @@ fn main() {
                                     if !still_streaming {
                                         update_playstate(&streamer_feedback.remote_ip, false);
                                         if mf.auto_resume.is_set() && button.is_set() {
-                                            let config = get_config().clone();
-                                            let streaminfo = StreamInfo {
-                                                sample_rate: wd.sample_rate.0,
-                                                bits_per_sample: config
-                                                    .bits_per_sample
-                                                    .unwrap_or(16),
-                                                streaming_format: config
-                                                    .streaming_format
-                                                    .unwrap_or(Flac),
+                                            let streaminfo = {
+                                                let config = get_config();
+                                                StreamInfo {
+                                                    sample_rate: wd.sample_rate.0,
+                                                    bits_per_sample: config
+                                                        .bits_per_sample
+                                                        .unwrap_or(16),
+                                                    streaming_format: config
+                                                        .streaming_format
+                                                        .unwrap_or(Flac),
+                                                }
                                             };
                                             let _ = renderer.play(
                                                 &local_addr,

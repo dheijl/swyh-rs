@@ -27,7 +27,7 @@ pub struct StreamerFeedBack {
 /// helper holding struct to avoid repeatedly reading the config data
 /// or cloning the large Configuration struct
 #[derive(Copy, Clone)]
-struct ConfInfo {
+struct StreamConfig {
     bits_per_sample: u16,
     streaming_format: StreamingFormat,
     lpcm_streamsize: StreamSize,
@@ -37,10 +37,10 @@ struct ConfInfo {
     buffering_delay_msec: u32,
 }
 
-impl ConfInfo {
-    fn get() -> ConfInfo {
+impl StreamConfig {
+    fn get() -> StreamConfig {
         let cfg = get_config();
-        ConfInfo {
+        StreamConfig {
             bits_per_sample: cfg.bits_per_sample.unwrap_or(16),
             streaming_format: cfg.streaming_format.unwrap_or(Flac),
             lpcm_streamsize: cfg.lpcm_stream_size.unwrap(),
@@ -70,11 +70,11 @@ pub fn run_server(
         "The streaming server is listening on http://{addr}/stream/swyh.wav"
     ));
     // get the needed config info upfront (this struct is Copy)
-    let confinfo = ConfInfo::get();
+    let stream_config = StreamConfig::get();
     let logmsg = {
         format!(
             "Default streaming sample rate: {}, bits per sample: {}, format: {}",
-            wd.sample_rate.0, confinfo.bits_per_sample, confinfo.streaming_format,
+            wd.sample_rate.0, stream_config.bits_per_sample, stream_config.streaming_format,
         )
     };
     ui_log(&logmsg);
@@ -92,7 +92,7 @@ pub fn run_server(
                     std::thread::spawn({
                         // refresh config info for each new streaming request
                         // as some parameters may have changed
-                        let confinfo = ConfInfo::get();
+                        let stream_config = StreamConfig::get();
                         move || {
                         if cfg!(debug_assertions) {
                             debug!("<== Incoming {:?}", rq);
@@ -145,14 +145,14 @@ pub fn run_server(
                         }
                         // prepare streaming headers
                         // format from config or from GET Path
-                        let cf_format = confinfo.streaming_format;
+                        let cf_format = stream_config.streaming_format;
                         let format = if let Some(fmt) = sp.fmt {
                             fmt
                         } else {
                             cf_format
                         };
                         // bit depth from config or from GET query string
-                        let cf_bps = confinfo.bits_per_sample;
+                        let cf_bps = stream_config.bits_per_sample;
                         // check if client requests the configured format
                         let bps = if let Some(bd) = sp.bd {
                             bd
@@ -211,9 +211,9 @@ pub fn run_server(
                                 .unwrap();
 
                             // check for upfront audio buffering needed
-                            if confinfo.buffering_delay_msec > 0 {
+                            if stream_config.buffering_delay_msec > 0 {
                                 thread::sleep(Duration::from_millis(
-                                    confinfo.buffering_delay_msec.into(),
+                                    stream_config.buffering_delay_msec.into(),
                                 ));
                             }
 
@@ -238,10 +238,10 @@ pub fn run_server(
                             ));
                             // use the configured content length and chunksize params
                             let (mut streamsize, mut chunksize) = match format {
-                                Lpcm => confinfo.lpcm_streamsize.values(),
-                                Wav => confinfo.wav_streamsize.values(),
-                                Rf64 => confinfo.rf64_streamsize.values(),
-                                Flac => confinfo.flac_streamsize.values(),
+                                Lpcm => stream_config.lpcm_streamsize.values(),
+                                Wav => stream_config.wav_streamsize.values(),
+                                Rf64 => stream_config.rf64_streamsize.values(),
+                                Flac => stream_config.flac_streamsize.values(),
                             };
                             // unless overridden by the GET query string
                             if sp.ss.is_some() {

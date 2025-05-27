@@ -31,6 +31,7 @@ use fltk_theme::{ColorMap, ColorTheme, color_themes};
 
 use std::{
     cell::Cell,
+    cmp::min,
     net::IpAddr,
     rc::Rc,
     str::FromStr,
@@ -217,14 +218,10 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let mut i = b.value();
-                if i < 0 {
+                if b.value() < 0 {
                     return;
                 }
-                if i as usize >= networks_c.len() {
-                    i = (networks_c.len() - 1) as i32;
-                }
-                let name = &networks_c[i as usize];
+                let name = &networks_c[min(b.value() as usize, networks_c.len() - 1)];
                 ui_log(&format!(
                     "*W*W*> Network changed to {name}, restart required!!"
                 ));
@@ -261,20 +258,16 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let mut i = b.value();
-                if i < 0 {
+                if b.value() < 0 {
                     return;
                 }
-                if i as usize >= audio_sources_c.len() {
-                    i = (audio_sources_c.len() - 1) as i32;
-                }
-                let name = &audio_sources_c[i as usize];
+                let name = &audio_sources_c[min(b.value() as usize, audio_sources_c.len() - 1)];
                 ui_log(&format!(
                     "*W*W*> Audio source changed to {name}, restart required!!"
                 ));
                 let mut conf = get_config_mut();
                 conf.sound_source = Some(name.to_string());
-                conf.sound_source_index = Some(i);
+                conf.sound_source_index = Some(b.value());
                 let _ = conf.update_config();
                 b.set_label(&format!(
                     "New Audio Source: {}",
@@ -333,14 +326,20 @@ impl MainForm {
                             _ => b.value(),
                         };
                         b.set_value(v);
-                        let mut conf = get_config_mut();
-                        if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
-                            conf.ssdp_interval_mins = b.value();
+                        let mut ssdp_interval_mins: f64 = -1.0;
+                        {
+                            let mut conf = get_config_mut();
+                            if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
+                                conf.ssdp_interval_mins = b.value();
+                                ssdp_interval_mins = conf.ssdp_interval_mins;
+                                let _ = conf.update_config();
+                            }
+                        }
+                        if ssdp_interval_mins >= 0.0 {
                             ui_log(&format!(
                                 "*W*W*> ssdp interval changed to {} minutes, restart required!!",
-                                conf.ssdp_interval_mins
+                                ssdp_interval_mins
                             ));
-                            let _ = conf.update_config();
                             config_changed.set(true);
                             app::awake();
                         }
@@ -368,19 +367,21 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let i = b.value();
-                if i < 0 {
+                if b.value() < 0 {
                     return;
                 }
-                let level = log_levels[i as usize];
+                let level = log_levels[b.value() as usize];
                 ui_log(&format!(
                     "*W*W*> Log level changed to {level}, restart required!!"
                 ));
-                let mut conf = get_config_mut();
-                conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
-                let _ = conf.update_config();
+                let loglevel = level.parse().unwrap_or(LevelFilter::Info);
+                {
+                    let mut conf = get_config_mut();
+                    conf.log_level = loglevel;
+                    let _ = conf.update_config();
+                }
                 config_changed.set(true);
-                let ll = format!("Log Level: {}", conf.log_level);
+                let ll = format!("Log Level: {}", loglevel);
                 b.set_label(&ll);
                 app::awake();
                 rlock.store(false, Ordering::Release);
@@ -424,16 +425,17 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let mut conf = get_config_mut();
-                let i = b.value();
-                if i < 0 {
+                if b.value() < 0 {
                     return;
                 }
-                let format = formats[i as usize].clone();
+                let format = formats[b.value() as usize].clone();
                 ui_log(&format!("Current streaming Format changed to {format}"));
                 let newformat = StreamingFormat::from_str(&format).unwrap();
-                conf.streaming_format = Some(newformat);
-                let _ = conf.update_config();
+                {
+                    let mut conf = get_config_mut();
+                    conf.streaming_format = Some(newformat);
+                    let _ = conf.update_config();
+                }
                 let fmt = format!("FMT: {format}");
                 b.set_label(&fmt);
                 app::awake();
@@ -472,9 +474,11 @@ impl MainForm {
                     return;
                 }
                 if new_value as u16 != get_config().server_port.unwrap_or_default() {
-                    let mut conf = get_config_mut();
-                    conf.server_port = Some(new_value as u16);
-                    let _ = conf.update_config();
+                    {
+                        let mut conf = get_config_mut();
+                        conf.server_port = Some(new_value as u16);
+                        let _ = conf.update_config();
+                    }
                     config_changed.set(true);
                 }
             }
@@ -490,9 +494,11 @@ impl MainForm {
         inj_silence.set_callback({
             let config_changed = config_changed.clone();
             move |b| {
-                let mut conf = get_config_mut();
-                conf.inject_silence = Some(b.is_set());
-                let _ = conf.update_config();
+                {
+                    let mut conf = get_config_mut();
+                    conf.inject_silence = Some(b.is_set());
+                    let _ = conf.update_config();
+                }
                 config_changed.set(true);
             }
         });
@@ -540,24 +546,26 @@ impl MainForm {
                 if rlock.swap(true, Ordering::Acquire) {
                     return;
                 }
-                let i = b.value();
-                if i < 0 {
+                if b.value() < 0 {
                     return;
                 }
-                let mut conf = get_config_mut();
-                let newsize = streamsizes[i as usize].clone();
+                let newsize = streamsizes[b.value() as usize].clone();
+                let streamsize = StreamSize::from_str(&newsize).unwrap();
+                let streaming_format = {
+                    let mut conf = get_config_mut();
+                    match conf.streaming_format.unwrap() {
+                        StreamingFormat::Lpcm => conf.lpcm_stream_size = Some(streamsize),
+                        StreamingFormat::Wav => conf.wav_stream_size = Some(streamsize),
+                        StreamingFormat::Rf64 => conf.rf64_stream_size = Some(streamsize),
+                        StreamingFormat::Flac => conf.flac_stream_size = Some(streamsize),
+                    }
+                    let _ = conf.update_config();
+                    conf.streaming_format.unwrap()
+                };
                 ui_log(&format!(
                     "StreamSize for {} changed to {newsize}",
-                    conf.streaming_format.unwrap()
+                    streaming_format
                 ));
-                let streamsize = StreamSize::from_str(&newsize).unwrap();
-                match conf.streaming_format.unwrap() {
-                    StreamingFormat::Lpcm => conf.lpcm_stream_size = Some(streamsize),
-                    StreamingFormat::Wav => conf.wav_stream_size = Some(streamsize),
-                    StreamingFormat::Rf64 => conf.rf64_stream_size = Some(streamsize),
-                    StreamingFormat::Flac => conf.flac_stream_size = Some(streamsize),
-                }
-                let _ = conf.update_config();
                 let fmt = format!("StrmSize: {newsize}");
                 b.set_label(&fmt);
                 app::awake();

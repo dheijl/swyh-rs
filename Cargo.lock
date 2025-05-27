@@ -182,6 +182,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd5de2a10e31b3ec3e8d75e7ccf8281ab3ee55de68f7ab6ffa9e21be8d82f22"
 
 [[package]]
+name = "cmp"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e133c37e2a7f27ebf7ea18e2bc56cc2bee07014920f2f1cd8f097ca9fcf4560"
+
+[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1136,6 +1142,7 @@ name = "swyh-rs"
 version = "1.12.8"
 dependencies = [
  "bitflags 2.9.1",
+ "cmp",
  "cpal",
  "crossbeam-channel",
  "ctrlc",

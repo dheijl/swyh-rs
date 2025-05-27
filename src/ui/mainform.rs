@@ -31,7 +31,6 @@ use fltk_theme::{ColorMap, ColorTheme, color_themes};
 
 use std::{
     cell::Cell,
-    cmp::min,
     net::IpAddr,
     rc::Rc,
     str::FromStr,
@@ -211,8 +210,8 @@ impl MainForm {
             choose_network_but.add_choice(name);
         }
         let rlock = AtomicBool::new(false);
-        let networks_c = networks.to_vec();
         choose_network_but.set_callback({
+            let networks = networks.to_vec();
             let config_changed = config_changed.clone();
             move |b| {
                 if rlock.swap(true, Ordering::Acquire) {
@@ -221,7 +220,7 @@ impl MainForm {
                 if b.value() < 0 {
                     return;
                 }
-                let name = &networks_c[min(b.value() as usize, networks_c.len() - 1)];
+                let name = &networks[(b.value() as usize).clamp(0, networks.len() - 1)];
                 ui_log(&format!(
                     "*W*W*> Network changed to {name}, restart required!!"
                 ));
@@ -251,8 +250,8 @@ impl MainForm {
             choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
         }
         let rlock = AtomicBool::new(false);
-        let audio_sources_c = audio_sources.to_vec();
         choose_audio_source_but.set_callback({
+            let audio_sources = audio_sources.to_vec();
             let config_changed = config_changed.clone();
             move |b| {
                 if rlock.swap(true, Ordering::Acquire) {
@@ -261,7 +260,7 @@ impl MainForm {
                 if b.value() < 0 {
                     return;
                 }
-                let name = &audio_sources_c[min(b.value() as usize, audio_sources_c.len() - 1)];
+                let name = &audio_sources[(b.value() as usize).clamp(0, audio_sources.len() - 1)];
                 ui_log(&format!(
                     "*W*W*> Audio source changed to {name}, restart required!!"
                 ));

@@ -321,7 +321,7 @@ impl MainForm {
                     Event::Leave | Event::Enter | Event::Unfocus => {
                         let v = match b.value() {
                             ..=0.0 => 0.0,
-                            0.01..=0.5 => 0.5,
+                            0.01..=1.0 => 1.0,
                             _ => b.value(),
                         };
                         b.set_value(v);
@@ -473,11 +473,9 @@ impl MainForm {
                     return;
                 }
                 if new_value as u16 != get_config().server_port.unwrap_or_default() {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.server_port = Some(new_value as u16);
-                        let _ = conf.update_config();
-                    }
+                    let mut conf = get_config_mut();
+                    conf.server_port = Some(new_value as u16);
+                    let _ = conf.update_config();
                     config_changed.set(true);
                 }
             }
@@ -493,11 +491,9 @@ impl MainForm {
         inj_silence.set_callback({
             let config_changed = config_changed.clone();
             move |b| {
-                {
-                    let mut conf = get_config_mut();
-                    conf.inject_silence = Some(b.is_set());
-                    let _ = conf.update_config();
-                }
+                let mut conf = get_config_mut();
+                conf.inject_silence = Some(b.is_set());
+                let _ = conf.update_config();
                 config_changed.set(true);
             }
         });

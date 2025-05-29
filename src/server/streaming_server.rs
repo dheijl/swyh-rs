@@ -14,7 +14,7 @@ use crate::{
 };
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use log::debug;
-use std::{net::IpAddr, sync::Arc, thread, time::Duration};
+use std::{io, net::IpAddr, sync::Arc, thread, time::Duration};
 use tiny_http::{Header, Method, Response, Server};
 
 /// streaming state feedback for a client
@@ -107,14 +107,16 @@ pub fn run_server(
                     if let Some(i) = remote_ip.find(':') {
                         remote_ip.truncate(i);
                     }
-                    // default headers
-                    let srvr_hdr =
-                        Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap();
-                    let nm_hdr = Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap();
-                    let cc_hdr = Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap();
+                    // build standard headers
+                    let mut headers = Vec::with_capacity(8);
+                    headers.push(
+                        Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap(),
+                    );
+                    headers.push(Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap());
+                    headers.push(Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap());
                     // don't accept range headers (Linn) until I know how to handle them
-                    let acc_rng_hdr =
-                        Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap();
+                    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap());
+                    // add variable headers based on request and streaming parameters
                     // parse the GET request
                     let sp = StreamingParams::from_query_string(rq.url());
                     // check url
@@ -124,10 +126,13 @@ pub fn run_server(
                             rq.url(),
                             rq.remote_addr().unwrap()
                         ));
-                        let response = Response::empty(404)
-                            .with_header(cc_hdr)
-                            .with_header(srvr_hdr)
-                            .with_header(nm_hdr);
+                        let response = Response::new(
+                            tiny_http::StatusCode(404),
+                            headers,
+                            io::empty(),
+                            Some(0),
+                            None,
+                        );
                         if let Err(e) = rq.respond(response) {
                             ui_log(&format!(
                                 "=>Http streaming request with {remote_addr} terminated [{e}]"
@@ -141,8 +146,7 @@ pub fn run_server(
                     if let Some(i) = remote_ip.find(':') {
                         remote_ip.truncate(i);
                     }
-                    // prepare streaming headers
-                    // format from config or from GET Path
+                    // prepare streaming headers with format/bps/bd from config or from GET Path
                     let cf_format = stream_config.streaming_format;
                     let format = if let Some(fmt) = sp.fmt {
                         fmt
@@ -169,11 +173,13 @@ pub fn run_server(
                             format!("audio/L24;rate={};channels=2", wd.sample_rate.0)
                         }
                     };
-                    let ct_hdr =
-                        Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap();
-                    let tm_hdr =
+                    headers.push(
+                        Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap(),
+                    );
+                    headers.push(
                         Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..])
-                            .unwrap();
+                            .unwrap(),
+                    );
                     // handle response, streaming if GET, headers only otherwise
                     if matches!(rq.method(), Method::Get) {
                         ui_log(&format!(
@@ -244,15 +250,14 @@ pub fn run_server(
                         if sp.ss.is_some() {
                             (streamsize, chunksize) = sp.ss.unwrap().values();
                         }
-                        let response = Response::empty(200)
-                            .with_data(channel_stream, streamsize)
-                            .with_chunked_threshold(chunksize)
-                            .with_header(cc_hdr)
-                            .with_header(ct_hdr)
-                            .with_header(tm_hdr)
-                            .with_header(srvr_hdr)
-                            .with_header(acc_rng_hdr)
-                            .with_header(nm_hdr);
+                        let response = Response::new(
+                            tiny_http::StatusCode(200),
+                            headers,
+                            channel_stream,
+                            streamsize,
+                            None,
+                        )
+                        .with_chunked_threshold(chunksize);
                         if cfg!(debug_assertions) {
                             debug!("==> Response:");
                             debug!(
@@ -289,13 +294,13 @@ pub fn run_server(
                         ui_log(&format!("Streaming to {remote_addr} has ended"));
                     } else if matches!(rq.method(), Method::Head) {
                         debug!("HEAD rq from {}", remote_addr);
-                        let response = Response::empty(200)
-                            .with_header(cc_hdr)
-                            .with_header(ct_hdr)
-                            .with_header(tm_hdr)
-                            .with_header(srvr_hdr)
-                            .with_header(acc_rng_hdr)
-                            .with_header(nm_hdr);
+                        let response = Response::new(
+                            tiny_http::StatusCode(200),
+                            headers,
+                            io::empty(),
+                            Some(0),
+                            None,
+                        );
                         if let Err(e) = rq.respond(response) {
                             ui_log(&format!(
                                 "=>Http HEAD connection with {remote_addr} terminated [{e}]"
@@ -303,10 +308,13 @@ pub fn run_server(
                         }
                     } else if matches!(rq.method(), Method::Post) {
                         debug!("POST rq from {}", remote_addr);
-                        let response = Response::empty(200)
-                            .with_header(cc_hdr)
-                            .with_header(srvr_hdr)
-                            .with_header(nm_hdr);
+                        let response = Response::new(
+                            tiny_http::StatusCode(200),
+                            headers,
+                            io::empty(),
+                            Some(0),
+                            None,
+                        );
                         if let Err(e) = rq.respond(response) {
                             ui_log(&format!(
                                 "=>Http POST connection with {remote_addr} terminated [{e}]"

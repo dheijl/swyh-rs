@@ -107,19 +107,18 @@ pub fn run_server(
                     if let Some(i) = remote_ip.find(':') {
                         remote_ip.truncate(i);
                     }
-                    // build standard headers
-                    let mut headers = Vec::with_capacity(8);
-                    headers.push(
-                        Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap(),
-                    );
-                    headers.push(Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap());
-                    headers.push(Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap());
-                    // don't accept range headers (Linn) until I know how to handle them
-                    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap());
-                    // add variable headers based on request and streaming parameters
                     // parse the GET request
+                    //  - get remote ip
+                    let remote_addr = format!("{}", rq.remote_addr().unwrap());
+                    let mut remote_ip = remote_addr.clone();
+                    if let Some(i) = remote_ip.find(':') {
+                        remote_ip.truncate(i);
+                    }
+                    //  - decode streaming query params if present
                     let sp = StreamingParams::from_query_string(rq.url());
-                    // check url
+                    // build standard headers
+                    let mut headers = get_default_headers();
+                    // check uri & streaming params
                     if sp.path.is_none() {
                         ui_log(&format!(
                             "Unrecognized request '{}' from {}'",
@@ -140,39 +139,11 @@ pub fn run_server(
                         }
                         return;
                     }
-                    // get remote ip
-                    let remote_addr = format!("{}", rq.remote_addr().unwrap());
-                    let mut remote_ip = remote_addr.clone();
-                    if let Some(i) = remote_ip.find(':') {
-                        remote_ip.truncate(i);
-                    }
-                    // prepare streaming headers with format/bps/bd from config or from GET Path
-                    let cf_format = stream_config.streaming_format;
-                    let format = if let Some(fmt) = sp.fmt {
-                        fmt
-                    } else {
-                        cf_format
-                    };
-                    // bit depth from config or from GET query string
-                    let cf_bps = stream_config.bits_per_sample;
-                    // check if client requests the configured format
-                    let bps = if let Some(bd) = sp.bd {
-                        bd
-                    } else {
-                        BitDepth::from(cf_bps)
-                    };
-                    let ct_text = if format == StreamingFormat::Flac {
-                        "audio/flac".to_string()
-                    } else if format == StreamingFormat::Wav || format == StreamingFormat::Rf64 {
-                        "audio/vnd.wave;codec=1".to_string()
-                    } else {
-                        // LPCM
-                        if bps == BitDepth::Bits16 {
-                            format!("audio/L16;rate={};channels=2", wd.sample_rate.0)
-                        } else {
-                            format!("audio/L24;rate={};channels=2", wd.sample_rate.0)
-                        }
-                    };
+                    // get streaming params from config or querystring
+                    let (format, bps) = get_stream_params(stream_config, &sp);
+                    // build dlna format header text
+                    let ct_text = get_dlna_format(wd, format, bps);
+                    // and add dlna headers
                     headers.push(
                         Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap(),
                     );
@@ -329,4 +300,54 @@ pub fn run_server(
     for h in handles {
         h.join().unwrap();
     }
+}
+
+// get the dlna format string for te dlna header
+fn get_dlna_format(wd: WavData, format: StreamingFormat, bps: BitDepth) -> String {
+    if format == StreamingFormat::Flac {
+        "audio/flac".to_string()
+    } else if format == StreamingFormat::Wav || format == StreamingFormat::Rf64 {
+        "audio/vnd.wave;codec=1".to_string()
+    } else {
+        // LPCM
+        if bps == BitDepth::Bits16 {
+            format!("audio/L16;rate={};channels=2", wd.sample_rate.0)
+        } else {
+            format!("audio/L24;rate={};channels=2", wd.sample_rate.0)
+        }
+    }
+}
+
+// get streaming format & bit depth from config or querystring
+fn get_stream_params(
+    stream_config: StreamConfig,
+    sp: &StreamingParams,
+) -> (StreamingFormat, BitDepth) {
+    // streaming format
+    let cf_format = stream_config.streaming_format;
+    let format = if let Some(fmt) = sp.fmt {
+        fmt
+    } else {
+        cf_format
+    };
+    // bit depth f
+    let cf_bps = stream_config.bits_per_sample;
+    // check if client requests the configured format
+    let bps = if let Some(bd) = sp.bd {
+        bd
+    } else {
+        BitDepth::from(cf_bps)
+    };
+    (format, bps)
+}
+
+// get the default http response headers
+fn get_default_headers() -> Vec<Header> {
+    let mut headers = Vec::with_capacity(8);
+    headers.push(Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap());
+    headers.push(Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap());
+    headers.push(Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap());
+    // don't accept range headers (Linn) until I know how to handle them
+    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap());
+    headers
 }

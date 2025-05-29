@@ -206,7 +206,7 @@ impl AvService {
 
 bitflags! {
 /// supported UPNP/DLNA protocols
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SupportedProtocols: u32 {
         const NONE        = 0b0000;
         const OPENHOME    = 0b0001;

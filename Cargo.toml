@@ -69,7 +69,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 simplelog = "0.12.2"
 strfmt = "0.2.4"
 tiny_http = "0.12.0"
-toml = "0.8.22"
+toml = "0.8.23"
 ureq = { version = "3.0.11", default-features = false, features = [
     "charset",
     "gzip",

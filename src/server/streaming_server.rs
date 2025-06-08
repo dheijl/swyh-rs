@@ -302,7 +302,7 @@ pub fn run_server(
     }
 }
 
-// get the dlna format string for te dlna header
+// get the dlna format string for the dlna header
 fn get_dlna_format(wd: WavData, format: StreamingFormat, bps: BitDepth) -> String {
     if format == StreamingFormat::Flac {
         "audio/flac".to_string()

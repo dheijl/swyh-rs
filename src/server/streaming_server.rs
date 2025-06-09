@@ -118,25 +118,9 @@ pub fn run_server(
                     let sp = StreamingParams::from_query_string(rq.url());
                     // build standard headers
                     let mut headers = get_default_headers();
-                    // check uri & streaming params
+                    // check for valid request uri
                     if sp.path.is_none() {
-                        ui_log(&format!(
-                            "Unrecognized request '{}' from {}'",
-                            rq.url(),
-                            rq.remote_addr().unwrap()
-                        ));
-                        let response = Response::new(
-                            tiny_http::StatusCode(404),
-                            headers,
-                            io::empty(),
-                            Some(0),
-                            None,
-                        );
-                        if let Err(e) = rq.respond(response) {
-                            ui_log(&format!(
-                                "=>Http streaming request with {remote_addr} terminated [{e}]"
-                            ));
-                        }
+                        unrecognized_request(rq, &remote_addr, &headers);
                         return;
                     }
                     // get streaming params from config or querystring
@@ -302,7 +286,28 @@ pub fn run_server(
     }
 }
 
-// get the dlna format string for the dlna header
+/// this request is not recognized, reject with an error 404
+fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: &[Header]) {
+    ui_log(&format!(
+        "Unrecognized request '{}' from {}'",
+        rq.url(),
+        rq.remote_addr().unwrap()
+    ));
+    let response = Response::new(
+        tiny_http::StatusCode(404),
+        headers.to_vec(),
+        io::empty(),
+        Some(0),
+        None,
+    );
+    if let Err(e) = rq.respond(response) {
+        ui_log(&format!(
+            "=>Http streaming request with {remote_addr} terminated [{e}]"
+        ));
+    }
+}
+
+/// get the dlna format string for the dlna header
 fn get_dlna_format(wd: WavData, format: StreamingFormat, bps: BitDepth) -> String {
     if format == StreamingFormat::Flac {
         "audio/flac".to_string()
@@ -318,7 +323,7 @@ fn get_dlna_format(wd: WavData, format: StreamingFormat, bps: BitDepth) -> Strin
     }
 }
 
-// get streaming format & bit depth from config or querystring
+/// get streaming format & bit depth from config or querystring
 fn get_stream_params(
     stream_config: StreamConfig,
     sp: &StreamingParams,

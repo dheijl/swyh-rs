@@ -31,11 +31,11 @@ impl FromStr for StreamingFormat {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Lpcm" => Ok(StreamingFormat::Lpcm),
-            "Wav" => Ok(StreamingFormat::Wav),
-            "Flac" => Ok(StreamingFormat::Flac),
-            "Rf64" => Ok(StreamingFormat::Rf64),
+        match s.to_ascii_lowercase().as_str() {
+            "lpcm" => Ok(StreamingFormat::Lpcm),
+            "wav" => Ok(StreamingFormat::Wav),
+            "flac" => Ok(StreamingFormat::Flac),
+            "rf64" => Ok(StreamingFormat::Rf64),
             _ => Err(()),
         }
     }
@@ -88,8 +88,7 @@ impl FromStr for StreamSize {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.to_lowercase();
-        match s.as_str() {
+        match s.to_ascii_lowercase().as_str() {
             "nonechunked" => Ok(StreamSize::NoneChunked),
             "u32maxchunked" => Ok(StreamSize::U32maxChunked),
             "u32maxnotchunked" => Ok(StreamSize::U32maxNotChunked),

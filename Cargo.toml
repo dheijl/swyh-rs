@@ -1,6 +1,6 @@
 [package]
 resolver = "3"
-rust-version = "1.85"
+rust-version = "1.87"
 authors = [
     "dheijl",
     "joshuamegnauth54",
@@ -79,7 +79,7 @@ xml-rs = "0.8.26"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.9", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-windows = { version = "0.61.2", features = [
+windows = { version = "0.61.3", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }

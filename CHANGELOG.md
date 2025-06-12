@@ -2,6 +2,7 @@
 
 - 1.12.8 (unreleased)
   - rework theming and some other refactoring
+  - rename the default branch to main instead of master
 
 - 1.12.7 (May 9 2025 dheijl)
   - replace deprecated Stringreader with as_bytes for parsing soap xml with xml-rs

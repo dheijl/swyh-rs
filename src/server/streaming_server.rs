@@ -93,13 +93,7 @@ pub fn run_server(
                     // as some parameters may have changed
                     let stream_config = StreamConfig::get();
                     if cfg!(debug_assertions) {
-                        debug!("<== Incoming {:?}", rq);
-                        for hdr in rq.headers() {
-                            debug!(
-                                " <== Incoming Request {hdr:?} from {}",
-                                rq.remote_addr().unwrap()
-                            );
-                        }
+                        dump_rq_headers(&rq);
                     }
                     // get remote ip
                     let remote_addr = format!("{}", rq.remote_addr().unwrap());
@@ -120,21 +114,12 @@ pub fn run_server(
                     let mut headers = get_default_headers();
                     // check for valid request uri
                     if sp.path.is_none() {
-                        unrecognized_request(rq, &remote_addr, &headers);
-                        return;
+                        return unrecognized_request(rq, &remote_addr, &headers);
                     }
                     // get streaming params from config or querystring
                     let (format, bps) = get_stream_params(stream_config, &sp);
-                    // build dlna format header text
-                    let ct_text = get_dlna_format(wd, format, bps);
-                    // and add dlna headers
-                    headers.push(
-                        Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap(),
-                    );
-                    headers.push(
-                        Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..])
-                            .unwrap(),
-                    );
+                    // now add the dlna headers to the header collection
+                    add_dlna_headers(&mut headers, &wd, format, bps);
                     // handle response, streaming if GET, headers only otherwise
                     if matches!(rq.method(), Method::Get) {
                         ui_log(&format!(
@@ -213,16 +198,7 @@ pub fn run_server(
                             None,
                         )
                         .with_chunked_threshold(chunksize);
-                        if cfg!(debug_assertions) {
-                            debug!("==> Response:");
-                            debug!(
-                                " ==> Content-Length: {}",
-                                response.data_length().unwrap_or(0)
-                            );
-                            for hdr in response.headers() {
-                                debug!(" ==> Response {:?} to {}", hdr, rq.remote_addr().unwrap());
-                            }
-                        }
+                        dump_resp_headers(&rq, &response);
                         let e = rq.respond(response);
                         if e.is_err() {
                             ui_log(&format!(
@@ -286,6 +262,31 @@ pub fn run_server(
     }
 }
 
+/// dump response headers
+fn dump_resp_headers(rq: &tiny_http::Request, response: &Response<ChannelStream>) {
+    if cfg!(debug_assertions) {
+        debug!("==> Response:");
+        debug!(
+            " ==> Content-Length: {}",
+            response.data_length().unwrap_or(0)
+        );
+        for hdr in response.headers() {
+            debug!(" ==> Response {:?} to {}", hdr, rq.remote_addr().unwrap());
+        }
+    }
+}
+
+/// dump the request headers
+fn dump_rq_headers(rq: &tiny_http::Request) {
+    debug!("<== Incoming {:?}", rq);
+    for hdr in rq.headers() {
+        debug!(
+            " <== Incoming Request {hdr:?} from {}",
+            rq.remote_addr().unwrap()
+        );
+    }
+}
+
 /// this request is not recognized, reject with an error 404
 fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: &[Header]) {
     ui_log(&format!(
@@ -307,20 +308,31 @@ fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: &[He
     }
 }
 
-/// get the dlna format string for the dlna header
-fn get_dlna_format(wd: WavData, format: StreamingFormat, bps: BitDepth) -> String {
-    if format == StreamingFormat::Flac {
-        "audio/flac".to_string()
-    } else if format == StreamingFormat::Wav || format == StreamingFormat::Rf64 {
-        "audio/vnd.wave;codec=1".to_string()
-    } else {
-        // LPCM
-        if bps == BitDepth::Bits16 {
-            format!("audio/L16;rate={};channels=2", wd.sample_rate.0)
+/// Add the dlna headers
+fn add_dlna_headers(
+    headers: &mut Vec<Header>,
+    wd: &WavData,
+    format: StreamingFormat,
+    bps: BitDepth,
+) {
+    // get the dlna format string
+    let ct_text = {
+        if format == StreamingFormat::Flac {
+            "audio/flac".to_string()
+        } else if format == StreamingFormat::Wav || format == StreamingFormat::Rf64 {
+            "audio/vnd.wave;codec=1".to_string()
         } else {
-            format!("audio/L24;rate={};channels=2", wd.sample_rate.0)
+            // LPCM
+            if bps == BitDepth::Bits16 {
+                format!("audio/L16;rate={};channels=2", wd.sample_rate.0)
+            } else {
+                format!("audio/L24;rate={};channels=2", wd.sample_rate.0)
+            }
         }
-    }
+    };
+    // and add dlna headers
+    headers.push(Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap());
+    headers.push(Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..]).unwrap());
 }
 
 /// get streaming format & bit depth from config or querystring

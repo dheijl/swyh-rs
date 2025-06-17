@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{convert::From, fmt, str::FromStr};
 
+use crate::globals::statics::get_config;
+
 /// streaming state
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum StreamingState {
@@ -37,6 +39,30 @@ impl FromStr for StreamingFormat {
             "flac" => Ok(StreamingFormat::Flac),
             "rf64" => Ok(StreamingFormat::Rf64),
             _ => Err(()),
+        }
+    }
+}
+
+impl StreamingFormat {
+    pub fn dlna_string(self, bps: BitDepth) -> String {
+        match self {
+            StreamingFormat::Flac => "audio/FLAC".to_string(),
+            StreamingFormat::Wav | StreamingFormat::Rf64 => "audio/wave;codec=1 (WAV)".to_string(),
+            StreamingFormat::Lpcm => {
+                if bps == BitDepth::Bits16 {
+                    "audio/L16 (LPCM)".to_string()
+                } else {
+                    "audio/L24 (LPCM)".to_string()
+                }
+            }
+        }
+    }
+    pub fn get_streaming_params(self, stream_config: &StreamConfig) -> (Option<usize>, usize) {
+        match self {
+            StreamingFormat::Lpcm => stream_config.lpcm_streamsize.values(),
+            StreamingFormat::Wav => stream_config.wav_streamsize.values(),
+            StreamingFormat::Rf64 => stream_config.rf64_streamsize.values(),
+            StreamingFormat::Flac => stream_config.flac_streamsize.values(),
         }
     }
 }
@@ -132,6 +158,34 @@ impl FromStr for BitDepth {
             "16" => Ok(BitDepth::Bits16),
             "24" => Ok(BitDepth::Bits24),
             _ => Ok(BitDepth::Bits16),
+        }
+    }
+}
+
+/// helper holding struct to avoid repeatedly reading the config data
+/// or cloning the large Configuration struct
+#[derive(Copy, Clone)]
+pub struct StreamConfig {
+    pub bits_per_sample: u16,
+    pub streaming_format: StreamingFormat,
+    pub lpcm_streamsize: StreamSize,
+    pub wav_streamsize: StreamSize,
+    pub flac_streamsize: StreamSize,
+    pub rf64_streamsize: StreamSize,
+    pub buffering_delay_msec: u32,
+}
+
+impl StreamConfig {
+    pub fn get() -> StreamConfig {
+        let cfg = get_config();
+        StreamConfig {
+            bits_per_sample: cfg.bits_per_sample.unwrap_or(16),
+            streaming_format: cfg.streaming_format.unwrap_or(StreamingFormat::Flac),
+            lpcm_streamsize: cfg.lpcm_stream_size.unwrap(),
+            wav_streamsize: cfg.wav_stream_size.unwrap(),
+            flac_streamsize: cfg.flac_stream_size.unwrap(),
+            rf64_streamsize: cfg.rf64_stream_size.unwrap(),
+            buffering_delay_msec: cfg.buffering_delay_msec.unwrap_or(0),
         }
     }
 }

@@ -1,13 +1,9 @@
 use crate::{
     enums::{
         messages::MessageType,
-        streaming::{
-            BitDepth, StreamSize,
-            StreamingFormat::{self, Flac, Lpcm, Rf64, Wav},
-            StreamingState,
-        },
+        streaming::{BitDepth, StreamConfig, StreamingFormat, StreamingState},
     },
-    globals::statics::{get_clients_mut, get_config},
+    globals::statics::get_clients_mut,
     openhome::rendercontrol::WavData,
     server::query_params::StreamingParams,
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
@@ -22,34 +18,6 @@ use tiny_http::{Header, Method, Response, Server};
 pub struct StreamerFeedBack {
     pub remote_ip: String,
     pub streaming_state: StreamingState,
-}
-
-/// helper holding struct to avoid repeatedly reading the config data
-/// or cloning the large Configuration struct
-#[derive(Copy, Clone)]
-struct StreamConfig {
-    bits_per_sample: u16,
-    streaming_format: StreamingFormat,
-    lpcm_streamsize: StreamSize,
-    wav_streamsize: StreamSize,
-    flac_streamsize: StreamSize,
-    rf64_streamsize: StreamSize,
-    buffering_delay_msec: u32,
-}
-
-impl StreamConfig {
-    fn get() -> StreamConfig {
-        let cfg = get_config();
-        StreamConfig {
-            bits_per_sample: cfg.bits_per_sample.unwrap_or(16),
-            streaming_format: cfg.streaming_format.unwrap_or(Flac),
-            lpcm_streamsize: cfg.lpcm_stream_size.unwrap(),
-            wav_streamsize: cfg.wav_stream_size.unwrap(),
-            flac_streamsize: cfg.flac_stream_size.unwrap(),
-            rf64_streamsize: cfg.rf64_stream_size.unwrap(),
-            buffering_delay_msec: cfg.buffering_delay_msec.unwrap_or(0),
-        }
-    }
 }
 
 /// `run_server` - run a tiny-http webserver to serve streaming requests from renderers
@@ -159,18 +127,7 @@ pub fn run_server(
                                 stream_config.buffering_delay_msec.into(),
                             ));
                         }
-
-                        let streaming_format = match format {
-                            Flac => "audio/FLAC",
-                            Wav | Rf64 => "audio/wave;codec=1 (WAV)",
-                            Lpcm => {
-                                if bps == BitDepth::Bits16 {
-                                    "audio/L16 (LPCM)"
-                                } else {
-                                    "audio/L24 (LPCM)"
-                                }
-                            }
-                        };
+                        let streaming_format = format.dlna_string(bps);
                         ui_log(&format!(
                             "Streaming {streaming_format}, input sample format {:?}, \
                             channels=2, rate={}, bps = {}, to {}",
@@ -180,12 +137,8 @@ pub fn run_server(
                             rq.remote_addr().unwrap()
                         ));
                         // use the configured content length and chunksize params
-                        let (mut streamsize, mut chunksize) = match format {
-                            Lpcm => stream_config.lpcm_streamsize.values(),
-                            Wav => stream_config.wav_streamsize.values(),
-                            Rf64 => stream_config.rf64_streamsize.values(),
-                            Flac => stream_config.flac_streamsize.values(),
-                        };
+                        let (mut streamsize, mut chunksize) =
+                            format.get_streaming_params(&stream_config);
                         // unless overridden by the GET query string
                         if sp.ss.is_some() {
                             (streamsize, chunksize) = sp.ss.unwrap().values();

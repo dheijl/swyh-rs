@@ -4,7 +4,9 @@ use crate::{
         StreamSize,
         StreamingFormat::{self, Flac},
     },
-    globals::statics::{RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers},
+    globals::statics::{
+        RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers, get_renderers_mut,
+    },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
 };
@@ -91,6 +93,7 @@ pub struct MainForm {
     btn_index: i32,
     wd: WavData,
     local_addr: IpAddr,
+    player_index: usize,
 }
 
 impl MainForm {
@@ -695,6 +698,7 @@ impl MainForm {
         let buttons: HashMap<String, LightButton> = HashMap::new();
 
         MainForm {
+            player_index: 0,
             wind,
             vpack,
             restartbutton: prestart,
@@ -739,7 +743,9 @@ impl MainForm {
     }
 
     // show a new renderer button for a renderer discovered by ssdp
-    pub fn add_renderer_button(&mut self, new_renderer: &Renderer) {
+    pub fn add_renderer_button(&mut self, new_renderer: &mut Renderer) {
+        // initialize renderers player_index
+        new_renderer.player_index = self.player_index;
         // check if the renderer responded to GetVolume and make room for the slider if yes
         let (show_vol_slider, pbwidth, slwidth) = if new_renderer.volume >= 0 {
             (true, (self.bwidth / 3) * 2, self.bwidth / 3)
@@ -755,14 +761,14 @@ impl MainForm {
                 new_renderer.dev_model, new_renderer.dev_name
             ));
         pbut.set_callback({
+            let player_index = self.player_index;
             let mut newr_c = new_renderer.clone();
-            let bi = self.buttons.len();
             let local_addr = self.local_addr;
             let wd = self.wd;
             move |b| {
                 info!(
                     "Pushed renderer #{} {} {}, state = {}",
-                    bi,
+                    player_index,
                     newr_c.dev_model,
                     newr_c.dev_name,
                     if b.is_on() { "ON" } else { "OFF" },
@@ -788,6 +794,7 @@ impl MainForm {
                 } else {
                     newr_c.stop_play(&ui_log);
                 }
+                get_renderers_mut()[player_index].playing = b.is_on();
             }
         });
         // the pack for the new button
@@ -811,19 +818,22 @@ impl MainForm {
             sl.set_trigger(fltk::enums::CallbackTrigger::Release);
             // slider callback
             sl.set_callback({
+                let player_index = self.player_index;
                 let mut this_renderer = new_renderer.clone();
                 let sliders = self.sliders.clone();
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
                     debug!("Setting new volume for {}: {vol}", this_renderer.dev_name);
                     this_renderer.set_volume(&ui_log, vol);
+                    get_renderers_mut()[player_index].volume = vol;
                     if app::is_event_shift() {
                         debug!("Syncing volume for other active renderers");
                         let renderers = get_renderers().clone().into_iter().enumerate();
                         for (i, mut rend) in renderers {
-                            if rend.playing && (this_renderer.remote_addr != rend.remote_addr) {
+                            if rend.playing && (this_renderer.player_index != rend.player_index) {
                                 debug!("Setting new volume for {}: {vol}", rend.dev_name);
                                 rend.set_volume(&ui_log, vol);
+                                get_renderers_mut()[i].volume = vol;
                                 sliders.write().expect("Sliders lock poisened!")[i]
                                     .set_value(s.value());
                             }
@@ -841,6 +851,8 @@ impl MainForm {
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons
             .insert(new_renderer.location.clone(), pbut.clone()); // and keep a reference to it for bookkeeping
+        // bump player_index
+        self.player_index += 1;
         app::redraw();
         // check if autoreconnect is set for this renderer
         if self.auto_reconnect.is_set() {

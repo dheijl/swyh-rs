@@ -219,6 +219,7 @@ pub struct SupportedProtocols: u32 {
 /// info is collected from the GetDescription.xml
 #[derive(Debug, Clone)]
 pub struct Renderer {
+    pub player_index: usize,
     pub dev_name: String,
     pub dev_model: String,
     pub dev_type: String,
@@ -241,6 +242,7 @@ pub struct Renderer {
 impl Renderer {
     fn new(agent: &ureq::Agent) -> Renderer {
         Renderer {
+            player_index: 0,
             dev_name: String::new(),
             dev_model: String::new(),
             dev_url: String::new(),

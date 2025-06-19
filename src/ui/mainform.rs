@@ -804,7 +804,7 @@ impl MainForm {
         pbutton.end();
         // add the renderer button to the window
         pbutton.add(&pbut);
-        // Only if GetVolume worked: show the volume slider
+        // Only if GetVolume worked: add the volume slider
         if show_vol_slider {
             let mut sl = HorNiceSlider::default()
                 .with_size(slwidth, self.bheight)
@@ -857,7 +857,6 @@ impl MainForm {
                 .expect("Sliders lock poisoned!")
                 .push(dummy_slider);
         }
-        // and add the volume slider too if GetVolume worked
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons
             .insert(new_renderer.location.clone(), pbut.clone()); // and keep a reference to it for bookkeeping

@@ -657,7 +657,7 @@ impl Renderer {
         let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
         log(&format!(
-            "OH Set New Volume on {} host={} port={}: {vol}%",
+            "OH Set New Volume on {} host={} port={} to {vol}%",
             self.dev_name, self.host, self.port
         ));
         // set new volume
@@ -676,7 +676,7 @@ impl Renderer {
         let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
         log(&format!(
-            "AV Set New Volume on {} host={} port={}: {vol}%",
+            "AV Set New Volume on {} host={} port={} to {vol}%",
             self.dev_name, self.host, self.port
         ));
         // set new volume

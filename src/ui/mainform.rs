@@ -823,18 +823,21 @@ impl MainForm {
                 let sliders = self.sliders.clone();
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
-                    debug!("Setting new volume for {}: {vol}", this_renderer.dev_name);
+                    debug!("Setting new volume for {} to {vol}", this_renderer.dev_name);
                     this_renderer.set_volume(&ui_log, vol);
                     get_renderers_mut()[player_index].volume = vol;
                     if app::is_event_shift() {
                         debug!("Syncing volume for other active renderers");
+                        // get a copy of the renderers to use for network IO
                         let renderers = get_renderers().clone().into_iter().enumerate();
-                        for (i, mut rend) in renderers {
+                        for (index, mut rend) in renderers {
                             if rend.playing && (this_renderer.player_index != rend.player_index) {
-                                debug!("Setting new volume for {}: {vol}", rend.dev_name);
+                                debug!("Setting new volume for {} to {vol}", rend.dev_name);
                                 rend.set_volume(&ui_log, vol);
-                                get_renderers_mut()[i].volume = vol;
-                                sliders.write().expect("Sliders lock poisened!")[i]
+                                // update the original renderer volume value
+                                get_renderers_mut()[index].volume = vol;
+                                // and update the slider too
+                                sliders.write().expect("Sliders lock poisened!")[index]
                                     .set_value(s.value());
                             }
                         }

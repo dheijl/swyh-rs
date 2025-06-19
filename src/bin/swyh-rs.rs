@@ -291,13 +291,11 @@ fn main() {
                 // but if auto_resume is set, we restart playing instead
                 MessageType::PlayerMessage(streamer_feedback) => {
                     // check for multiple renderers at same ip address (Bubble UPNP)
-                    let mut same_ip: Vec<Renderer> = {
-                        let all_renderers = get_renderers().clone();
-                        all_renderers
-                            .into_iter()
-                            .filter(|r| r.remote_addr == streamer_feedback.remote_ip)
-                            .collect()
-                    };
+                    let mut same_ip: Vec<Renderer> = get_renderers()
+                        .clone()
+                        .into_iter()
+                        .filter(|r| r.remote_addr == streamer_feedback.remote_ip)
+                        .collect();
                     // the following only works for players with a unique IP address
                     if same_ip.len() == 1 {
                         // we have only one renderer with this IP address

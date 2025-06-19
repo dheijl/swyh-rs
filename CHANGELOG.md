@@ -1,8 +1,9 @@
 # swyh-rs Changelog
 
-- 1.12.8 (unreleased)
+- 1.12.8 (Jun 19 2025 dheijl)
   - rework theming and some other refactoring
   - rename the default branch to main instead of master
+  - fix volume syncing (issue #202 by @dutchbreeze)
 
 - 1.12.7 (May 9 2025 dheijl)
   - replace deprecated Stringreader with as_bytes for parsing soap xml with xml-rs

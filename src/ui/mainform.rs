@@ -849,14 +849,21 @@ impl MainForm {
                 .write()
                 .expect("Sliders lock poisened!")
                 .push(sl.clone());
+        } else {
+            let mut dummy_slider = HorNiceSlider::default();
+            dummy_slider.hide();
+            self.sliders
+                .write()
+                .expect("Sliders lock poisoned!")
+                .push(dummy_slider);
         }
         // and add the volume slider too if GetVolume worked
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons
             .insert(new_renderer.location.clone(), pbut.clone()); // and keep a reference to it for bookkeeping
-        // bump player_index
-        self.player_index += 1;
         app::redraw();
+        // now add the new player to the global list of renderers
+        get_renderers_mut().push(new_renderer.clone());
         // check if autoreconnect is set for this renderer
         if self.auto_reconnect.is_set() {
             let active_players = get_config().active_renderers.clone();
@@ -866,6 +873,8 @@ impl MainForm {
                 pbut.do_callback();
             }
         }
+        // bump player_index
+        self.player_index += 1;
     }
 
     // change the theme

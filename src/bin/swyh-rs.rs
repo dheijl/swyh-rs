@@ -361,8 +361,6 @@ fn main() {
                     debug!("Renderer {} Volume: {vol}", newr.dev_name);
                     // add a button for the new player
                     mf.add_renderer_button(&mut newr);
-                    // add the new player to the list of renderers
-                    get_renderers_mut().push(*newr);
                 }
                 // check the logchannel for new log messages to show in the logger textbox
                 MessageType::LogMessage(msg) => {

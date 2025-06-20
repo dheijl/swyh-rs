@@ -9,6 +9,8 @@ use crate::{
     globals::statics::{APP_VERSION, get_config},
 };
 use bitflags::bitflags;
+#[cfg(feature = "gui")]
+use fltk::valuator::HorNiceSlider;
 use hashbrown::HashMap;
 use log::{debug, error, info};
 use std::collections::HashMap as StdHashMap;
@@ -234,6 +236,8 @@ pub struct Renderer {
     pub location: String,
     pub services: Vec<AvService>,
     pub playing: bool,
+    #[cfg(feature = "gui")]
+    pub slider: Option<HorNiceSlider>,
     host: String,
     port: u16,
     agent: ureq::Agent,
@@ -257,6 +261,8 @@ impl Renderer {
             location: String::new(),
             services: Vec::with_capacity(8),
             playing: false,
+            #[cfg(feature = "gui")]
+            slider: None,
             host: String::new(),
             port: 0,
             agent: agent.clone(),

@@ -36,10 +36,7 @@ use std::{
     net::IpAddr,
     rc::Rc,
     str::FromStr,
-    sync::{
-        Arc, RwLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 // fltk themes
@@ -85,7 +82,6 @@ pub struct MainForm {
     pub choose_audio_source_but: MenuButton,
     pub tb: TextDisplay,
     pub buttons: HashMap<String, LightButton>,
-    sliders: Arc<RwLock<Vec<Option<HorNiceSlider>>>>,
     vpack: Pack,
     restartbutton: Flex,
     bwidth: i32,
@@ -714,7 +710,6 @@ impl MainForm {
             choose_audio_source_but,
             tb,
             buttons,
-            sliders: Arc::new(RwLock::new(Vec::new())),
             btn_index: btn_insert_index,
             bwidth: frame.width(),
             bheight: frame.height(),
@@ -820,7 +815,6 @@ impl MainForm {
             sl.set_callback({
                 let player_index = self.player_index;
                 let mut this_renderer = new_renderer.clone();
-                let sliders = self.sliders.clone();
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
                     debug!("Setting new volume for {} to {vol}", this_renderer.dev_name);
@@ -834,9 +828,7 @@ impl MainForm {
                             // if this renderer is playing but not the active slider renderer
                             if rend.playing && (this_renderer.player_index != rend.player_index) {
                                 // and it supports setting the volume: sync volume
-                                if let Some(mut slider) =
-                                    sliders.read().expect("Sliders lock poisened!")[index].clone()
-                                {
+                                if let Some(mut slider) = rend.slider.clone() {
                                     debug!("Setting new volume for {} to {vol}", rend.dev_name);
                                     rend.set_volume(&ui_log, vol);
                                     // update the original renderer volume value
@@ -850,15 +842,9 @@ impl MainForm {
                 }
             });
             pbutton.add(&sl);
-            self.sliders
-                .write()
-                .expect("Sliders lock poisened!")
-                .push(Some(sl.clone()));
+            new_renderer.slider = Some(sl.clone());
         } else {
-            self.sliders
-                .write()
-                .expect("Sliders lock poisoned!")
-                .push(None);
+            new_renderer.slider = None;
         }
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons

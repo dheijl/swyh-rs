@@ -301,7 +301,7 @@ fn main() {
                         // we have only one renderer with this IP address
                         let renderer = &mut same_ip[0];
                         // get the button associated with this renderer
-                        if let Some(button) = mf.buttons.get_mut(&renderer.location) {
+                        if let Some(mut button) = renderer.button.clone() {
                             match streamer_feedback.streaming_state {
                                 StreamingState::Started => {
                                     update_playstate(&streamer_feedback.remote_ip, true);
@@ -372,14 +372,15 @@ fn main() {
 
     // if anyone is still streaming: stop them first
     let mut active_players: Vec<String> = Vec::new();
-    for button in &mf.buttons {
-        if button.1.is_set() {
-            if let Some(r) = get_renderers_mut()
-                .iter_mut()
-                .find(|r| r.location == *button.0)
-            {
-                active_players.push(r.remote_addr.clone());
-                r.stop_play(&ui_log);
+    let renderers = get_renderers_mut().clone();
+    for mut renderer in renderers {
+        if let Some(button) = renderer.button.clone() {
+            if button.is_set() {
+                ui_log(&format!("Shutting down {}", renderer.dev_name.clone()));
+                app::redraw();
+                active_players.push(renderer.remote_addr.clone());
+                renderer.stop_play(&ui_log);
+                app::redraw();
             }
         }
     }

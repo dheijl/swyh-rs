@@ -10,7 +10,7 @@ use crate::{
 };
 use bitflags::bitflags;
 #[cfg(feature = "gui")]
-use fltk::valuator::HorNiceSlider;
+use fltk::{button::LightButton, valuator::HorNiceSlider};
 use hashbrown::HashMap;
 use log::{debug, error, info};
 use std::collections::HashMap as StdHashMap;
@@ -238,6 +238,8 @@ pub struct Renderer {
     pub playing: bool,
     #[cfg(feature = "gui")]
     pub slider: Option<HorNiceSlider>,
+    #[cfg(feature = "gui")]
+    pub button: Option<LightButton>,
     host: String,
     port: u16,
     agent: ureq::Agent,
@@ -263,6 +265,8 @@ impl Renderer {
             playing: false,
             #[cfg(feature = "gui")]
             slider: None,
+            #[cfg(feature = "gui")]
+            button: None,
             host: String::new(),
             port: 0,
             agent: agent.clone(),

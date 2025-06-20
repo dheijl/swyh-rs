@@ -26,7 +26,6 @@ use fltk::{
     window::DoubleWindow,
 };
 //use fltk_flow::Flow;
-use hashbrown::HashMap;
 use log::{LevelFilter, debug, info};
 
 use fltk_theme::{ColorMap, ColorTheme, color_themes};
@@ -81,7 +80,6 @@ pub struct MainForm {
     pub rms_mon_r: Progress,
     pub choose_audio_source_but: MenuButton,
     pub tb: TextDisplay,
-    pub buttons: HashMap<String, LightButton>,
     vpack: Pack,
     restartbutton: Flex,
     bwidth: i32,
@@ -690,9 +688,6 @@ impl MainForm {
         vpack.add(&pfeedback);
         vpack.resizable(&pfeedback);
 
-        // create a hashmap for a button for each discovered renderer
-        let buttons: HashMap<String, LightButton> = HashMap::new();
-
         MainForm {
             player_index: 0,
             wind,
@@ -709,7 +704,6 @@ impl MainForm {
             rms_mon_r,
             choose_audio_source_but,
             tb,
-            buttons,
             btn_index: btn_insert_index,
             bwidth: frame.width(),
             bheight: frame.height(),
@@ -846,12 +840,11 @@ impl MainForm {
         } else {
             new_renderer.slider = None;
         }
+        new_renderer.button = Some(pbut.clone());
         self.vpack.insert(&pbutton, self.btn_index);
-        self.buttons
-            .insert(new_renderer.location.clone(), pbut.clone()); // and keep a reference to it for bookkeeping
+        get_renderers_mut().push(new_renderer.clone());
         app::redraw();
         // now add the new player to the global list of renderers
-        get_renderers_mut().push(new_renderer.clone());
         // check if autoreconnect is set for this renderer
         if self.auto_reconnect.is_set() {
             let active_players = get_config().active_renderers.clone();

@@ -85,7 +85,7 @@ pub struct MainForm {
     pub choose_audio_source_but: MenuButton,
     pub tb: TextDisplay,
     pub buttons: HashMap<String, LightButton>,
-    sliders: Arc<RwLock<Vec<HorNiceSlider>>>,
+    sliders: Arc<RwLock<Vec<Option<HorNiceSlider>>>>,
     vpack: Pack,
     restartbutton: Flex,
     bwidth: i32,
@@ -831,14 +831,19 @@ impl MainForm {
                         // get a copy of the renderers to use for network IO
                         let renderers = get_renderers().clone().into_iter().enumerate();
                         for (index, mut rend) in renderers {
+                            // if this renderer is playing but not the active slider renderer
                             if rend.playing && (this_renderer.player_index != rend.player_index) {
-                                debug!("Setting new volume for {} to {vol}", rend.dev_name);
-                                rend.set_volume(&ui_log, vol);
-                                // update the original renderer volume value
-                                get_renderers_mut()[index].volume = vol;
-                                // and update the slider too
-                                sliders.write().expect("Sliders lock poisened!")[index]
-                                    .set_value(s.value());
+                                // and it supports setting the volume: sync volume
+                                if let Some(mut slider) =
+                                    sliders.read().expect("Sliders lock poisened!")[index].clone()
+                                {
+                                    debug!("Setting new volume for {} to {vol}", rend.dev_name);
+                                    rend.set_volume(&ui_log, vol);
+                                    // update the original renderer volume value
+                                    get_renderers_mut()[index].volume = vol;
+                                    // and update the slider too
+                                    slider.set_value(s.value());
+                                }
                             }
                         }
                     }
@@ -848,14 +853,12 @@ impl MainForm {
             self.sliders
                 .write()
                 .expect("Sliders lock poisened!")
-                .push(sl.clone());
+                .push(Some(sl.clone()));
         } else {
-            let mut dummy_slider = HorNiceSlider::default();
-            dummy_slider.hide();
             self.sliders
                 .write()
                 .expect("Sliders lock poisoned!")
-                .push(dummy_slider);
+                .push(None);
         }
         self.vpack.insert(&pbutton, self.btn_index);
         self.buttons

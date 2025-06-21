@@ -374,9 +374,9 @@ fn main() {
     let mut active_players: Vec<String> = Vec::new();
     let renderers = get_renderers_mut().clone();
     for mut renderer in renderers {
-        if let Some(button) = renderer.button.clone() {
+        if let Some(button) = renderer.button.as_ref() {
             if button.is_set() {
-                ui_log(&format!("Shutting down {}", renderer.dev_name.clone()));
+                ui_log(&format!("Shutting down {}", &renderer.dev_name));
                 app::redraw();
                 active_players.push(renderer.remote_addr.clone());
                 renderer.stop_play(&ui_log);

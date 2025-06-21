@@ -841,8 +841,9 @@ impl MainForm {
             new_renderer.slider = None;
         }
         new_renderer.button = Some(pbut.clone());
-        self.vpack.insert(&pbutton, self.btn_index);
+        // add the new renderer to the global list of renderers
         get_renderers_mut().push(new_renderer.clone());
+        self.vpack.insert(&pbutton, self.btn_index);
         app::redraw();
         // now add the new player to the global list of renderers
         // check if autoreconnect is set for this renderer

@@ -130,7 +130,7 @@ fn main() -> Result<(), i32> {
                 ui_log(&format!("Selected audio source: {devname}[#{index}]"));
             } else {
                 let config_sound_source = config.sound_source.clone().unwrap_or_default();
-                if devname == *config_sound_source {
+                if devname == config_sound_source {
                     audio_output_device_opt = Some(adev);
                     ui_log(&format!("Selected audio source: {devname}"));
                 }

@@ -63,12 +63,6 @@ pub fn run_server(
                     if cfg!(debug_assertions) {
                         dump_rq_headers(&rq);
                     }
-                    // get remote ip
-                    let remote_addr = format!("{}", rq.remote_addr().unwrap());
-                    let mut remote_ip = remote_addr.clone();
-                    if let Some(i) = remote_ip.find(':') {
-                        remote_ip.truncate(i);
-                    }
                     // parse the GET request
                     //  - get remote ip
                     let remote_addr = format!("{}", rq.remote_addr().unwrap());

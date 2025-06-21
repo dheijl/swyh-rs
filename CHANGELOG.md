@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.9 (unreleased)
+  - some more refactoring
 
 - 1.12.8 (Jun 19 2025 dheijl)
   - rework theming and some other refactoring

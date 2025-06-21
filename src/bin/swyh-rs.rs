@@ -305,9 +305,7 @@ fn main() {
                             match streamer_feedback.streaming_state {
                                 StreamingState::Started => {
                                     update_playstate(&streamer_feedback.remote_ip, true);
-                                    if !button.is_set() {
-                                        button.set(true);
-                                    }
+                                    button.set(true);
                                 }
                                 StreamingState::Ended => {
                                     // first check if the renderer has actually not started streaming again
@@ -337,7 +335,7 @@ fn main() {
                                                 streaminfo,
                                             );
                                             update_playstate(&streamer_feedback.remote_ip, true);
-                                        } else if button.is_set() {
+                                        } else {
                                             button.set(false);
                                         }
                                     } else {

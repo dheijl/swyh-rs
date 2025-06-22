@@ -38,7 +38,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-// fltk themes
+/// fltk themes
 struct ThemeDesc {
     colormap: &'static [ColorMap],
     name: &'static str,
@@ -67,6 +67,7 @@ const THEMES_ARRAY: &[ThemeDesc] = &[
     },
 ];
 
+/// the main (and only) form
 pub struct MainForm {
     pub wind: DoubleWindow,
     pub auto_resume: CheckButton,
@@ -712,7 +713,7 @@ impl MainForm {
         }
     }
 
-    // show a log message in the text box
+    /// show a log message in the text box
     pub fn add_log_msg(&mut self, msg: &str) {
         if let Some(mut textbuffer) = self.tb.buffer() {
             textbuffer.append(msg);
@@ -724,14 +725,16 @@ impl MainForm {
         }
     }
 
-    // show the restart button after a config change that needs a restart
-    // to take effect
+    /// show the restart button after a config change that needs a restart
+    /// to take effect
     pub fn show_restart_button(&mut self) {
         self.restartbutton.show();
         app::redraw();
     }
 
-    // show a new renderer button for a renderer discovered by ssdp
+    /// show a new renderer button for a new enderer discovered by ssdp
+    /// add the associated UI button and slider to the renderer
+    /// add the new renderer to the global renderer list
     pub fn add_renderer_button(&mut self, new_renderer: &mut Renderer) {
         // initialize renderers player_index
         new_renderer.player_index = self.player_index;
@@ -859,7 +862,7 @@ impl MainForm {
         self.player_index += 1;
     }
 
-    // change the theme
+    /// change the theme
     fn apply_theme(theme_index: usize) -> &'static str {
         // number of available themes (excluding the last dummy one, "None")
         const NTHEMES: usize = THEMES.len() - 1;

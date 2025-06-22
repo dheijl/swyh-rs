@@ -822,7 +822,7 @@ impl MainForm {
                             // if this renderer is playing but not the active slider renderer
                             if rend.playing && (this_renderer.player_index != rend.player_index) {
                                 // and it supports setting the volume: sync volume
-                                if let Some(mut slider) = rend.slider.clone() {
+                                if let Some(mut slider) = rend.rend_ui.slider.clone() {
                                     debug!("Setting new volume for {} to {vol}", rend.dev_name);
                                     rend.set_volume(&ui_log, vol);
                                     // update the original renderer volume value
@@ -836,11 +836,11 @@ impl MainForm {
                 }
             });
             pbutton.add(&sl);
-            new_renderer.slider = Some(sl.clone());
+            new_renderer.rend_ui.slider = Some(sl.clone());
         } else {
-            new_renderer.slider = None;
+            new_renderer.rend_ui.slider = None;
         }
-        new_renderer.button = Some(pbut.clone());
+        new_renderer.rend_ui.button = Some(pbut.clone());
         // add the new renderer to the global list of renderers
         get_renderers_mut().push(new_renderer.clone());
         self.vpack.insert(&pbutton, self.btn_index);

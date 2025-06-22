@@ -217,8 +217,17 @@ pub struct SupportedProtocols: u32 {
     }
 }
 
+#[cfg(feature = "gui")]
+#[derive(Debug, Clone, Default)]
+/// The UI elements associated with a renderer
+pub struct RendUI {
+    pub slider: Option<HorNiceSlider>,
+    pub button: Option<LightButton>,
+}
+
 /// Renderer struct describers a media renderer,
 /// info is collected from the GetDescription.xml
+/// if GUI is enabled, the renderer tracks it associated UI (a slider and a button)
 #[derive(Debug, Clone)]
 pub struct Renderer {
     pub player_index: usize,
@@ -237,9 +246,7 @@ pub struct Renderer {
     pub services: Vec<AvService>,
     pub playing: bool,
     #[cfg(feature = "gui")]
-    pub slider: Option<HorNiceSlider>,
-    #[cfg(feature = "gui")]
-    pub button: Option<LightButton>,
+    pub rend_ui: RendUI,
     host: String,
     port: u16,
     agent: ureq::Agent,
@@ -264,9 +271,7 @@ impl Renderer {
             services: Vec::with_capacity(8),
             playing: false,
             #[cfg(feature = "gui")]
-            slider: None,
-            #[cfg(feature = "gui")]
-            button: None,
+            rend_ui: RendUI::default(),
             host: String::new(),
             port: 0,
             agent: agent.clone(),

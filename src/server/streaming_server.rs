@@ -70,15 +70,15 @@ pub fn run_server(
                     if let Some(i) = remote_ip.find(':') {
                         remote_ip.truncate(i);
                     }
-                    //  - decode streaming query params if present
-                    let sp = StreamingParams::from_query_string(rq.url());
                     // build standard headers
                     let mut headers = get_default_headers();
+                    //  - decode streaming query params if present
+                    let sp = StreamingParams::from_query_string(rq.url());
                     // check for valid request uri
                     if sp.path.is_none() {
                         return unrecognized_request(rq, &remote_addr, &headers);
                     }
-                    // get streaming params from config or querystring
+                    // get streaming params from config or override from querystring if present
                     let (format, bps) = get_stream_params(stream_config, &sp);
                     // now add the dlna headers to the header collection
                     add_dlna_headers(&mut headers, &wd, format, bps);

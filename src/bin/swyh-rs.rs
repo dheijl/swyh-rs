@@ -223,8 +223,13 @@ fn main() {
     // If silence injector is on, create a silence injector stream.
     let _silence_stream = match get_config().inject_silence {
         Some(true) => {
-            ui_log("Injecting silence into the output stream");
-            Some(run_silence_injector(&audio_output_device))
+            if let Some(stream) = run_silence_injector(&audio_output_device) {
+                ui_log("Injecting silence into the output stream");
+                Some(stream)
+            } else {
+                ui_log("*E*E*E Unable to inject silence !!");
+                None
+            }
         }
         _ => None,
     };

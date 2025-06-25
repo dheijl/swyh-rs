@@ -2,6 +2,7 @@
 
 - 1.12.9 (unreleased)
   - some more refactoring
+  - don't panic when unable to inject silence (issue #203)
 
 - 1.12.8 (Jun 19 2025 dheijl)
   - rework theming and some other refactoring

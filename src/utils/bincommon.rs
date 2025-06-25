@@ -26,21 +26,26 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
     let err_fn = |err| warn!("an error occurred on the output audio stream: {err}");
     let config: StreamConfig = config.clone().into();
     let device = device.as_ref();
-    let stream = match sample_format {
-        SampleFormat::F32 => device
-            .build_output_stream(&config, write_silence::<f32>, err_fn, None)
-            .unwrap(),
-        SampleFormat::I16 => device
-            .build_output_stream(&config, write_silence::<i16>, err_fn, None)
-            .unwrap(),
-        SampleFormat::U16 => device
-            .build_output_stream(&config, write_silence::<u16>, err_fn, None)
-            .unwrap(),
+    let try_stream = match sample_format {
+        SampleFormat::F32 => {
+            device.build_output_stream(&config, write_silence::<f32>, err_fn, None)
+        }
+        SampleFormat::I16 => {
+            device.build_output_stream(&config, write_silence::<i16>, err_fn, None)
+        }
+        SampleFormat::U16 => {
+            device.build_output_stream(&config, write_silence::<u16>, err_fn, None)
+        }
         format => panic!("Unsupported sample format: {format:?}"),
     };
-    if stream.play().is_ok() {
-        Some(stream)
-    } else {
-        None
+    match try_stream {
+        Ok(stream) => {
+            if stream.play().is_ok() {
+                Some(stream)
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }

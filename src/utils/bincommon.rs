@@ -4,7 +4,7 @@ use cpal::{
     Sample, SampleFormat, Stream, StreamConfig,
     traits::{DeviceTrait, StreamTrait},
 };
-use log::warn;
+use log::{error, warn};
 
 use super::audiodevices::Device;
 
@@ -23,7 +23,7 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
 
     let config = device.default_config();
     let sample_format = config.sample_format();
-    let err_fn = |err| warn!("an error occurred on the output audio stream: {err}");
+    let err_fn = |err| warn!("Inject silence: an error occurred on the output audio stream: {err}");
     let config: StreamConfig = config.clone().into();
     let device = device.as_ref();
     let try_stream = match sample_format {
@@ -46,6 +46,9 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
                 None
             }
         }
-        _ => None,
+        Err(e) => {
+            error!("Unable to build inject silence stream: {:?}", e);
+            None
+        }
     }
 }

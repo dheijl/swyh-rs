@@ -65,29 +65,26 @@ pub fn run_server(
                     }
                     // parse the GET request
                     //  - get remote ip
-                    let remote_addr = format!("{}", rq.remote_addr().unwrap());
-                    let mut remote_ip = remote_addr.clone();
-                    if let Some(i) = remote_ip.find(':') {
-                        remote_ip.truncate(i);
-                    }
-                    // build standard headers
+                    let remote_addr = rq.remote_addr().unwrap().to_string();
+                    let remote_ip = get_remote_ip(&remote_addr);
+                    // - build standard headers
                     let mut headers = get_default_headers();
                     //  - decode streaming query params if present
                     let sp = StreamingParams::from_query_string(rq.url());
-                    // check for valid request uri
+                    // - check for valid request uri
                     if sp.path.is_none() {
                         return unrecognized_request(rq, &remote_addr, &headers);
                     }
-                    // get streaming params from config or override from querystring if present
+                    // - get streaming params from config or override from querystring if present
                     let (format, bps) = get_stream_params(stream_config, &sp);
-                    // now add the dlna headers to the header collection
+                    // - now add the dlna headers to the header collection
                     add_dlna_headers(&mut headers, &wd, format, bps);
                     // handle response, streaming if GET, headers only otherwise
                     if matches!(rq.method(), Method::Get) {
                         ui_log(&format!(
-                            "Received request {} from {}",
+                            "Streaming request {} from {}",
                             rq.url(),
-                            rq.remote_addr().unwrap()
+                            remote_addr
                         ));
                         let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
                         let use_wav_hdr =
@@ -125,10 +122,7 @@ pub fn run_server(
                         ui_log(&format!(
                             "Streaming {streaming_format}, input sample format {:?}, \
                             channels=2, rate={}, bps = {}, to {}",
-                            wd.sample_format,
-                            wd.sample_rate.0,
-                            bps as u16,
-                            rq.remote_addr().unwrap()
+                            wd.sample_format, wd.sample_rate.0, bps as u16, remote_addr
                         ));
                         // use the configured content length and chunksize params
                         let (mut streamsize, mut chunksize) =
@@ -207,6 +201,15 @@ pub fn run_server(
     for h in handles {
         h.join().unwrap();
     }
+}
+
+/// extract IP address from remote address
+fn get_remote_ip(remote_addr: &str) -> String {
+    let mut remote_ip = remote_addr.to_owned();
+    if let Some(i) = remote_ip.find(':') {
+        remote_ip.truncate(i);
+    }
+    remote_ip
 }
 
 /// dump response headers

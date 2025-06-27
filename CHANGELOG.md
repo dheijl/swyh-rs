@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
-- 1.12.9 (unreleased)
+- 1.12.10 (unreleased)
+
+- 1.12.9 (Jun 25 dheijl)
   - some more refactoring
   - don't panic when unable to inject silence (issue #203)
 

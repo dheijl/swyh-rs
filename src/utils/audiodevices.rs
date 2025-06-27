@@ -68,13 +68,13 @@ impl Device {
         // Prefer output if a device supports both
         let (kind, stream_config) = match device.default_output_config() {
             Ok(conf) => {
-                debug!("    Default output stream config:\n      {:?}", conf);
+                debug!("    Default output stream config:\n      {conf:?}");
                 (DeviceKind::Output(device), conf)
             }
             _ => {
                 // If there's no output AND no input then return the error.
                 let conf = device.default_input_config()?;
-                debug!("    Default input stream config:\n      {:?}", conf);
+                debug!("    Default input stream config:\n      {conf:?}");
                 (DeviceKind::Input(device), conf)
             }
         };
@@ -153,7 +153,7 @@ fn log_stream_configs(
             }
         }
         Err(e) => {
-            debug!("Error retrieving {cfg_type} stream configs: {:?}", e);
+            debug!("Error retrieving {cfg_type} stream configs: {e:?}");
         }
     };
 }
@@ -163,17 +163,17 @@ pub fn get_output_audio_devices() -> Vec<Device> {
     let mut result = Vec::new();
     debug!("Supported hosts:\n  {:?}", cpal::ALL_HOSTS);
     let available_hosts = cpal::available_hosts();
-    debug!("Available hosts:\n  {:?}", available_hosts);
+    debug!("Available hosts:\n  {available_hosts:?}");
 
     for host_id in available_hosts {
         debug!("{}", host_id.name());
         let host = cpal::host_from_id(host_id).unwrap();
 
         let default_out = host.default_output_device().and_then(|e| e.name().ok());
-        debug!("  Default Output Device:\n    {:?}", default_out);
+        debug!("  Default Output Device:\n    {default_out:?}");
 
         let default_in = host.default_input_device().and_then(|e| e.name().ok());
-        debug!("  Default Input Device:\n    {:?}", default_in);
+        debug!("  Default Input Device:\n    {default_in:?}");
 
         let devices = host.devices().unwrap();
         debug!("  Devices: ");

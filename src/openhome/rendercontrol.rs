@@ -302,10 +302,7 @@ impl Renderer {
 
     /// `oh_soap_request` - send an `OpenHome` SOAP message to a renderer
     fn soap_request(&mut self, url: &str, soap_action: &str, body: &str) -> Option<String> {
-        debug!(
-            "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
-            url, soap_action, body
-        );
+        debug!("url: {url},\r\n=>SOAP Action: {soap_action},\r\n=>SOAP xml: \r\n{body}");
         match self
             .agent
             .post(url)
@@ -317,11 +314,11 @@ impl Renderer {
         {
             Ok(mut resp) => {
                 let xml = resp.body_mut().read_to_string().unwrap_or_default();
-                debug!("<=SOAP response: {}\r\n", xml);
+                debug!("<=SOAP response: {xml}\r\n");
                 Some(xml)
             }
             Err(e) => {
-                error!("<= SOAP POST error: {}\r\n", e);
+                error!("<= SOAP POST error: {e}\r\n");
                 None
             }
         }
@@ -859,7 +856,7 @@ pub fn discover(
         if rmap.iter().any(|m| *location == m.1.location) {
             info!("SSDP discovery: Skipping known Renderer at {location}");
         } else {
-            info!("SSDP discovery: new Renderer found at : {}", location);
+            info!("SSDP discovery: new Renderer found at : {location}");
             devices.push((location.to_string(), *sa));
         }
     }
@@ -929,7 +926,7 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
         Ok(mut resp) => {
             let descr_xml = resp.body_mut().read_to_string().unwrap_or_default();
             debug!("Service description:");
-            debug!("{}", descr_xml);
+            debug!("{descr_xml}");
             if descr_xml.is_empty() {
                 None
             } else {

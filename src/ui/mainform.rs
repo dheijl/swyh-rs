@@ -334,8 +334,7 @@ impl MainForm {
                         }
                         if ssdp_interval_mins >= 0.0 {
                             ui_log(&format!(
-                                "*W*W*> ssdp interval changed to {} minutes, restart required!!",
-                                ssdp_interval_mins
+                                "*W*W*> ssdp interval changed to {ssdp_interval_mins} minutes, restart required!!"
                             ));
                             config_changed.set(true);
                             app::awake();
@@ -378,7 +377,7 @@ impl MainForm {
                     let _ = conf.update_config();
                 }
                 config_changed.set(true);
-                let ll = format!("Log Level: {}", loglevel);
+                let ll = format!("Log Level: {loglevel}");
                 b.set_label(&ll);
                 app::awake();
                 rlock.store(false, Ordering::Release);
@@ -556,8 +555,7 @@ impl MainForm {
                     conf.streaming_format.unwrap()
                 };
                 ui_log(&format!(
-                    "StreamSize for {} changed to {newsize}",
-                    streaming_format
+                    "StreamSize for {streaming_format} changed to {newsize}"
                 ));
                 let fmt = format!("StrmSize: {newsize}");
                 b.set_label(&fmt);
@@ -852,7 +850,7 @@ impl MainForm {
         // check if autoreconnect is set for this renderer
         if self.auto_reconnect.is_set() {
             let active_players = get_config().active_renderers.clone();
-            info!("AutoReconnect: Active Renderers = {:?}", active_players);
+            info!("AutoReconnect: Active Renderers = {active_players:?}");
             if active_players.contains(&new_renderer.remote_addr) {
                 pbut.turn_on(true);
                 pbut.do_callback();

@@ -47,7 +47,7 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
             }
         }
         Err(e) => {
-            error!("Unable to build inject silence stream: {:?}", e);
+            error!("Unable to build inject silence stream: {e:?}");
             None
         }
     }

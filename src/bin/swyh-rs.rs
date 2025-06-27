@@ -138,7 +138,7 @@ fn main() {
     }
     ui_log(&format!("{config:?}"));
 
-    info!("Config: {:?}", config);
+    info!("Config: {config:?}");
 
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices();
@@ -150,11 +150,11 @@ fn main() {
             // index is needed for duplicate audio device names in Windows
             if config_id == index as i32 && adevname == *config_name {
                 audio_output_device = adev;
-                info!("Selected audio source: {}[#{}]", adevname, index);
+                info!("Selected audio source: {adevname}[#{index}]");
             }
         } else if adevname == *config_name {
             audio_output_device = adev;
-            info!("Selected audio source: {}", adevname);
+            info!("Selected audio source: {adevname}");
         }
         source_names.push(adevname);
     }

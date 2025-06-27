@@ -458,6 +458,6 @@ mod tests {
     fn test_i24() {
         let sample = i32::from_sample(0x12345678i32);
         let i24_sample = I24::from_sample(sample);
-        println!("i24: {:X?}", i24_sample);
+        println!("i24: {i24_sample:X?}");
     }
 }

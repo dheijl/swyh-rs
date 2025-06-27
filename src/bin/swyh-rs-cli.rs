@@ -193,12 +193,12 @@ fn main() -> Result<(), i32> {
         fn get_default_address(config: &mut Configuration) -> IpAddr {
             let addr = get_local_addr().expect("Could not obtain local address.");
             config.last_network = Some(addr.to_string());
-            info!("Using network {}", addr);
+            info!("Using network {addr}");
             addr
         }
         if let Some(ref network) = config.last_network {
             if networks.contains(network) {
-                info!("Using network {}", network);
+                info!("Using network {network}");
                 network.parse().unwrap()
             } else {
                 get_default_address(&mut config)

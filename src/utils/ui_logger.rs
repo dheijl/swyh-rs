@@ -6,9 +6,9 @@ use log::{error, info, warn};
 pub fn ui_log(s: &str) {
     let cat: &str = &s[..2];
     match cat {
-        "*W" => warn!("tb_log: {}", s),
-        "*E" => error!("tb_log: {}", s),
-        _ => info!("tb_log: {}", s),
+        "*W" => warn!("tb_log: {s}"),
+        "*E" => error!("tb_log: {s}"),
+        _ => info!("tb_log: {s}"),
     };
     #[cfg(feature = "gui")]
     {

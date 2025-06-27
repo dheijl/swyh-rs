@@ -106,7 +106,7 @@ pub fn run_server(
                             clients.insert(remote_addr.clone(), channel_stream.clone());
                             clients.len()
                         };
-                        debug!("Now have {} streaming clients", nclients);
+                        debug!("Now have {nclients} streaming clients");
 
                         feedback_tx_c
                             .send(MessageType::PlayerMessage(StreamerFeedBack {
@@ -171,7 +171,7 @@ pub fn run_server(
                             .unwrap();
                         ui_log(&format!("Streaming to {remote_addr} has ended"));
                     } else if matches!(rq.method(), Method::Head) {
-                        debug!("HEAD rq from {}", remote_addr);
+                        debug!("HEAD rq from {remote_addr}");
                         let response = Response::new(
                             tiny_http::StatusCode(200),
                             headers,
@@ -185,7 +185,7 @@ pub fn run_server(
                             ));
                         }
                     } else if matches!(rq.method(), Method::Post) {
-                        debug!("POST rq from {}", remote_addr);
+                        debug!("POST rq from {remote_addr}");
                         let response = Response::new(
                             tiny_http::StatusCode(200),
                             headers,
@@ -225,7 +225,7 @@ fn dump_resp_headers(rq: &tiny_http::Request, response: &Response<ChannelStream>
 
 /// dump the request headers
 fn dump_rq_headers(rq: &tiny_http::Request) {
-    debug!("<== Incoming {:?}", rq);
+    debug!("<== Incoming {rq:?}");
     for hdr in rq.headers() {
         debug!(
             " <== Incoming Request {hdr:?} from {}",

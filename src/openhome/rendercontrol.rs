@@ -866,30 +866,30 @@ pub fn discover(
     let mut renderers: Vec<Renderer> = Vec::with_capacity(devices.len());
 
     for (location, from) in devices {
-        if let Some(xml) = get_service_description(&agent, &location) {
-            if let Some(mut rend) = get_renderer(&agent, &xml) {
-                rend.location = location.clone();
-                let mut s = from.to_string();
-                if let Some(i) = s.find(':') {
-                    s.truncate(i);
-                }
-                rend.remote_addr = s;
-                // check for an absent URLBase in the description
-                // or devices like Yamaha WXAD-10 with bad URLBase port number
-                if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {
-                    let mut url_base = location;
-                    if url_base.contains("http://") {
-                        url_base = url_base["http://".to_string().len()..].to_string();
-                        let pos = url_base.find('/').unwrap_or_default();
-                        if pos > 0 {
-                            url_base = url_base[0..pos].to_string();
-                        }
-                    }
-                    rend.dev_url = format!("http://{url_base}/");
-                }
-                rend.parse_url(logger);
-                renderers.push(rend);
+        if let Some(xml) = get_service_description(&agent, &location)
+            && let Some(mut rend) = get_renderer(&agent, &xml)
+        {
+            rend.location = location.clone();
+            let mut s = from.to_string();
+            if let Some(i) = s.find(':') {
+                s.truncate(i);
             }
+            rend.remote_addr = s;
+            // check for an absent URLBase in the description
+            // or devices like Yamaha WXAD-10 with bad URLBase port number
+            if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {
+                let mut url_base = location;
+                if url_base.contains("http://") {
+                    url_base = url_base["http://".to_string().len()..].to_string();
+                    let pos = url_base.find('/').unwrap_or_default();
+                    if pos > 0 {
+                        url_base = url_base[0..pos].to_string();
+                    }
+                }
+                rend.dev_url = format!("http://{url_base}/");
+            }
+            rend.parse_url(logger);
+            renderers.push(rend);
         }
     }
 

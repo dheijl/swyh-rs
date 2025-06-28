@@ -71,10 +71,10 @@ fn main() -> Result<(), i32> {
         }
         conf.clone()
     };
-    if let Some(config_id) = &config.config_id {
-        if !config_id.is_empty() {
-            println!("Loaded configuration -c {config_id}");
-        }
+    if let Some(config_id) = &config.config_id
+        && !config_id.is_empty()
+    {
+        println!("Loaded configuration -c {config_id}");
     }
     config.monitor_rms = false;
     println!("Current config: {config:?}");
@@ -183,10 +183,10 @@ fn main() -> Result<(), i32> {
         ui_log(&format!("Found network: {ip}"));
     }
     // args: ip_address
-    if let Some(ip) = args.ip_address {
-        if networks.contains(&ip) {
-            config.last_network = Some(ip.parse().unwrap());
-        }
+    if let Some(ip) = args.ip_address
+        && networks.contains(&ip)
+    {
+        config.last_network = Some(ip.parse().unwrap());
     }
     // get the local network network address
     let local_addr: IpAddr = {
@@ -248,9 +248,7 @@ fn main() -> Result<(), i32> {
 
     // set args ssdp_interval
     if let Some(mut minutes) = args.ssdp_interval_mins {
-        if minutes < 0.5 {
-            minutes = 0.5;
-        }
+        minutes = minutes.clamp(0.5, minutes);
         config.ssdp_interval_mins = minutes;
     }
 
@@ -468,10 +466,10 @@ fn main() -> Result<(), i32> {
                 .find(|&renderer| renderer.remote_addr == ip)
             {
                 let mut player = pl.clone();
-                if let Some(vol) = args.volume {
-                    if player.get_volume(&ui_log) > -1 {
-                        player.set_volume(&ui_log, vol.into());
-                    }
+                if let Some(vol) = args.volume
+                    && player.get_volume(&ui_log) > -1
+                {
+                    player.set_volume(&ui_log, vol.into());
                 }
                 let _ = player.play(
                     &local_addr,

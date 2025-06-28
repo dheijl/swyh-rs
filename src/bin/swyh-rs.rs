@@ -131,10 +131,10 @@ fn main() {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
     }
 
-    if let Some(config_id) = &config.config_id {
-        if !config_id.is_empty() {
-            ui_log(&format!("Loaded configuration -c {config_id}"));
-        }
+    if let Some(config_id) = &config.config_id
+        && !config_id.is_empty()
+    {
+        ui_log(&format!("Loaded configuration -c {config_id}"));
     }
     ui_log(&format!("{config:?}"));
 
@@ -377,14 +377,14 @@ fn main() {
     let mut active_players: Vec<String> = Vec::new();
     let renderers = get_renderers_mut().clone();
     for mut renderer in renderers {
-        if let Some(button) = renderer.rend_ui.button.as_ref() {
-            if button.is_set() {
-                ui_log(&format!("Shutting down {}", &renderer.dev_name));
-                app::redraw();
-                active_players.push(renderer.remote_addr.clone());
-                renderer.stop_play(&ui_log);
-                app::redraw();
-            }
+        if let Some(button) = renderer.rend_ui.button.as_ref()
+            && button.is_set()
+        {
+            ui_log(&format!("Shutting down {}", &renderer.dev_name));
+            app::redraw();
+            active_players.push(renderer.remote_addr.clone());
+            renderer.stop_play(&ui_log);
+            app::redraw();
         }
     }
     // remember active players in config for auto_reconnect

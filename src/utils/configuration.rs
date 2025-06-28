@@ -305,11 +305,12 @@ impl Configuration {
         let mut config_id = String::new();
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
-            if let Short('c') | Long("configuration") = arg {
-                if let Ok(id) = argparser.value() {
-                    config_id = id.string().unwrap_or_default();
-                };
-            };
+            if let Short('c') | Long("configuration") = arg
+                && let Ok(id) = argparser.value()
+            {
+                config_id = id.string().unwrap_or_default();
+                break;
+            }
         }
         if cfg!(feature = "cli") && config_id.is_empty() {
             config_id = "_cli".to_string();
@@ -321,11 +322,12 @@ impl Configuration {
         let mut argparser = Parser::from_env();
         let mut path = None;
         while let Some(arg) = argparser.next().unwrap() {
-            if let Short('C') | Long("configfile") = arg {
-                if let Ok(opt) = argparser.value() {
-                    path = opt.string().ok().map(|s| PathBuf::from(&s));
-                };
-            };
+            if let Short('C') | Long("configfile") = arg
+                && let Ok(opt) = argparser.value()
+            {
+                path = opt.string().ok().map(|s| PathBuf::from(&s));
+                break;
+            }
         }
         println!("ARG override configfile (-C): {path:?}");
         path

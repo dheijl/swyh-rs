@@ -233,8 +233,10 @@ fn main() -> Result<(), i32> {
     stream.play().unwrap();
 
     // If silence injector is on, create a silence injector stream.
-    let _silence_stream = match get_config().inject_silence {
-        Some(true) => {
+    let _silence_stream = {
+        if let Some(inject_silence) = get_config().inject_silence
+            && inject_silence
+        {
             if let Some(stream) = run_silence_injector(&audio_output_device) {
                 ui_log("Injecting silence into the output stream");
                 Some(stream)
@@ -242,8 +244,9 @@ fn main() -> Result<(), i32> {
                 ui_log("*E*E*E Unable to inject silence !!");
                 None
             }
+        } else {
+            None
         }
-        _ => None,
     };
 
     // set args ssdp_interval

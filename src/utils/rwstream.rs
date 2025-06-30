@@ -183,38 +183,24 @@ impl Read for ChannelStream {
             // the drain now contains the exact number of samples needed to fill the streaming buffer
             // so we can zip them
             match bytes_per_sample {
-                2 => match self.use_wave_format {
-                    true => {
-                        buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
-                            |(chunk, f32_sample)| {
-                                chunk.copy_from_slice(&get_le16_sample(f32_sample))
-                            },
-                        );
-                    }
-                    false => {
-                        buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
-                            |(chunk, f32_sample)| {
-                                chunk.copy_from_slice(&get_be16_sample(f32_sample))
-                            },
-                        );
-                    }
-                },
-                3 => match self.use_wave_format {
-                    true => {
-                        buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
-                            |(chunk, f32_sample)| {
-                                chunk.copy_from_slice(&get_le24_sample(f32_sample))
-                            },
-                        );
-                    }
-                    false => {
-                        buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
-                            |(chunk, f32_sample)| {
-                                chunk.copy_from_slice(&get_be24_sample(f32_sample))
-                            },
-                        );
-                    }
-                },
+                2 => buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
+                    |(chunk, f32_sample)| {
+                        if self.use_wave_format {
+                            chunk.copy_from_slice(&get_le16_sample(f32_sample))
+                        } else {
+                            chunk.copy_from_slice(&get_be16_sample(f32_sample))
+                        }
+                    },
+                ),
+                3 => buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
+                    |(chunk, f32_sample)| {
+                        if self.use_wave_format {
+                            chunk.copy_from_slice(&get_le24_sample(f32_sample))
+                        } else {
+                            chunk.copy_from_slice(&get_be24_sample(f32_sample))
+                        }
+                    },
+                ),
                 _ => (),
             }
             #[cfg(feature = "trace_samples")]

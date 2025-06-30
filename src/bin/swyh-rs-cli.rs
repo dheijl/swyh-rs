@@ -292,17 +292,16 @@ fn main() -> Result<(), i32> {
     if args.bits_per_sample.is_some() {
         config.bits_per_sample = args.bits_per_sample;
     }
-    // set args streaming format
-    if args.streaming_format.is_some() {
+    // set args streaming format and streamsize
+    if let Some(ref sf) = args.streaming_format {
         config.streaming_format = args.streaming_format;
-    }
-    // and stream-size
-    if args.streaming_format.is_some() && args.stream_size.is_some() {
-        match args.streaming_format.unwrap() {
-            Lpcm => config.lpcm_stream_size = args.stream_size,
-            Wav => config.wav_stream_size = args.stream_size,
-            Flac => config.flac_stream_size = args.stream_size,
-            Rf64 => config.rf64_stream_size = args.stream_size,
+        if args.stream_size.is_some() {
+            match sf {
+                Lpcm => config.lpcm_stream_size = args.stream_size,
+                Wav => config.wav_stream_size = args.stream_size,
+                Flac => config.flac_stream_size = args.stream_size,
+                Rf64 => config.rf64_stream_size = args.stream_size,
+            }
         }
     }
     // upfront buffering
@@ -347,18 +346,14 @@ fn main() -> Result<(), i32> {
             }
         }
         // now check for player names(s) instead of ip addresses
-        if args.player_ip.is_some() {
-            if let Some(r) = get_renderers()
-                .iter()
-                .find(|r| r.dev_name.contains(args.player_ip.as_ref().unwrap()))
-            {
-                ui_log(&format!(
-                    "Default renderer ip: {} => {}",
-                    args.player_ip.as_ref().unwrap(),
-                    r.remote_addr
-                ));
-                args.player_ip = Some(r.remote_addr.clone());
-            }
+        if let Some(ref pl_ip) = args.player_ip
+            && let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(pl_ip))
+        {
+            ui_log(&format!(
+                "Default renderer ip: {pl_ip} => {}",
+                r.remote_addr
+            ));
+            args.player_ip = Some(r.remote_addr.clone());
         }
         if args.active_players.is_some() {
             let mut ip_players: Vec<String> = Vec::new();
@@ -375,8 +370,8 @@ fn main() -> Result<(), i32> {
     }
 
     // set args last_renderer and active players
-    if let Some(player_ip) = args.player_ip {
-        config.last_renderer = Some(player_ip);
+    if args.player_ip.is_some() {
+        config.last_renderer = args.player_ip;
     }
     if let Some(ref active_players) = args.active_players {
         config.active_renderers.clone_from(active_players);
@@ -419,14 +414,12 @@ fn main() -> Result<(), i32> {
         {
             player = Some(pl.clone());
         }
+        let def_player = player.as_ref().unwrap();
         // if specified player ip not found: use default player
-        if *last_renderer != player.as_ref().unwrap().remote_addr {
-            config.last_renderer = Some(player.as_ref().unwrap().remote_addr.clone());
+        if *last_renderer != def_player.remote_addr {
+            config.last_renderer = Some(def_player.remote_addr.clone());
         }
-        ui_log(&format!(
-            "Default player ip = {}",
-            player.as_ref().unwrap().remote_addr
-        ));
+        ui_log(&format!("Default player ip = {}", def_player.remote_addr));
     }
 
     // update config with new args

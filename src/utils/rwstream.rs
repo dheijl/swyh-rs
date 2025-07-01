@@ -146,9 +146,6 @@ impl ChannelStream {
     }
 }
 
-type Get16BitSample = fn(sample: f32) -> [u8; 2];
-type Get24BitSample = fn(sample: f32) -> [u8; 3];
-
 /// implement the Read trait for the HTTP writer
 ///
 /// for LPCM/WAV/RF64 the f32 samples are read from the f32 input channel and pushed
@@ -182,28 +179,43 @@ impl Read for ChannelStream {
                 drain.len() == samples_needed,
                 "PCM: drain.len <> samples_needed"
             );
-            // avoid if condition in inner sample conversion loop
-            let get_16bit_sample: Get16BitSample = if self.use_wave_format {
-                get_le16_sample
-            } else {
-                get_be16_sample
-            };
-            let get_24bit_sample: Get24BitSample = if self.use_wave_format {
-                get_le24_sample
-            } else {
-                get_be24_sample
-            };
             // return a buffer with an integral number of samples
             // the drain now contains the exact number of samples needed to fill the streaming buffer
             // so we can zip them
-            match bytes_per_sample {
-                2 => buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
-                    |(chunk, f32_sample)| chunk.copy_from_slice(&get_16bit_sample(f32_sample)),
-                ),
-                3 => buf.chunks_exact_mut(bytes_per_sample).zip(drain).for_each(
-                    |(chunk, f32_sample)| chunk.copy_from_slice(&get_24bit_sample(f32_sample)),
-                ),
-                _ => (),
+            if self.use_wave_format {
+                // little endian 16 and 24 bit
+                match bytes_per_sample {
+                    2 => buf
+                        .chunks_exact_mut(2)
+                        .zip(drain)
+                        .for_each(|(chunk, f32_sample)| {
+                            chunk.copy_from_slice(&get_le16_sample(f32_sample))
+                        }),
+                    3 => buf
+                        .chunks_exact_mut(3)
+                        .zip(drain)
+                        .for_each(|(chunk, f32_sample)| {
+                            chunk.copy_from_slice(&get_le24_sample(f32_sample))
+                        }),
+                    _ => (),
+                }
+            } else {
+                // big endian 16 and 24 bit
+                match bytes_per_sample {
+                    2 => buf
+                        .chunks_exact_mut(2)
+                        .zip(drain)
+                        .for_each(|(chunk, f32_sample)| {
+                            chunk.copy_from_slice(&get_be16_sample(f32_sample))
+                        }),
+                    3 => buf
+                        .chunks_exact_mut(3)
+                        .zip(drain)
+                        .for_each(|(chunk, f32_sample)| {
+                            chunk.copy_from_slice(&get_be24_sample(f32_sample))
+                        }),
+                    _ => (),
+                }
             }
             #[cfg(feature = "trace_samples")]
             {

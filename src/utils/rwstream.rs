@@ -181,39 +181,28 @@ impl Read for ChannelStream {
             );
             // return a buffer with an integral number of samples
             // the drain now contains the exact number of samples needed to fill the streaming buffer
-            // so we can zip them
+            // so we can zip the buf in chunks with the drain
+            let chunks_iter = buf.chunks_exact_mut(bytes_per_sample).zip(drain);
             if self.use_wave_format {
                 // little endian 16 and 24 bit
                 match bytes_per_sample {
-                    2 => buf
-                        .chunks_exact_mut(2)
-                        .zip(drain)
-                        .for_each(|(chunk, f32_sample)| {
-                            chunk.copy_from_slice(&get_le16_sample(f32_sample))
-                        }),
-                    3 => buf
-                        .chunks_exact_mut(3)
-                        .zip(drain)
-                        .for_each(|(chunk, f32_sample)| {
-                            chunk.copy_from_slice(&get_le24_sample(f32_sample))
-                        }),
+                    2 => chunks_iter.for_each(|(chunk, f32_sample)| {
+                        chunk.copy_from_slice(&get_le16_sample(f32_sample))
+                    }),
+                    3 => chunks_iter.for_each(|(chunk, f32_sample)| {
+                        chunk.copy_from_slice(&get_le24_sample(f32_sample))
+                    }),
                     _ => (),
                 }
             } else {
                 // big endian 16 and 24 bit
                 match bytes_per_sample {
-                    2 => buf
-                        .chunks_exact_mut(2)
-                        .zip(drain)
-                        .for_each(|(chunk, f32_sample)| {
-                            chunk.copy_from_slice(&get_be16_sample(f32_sample))
-                        }),
-                    3 => buf
-                        .chunks_exact_mut(3)
-                        .zip(drain)
-                        .for_each(|(chunk, f32_sample)| {
-                            chunk.copy_from_slice(&get_be24_sample(f32_sample))
-                        }),
+                    2 => chunks_iter.for_each(|(chunk, f32_sample)| {
+                        chunk.copy_from_slice(&get_be16_sample(f32_sample))
+                    }),
+                    3 => chunks_iter.for_each(|(chunk, f32_sample)| {
+                        chunk.copy_from_slice(&get_be24_sample(f32_sample))
+                    }),
                     _ => (),
                 }
             }

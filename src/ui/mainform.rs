@@ -185,9 +185,11 @@ impl MainForm {
             debug!("New theme = {name}");
             let cur_theme = "Color theme: ".to_string() + name;
             b.set_label(&cur_theme);
-            let mut conf = get_config_mut();
-            conf.color_theme = Some(b.value() as u8);
-            let _ = conf.update_config();
+            {
+                let mut conf = get_config_mut();
+                conf.color_theme = Some(b.value() as u8);
+                let _ = conf.update_config();
+            }
             rlock.store(false, Ordering::Release);
         });
         ptheme.add(&theme_button);
@@ -222,15 +224,13 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Network changed to {name}, restart required!!"
                 ));
-                let mut conf = get_config_mut();
-                conf.last_network = Some(name.to_string());
-                let _ = conf.update_config();
-                b.set_label(&format!(
-                    "New Network: {}",
-                    conf.last_network.as_ref().unwrap()
-                ));
+                {
+                    let mut conf = get_config_mut();
+                    conf.last_network = Some(name.to_string());
+                    let _ = conf.update_config();
+                }
+                b.set_label(&format!("New Network: {name}"));
                 config_changed.set(true);
-                app::awake();
                 rlock.store(false, Ordering::Release);
             }
         });
@@ -262,16 +262,14 @@ impl MainForm {
                 ui_log(&format!(
                     "*W*W*> Audio source changed to {name}, restart required!!"
                 ));
-                let mut conf = get_config_mut();
-                conf.sound_source = Some(name.to_string());
-                conf.sound_source_index = Some(b.value());
-                let _ = conf.update_config();
-                b.set_label(&format!(
-                    "New Audio Source: {}",
-                    conf.sound_source.as_ref().unwrap()
-                ));
+                b.set_label(&format!("New Audio Source: {name}",));
+                {
+                    let mut conf = get_config_mut();
+                    conf.sound_source = Some(name.to_string());
+                    conf.sound_source_index = Some(b.value());
+                    let _ = conf.update_config();
+                }
                 config_changed.set(true);
-                app::awake();
                 rlock.store(false, Ordering::Release);
             }
         });
@@ -337,7 +335,6 @@ impl MainForm {
                                 "*W*W*> ssdp interval changed to {ssdp_interval_mins} minutes, restart required!!"
                             ));
                             config_changed.set(true);
-                            app::awake();
                         }
                         true
                     }
@@ -379,7 +376,6 @@ impl MainForm {
                 config_changed.set(true);
                 let ll = format!("Log Level: {loglevel}");
                 b.set_label(&ll);
-                app::awake();
                 rlock.store(false, Ordering::Release);
             }
         });
@@ -434,7 +430,6 @@ impl MainForm {
                 }
                 let fmt = format!("FMT: {format}");
                 b.set_label(&fmt);
-                app::awake();
                 rlock.store(false, Ordering::Release);
             }
         });
@@ -559,7 +554,6 @@ impl MainForm {
                 ));
                 let fmt = format!("StrmSize: {newsize}");
                 b.set_label(&fmt);
-                app::awake();
                 rlock.store(false, Ordering::Release);
             }
         });

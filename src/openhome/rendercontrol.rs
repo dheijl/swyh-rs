@@ -720,8 +720,10 @@ pub fn discover(
     rmap: &HashMap<String, Renderer>,
     logger: &dyn Fn(&str),
 ) -> Option<Vec<Renderer>> {
-    const OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
-    const AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
+    static AV_SCHEMA: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
+    static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";
+    static OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
+    static AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
     const DEFAULT_SEARCH_TTL: u32 = 2;
 
     debug!("SSDP discovery started");
@@ -779,10 +781,10 @@ pub fn discover(
                         .unwrap_or(0);
 
                     if status_code != 200 {
-                        error!("SSDP: HTTP error response status={status_code}");
+                        error!("SSDP: UHTTP error response status={status_code}");
                         continue; // ignore
                     }
-
+                    // parse the SSDP UHTTP response headers
                     let mut dev_location = String::new();
                     let mut oh_device = false;
                     let mut av_device = false;
@@ -795,25 +797,19 @@ pub fn discover(
                                 _ => None,
                             }
                         })
-                        .for_each(|hv_pair| match hv_pair.0.to_ascii_uppercase().as_str() {
-                            "LOCATION" => dev_location = hv_pair.1.to_string(),
-                            "ST" => match hv_pair.1 {
-                                schema
-                                    if schema.contains(
-                                        "urn:schemas-upnp-org:service:RenderingControl:1",
-                                    ) =>
-                                {
-                                    av_device = true;
-                                }
-                                schema
-                                    if schema.contains("urn:av-openhome-org:service:Product:1") =>
-                                {
-                                    oh_device = true;
+                        .for_each(
+                            |(header, value)| match header.to_ascii_uppercase().as_str() {
+                                "LOCATION" => dev_location = value.to_string(),
+                                "ST" => {
+                                    if value.contains(AV_SCHEMA) {
+                                        av_device = true;
+                                    } else if value.contains(OH_SCHEMA) {
+                                        oh_device = true;
+                                    }
                                 }
                                 _ => (),
                             },
-                            _ => (),
-                        });
+                        );
                     if !dev_location.is_empty() {
                         if av_device {
                             av_devices.push((dev_location.clone(), from));

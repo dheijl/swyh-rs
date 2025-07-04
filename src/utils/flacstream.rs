@@ -14,6 +14,8 @@ use std::{
     time::Duration,
 };
 
+use crate::globals::statics::THREAD_STACK;
+
 const NOISE_PERIOD_MS: u64 = 250; // milliseconds
 
 // the flacwriter receives the data from the encoder
@@ -92,7 +94,7 @@ impl FlacChannel {
         self.active.store(true, Relaxed);
         let _thr = std::thread::Builder::new()
             .name("flac_encoder".into())
-            .stack_size(4 * 1024 * 1024)
+            .stack_size(THREAD_STACK)
             .spawn(move || {
                 // we're running
                 // setup the encoder

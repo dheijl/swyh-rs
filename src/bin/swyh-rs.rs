@@ -42,8 +42,8 @@ use swyh_rs::{
         streaming::{StreamingFormat::Flac, StreamingState},
     },
     globals::statics::{
-        APP_VERSION, SERVER_PORT, get_clients, get_config, get_config_mut, get_msgchannel,
-        get_renderers, get_renderers_mut,
+        APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config,
+        get_config_mut, get_msgchannel, get_renderers, get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,
@@ -246,7 +246,7 @@ fn main() {
         let ssdp_tx = msg_tx.clone();
         let _ = thread::Builder::new()
             .name("ssdp_updater".into())
-            .stack_size(4 * 1024 * 1024)
+            .stack_size(THREAD_STACK)
             .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
             .unwrap();
     } else {
@@ -258,7 +258,7 @@ fn main() {
     let mon_r = mf.rms_mon_r.clone();
     let _ = thread::Builder::new()
         .name("rms_monitor".into())
-        .stack_size(4 * 1024 * 1024)
+        .stack_size(THREAD_STACK)
         .spawn(move || {
             run_rms_monitor(wd, &rms_receiver, mon_l, mon_r);
         })
@@ -269,7 +269,7 @@ fn main() {
     let feedback_tx = msg_tx.clone();
     let _ = thread::Builder::new()
         .name("swyh_rs_webserver".into())
-        .stack_size(4 * 1024 * 1024)
+        .stack_size(THREAD_STACK)
         .spawn(move || {
             run_server(&local_addr, server_port, wd, &feedback_tx);
         })
@@ -440,7 +440,7 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
             });
         }
         thread::sleep(Duration::from_millis(
-            (ssdp_interval_mins * 60.0 * 1000.0) as u64,
+            (ssdp_interval_mins * ONE_MINUTE) as u64,
         ));
     }
 }

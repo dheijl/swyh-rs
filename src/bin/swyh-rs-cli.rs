@@ -25,8 +25,8 @@ use swyh_rs::{
         },
     },
     globals::statics::{
-        APP_VERSION, get_clients, get_config, get_config_mut, get_msgchannel, get_renderers,
-        get_renderers_mut,
+        APP_VERSION, ONE_MINUTE, THREAD_STACK, get_clients, get_config, get_config_mut,
+        get_msgchannel, get_renderers, get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,
@@ -276,7 +276,7 @@ fn main() -> Result<(), i32> {
         let ssdp_tx = msg_tx.clone();
         let _ = thread::Builder::new()
             .name("ssdp_updater".into())
-            .stack_size(4 * 1024 * 1024)
+            .stack_size(THREAD_STACK)
             .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
             .unwrap();
     }
@@ -312,7 +312,7 @@ fn main() -> Result<(), i32> {
     let feedback_tx = msg_tx.clone();
     let _ = thread::Builder::new()
         .name("swyh_rs_webserver".into())
-        .stack_size(4 * 1024 * 1024)
+        .stack_size(THREAD_STACK)
         .spawn(move || {
             run_server(
                 &local_addr,
@@ -584,7 +584,7 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
             });
         }
         thread::sleep(Duration::from_millis(
-            (ssdp_interval_mins * 60.0 * 1000.0) as u64,
+            (ssdp_interval_mins * ONE_MINUTE) as u64,
         ));
     }
 }

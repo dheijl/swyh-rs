@@ -979,15 +979,15 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
                     service = AvService::new();
                 }
             }
-            Ok(XmlEvent::Characters(value)) => match cur_elem {
+            Ok(XmlEvent::Characters(value)) => match cur_elem.as_str() {
                 // these values come from various tags, ignoring xml hierarchy
-                ref el if el.contains("serviceType") => service.service_type = value,
-                ref el if el.contains("serviceId") => service.service_id = value,
-                ref el if el.contains("modelName") => renderer.dev_model = value,
-                ref el if el.contains("friendlyName") => renderer.dev_name = value,
-                ref el if el.contains("deviceType") => renderer.dev_type = value,
-                ref el if el.contains("URLBase") => renderer.dev_url = value,
-                ref el if el.contains("controlURL") => service.control_url = normalize_url(&value),
+                el if el.contains("serviceType") => service.service_type = value,
+                el if el.contains("serviceId") => service.service_id = value,
+                el if el.contains("modelName") => renderer.dev_model = value,
+                el if el.contains("friendlyName") => renderer.dev_name = value,
+                el if el.contains("deviceType") => renderer.dev_type = value,
+                el if el.contains("URLBase") => renderer.dev_url = value,
+                el if el.contains("controlURL") => service.control_url = normalize_url(&value),
                 _ => (),
             },
             Err(e) => {
@@ -997,7 +997,7 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
             _ => {}
         }
     }
-
+    //debug!("{:?}", renderer);
     Some(renderer)
 }
 

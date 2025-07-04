@@ -185,26 +185,26 @@ impl Read for ChannelStream {
             let chunks_iter = buf.chunks_exact_mut(bytes_per_sample).zip(drain);
             if self.use_wave_format {
                 // little endian 16 and 24 bit
-                match bytes_per_sample {
-                    2 => chunks_iter.for_each(|(chunk, sample)| {
+                if bytes_per_sample == 2 {
+                    chunks_iter.for_each(|(chunk, sample)| {
                         chunk.copy_from_slice(&(i16::from_sample(sample).to_le_bytes()))
-                    }),
-                    3 => chunks_iter.for_each(|(chunk, sample)| {
+                    });
+                } else if bytes_per_sample == 3 {
+                    chunks_iter.for_each(|(chunk, sample)| {
                         chunk
                             .copy_from_slice(&((i32::from_sample(sample) >> 8).to_le_bytes())[..=2])
-                    }),
-                    _ => (),
-                }
+                    });
+                };
             } else {
                 // big endian 16 and 24 bit
-                match bytes_per_sample {
-                    2 => chunks_iter.for_each(|(chunk, sample)| {
+                if bytes_per_sample == 2 {
+                    chunks_iter.for_each(|(chunk, sample)| {
                         chunk.copy_from_slice(&(i16::from_sample(sample).to_be_bytes()))
-                    }),
-                    3 => chunks_iter.for_each(|(chunk, sample)| {
+                    });
+                } else if bytes_per_sample == 3 {
+                    chunks_iter.for_each(|(chunk, sample)| {
                         chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_be_bytes())[1..])
-                    }),
-                    _ => (),
+                    });
                 }
             }
             #[cfg(feature = "trace_samples")]

@@ -186,22 +186,23 @@ impl Read for ChannelStream {
             if self.use_wave_format {
                 // little endian 16 and 24 bit
                 match bytes_per_sample {
-                    2 => chunks_iter.for_each(|(chunk, f32_sample)| {
-                        chunk.copy_from_slice(&get_le16_sample(f32_sample))
+                    2 => chunks_iter.for_each(|(chunk, sample)| {
+                        chunk.copy_from_slice(&(i16::from_sample(sample).to_le_bytes()))
                     }),
-                    3 => chunks_iter.for_each(|(chunk, f32_sample)| {
-                        chunk.copy_from_slice(&get_le24_sample(f32_sample))
+                    3 => chunks_iter.for_each(|(chunk, sample)| {
+                        chunk
+                            .copy_from_slice(&((i32::from_sample(sample) >> 8).to_le_bytes())[..=2])
                     }),
                     _ => (),
                 }
             } else {
                 // big endian 16 and 24 bit
                 match bytes_per_sample {
-                    2 => chunks_iter.for_each(|(chunk, f32_sample)| {
-                        chunk.copy_from_slice(&get_be16_sample(f32_sample))
+                    2 => chunks_iter.for_each(|(chunk, sample)| {
+                        chunk.copy_from_slice(&(i16::from_sample(sample).to_be_bytes()))
                     }),
-                    3 => chunks_iter.for_each(|(chunk, f32_sample)| {
-                        chunk.copy_from_slice(&get_be24_sample(f32_sample))
+                    3 => chunks_iter.for_each(|(chunk, sample)| {
+                        chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_be_bytes())[1..])
                     }),
                     _ => (),
                 }
@@ -239,36 +240,6 @@ impl Read for ChannelStream {
             Ok(buf.len())
         }
     }
-}
-
-// get the next le16 sample
-#[inline(always)]
-fn get_le16_sample(f32_sample: f32) -> [u8; 2] {
-    let i16sample = i16::from_sample(f32_sample);
-    i16sample.to_le_bytes()
-}
-
-// get the next be16 sample
-#[inline(always)]
-fn get_be16_sample(f32_sample: f32) -> [u8; 2] {
-    let i16sample = i16::from_sample(f32_sample);
-    i16sample.to_be_bytes()
-}
-
-// get the next le24 sample
-#[inline]
-fn get_le24_sample(f32_sample: f32) -> [u8; 3] {
-    let i24sample = i32::from_sample(f32_sample) >> 8;
-    let b = i24sample.to_le_bytes();
-    [b[0], b[1], b[2]]
-}
-
-// get the next be24sample
-#[inline]
-fn get_be24_sample(f32_sample: f32) -> [u8; 3] {
-    let i24sample = i32::from_sample(f32_sample) >> 8;
-    let b = i24sample.to_be_bytes();
-    [b[1], b[2], b[3]]
 }
 
 // create an "infinite size" wav hdr
@@ -448,5 +419,20 @@ mod tests {
         let sample = i32::from_sample(0x12345678i32);
         let i24_sample = I24::from_sample(sample);
         println!("i24: {i24_sample:X?}");
+        let f32_sample: f32 = 0.123456;
+        let a1 = {
+            let i24sample = i32::from_sample(f32_sample) >> 8;
+            let b = i24sample.to_le_bytes();
+            [b[0], b[1], b[2]]
+        };
+        let a2 = { &((i32::from_sample(f32_sample) >> 8).to_le_bytes())[..=2] };
+        assert_eq!(a1, a2);
+        let b1 = {
+            let i24sample = i32::from_sample(f32_sample) >> 8;
+            let b = i24sample.to_be_bytes();
+            [b[1], b[2], b[3]]
+        };
+        let b2 = { &((i32::from_sample(f32_sample) >> 8).to_be_bytes())[1..] };
+        assert_eq!(b1, b2);
     }
 }

@@ -13,7 +13,7 @@ use crate::{enums::streaming::StreamingFormat, globals::statics::get_config};
 use crossbeam_channel::{Receiver, Sender};
 use dasp_sample::Sample;
 use fastrand::Rng;
-use log::debug;
+use log::{debug, error};
 use std::{
     collections::VecDeque,
     io::{Read, Result as IoResult},
@@ -183,29 +183,22 @@ impl Read for ChannelStream {
             // the drain now contains the exact number of samples needed to fill the streaming buffer
             // so we can zip the buf in chunks with the drain
             let chunks_iter = buf.chunks_exact_mut(bytes_per_sample).zip(drain);
-            if self.use_wave_format {
-                // little endian 16 and 24 bit
-                if bytes_per_sample == 2 {
-                    chunks_iter.for_each(|(chunk, sample)| {
-                        chunk.copy_from_slice(&(i16::from_sample(sample).to_le_bytes()))
-                    });
-                } else if bytes_per_sample == 3 {
-                    chunks_iter.for_each(|(chunk, sample)| {
-                        chunk
-                            .copy_from_slice(&((i32::from_sample(sample) >> 8).to_le_bytes())[..=2])
-                    });
-                };
-            } else {
-                // big endian 16 and 24 bit
-                if bytes_per_sample == 2 {
-                    chunks_iter.for_each(|(chunk, sample)| {
-                        chunk.copy_from_slice(&(i16::from_sample(sample).to_be_bytes()))
-                    });
-                } else if bytes_per_sample == 3 {
-                    chunks_iter.for_each(|(chunk, sample)| {
-                        chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_be_bytes())[1..])
-                    });
-                }
+            // wave format = litlle endian, default = big endian
+            match (self.use_wave_format, bytes_per_sample) {
+                (true, 2) => chunks_iter.for_each(|(chunk, sample)| {
+                    chunk.copy_from_slice(&(i16::from_sample(sample).to_le_bytes()))
+                }),
+                (true, 3) => chunks_iter.for_each(|(chunk, sample)| {
+                    chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_le_bytes())[..=2])
+                }),
+                (false, 2) => chunks_iter.for_each(|(chunk, sample)| {
+                    chunk.copy_from_slice(&(i16::from_sample(sample).to_be_bytes()))
+                }),
+                (false, 3) => chunks_iter.for_each(|(chunk, sample)| {
+                    chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_be_bytes())[1..])
+                }),
+                // unsupported format, ignore
+                (_, _) => error!("Unsupported audio format!"),
             }
             #[cfg(feature = "trace_samples")]
             {

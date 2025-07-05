@@ -28,15 +28,15 @@ pub fn raise_priority() {
     // or are a user of the pipewire group
     use libc::{PRIO_PROCESS, getpriority, setpriority};
     unsafe {
-        let mut pri = getpriority(PRIO_PROCESS, 0);
+        let pri = getpriority(PRIO_PROCESS, 0);
         if pri >= 0 {
-            pri = -10;
-            let rc = setpriority(PRIO_PROCESS, 0, pri);
+            let rc = setpriority(PRIO_PROCESS, 0, -10);
             if rc != 0 {
                 ui_log("Sorry, but you don't have permissions to raise priority...");
+            } else {
+                ui_log(&format!("Now running at nice value -10"));
             }
         }
-        ui_log(&format!("Running at nice value {pri}"));
     }
 }
 

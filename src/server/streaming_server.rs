@@ -80,7 +80,7 @@ pub fn run_server(
                     // - now add the dlna headers to the header collection
                     add_dlna_headers(&mut headers, &wd, format, bps);
                     // handle response, streaming if GET, headers only otherwise
-                    if matches!(rq.method(), Method::Get) {
+                    if *rq.method() == Method::Get {
                         ui_log(&format!(
                             "Streaming request {} from {}",
                             rq.url(),
@@ -164,7 +164,7 @@ pub fn run_server(
                             }))
                             .unwrap();
                         ui_log(&format!("Streaming to {remote_addr} has ended"));
-                    } else if matches!(rq.method(), Method::Head) {
+                    } else if *rq.method() == Method::Head {
                         debug!("HEAD rq from {remote_addr}");
                         let response = Response::new(
                             tiny_http::StatusCode(200),
@@ -178,7 +178,7 @@ pub fn run_server(
                                 "=>Http HEAD connection with {remote_addr} terminated [{e}]"
                             ));
                         }
-                    } else if matches!(rq.method(), Method::Post) {
+                    } else if *rq.method() == Method::Post {
                         debug!("POST rq from {remote_addr}");
                         let response = Response::new(
                             tiny_http::StatusCode(200),

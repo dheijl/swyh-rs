@@ -950,27 +950,25 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
             Ok(XmlEvent::EndElement { name }) => {
                 let end_elem = name.local_name;
                 if end_elem == "service" {
-                    match service.service_id {
-                        ref id
-                            if ["Playlist", "urn:av-openhome-org:service"]
-                                .iter()
-                                .all(|&p| id.contains(p)) =>
+                    match service.service_id.as_str() {
+                        id if ["Playlist", "urn:av-openhome-org:service"]
+                            .iter()
+                            .all(|&p| id.contains(p)) =>
                         {
                             renderer.oh_control_url.clone_from(&service.control_url);
                             renderer.supported_protocols |= SupportedProtocols::OPENHOME;
                         }
-                        ref id
-                            if ["Volume", "urn:av-openhome-org:service"]
-                                .iter()
-                                .all(|&p| id.contains(p)) =>
+                        id if ["Volume", "urn:av-openhome-org:service"]
+                            .iter()
+                            .all(|&p| id.contains(p)) =>
                         {
                             renderer.oh_volume_url.clone_from(&service.control_url);
                         }
-                        ref id if id.contains(":AVTransport") => {
+                        id if id.contains(":AVTransport") => {
                             renderer.av_control_url.clone_from(&service.control_url);
                             renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
                         }
-                        ref id if id.contains(":RenderingControl") => {
+                        id if id.contains(":RenderingControl") => {
                             renderer.av_volume_url.clone_from(&service.control_url);
                         }
                         _ => (),

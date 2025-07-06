@@ -129,17 +129,51 @@ impl MainForm {
         wind.end();
         wind.show();
 
-        wind.handle(move |_, _ev| {
-            // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called
-            // debug!("_ev = {:?}, app_event = {:?}", _ev, app::event());
-            let ev = app::event();
-            match ev {
-                Event::Close => {
-                    app.quit();
-                    //std::process::exit(0);
-                    true
+        wind.handle({
+            let config_changed = config_changed.clone();
+            move |_, _ev| {
+                // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called
+                // debug!("_ev = {:?}, app_event = {:?}", _ev, app::event());
+                let ev = app::event();
+                match ev {
+                    Event::Close => {
+                        app.quit();
+                        //std::process::exit(0);
+                        true
+                    }
+                    Event::Push => {
+                        if app::event_mouse_button() == app::MouseButton::Right {
+                            if let Some(lightbtn) = app::belowmouse::<LightButton>() {
+                                let players = get_renderers().clone();
+                                for player in players {
+                                    if let Some(mut button) = player.rend_ui.button
+                                        && button == lightbtn
+                                    {
+                                        button.hide();
+                                        if let Some(mut slider) = player.rend_ui.slider {
+                                            slider.hide()
+                                        }
+                                        let mut config = get_config_mut();
+                                        config.hidden_renderers.push(player.remote_addr.clone());
+                                        let _ = config.update_config();
+                                        config_changed.set(true);
+                                        return true;
+                                    }
+                                }
+                            } else if let Some(frame) = app::belowmouse::<Frame>() {
+                                if frame.label().contains("UPNP rendering devices on network") {
+                                    let mut config = get_config_mut();
+                                    config.hidden_renderers.clear();
+                                    let _ = config.update_config();
+                                    config_changed.set(true);
+                                    return true;
+                                }
+                            }
+                        }
+                        false
+                    }
+                    _ => false,
                 }
-                _ => false,
             }
         });
 
@@ -728,6 +762,10 @@ impl MainForm {
     /// add the associated UI button and slider to the renderer
     /// add the new renderer to the global renderer list
     pub fn add_renderer_button(&mut self, new_renderer: &mut Renderer) {
+        let config = get_config().clone();
+        if config.hidden_renderers.contains(&new_renderer.remote_addr) {
+            return;
+        }
         // initialize renderers player_index
         new_renderer.player_index = self.player_index;
         // check if the renderer responded to GetVolume and make room for the slider if yes

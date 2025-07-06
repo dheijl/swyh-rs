@@ -34,7 +34,7 @@ pub fn raise_priority() {
             if rc != 0 {
                 ui_log("Sorry, but you don't have permissions to raise priority...");
             } else {
-                ui_log(&format!("Now running at nice value -10"));
+                ui_log("Now running at nice value -10");
             }
         }
     }

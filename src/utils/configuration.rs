@@ -100,6 +100,8 @@ pub struct Configuration {
     pub last_renderer: Option<String>,
     #[serde(alias = "ActiveRenderers", default)]
     pub active_renderers: Vec<String>,
+    #[serde(alias = "HiddenRenderers", default)]
+    pub hidden_renderers: Vec<String>,
     #[serde(alias = "LastNetwork", default)]
     pub last_network: Option<String>,
     #[serde(alias = "ConfigDir", default)]
@@ -143,6 +145,7 @@ impl Configuration {
             buffering_delay_msec: Some(0),
             last_renderer: None,
             active_renderers: Vec::new(),
+            hidden_renderers: Vec::new(),
             last_network: None,
             config_dir: Self::get_config_dir(),
             config_id: Some(Self::get_config_id()),

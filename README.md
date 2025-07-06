@@ -27,7 +27,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is **1.12.9**, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is **1.12.10**, refer to the [Changelog](CHANGELOG.md) for more details.
 
 You can find x86/64  Windows and Linux (Ubuntu/Debian) binaries in [Releases](https://github.com/dheijl/swyh-rs/releases).
 
@@ -174,6 +174,7 @@ The icon was designed by @numanair, thanks!
   - a more flexible CLI configuration with new -C (configfile) switch and automatic serve mode is no player specified
 - Since 1.10.5 you can enable **initial buffering** audio for a number of milliseconds before streaming starts, this may help to prevent stuttering on flaky (WiFi) networks or with streamers that don't have a configurable buffer size or that have a flaky system clock.
 - Since 1.11.1 you can select one of the FLTK color themes, using a new dropdown near the top of the window (PR #139 by @Villardo)
+- Since 1.12.10 you can hide a player by right-clicking it. To unhide all hidden players right-click the label"_UPNP rendering devices..._" above the players. 
 
 ### The CLI binary
 

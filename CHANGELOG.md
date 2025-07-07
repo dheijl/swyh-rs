@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.12.11 (unreleased)
+
 - 1.12.10 (Jul 6 2025 dheijl)
   - various small refactorings
   - add the possibility to hide a player by right-clicking it's button, and unhide all hidden players by right-clicking the "UPNP rendering devices" label. Handy if you have a lot of Sonos (grouped) players, so that you do not accidentally click the wrong one breaking a stereo pair.

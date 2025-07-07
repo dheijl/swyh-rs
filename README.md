@@ -49,7 +49,7 @@ I wrote this because
 
 It has been tested with
 
-- [Moode audio 8](https://moodeaudio.org/), with Moode configured as UPNP renderer in _Openhome_ mode, and using FLAC (preferable) or LPCM (since 1.8.7) or WAV format. Note that the WAV format will cause MPD to issue 2 GET requests, one for the WAV header and another one for the PCM data.
+- [Moode audio](https://moodeaudio.org/), with Moode configured as UPNP renderer in _Openhome_ mode, and using FLAC (preferable) or LPCM (since 1.8.7) or WAV format. Note that the WAV format will cause MPD to issue 2 GET requests, one for the WAV header and another one for the PCM data.
 - [Volumio](https://volumio.org/)
 - Harman Kardon AV network streamers (thanks @MX10-AC2N!)
 - **Denon** Heos devices. Wav Format with NoneChunked streamsize seems to work best with Denon. And if you change format or streamsize you may have to restart swyh-rs to make the Denon recognize this. See issue #183. If you select an invalid combination the Denon app will also tell you this.

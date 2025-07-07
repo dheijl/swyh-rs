@@ -31,7 +31,7 @@ The current release is **1.12.10**, refer to the [Changelog](CHANGELOG.md) for m
 
 You can find x86/64  Windows and Linux (Ubuntu/Debian) binaries in [Releases](https://github.com/dheijl/swyh-rs/releases).
 
-You can find [Arm binaries here](https://github.com/jamieduk/SWYH-ARM-64Bit-Linux/releases). They are privded by Jamie Duk (@Jay), I have not tested them. He also provides his [build recipe](https://github.com/jamieduk/SWYH-ARM-64Bit-Linux).
+You can find [Arm binaries here](https://github.com/jamieduk/SWYH-ARM-64Bit-Linux/releases). They are provided by Jamie Duk (@Jay), I have not tested them. He also provides his [build recipe](https://github.com/jamieduk/SWYH-ARM-64Bit-Linux).
 
 ## Why this SWYH alternative ?
 

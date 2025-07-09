@@ -75,7 +75,7 @@ ureq = { version = "3.0.12", default-features = false, features = [
     "gzip",
 ] }
 url = "2.5.4"
-xml-rs = "0.8.26"
+xml-rs = "0.8.27"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.9", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }

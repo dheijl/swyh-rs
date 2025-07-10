@@ -57,7 +57,7 @@ flac-bound = { version = "0.5.0", default-features = false, features = [
 ] }
 hashbrown = "0.15.4"
 htmlescape = "0.3.1"
-if-addrs = "0.13.4"
+if-addrs = "0.14.0"
 lexopt = "0.3.1"
 local-ip-address = { version = "0.6.5", optional = true }
 log = { version = "0.4.27", features = [

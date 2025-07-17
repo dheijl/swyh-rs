@@ -11,11 +11,11 @@
         "--share=network",
         "--share=ipc",
         "--socket=fallback-x11",
+        "--socket=pulseaudio",
         "--socket=wayland",
         "--device=all",
         "--filesystem=host",
-        "--filesystem=xdg-run/pipewire-0",
-        "--socket=pulseaudio"
+        "--filesystem=xdg-run/pipewire-0"
     ],
     "build-options": {
         "append-path": "/usr/lib/sdk/rust-stable/bin",

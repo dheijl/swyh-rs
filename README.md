@@ -257,9 +257,9 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
 The binaries I publish in [Releases](https://github.com/dheijl/swyh-rs/releases) are built on
 
-- Windows: currently W11 (previously W10) with the current Rust stable version and current Visual Studio Community edition MSVC
-- Linux: Debian 12 Bookworm (LMDE 6) with the current Rust stable version
-- Linux: Ubuntu 20.04/Debian Bullseye (Linux Mint 20) with the current Rust stable version
+- Windows: W11 with the current Rust stable version and current Visual Studio Community edition MSVC
+- Linux: Debian 12 Bookworm (LMDE 6) appimages with the current Rust stable version
+- Linux: since V12.10: also Ubuntu 20.04LTS appimages with the current Rust stable version
 
 I do my best to keep everything up-to-date.
 

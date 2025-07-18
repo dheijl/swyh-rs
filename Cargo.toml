@@ -67,7 +67,7 @@ log = { version = "0.4.27", features = [
 ] }
 serde = { version = "1.0.219", features = ["derive"] }
 simplelog = "0.12.2"
-strfmt = "0.2.4"
+strfmt = "0.2.5"
 tiny_http = "0.12.0"
 toml = "0.9.2"
 ureq = { version = "3.0.12", default-features = false, features = [

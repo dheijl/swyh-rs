@@ -147,7 +147,7 @@ Recognized options:
                 Short('l') | Long("log_level") => {
                     if let Ok(level) = argparser.value() {
                         let loglevel = level.string().unwrap_or_default();
-                        match loglevel.to_uppercase().as_str() {
+                        match loglevel.to_ascii_uppercase().as_str() {
                             "INFO" => self.log_level = Some(LevelFilter::Info),
                             "DEBUG" => {
                                 self.log_level = Some(LevelFilter::Debug);
@@ -184,7 +184,7 @@ Recognized options:
                         } else {
                             (streaming_format.as_str(), "")
                         };
-                        match format.to_uppercase().as_str() {
+                        match format.to_ascii_uppercase().as_str() {
                             "WAV" => {
                                 self.streaming_format = Some(StreamingFormat::Wav);
                                 self.use_wave_format = Some(true);
@@ -205,7 +205,7 @@ Recognized options:
                             }
                         }
                         if !streamsize.is_empty() {
-                            self.stream_size = match streamsize.to_uppercase().as_str() {
+                            self.stream_size = match streamsize.to_ascii_uppercase().as_str() {
                                 "NONECHUNKED" => Some(StreamSize::NoneChunked),
                                 "U32MAXCHUNKED" => Some(StreamSize::U32maxChunked),
                                 "U32MAXNOTCHUNKED" => Some(StreamSize::U32maxNotChunked),

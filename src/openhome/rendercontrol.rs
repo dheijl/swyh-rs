@@ -1066,7 +1066,7 @@ mod tests {
     fn test_format() {
         let bps = 24;
         let format = StreamingFormat::Flac;
-        let url = "http://192.168.0.135:5901/Stream/Swyh.raw".to_lowercase();
+        let url = "http://192.168.0.135:5901/Stream/Swyh.raw".to_ascii_lowercase();
         let (req_bps, req_format) = {
             if let Some(format_start) = url.find("/stream/swyh.") {
                 match url.get(format_start + 13..) {

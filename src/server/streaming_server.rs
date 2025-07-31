@@ -94,13 +94,11 @@ pub fn run_server(
                                 remote_addr
                             ));
                             let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
-                            let use_wav_hdr =
-                                [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&format);
                             let channel_stream = ChannelStream::new(
                                 tx,
                                 rx,
                                 remote_ip.clone(),
-                                use_wav_hdr,
+                                format.needs_wav_hdr(),
                                 wd.sample_rate.0,
                                 bps as u16,
                                 format,
@@ -324,6 +322,7 @@ fn get_default_headers() -> Vec<Header> {
     headers.push(Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap());
     headers.push(Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap());
     // don't accept range headers (Linn) until I know how to handle them
-    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap());
+    // but don't send this header as the MPD player ignores the "none" value anyway and uses ranges
+    // headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap());
     headers
 }

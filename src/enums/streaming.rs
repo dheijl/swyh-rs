@@ -44,6 +44,9 @@ impl FromStr for StreamingFormat {
 }
 
 impl StreamingFormat {
+    pub fn needs_wav_hdr(self) -> bool {
+        self == StreamingFormat::Wav || self == StreamingFormat::Rf64
+    }
     pub fn dlna_string(self, bps: BitDepth) -> String {
         match self {
             StreamingFormat::Flac => "audio/FLAC".to_string(),

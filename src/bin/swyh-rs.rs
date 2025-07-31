@@ -435,7 +435,6 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
                     .send(MessageType::SsdpMessage(Box::new(r.clone())))
                     .unwrap();
                 app::awake();
-                thread::yield_now();
                 r.clone()
             });
         }

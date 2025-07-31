@@ -20,6 +20,5 @@ pub fn ui_log(s: &str) {
             .send(MessageType::LogMessage(s.to_string()))
             .unwrap();
         app::awake();
-        std::thread::yield_now();
     }
 }

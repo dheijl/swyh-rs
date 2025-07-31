@@ -322,6 +322,8 @@ fn main() -> Result<(), i32> {
             );
         })
         .unwrap();
+    // give the web server thread a chance to start
+    thread::yield_now();
 
     // we may have to translate player names to IP addresses
     if !serve_only && (args.player_ip.is_some() || config.last_renderer.is_some()) {
@@ -579,7 +581,6 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
                 ssdp_tx
                     .send(MessageType::SsdpMessage(Box::new(r.clone())))
                     .unwrap();
-                thread::yield_now();
                 r.clone()
             });
         }

@@ -57,6 +57,12 @@ pub fn run_server(
                 // start streaming in a new thread and continue serving new requests
                 let feedback_tx_c = feedback_tx_c.clone();
                 std::thread::spawn(move || {
+                    debug!(
+                        "{:?} {} from {}",
+                        *rq.method(),
+                        rq.url(),
+                        rq.remote_addr().unwrap()
+                    );
                     // refresh config info for each new streaming request
                     // as some parameters may have changed
                     let stream_config = StreamConfig::get();
@@ -80,117 +86,124 @@ pub fn run_server(
                     // - now add the dlna headers to the header collection
                     add_dlna_headers(&mut headers, &wd, format, bps);
                     // handle response, streaming if GET, headers only otherwise
-                    if *rq.method() == Method::Get {
-                        ui_log(&format!(
-                            "Streaming request {} from {}",
-                            rq.url(),
-                            remote_addr
-                        ));
-                        let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
-                        let use_wav_hdr =
-                            [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&format);
-                        let channel_stream = ChannelStream::new(
-                            tx,
-                            rx,
-                            remote_ip.clone(),
-                            use_wav_hdr,
-                            wd.sample_rate.0,
-                            bps as u16,
-                            format,
-                        );
-                        let nclients = {
-                            let mut clients = get_clients_mut();
-                            clients.insert(remote_addr.clone(), channel_stream.clone());
-                            clients.len()
-                        };
-                        debug!("Now have {nclients} streaming clients");
-
-                        feedback_tx_c
-                            .send(MessageType::PlayerMessage(StreamerFeedBack {
-                                remote_ip: remote_ip.clone(),
-                                streaming_state: StreamingState::Started,
-                            }))
-                            .unwrap();
-
-                        // check for upfront audio buffering needed
-                        if stream_config.buffering_delay_msec > 0 {
-                            thread::sleep(Duration::from_millis(
-                                stream_config.buffering_delay_msec.into(),
-                            ));
-                        }
-                        let streaming_format = format.dlna_string(bps);
-                        ui_log(&format!(
-                            "Streaming {streaming_format}, input sample format {:?}, \
-                            channels=2, rate={}, bps = {}, to {}",
-                            wd.sample_format, wd.sample_rate.0, bps as u16, remote_addr
-                        ));
-                        // use the configured content length and chunksize params
-                        let (mut streamsize, mut chunksize) =
-                            format.get_streaming_params(&stream_config);
-                        // unless overridden by the GET query string
-                        if sp.ss.is_some() {
-                            (streamsize, chunksize) = sp.ss.unwrap().values();
-                        }
-                        let response = Response::new(
-                            tiny_http::StatusCode(200),
-                            headers,
-                            channel_stream,
-                            streamsize,
-                            None,
-                        )
-                        .with_chunked_threshold(chunksize);
-                        dump_resp_headers(&rq, &response);
-                        let e = rq.respond(response);
-                        if e.is_err() {
+                    match *rq.method() {
+                        Method::Get => {
                             ui_log(&format!(
-                                "=>Http connection with {remote_addr} terminated [{e:?}]"
+                                "Streaming request {} from {}",
+                                rq.url(),
+                                remote_addr
                             ));
-                        }
-                        let nclients = {
-                            let mut clients = get_clients_mut();
-                            if let Some(chs) = clients.remove(&remote_addr) {
-                                chs.stop_flac_encoder();
+                            let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
+                            let use_wav_hdr =
+                                [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&format);
+                            let channel_stream = ChannelStream::new(
+                                tx,
+                                rx,
+                                remote_ip.clone(),
+                                use_wav_hdr,
+                                wd.sample_rate.0,
+                                bps as u16,
+                                format,
+                            );
+                            let nclients = {
+                                let mut clients = get_clients_mut();
+                                clients.insert(remote_addr.clone(), channel_stream.clone());
+                                clients.len()
                             };
-                            clients.len()
-                        };
-                        debug!("Now have {nclients} streaming clients left");
-                        // inform the main thread that this renderer has finished receiving
-                        // necessary if the connection close was not caused by our own GUI
-                        // so that we can update the corresponding button state
-                        feedback_tx_c
-                            .send(MessageType::PlayerMessage(StreamerFeedBack {
-                                remote_ip,
-                                streaming_state: StreamingState::Ended,
-                            }))
-                            .unwrap();
-                        ui_log(&format!("Streaming to {remote_addr} has ended"));
-                    } else if *rq.method() == Method::Head {
-                        debug!("HEAD rq from {remote_addr}");
-                        let response = Response::new(
-                            tiny_http::StatusCode(200),
-                            headers,
-                            io::empty(),
-                            Some(0),
-                            None,
-                        );
-                        if let Err(e) = rq.respond(response) {
+                            debug!("Now have {nclients} streaming clients");
+
+                            feedback_tx_c
+                                .send(MessageType::PlayerMessage(StreamerFeedBack {
+                                    remote_ip: remote_ip.clone(),
+                                    streaming_state: StreamingState::Started,
+                                }))
+                                .unwrap();
+
+                            // check for upfront audio buffering needed
+                            if stream_config.buffering_delay_msec > 0 {
+                                thread::sleep(Duration::from_millis(
+                                    stream_config.buffering_delay_msec.into(),
+                                ));
+                            }
+                            let streaming_format = format.dlna_string(bps);
                             ui_log(&format!(
-                                "=>Http HEAD connection with {remote_addr} terminated [{e}]"
+                                "Streaming {streaming_format}, input sample format {:?}, \
+                            channels=2, rate={}, bps = {}, to {}",
+                                wd.sample_format, wd.sample_rate.0, bps as u16, remote_addr
                             ));
+                            // use the configured content length and chunksize params
+                            let (mut streamsize, mut chunksize) =
+                                format.get_streaming_params(&stream_config);
+                            // unless overridden by the GET query string
+                            if sp.ss.is_some() {
+                                (streamsize, chunksize) = sp.ss.unwrap().values();
+                            }
+                            let response = Response::new(
+                                tiny_http::StatusCode(200),
+                                headers,
+                                channel_stream,
+                                streamsize,
+                                None,
+                            )
+                            .with_chunked_threshold(chunksize);
+                            dump_resp_headers(&rq, &response);
+                            let e = rq.respond(response);
+                            if e.is_err() {
+                                ui_log(&format!(
+                                    "=>Http connection with {remote_addr} terminated [{e:?}]"
+                                ));
+                            }
+                            let nclients = {
+                                let mut clients = get_clients_mut();
+                                if let Some(chs) = clients.remove(&remote_addr) {
+                                    chs.stop_flac_encoder();
+                                };
+                                clients.len()
+                            };
+                            debug!("Now have {nclients} streaming clients left");
+                            // inform the main thread that this renderer has finished receiving
+                            // necessary if the connection close was not caused by our own GUI
+                            // so that we can update the corresponding button state
+                            feedback_tx_c
+                                .send(MessageType::PlayerMessage(StreamerFeedBack {
+                                    remote_ip,
+                                    streaming_state: StreamingState::Ended,
+                                }))
+                                .unwrap();
+                            ui_log(&format!("Streaming to {remote_addr} has ended"));
                         }
-                    } else if *rq.method() == Method::Post {
-                        debug!("POST rq from {remote_addr}");
-                        let response = Response::new(
-                            tiny_http::StatusCode(200),
-                            headers,
-                            io::empty(),
-                            Some(0),
-                            None,
-                        );
-                        if let Err(e) = rq.respond(response) {
+                        Method::Head => {
+                            debug!("HEAD rq from {remote_addr}");
+                            let response = Response::new(
+                                tiny_http::StatusCode(200),
+                                headers,
+                                io::empty(),
+                                Some(0),
+                                None,
+                            );
+                            if let Err(e) = rq.respond(response) {
+                                ui_log(&format!(
+                                    "=>Http HEAD connection with {remote_addr} terminated [{e}]"
+                                ));
+                            }
+                        }
+                        _ => {
                             ui_log(&format!(
-                                "=>Http POST connection with {remote_addr} terminated [{e}]"
+                                "Unsupported HTTP method request {:?} from {remote_addr}",
+                                *rq.method()
                             ));
+                            let response = Response::new(
+                                tiny_http::StatusCode(405),
+                                headers,
+                                io::empty(),
+                                Some(0),
+                                None,
+                            );
+                            if let Err(e) = rq.respond(response) {
+                                ui_log(&format!(
+                                    "=>Http connection with {remote_addr} terminated [{e}]"
+                                ));
+                            }
                         }
                     }
                 });
@@ -228,12 +241,8 @@ fn dump_resp_headers(rq: &tiny_http::Request, response: &Response<ChannelStream>
 
 /// dump the request headers
 fn dump_rq_headers(rq: &tiny_http::Request) {
-    debug!("<== Incoming {rq:?}");
     for hdr in rq.headers() {
-        debug!(
-            " <== Incoming Request {hdr:?} from {}",
-            rq.remote_addr().unwrap()
-        );
+        debug!(" <== Request {hdr:?}");
     }
 }
 

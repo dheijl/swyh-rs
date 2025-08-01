@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
-- 1.12.11 (unreleased)
+- 1.12.11 (Aug 1 2025 dheijl)
+  - more small refactorings
+  - remove the "_Accept-Ranges: none_" HTTP header, as **MPD** does not honour the "none" value but uses ranges anyway, causing extra GET requests when using WAV or RF64. Omitting the header makes MPD behave normally. MPD behaviour observed with Moode 9.x.
 
 - 1.12.10 (Jul 6 2025 dheijl)
   - various small refactorings
@@ -43,7 +45,7 @@
 
 - 1.12.0 (Nov 6 2024 dheijl)
   - Github CI added by @theavege, thanks!
-  - replace ```once_cell::sync::Lazy``` with ```std::sync::LazyLock```, so now swyh-rs requires Rustc version __1.80__ or later!!
+  - replace ```once_cell::sync::Lazy``` with ```std::sync::LazyLock```, so now swyh-rs requires Rustc version **1.80** or later!!
   - swyh-rs now is compiled with Rustc 1.82.0
   - get rid of a couple of unwraps
   - update flac-bound to 0.5.0 so that
@@ -101,7 +103,7 @@
 
 - 1.10.9 (May 25 2024 dheijl)
   - optimize flac near silence injection when no sound is being captured
-  - GUI: you can now __disable ssdp discovery__ by setting the ssdp interval to 0.0. Note that the minimum ssdp interval if enabled stays at 0.5 (half a minute). This is equivalent to the "-x" (serve only) option in the CLI.
+  - GUI: you can now **disable ssdp discovery** by setting the ssdp interval to 0.0. Note that the minimum ssdp interval if enabled stays at 0.5 (half a minute). This is equivalent to the "-x" (serve only) option in the CLI.
 
 - 1.10.8 (May 23 2024 dheijl)
   - some code cleanup:
@@ -119,7 +121,7 @@
 
 - 1.10.6 (May 18 2024 dheijl)
   - make the default streamsize for FLAC NoneChunked
-  - remove the NOISE feature flag: this enables the white noise injection for FLAC if no sound while streaming. Only works if you do __NOT__** enable "Inject Silence".
+  - remove the NOISE feature flag: this enables the white noise injection for FLAC if no sound while streaming. Only works if you do **NOT**** enable "Inject Silence".
   - switch to dasp_sample for FLAC and i24
 
 - 1.10.5 (May 9 2024 dheijl)
@@ -188,7 +190,7 @@
 
 - 1.9.2 (Nov 3 2023 dheijl)
   - some optimizations, use more iterators instead of loops, ...
-  - cli argument "autoreconnect" removed, it's de facto __ON__
+  - cli argument "autoreconnect" removed, it's de facto **ON**
   - correct RMS value calculation
   - issue #111: introduce a new -x (--serve_only) commandline switch for the cli. If -x is present no SSDP discovery is run and playing is not started. swyh-rs-cli just sits there waiting for play requests from renderers. Some other useful options in this use case are: -f (format), -b (bits) and -s (sound source).
   - CLI: boolean options no longer need an argument, absent means false, present means true. You can still use false to disable options stored in the config. The options -h, -n and -x are not stored in the config file.
@@ -200,7 +202,7 @@
 
 - 1.9.0 (Oct 18 2023 dheijl)
   - some small fixes (cli and WAV format)
-  - add support for __RF64__ format, as it removes the 4 GB WAV limitation. All formats except WAV no longer have limits on the stream size.
+  - add support for **RF64** format, as it removes the 4 GB WAV limitation. All formats except WAV no longer have limits on the stream size.
 
 - 1.8.7 (Oct 14 2023 dheijl)
   - a fix for LPCM (raw) audio format on Moode Audio Player by letting the URL file extension reflect the audio type.

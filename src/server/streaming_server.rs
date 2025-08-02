@@ -144,7 +144,7 @@ pub fn run_server(
                                 None,
                             )
                             .with_chunked_threshold(chunksize);
-                            dump_resp_headers(&rq, &response);
+                            dump_resp_headers(&response);
                             let e = rq.respond(response);
                             if e.is_err() {
                                 ui_log(&format!(
@@ -224,7 +224,7 @@ fn get_remote_ip(remote_addr: &str) -> String {
 }
 
 /// dump response headers
-fn dump_resp_headers(rq: &tiny_http::Request, response: &Response<ChannelStream>) {
+fn dump_resp_headers(response: &Response<ChannelStream>) {
     if cfg!(debug_assertions) {
         debug!("==> Response:");
         debug!(
@@ -232,7 +232,7 @@ fn dump_resp_headers(rq: &tiny_http::Request, response: &Response<ChannelStream>
             response.data_length().unwrap_or(0)
         );
         for hdr in response.headers() {
-            debug!(" ==> Response {:?} to {}", hdr, rq.remote_addr().unwrap());
+            debug!(" ==> Response {hdr:?}");
         }
     }
 }

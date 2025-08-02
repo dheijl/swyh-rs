@@ -238,8 +238,8 @@ impl Configuration {
                 config.configuration.read_only = meta.permissions().readonly();
             }
         }
-        if config.configuration.color_theme.is_some()
-            && config.configuration.color_theme.unwrap() >= THEMES.len() as u8
+        if let Some(theme) = config.configuration.color_theme
+            && theme >= THEMES.len() as u8
         {
             config.configuration.color_theme = None;
             force_update = true;

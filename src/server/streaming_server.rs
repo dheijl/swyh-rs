@@ -133,8 +133,8 @@ pub fn run_server(
                             let (mut streamsize, mut chunksize) =
                                 format.get_streaming_params(&stream_config);
                             // unless overridden by the GET query string
-                            if sp.ss.is_some() {
-                                (streamsize, chunksize) = sp.ss.unwrap().values();
+                            if let Some(ss) = sp.ss {
+                                (streamsize, chunksize) = ss.values();
                             }
                             let response = Response::new(
                                 tiny_http::StatusCode(200),
@@ -304,7 +304,7 @@ fn get_stream_params(
     } else {
         cf_format
     };
-    // bit depth f
+    // bit depth
     let cf_bps = stream_config.bits_per_sample;
     // check if client requests the configured format
     let bps = if let Some(bd) = sp.bd {

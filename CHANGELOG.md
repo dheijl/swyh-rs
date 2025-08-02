@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.12.12 (unreleased)
+
 - 1.12.11 (Aug 1 2025 dheijl)
   - more small refactorings
   - remove the "_Accept-Ranges: none_" HTTP header, as **MPD** does not honour the "none" value but uses ranges anyway, causing extra GET requests when using WAV or RF64. Omitting the header makes MPD behave normally. MPD behaviour observed with Moode 9.x.

@@ -12,6 +12,7 @@ use std::sync::RwLock;
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const APP_DATE: Option<&str> = option_env!("BUILD_DAY");
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;

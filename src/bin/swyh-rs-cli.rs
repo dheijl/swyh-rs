@@ -25,7 +25,7 @@ use swyh_rs::{
         },
     },
     globals::statics::{
-        APP_VERSION, ONE_MINUTE, THREAD_STACK, get_clients, get_config, get_config_mut,
+        APP_DATE, APP_VERSION, ONE_MINUTE, THREAD_STACK, get_clients, get_config, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
@@ -101,9 +101,10 @@ fn main() -> Result<(), i32> {
     ]);
 
     info!(
-        "{} V {} - Running on {}, {}, {} - Logging started.",
+        "{} V {}({}) - Running on {}, {}, {} - Logging started.",
         APP_NAME,
         APP_VERSION,
+        APP_DATE.unwrap_or_default(),
         std::env::consts::ARCH,
         std::env::consts::FAMILY,
         std::env::consts::OS

@@ -42,7 +42,7 @@ use swyh_rs::{
         streaming::{StreamingFormat::Flac, StreamingState},
     },
     globals::statics::{
-        APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config,
+        APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config,
         get_config_mut, get_msgchannel, get_renderers, get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
@@ -120,9 +120,10 @@ fn main() {
         )]);
     }
     info!(
-        "{} V {} - Running on {}, {}, {} - Logging started.",
+        "{} V {}({}) - Running on {}, {}, {} - Logging started.",
         APP_NAME,
         APP_VERSION,
+        APP_DATE.unwrap_or_default(),
         std::env::consts::ARCH,
         std::env::consts::FAMILY,
         std::env::consts::OS
@@ -191,6 +192,7 @@ fn main() {
     };
 
     // we now have enough information to create the GUI with meaningful data
+    let version_string = format!("{APP_VERSION}({})", APP_DATE.unwrap_or_default());
     let mut mf = MainForm::create(
         &config,
         &config_changed,
@@ -198,7 +200,7 @@ fn main() {
         &networks,
         local_addr,
         &wd,
-        APP_VERSION,
+        &version_string,
     );
 
     // raise process priority a bit to prevent audio stuttering under cpu load

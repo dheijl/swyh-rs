@@ -192,7 +192,7 @@ fn main() {
     };
 
     // we now have enough information to create the GUI with meaningful data
-    let version_string = format!("{APP_VERSION}({})", APP_DATE.unwrap_or_default());
+    let version_string = format!("{APP_VERSION}(build: {})", APP_DATE.unwrap_or_default());
     let mut mf = MainForm::create(
         &config,
         &config_changed,

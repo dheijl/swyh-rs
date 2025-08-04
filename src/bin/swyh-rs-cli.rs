@@ -101,7 +101,7 @@ fn main() -> Result<(), i32> {
     ]);
 
     info!(
-        "{} V {}({}) - Running on {}, {}, {} - Logging started.",
+        "{} V {}(build: {}) - Running on {}, {}, {} - Logging started.",
         APP_NAME,
         APP_VERSION,
         APP_DATE.unwrap_or_default(),

@@ -113,7 +113,7 @@ impl MainForm {
         app::background(247, 247, 247);
         let mut wind = DoubleWindow::default()
             .with_size(WW, WH)
-            .with_label(&format!("swyh-rs UPNP/DLNA Media Renderers V{app_version}"));
+            .with_label(&format!("swyh-rs UPNP/DLNA streaming V{app_version}"));
 
         wind.make_resizable(true);
         wind.size_range(WW, WH * 2 / 3, 0, 0);

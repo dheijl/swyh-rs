@@ -120,10 +120,10 @@ fn main() {
         )]);
     }
     info!(
-        "{} V {}({}) - Running on {}, {}, {} - Logging started.",
+        "{} V {}(build: {}) - Running on {}, {}, {} - Logging started.",
         APP_NAME,
         APP_VERSION,
-        APP_DATE.unwrap_or_default(),
+        APP_DATE.unwrap_or("beta"),
         std::env::consts::ARCH,
         std::env::consts::FAMILY,
         std::env::consts::OS
@@ -192,7 +192,7 @@ fn main() {
     };
 
     // we now have enough information to create the GUI with meaningful data
-    let version_string = format!("{APP_VERSION}(build: {})", APP_DATE.unwrap_or_default());
+    let version_string = format!("{APP_VERSION}(build: {})", APP_DATE.unwrap_or("beta"));
     let mut mf = MainForm::create(
         &config,
         &config_changed,

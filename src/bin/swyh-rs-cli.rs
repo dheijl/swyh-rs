@@ -104,7 +104,7 @@ fn main() -> Result<(), i32> {
         "{} V {}(build: {}) - Running on {}, {}, {} - Logging started.",
         APP_NAME,
         APP_VERSION,
-        APP_DATE.unwrap_or_default(),
+        APP_DATE.unwrap_or("beta"),
         std::env::consts::ARCH,
         std::env::consts::FAMILY,
         std::env::consts::OS

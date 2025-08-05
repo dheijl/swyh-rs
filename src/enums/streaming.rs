@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::{convert::From, fmt, str::FromStr};
+use tiny_http::Request;
 
-use crate::{globals::statics::get_config, server::query_params::StreamingParams};
+use crate::{
+    globals::statics::get_config, openhome::rendercontrol::WavData,
+    server::query_params::StreamingParams,
+};
 
 /// streaming state
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -159,31 +163,33 @@ impl FromStr for BitDepth {
 
 /// helper holding struct to avoid repeatedly reading the config data
 /// or cloning the large Configuration struct
-#[derive(Clone)]
-pub struct StreamContext {
+/// it gathers all the information needed for HTTP streaming and
+/// starts out with the default values from the config
+/// it is then updated as needed before streaming starts
+pub struct StreamingContext {
     pub sample_rate: u32,
     pub sample_format: cpal::SampleFormat,
-    pub bits_per_sample: u16,
+    pub bits_per_sample: BitDepth,
     pub streaming_format: StreamingFormat,
     pub lpcm_streamsize: StreamSize,
     pub wav_streamsize: StreamSize,
     pub flac_streamsize: StreamSize,
     pub rf64_streamsize: StreamSize,
     pub buffering_delay_msec: u32,
-    pub remote_addr: String,
-    pub remote_ip: String,
+    pub remote_addr: String, // ip:port
+    pub remote_ip: String,   // ip only
     pub chunksize: usize,
     pub streamsize: Option<usize>,
 }
 
-impl StreamContext {
-    /// initialize values from config
-    pub fn from_config() -> StreamContext {
+impl StreamingContext {
+    /// initialize default values from config where possible
+    pub fn from_config() -> StreamingContext {
         let cfg = get_config();
-        StreamContext {
+        StreamingContext {
             sample_rate: 44100,
             sample_format: cpal::SampleFormat::F32,
-            bits_per_sample: cfg.bits_per_sample.unwrap_or(16),
+            bits_per_sample: BitDepth::from(cfg.bits_per_sample.unwrap_or(16)),
             streaming_format: cfg.streaming_format.unwrap_or(StreamingFormat::Flac),
             lpcm_streamsize: cfg.lpcm_stream_size.unwrap(),
             wav_streamsize: cfg.wav_stream_size.unwrap(),
@@ -196,7 +202,20 @@ impl StreamContext {
             streamsize: None,
         }
     }
-    // update values from query parameters if present
+    /// initialize remote_addr and remote_ip
+    pub fn set_remote_addr(&mut self, rq: &Request) {
+        self.remote_addr = rq.remote_addr().unwrap().to_string();
+        self.remote_ip = self.remote_addr.clone();
+        if let Some(i) = self.remote_addr.find(':') {
+            self.remote_ip.truncate(i);
+        }
+    }
+    /// intialize sample rate and format from WavData
+    pub fn set_sample_data(&mut self, wd: WavData) {
+        self.sample_rate = wd.sample_rate.0;
+        self.sample_format = wd.sample_format;
+    }
+    /// update values from query parameters if present
     pub fn update_format(&mut self, query_params: &StreamingParams) {
         // streaming format
         if let Some(fmt) = query_params.fmt {
@@ -204,7 +223,7 @@ impl StreamContext {
         }
         // bit depth
         if let Some(bd) = query_params.bd {
-            self.bits_per_sample = bd as u16;
+            self.bits_per_sample = bd;
         }
         // get default streamsize/chunksize
         let (mut streamsize, mut chunksize) = match self.streaming_format {
@@ -220,5 +239,16 @@ impl StreamContext {
         // update streamsize/chunksize accordingly
         self.streamsize = streamsize;
         self.chunksize = chunksize;
+    }
+    /// do we need a WAV/RF64 header for this streaming format ?
+    /// don't call before all fields are properly initialized
+    #[inline]
+    pub fn needs_wav_hdr(&self) -> bool {
+        self.streaming_format.needs_wav_hdr()
+    }
+    /// return the dlna string for this stream
+    /// don't call before all fields are properly initialized
+    pub fn dlna_string(&self) -> String {
+        self.streaming_format.dlna_string(self.bits_per_sample)
     }
 }

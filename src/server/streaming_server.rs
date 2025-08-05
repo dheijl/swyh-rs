@@ -1,7 +1,7 @@
 use crate::{
     enums::{
         messages::MessageType,
-        streaming::{BitDepth, StreamContext, StreamingFormat, StreamingState},
+        streaming::{BitDepth, StreamingContext, StreamingFormat, StreamingState},
     },
     globals::statics::get_clients_mut,
     openhome::rendercontrol::WavData,
@@ -37,8 +37,8 @@ pub fn run_server(
     ui_log(&format!(
         "The streaming server is listening on http://{addr}/stream/swyh.wav"
     ));
-    // get the needed config info upfront (this struct is Copy)
-    let stream_config = StreamContext::from_config();
+    // get the needed config info upfront
+    let stream_config = StreamingContext::from_config();
     let logmsg = {
         format!(
             "Default streaming sample rate: {}, bits per sample: {}, format: {}",
@@ -66,49 +66,47 @@ pub fn run_server(
                     if cfg!(debug_assertions) {
                         dump_rq_headers(&rq);
                     }
-                    // refresh context from config info for each new streaming request
-                    // as some parameters may have changed
-                    let mut stream_context = StreamContext::from_config();
-                    // parse the GET request and update context
-                    stream_context.remote_addr = rq.remote_addr().unwrap().to_string();
-                    stream_context.remote_ip = get_remote_ip(&stream_context.remote_addr);
-                    // update context from WavData
-                    stream_context.sample_rate = wd.sample_rate.0;
-                    stream_context.sample_format = wd.sample_format;
-                    // - build standard headers
+                    // - build standard response headers
                     let mut headers = get_default_headers();
+                    // create fresh streaming context from config info for each new streaming request
+                    // as some parameters may have changed
+                    let mut streaming_ctx = StreamingContext::from_config();
+                    // parse the GET request and update context
+                    streaming_ctx.set_remote_addr(&rq);
+                    // update context from WavData
+                    streaming_ctx.set_sample_data(wd);
                     //  - decode streaming query params if present
                     let sp = StreamingParams::from_query_string(rq.url());
                     // - check for valid request uri
                     if sp.path.is_none() {
-                        return unrecognized_request(rq, &stream_context.remote_addr, &headers);
+                        return unrecognized_request(rq, &streaming_ctx.remote_addr, &headers);
                     }
-                    // - update streaming context from querystring (if present)
-                    stream_context.update_format(&sp);
+                    // - update streaming context from querystring (if present), this completes the context
+                    streaming_ctx.update_format(&sp);
                     // - now add the dlna headers to the header collection
-                    add_dlna_headers(&mut headers, &stream_context);
+                    add_dlna_headers(&mut headers, &streaming_ctx);
                     // handle response, streaming if GET, headers only otherwise
                     match *rq.method() {
                         Method::Get => {
                             ui_log(&format!(
                                 "Streaming request {} from {}",
                                 rq.url(),
-                                stream_context.remote_addr
+                                streaming_ctx.remote_addr
                             ));
                             let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
                             let channel_stream = ChannelStream::new(
                                 tx,
                                 rx,
-                                stream_context.remote_ip.clone(),
-                                stream_context.streaming_format.needs_wav_hdr(),
-                                stream_context.sample_rate,
-                                stream_context.bits_per_sample,
-                                stream_context.streaming_format,
+                                streaming_ctx.remote_ip.clone(),
+                                streaming_ctx.needs_wav_hdr(),
+                                streaming_ctx.sample_rate,
+                                streaming_ctx.bits_per_sample as u16,
+                                streaming_ctx.streaming_format,
                             );
                             let nclients = {
                                 let mut clients = get_clients_mut();
                                 clients.insert(
-                                    stream_context.remote_addr.clone(),
+                                    streaming_ctx.remote_addr.clone(),
                                     channel_stream.clone(),
                                 );
                                 clients.len()
@@ -117,47 +115,45 @@ pub fn run_server(
 
                             feedback_tx_c
                                 .send(MessageType::PlayerMessage(StreamerFeedBack {
-                                    remote_ip: stream_context.remote_ip.clone(),
+                                    remote_ip: streaming_ctx.remote_ip.clone(),
                                     streaming_state: StreamingState::Started,
                                 }))
                                 .unwrap();
 
                             // check for upfront audio buffering needed
-                            if stream_context.buffering_delay_msec > 0 {
+                            if streaming_ctx.buffering_delay_msec > 0 {
                                 thread::sleep(Duration::from_millis(
-                                    stream_context.buffering_delay_msec.into(),
+                                    streaming_ctx.buffering_delay_msec.into(),
                                 ));
                             }
-                            let dlna_streaming_format = stream_context
-                                .streaming_format
-                                .dlna_string(BitDepth::from(stream_context.bits_per_sample));
                             ui_log(&format!(
-                                "Streaming {dlna_streaming_format}, input sample format {:?}, \
+                                "Streaming {}, input sample format {:?}, \
                             channels=2, rate={}, bps = {}, to {}",
-                                stream_context.sample_format,
-                                stream_context.sample_rate,
-                                stream_context.bits_per_sample,
-                                stream_context.remote_addr
+                                streaming_ctx.dlna_string(),
+                                streaming_ctx.sample_format,
+                                streaming_ctx.sample_rate,
+                                streaming_ctx.bits_per_sample,
+                                streaming_ctx.remote_addr
                             ));
                             let response = Response::new(
                                 tiny_http::StatusCode(200),
                                 headers,
                                 channel_stream,
-                                stream_context.streamsize,
+                                streaming_ctx.streamsize,
                                 None,
                             )
-                            .with_chunked_threshold(stream_context.chunksize);
+                            .with_chunked_threshold(streaming_ctx.chunksize);
                             dump_resp_headers(&response);
                             let e = rq.respond(response);
                             if e.is_err() {
                                 ui_log(&format!(
                                     "=>Http connection with {} terminated [{e:?}]",
-                                    stream_context.remote_addr
+                                    streaming_ctx.remote_addr
                                 ));
                             }
                             let nclients = {
                                 let mut clients = get_clients_mut();
-                                if let Some(chs) = clients.remove(&stream_context.remote_addr) {
+                                if let Some(chs) = clients.remove(&streaming_ctx.remote_addr) {
                                     chs.stop_flac_encoder();
                                 };
                                 clients.len()
@@ -168,17 +164,17 @@ pub fn run_server(
                             // so that we can update the corresponding button state
                             feedback_tx_c
                                 .send(MessageType::PlayerMessage(StreamerFeedBack {
-                                    remote_ip: stream_context.remote_ip,
+                                    remote_ip: streaming_ctx.remote_ip,
                                     streaming_state: StreamingState::Ended,
                                 }))
                                 .unwrap();
                             ui_log(&format!(
                                 "Streaming to {} has ended",
-                                stream_context.remote_addr
+                                streaming_ctx.remote_addr
                             ));
                         }
                         Method::Head => {
-                            debug!("HEAD rq from {}", stream_context.remote_addr);
+                            debug!("HEAD rq from {}", streaming_ctx.remote_addr);
                             let response = Response::new(
                                 tiny_http::StatusCode(200),
                                 headers,
@@ -189,7 +185,7 @@ pub fn run_server(
                             if let Err(e) = rq.respond(response) {
                                 ui_log(&format!(
                                     "=>Http HEAD connection with {} terminated [{e}]",
-                                    stream_context.remote_addr
+                                    streaming_ctx.remote_addr
                                 ));
                             }
                         }
@@ -197,7 +193,7 @@ pub fn run_server(
                             ui_log(&format!(
                                 "Unsupported HTTP method request {:?} from {}",
                                 *rq.method(),
-                                stream_context.remote_addr
+                                streaming_ctx.remote_addr
                             ));
                             let response = Response::new(
                                 tiny_http::StatusCode(405),
@@ -209,7 +205,7 @@ pub fn run_server(
                             if let Err(e) = rq.respond(response) {
                                 ui_log(&format!(
                                     "=>Http connection with {} terminated [{e}]",
-                                    stream_context.remote_addr
+                                    streaming_ctx.remote_addr
                                 ));
                             }
                         }
@@ -222,15 +218,6 @@ pub fn run_server(
     for h in handles {
         h.join().unwrap();
     }
-}
-
-/// extract IP address from remote address
-fn get_remote_ip(remote_addr: &str) -> String {
-    let mut remote_ip = remote_addr.to_owned();
-    if let Some(i) = remote_ip.find(':') {
-        remote_ip.truncate(i);
-    }
-    remote_ip
 }
 
 /// dump response headers
@@ -276,28 +263,26 @@ fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: &[He
 }
 
 /// Add the dlna headers
-fn add_dlna_headers(headers: &mut Vec<Header>, stream_context: &StreamContext) {
+fn add_dlna_headers(headers: &mut Vec<Header>, stream_context: &StreamingContext) {
     // get the dlna format string
     let ct_text = {
-        if stream_context.streaming_format == StreamingFormat::Flac {
-            "audio/flac".to_string()
-        } else if stream_context.streaming_format == StreamingFormat::Wav
-            || stream_context.streaming_format == StreamingFormat::Rf64
-        {
-            "audio/vnd.wave;codec=1".to_string()
-        } else {
-            // LPCM
-            if BitDepth::from(stream_context.bits_per_sample) == BitDepth::Bits16 {
-                format!(
-                    "audio/L16;rate={};channels=2",
-                    stream_context.bits_per_sample
-                )
-            } else {
-                format!(
-                    "audio/L24;rate={};channels=2",
-                    stream_context.bits_per_sample
-                )
-            }
+        match stream_context.streaming_format {
+            StreamingFormat::Flac => "audio/flac".to_string(),
+            StreamingFormat::Wav | StreamingFormat::Rf64 => "audio/vnd.wave;codec=1".to_string(),
+            StreamingFormat::Lpcm => match stream_context.bits_per_sample {
+                BitDepth::Bits16 => {
+                    format!(
+                        "audio/L16;rate={};channels=2",
+                        stream_context.bits_per_sample
+                    )
+                }
+                BitDepth::Bits24 => {
+                    format!(
+                        "audio/L24;rate={};channels=2",
+                        stream_context.bits_per_sample
+                    )
+                }
+            },
         }
     };
     // and add dlna headers

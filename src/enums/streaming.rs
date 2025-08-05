@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{convert::From, fmt, str::FromStr};
 
-use crate::globals::statics::get_config;
+use crate::{globals::statics::get_config, server::query_params::StreamingParams};
 
 /// streaming state
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -58,14 +58,6 @@ impl StreamingFormat {
                     "audio/L24 (LPCM)".to_string()
                 }
             }
-        }
-    }
-    pub fn get_streaming_params(self, stream_config: &StreamConfig) -> (Option<usize>, usize) {
-        match self {
-            StreamingFormat::Lpcm => stream_config.lpcm_streamsize.values(),
-            StreamingFormat::Wav => stream_config.wav_streamsize.values(),
-            StreamingFormat::Rf64 => stream_config.rf64_streamsize.values(),
-            StreamingFormat::Flac => stream_config.flac_streamsize.values(),
         }
     }
 }
@@ -167,8 +159,10 @@ impl FromStr for BitDepth {
 
 /// helper holding struct to avoid repeatedly reading the config data
 /// or cloning the large Configuration struct
-#[derive(Copy, Clone)]
-pub struct StreamConfig {
+#[derive(Clone)]
+pub struct StreamContext {
+    pub sample_rate: u32,
+    pub sample_format: cpal::SampleFormat,
     pub bits_per_sample: u16,
     pub streaming_format: StreamingFormat,
     pub lpcm_streamsize: StreamSize,
@@ -176,12 +170,19 @@ pub struct StreamConfig {
     pub flac_streamsize: StreamSize,
     pub rf64_streamsize: StreamSize,
     pub buffering_delay_msec: u32,
+    pub remote_addr: String,
+    pub remote_ip: String,
+    pub chunksize: usize,
+    pub streamsize: Option<usize>,
 }
 
-impl StreamConfig {
-    pub fn get() -> StreamConfig {
+impl StreamContext {
+    /// initialize values from config
+    pub fn from_config() -> StreamContext {
         let cfg = get_config();
-        StreamConfig {
+        StreamContext {
+            sample_rate: 44100,
+            sample_format: cpal::SampleFormat::F32,
             bits_per_sample: cfg.bits_per_sample.unwrap_or(16),
             streaming_format: cfg.streaming_format.unwrap_or(StreamingFormat::Flac),
             lpcm_streamsize: cfg.lpcm_stream_size.unwrap(),
@@ -189,6 +190,35 @@ impl StreamConfig {
             flac_streamsize: cfg.flac_stream_size.unwrap(),
             rf64_streamsize: cfg.rf64_stream_size.unwrap(),
             buffering_delay_msec: cfg.buffering_delay_msec.unwrap_or(0),
+            remote_addr: String::new(),
+            remote_ip: String::new(),
+            chunksize: 0,
+            streamsize: None,
         }
+    }
+    // update values from query parameters if present
+    pub fn update_format(&mut self, query_params: &StreamingParams) {
+        // streaming format
+        if let Some(fmt) = query_params.fmt {
+            self.streaming_format = fmt;
+        }
+        // bit depth
+        if let Some(bd) = query_params.bd {
+            self.bits_per_sample = bd as u16;
+        }
+        // get default streamsize/chunksize
+        let (mut streamsize, mut chunksize) = match self.streaming_format {
+            StreamingFormat::Lpcm => self.lpcm_streamsize.values(),
+            StreamingFormat::Wav => self.wav_streamsize.values(),
+            StreamingFormat::Rf64 => self.rf64_streamsize.values(),
+            StreamingFormat::Flac => self.flac_streamsize.values(),
+        };
+        // unless overridden in query params
+        if let Some(ss) = query_params.ss {
+            (streamsize, chunksize) = ss.values();
+        }
+        // update streamsize/chunksize accordingly
+        self.streamsize = streamsize;
+        self.chunksize = chunksize;
     }
 }

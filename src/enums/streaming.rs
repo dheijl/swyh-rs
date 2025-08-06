@@ -166,6 +166,7 @@ impl FromStr for BitDepth {
 /// it gathers all the information needed for HTTP streaming and
 /// starts out with the default values from the config
 /// it is then updated as needed before streaming starts
+#[derive(Debug)]
 pub struct StreamingContext {
     pub sample_rate: u32,
     pub sample_format: cpal::SampleFormat,
@@ -180,6 +181,7 @@ pub struct StreamingContext {
     pub remote_ip: String,   // ip only
     pub chunksize: usize,
     pub streamsize: Option<usize>,
+    pub url: String,
 }
 
 impl StreamingContext {
@@ -200,10 +202,12 @@ impl StreamingContext {
             remote_ip: String::new(),
             chunksize: 0,
             streamsize: None,
+            url: String::new(),
         }
     }
     /// initialize remote_addr and remote_ip
     pub fn set_remote_addr(&mut self, rq: &Request) {
+        self.url = rq.url().to_string();
         self.remote_addr = rq.remote_addr().unwrap().to_string();
         self.remote_ip = self.remote_addr.clone();
         if let Some(i) = self.remote_addr.find(':') {

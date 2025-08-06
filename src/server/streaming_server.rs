@@ -83,6 +83,7 @@ pub fn run_server(
                     }
                     // - update streaming context from querystring (if present), this completes the context
                     streaming_ctx.update_format(&sp);
+                    debug!("{streaming_ctx:?}");
                     // - now add the dlna headers to the header collection
                     add_dlna_headers(&mut headers, &streaming_ctx);
                     // handle response, streaming if GET, headers only otherwise
@@ -90,8 +91,7 @@ pub fn run_server(
                         Method::Get => {
                             ui_log(&format!(
                                 "Streaming request {} from {}",
-                                rq.url(),
-                                streaming_ctx.remote_addr
+                                streaming_ctx.url, streaming_ctx.remote_addr
                             ));
                             let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
                             let channel_stream = ChannelStream::new(

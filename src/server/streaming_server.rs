@@ -89,125 +89,13 @@ pub fn run_server(
                     // handle response, streaming if GET, headers only otherwise
                     match *rq.method() {
                         Method::Get => {
-                            ui_log(&format!(
-                                "Streaming request {} from {}",
-                                streaming_ctx.url, streaming_ctx.remote_addr
-                            ));
-                            let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
-                            let channel_stream = ChannelStream::new(
-                                tx,
-                                rx,
-                                streaming_ctx.remote_ip.clone(),
-                                streaming_ctx.needs_wav_hdr(),
-                                streaming_ctx.sample_rate,
-                                streaming_ctx.bits_per_sample as u16,
-                                streaming_ctx.streaming_format,
-                            );
-                            let nclients = {
-                                let mut clients = get_clients_mut();
-                                clients.insert(
-                                    streaming_ctx.remote_addr.clone(),
-                                    channel_stream.clone(),
-                                );
-                                clients.len()
-                            };
-                            debug!("Now have {nclients} streaming clients");
-
-                            feedback_tx_c
-                                .send(MessageType::PlayerMessage(StreamerFeedBack {
-                                    remote_ip: streaming_ctx.remote_ip.clone(),
-                                    streaming_state: StreamingState::Started,
-                                }))
-                                .unwrap();
-
-                            // check for upfront audio buffering needed
-                            if streaming_ctx.buffering_delay_msec > 0 {
-                                thread::sleep(Duration::from_millis(
-                                    streaming_ctx.buffering_delay_msec.into(),
-                                ));
-                            }
-                            ui_log(&format!(
-                                "Streaming {}, input sample format {:?}, \
-                            channels=2, rate={}, bps = {}, to {}",
-                                streaming_ctx.dlna_string(),
-                                streaming_ctx.sample_format,
-                                streaming_ctx.sample_rate,
-                                streaming_ctx.bits_per_sample,
-                                streaming_ctx.remote_addr
-                            ));
-                            let response = Response::new(
-                                tiny_http::StatusCode(200),
-                                headers,
-                                channel_stream,
-                                streaming_ctx.streamsize,
-                                None,
-                            )
-                            .with_chunked_threshold(streaming_ctx.chunksize);
-                            dump_resp_headers(&response);
-                            let e = rq.respond(response);
-                            if e.is_err() {
-                                ui_log(&format!(
-                                    "=>Http connection with {} terminated [{e:?}]",
-                                    streaming_ctx.remote_addr
-                                ));
-                            }
-                            let nclients = {
-                                let mut clients = get_clients_mut();
-                                if let Some(chs) = clients.remove(&streaming_ctx.remote_addr) {
-                                    chs.stop_flac_encoder();
-                                };
-                                clients.len()
-                            };
-                            debug!("Now have {nclients} streaming clients left");
-                            // inform the main thread that this renderer has finished receiving
-                            // necessary if the connection close was not caused by our own GUI
-                            // so that we can update the corresponding button state
-                            feedback_tx_c
-                                .send(MessageType::PlayerMessage(StreamerFeedBack {
-                                    remote_ip: streaming_ctx.remote_ip,
-                                    streaming_state: StreamingState::Ended,
-                                }))
-                                .unwrap();
-                            ui_log(&format!(
-                                "Streaming to {} has ended",
-                                streaming_ctx.remote_addr
-                            ));
+                            streaming_request(&streaming_ctx, feedback_tx_c, &headers, rq);
                         }
                         Method::Head => {
-                            debug!("HEAD rq from {}", streaming_ctx.remote_addr);
-                            let response = Response::new(
-                                tiny_http::StatusCode(200),
-                                headers,
-                                io::empty(),
-                                Some(0),
-                                None,
-                            );
-                            if let Err(e) = rq.respond(response) {
-                                ui_log(&format!(
-                                    "=>Http HEAD connection with {} terminated [{e}]",
-                                    streaming_ctx.remote_addr
-                                ));
-                            }
+                            head_request(&streaming_ctx, &headers, rq);
                         }
                         _ => {
-                            ui_log(&format!(
-                                "Unsupported HTTP method request {:?} from {}",
-                                *rq.method(),
-                                streaming_ctx.remote_addr
-                            ));
-                            let response = Response::new(
-                                tiny_http::StatusCode(405),
-                                headers,
-                                io::empty(),
-                                Some(0),
-                                None,
-                            );
-                            if let Err(e) = rq.respond(response) {
-                                ui_log(&format!(
-                                    "=>Http connection with {} terminated [{e}]",
-                                    streaming_ctx.remote_addr
-                                ));
-                            }
+                            invalid_request(&streaming_ctx, &headers, rq);
                         }
                     }
                 });
@@ -238,6 +126,136 @@ fn dump_resp_headers(response: &Response<ChannelStream>) {
 fn dump_rq_headers(rq: &tiny_http::Request) {
     for hdr in rq.headers() {
         debug!(" <== Request {hdr:?}");
+    }
+}
+
+/// GET METHOD request - request to start streaming
+fn streaming_request(
+    streaming_ctx: &StreamingContext,
+    feedback_channel: Sender<MessageType>,
+    headers: &[Header],
+    request: tiny_http::Request,
+) {
+    ui_log(&format!(
+        "Streaming request {} from {}",
+        streaming_ctx.url, streaming_ctx.remote_addr
+    ));
+    // create the channelstream that receives the samples and streams them on demand
+    let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
+    let channel_stream = ChannelStream::new(
+        tx,
+        rx,
+        streaming_ctx.remote_ip.clone(),
+        streaming_ctx.needs_wav_hdr(),
+        streaming_ctx.sample_rate,
+        streaming_ctx.bits_per_sample as u16,
+        streaming_ctx.streaming_format,
+    );
+    let nclients = {
+        let mut clients = get_clients_mut();
+        clients.insert(streaming_ctx.remote_addr.clone(), channel_stream.clone());
+        clients.len()
+    };
+    debug!("Now have {nclients} streaming clients");
+
+    feedback_channel
+        .send(MessageType::PlayerMessage(StreamerFeedBack {
+            remote_ip: streaming_ctx.remote_ip.clone(),
+            streaming_state: StreamingState::Started,
+        }))
+        .unwrap();
+
+    // check for upfront audio buffering needed
+    if streaming_ctx.buffering_delay_msec > 0 {
+        thread::sleep(Duration::from_millis(
+            streaming_ctx.buffering_delay_msec.into(),
+        ));
+    }
+    ui_log(&format!(
+        "Streaming {}, input sample format {:?}, \
+                            channels=2, rate={}, bps = {}, to {}",
+        streaming_ctx.dlna_string(),
+        streaming_ctx.sample_format,
+        streaming_ctx.sample_rate,
+        streaming_ctx.bits_per_sample,
+        streaming_ctx.remote_addr
+    ));
+    let response = Response::new(
+        tiny_http::StatusCode(200),
+        headers.to_vec(),
+        channel_stream,
+        streaming_ctx.streamsize,
+        None,
+    )
+    .with_chunked_threshold(streaming_ctx.chunksize);
+    dump_resp_headers(&response);
+    let e = request.respond(response);
+    if e.is_err() {
+        ui_log(&format!(
+            "=>Http connection with {} terminated [{e:?}]",
+            streaming_ctx.remote_addr
+        ));
+    }
+    let nclients = {
+        let mut clients = get_clients_mut();
+        if let Some(chs) = clients.remove(&streaming_ctx.remote_addr) {
+            chs.stop_flac_encoder();
+        };
+        clients.len()
+    };
+    debug!("Now have {nclients} streaming clients left");
+    // inform the main thread that this renderer has finished receiving
+    // necessary if the connection close was not caused by our own GUI
+    // so that we can update the corresponding button state
+    feedback_channel
+        .send(MessageType::PlayerMessage(StreamerFeedBack {
+            remote_ip: streaming_ctx.remote_ip.clone(),
+            streaming_state: StreamingState::Ended,
+        }))
+        .unwrap();
+    ui_log(&format!(
+        "Streaming to {} has ended",
+        streaming_ctx.remote_addr
+    ));
+}
+
+/// HEAD METHOD request
+fn head_request(streaming_ctx: &StreamingContext, headers: &[Header], rq: tiny_http::Request) {
+    debug!("HEAD rq from {}", streaming_ctx.remote_addr);
+    let response = Response::new(
+        tiny_http::StatusCode(200),
+        headers.to_vec(),
+        io::empty(),
+        Some(0),
+        None,
+    );
+    if let Err(e) = rq.respond(response) {
+        ui_log(&format!(
+            "=>Http HEAD connection with {} terminated [{e}]",
+            streaming_ctx.remote_addr
+        ));
+    }
+}
+
+/// invalid METHOD request
+fn invalid_request(streaming_ctx: &StreamingContext, headers: &[Header], rq: tiny_http::Request) {
+    ui_log(&format!(
+        "Unsupported HTTP method request {:?} from {}",
+        *rq.method(),
+        streaming_ctx.remote_addr
+    ));
+    let response = Response::new(
+        tiny_http::StatusCode(405),
+        headers.to_vec(),
+        io::empty(),
+        Some(0),
+        None,
+    );
+    if let Err(e) = rq.respond(response) {
+        ui_log(&format!(
+            "=>Http connection with {} terminated [{e}]",
+            streaming_ctx.remote_addr
+        ));
     }
 }
 
@@ -290,7 +308,7 @@ fn add_dlna_headers(headers: &mut Vec<Header>, stream_context: &StreamingContext
     headers.push(Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..]).unwrap());
 }
 
-// get the default http response headers
+/// build the default http response headers
 fn get_default_headers() -> Vec<Header> {
     let mut headers = Vec::with_capacity(8);
     headers.push(Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap());

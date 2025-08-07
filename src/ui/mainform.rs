@@ -160,14 +160,14 @@ impl MainForm {
                                         return true;
                                     }
                                 }
-                            } else if let Some(frame) = app::belowmouse::<Frame>() {
-                                if frame.label().contains("UPNP rendering devices on network") {
-                                    let mut config = get_config_mut();
-                                    config.hidden_renderers.clear();
-                                    let _ = config.update_config();
-                                    config_changed.set(true);
-                                    return true;
-                                }
+                            } else if let Some(frame) = app::belowmouse::<Frame>()
+                                && frame.label().contains("UPNP rendering devices on network")
+                            {
+                                let mut config = get_config_mut();
+                                config.hidden_renderers.clear();
+                                let _ = config.update_config();
+                                config_changed.set(true);
+                                return true;
                             }
                         }
                         false

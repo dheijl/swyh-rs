@@ -89,7 +89,7 @@ pub fn run_server(
                     // handle response, streaming if GET, headers only otherwise
                     match *rq.method() {
                         Method::Get => {
-                            streaming_request(&streaming_ctx, feedback_tx_c, &headers, rq);
+                            streaming_request(&streaming_ctx, feedback_tx_c, headers, rq);
                         }
                         Method::Head => {
                             head_request(&streaming_ctx, &headers, rq);
@@ -133,7 +133,7 @@ fn dump_rq_headers(rq: &tiny_http::Request) {
 fn streaming_request(
     streaming_ctx: &StreamingContext,
     feedback_channel: Sender<MessageType>,
-    headers: &[Header],
+    headers: Vec<Header>,
     request: tiny_http::Request,
 ) {
     ui_log(&format!(
@@ -182,7 +182,7 @@ fn streaming_request(
     ));
     let response = Response::new(
         tiny_http::StatusCode(200),
-        headers.to_vec(),
+        headers,
         channel_stream,
         streaming_ctx.streamsize,
         None,

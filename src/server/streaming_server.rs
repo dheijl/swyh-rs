@@ -79,7 +79,7 @@ pub fn run_server(
                     let sp = StreamingParams::from_query_string(rq.url());
                     // - check for valid request uri
                     if sp.path.is_none() {
-                        return unrecognized_request(rq, &streaming_ctx.remote_addr, &headers);
+                        return unrecognized_request(rq, &streaming_ctx.remote_addr, headers);
                     }
                     // - update streaming context from querystring (if present), this completes the context
                     streaming_ctx.update_format(&sp);
@@ -92,10 +92,10 @@ pub fn run_server(
                             streaming_request(&streaming_ctx, feedback_tx_c, headers, rq);
                         }
                         Method::Head => {
-                            head_request(&streaming_ctx, &headers, rq);
+                            head_request(&streaming_ctx, headers, rq);
                         }
                         _ => {
-                            invalid_request(&streaming_ctx, &headers, rq);
+                            invalid_request(&streaming_ctx, headers, rq);
                         }
                     }
                 });
@@ -220,11 +220,11 @@ fn streaming_request(
 }
 
 /// HEAD METHOD request
-fn head_request(streaming_ctx: &StreamingContext, headers: &[Header], rq: tiny_http::Request) {
+fn head_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: tiny_http::Request) {
     debug!("HEAD rq from {}", streaming_ctx.remote_addr);
     let response = Response::new(
         tiny_http::StatusCode(200),
-        headers.to_vec(),
+        headers,
         io::empty(),
         Some(0),
         None,
@@ -238,7 +238,7 @@ fn head_request(streaming_ctx: &StreamingContext, headers: &[Header], rq: tiny_h
 }
 
 /// invalid METHOD request
-fn invalid_request(streaming_ctx: &StreamingContext, headers: &[Header], rq: tiny_http::Request) {
+fn invalid_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: tiny_http::Request) {
     ui_log(&format!(
         "Unsupported HTTP method request {:?} from {}",
         *rq.method(),
@@ -246,7 +246,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, headers: &[Header], rq: tin
     ));
     let response = Response::new(
         tiny_http::StatusCode(405),
-        headers.to_vec(),
+        headers,
         io::empty(),
         Some(0),
         None,
@@ -260,7 +260,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, headers: &[Header], rq: tin
 }
 
 /// this request is not recognized, reject with an error 404
-fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: &[Header]) {
+fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: Vec<Header>) {
     ui_log(&format!(
         "Unrecognized request '{}' from {}'",
         rq.url(),
@@ -268,7 +268,7 @@ fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: &[He
     ));
     let response = Response::new(
         tiny_http::StatusCode(404),
-        headers.to_vec(),
+        headers,
         io::empty(),
         Some(0),
         None,

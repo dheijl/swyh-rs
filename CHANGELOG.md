@@ -3,6 +3,7 @@
 - 1.12.12 (unreleased)
   - refactor http streaming server
   - rust 1.89
+  - use ecow EcoString for the small strings that get cloned frequently
 
 - 1.12.11 (Aug 1 2025 dheijl)
   - more small refactorings

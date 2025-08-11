@@ -7,6 +7,7 @@ use crate::{
 };
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
+use ecow::EcoString;
 use hashbrown::HashMap;
 use std::sync::RwLock;
 
@@ -30,12 +31,12 @@ pub static THEMES: &[&str] = &["Shake", "Gray", "Tan", "Dark", "Black", "None"];
 pub static RUN_RMS_MONITOR: AtomicBool = AtomicBool::new(false);
 
 /// streaming clients of the webserver
-static CLIENTS: LazyLock<RwLock<HashMap<String, ChannelStream>>> =
+static CLIENTS: LazyLock<RwLock<HashMap<EcoString, ChannelStream>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
-pub fn get_clients() -> RwLockReadGuard<'static, HashMap<String, ChannelStream>> {
+pub fn get_clients() -> RwLockReadGuard<'static, HashMap<EcoString, ChannelStream>> {
     CLIENTS.read().expect("CLIENTS read lock poisoned")
 }
-pub fn get_clients_mut() -> RwLockWriteGuard<'static, HashMap<String, ChannelStream>> {
+pub fn get_clients_mut() -> RwLockWriteGuard<'static, HashMap<EcoString, ChannelStream>> {
     CLIENTS.write().expect("CLIENTS write lock poisoned")
 }
 

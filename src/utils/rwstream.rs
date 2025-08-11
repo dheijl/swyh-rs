@@ -12,6 +12,7 @@
 use crate::{enums::streaming::StreamingFormat, globals::statics::get_config};
 use crossbeam_channel::{Receiver, Sender};
 use dasp_sample::Sample;
+use ecow::EcoString;
 use fastrand::Rng;
 use log::{debug, error};
 use std::{
@@ -28,7 +29,7 @@ use super::flacstream::FlacChannel;
 pub struct ChannelStream {
     pub s: Sender<Vec<f32>>,
     pub r: Receiver<Vec<f32>>,
-    pub remote_ip: String,
+    pub remote_ip: EcoString,
     pub streaming_format: StreamingFormat,
     fifo: VecDeque<f32>,
     flac_fifo: VecDeque<u8>,
@@ -45,7 +46,7 @@ impl ChannelStream {
     pub fn new(
         tx: Sender<Vec<f32>>,
         rx: Receiver<Vec<f32>>,
-        remote_ip_addr: String,
+        remote_ip_addr: EcoString,
         use_wave_format: bool,
         sample_rate: u32,
         bits_per_sample: u16,

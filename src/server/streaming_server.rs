@@ -9,6 +9,7 @@ use crate::{
     utils::{rwstream::ChannelStream, ui_logger::ui_log},
 };
 use crossbeam_channel::{Receiver, Sender, unbounded};
+use ecow::EcoString;
 use log::debug;
 use std::{io, net::IpAddr, sync::Arc, thread, time::Duration};
 use tiny_http::{Header, Method, Response, Server};
@@ -16,7 +17,7 @@ use tiny_http::{Header, Method, Response, Server};
 /// streaming state feedback for a client
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StreamerFeedBack {
-    pub remote_ip: String,
+    pub remote_ip: EcoString,
     pub streaming_state: StreamingState,
 }
 

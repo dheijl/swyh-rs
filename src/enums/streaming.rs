@@ -1,3 +1,4 @@
+use ecow::EcoString;
 use serde::{Deserialize, Serialize};
 use std::{convert::From, fmt, str::FromStr};
 use tiny_http::Request;
@@ -177,11 +178,11 @@ pub struct StreamingContext {
     pub flac_streamsize: StreamSize,
     pub rf64_streamsize: StreamSize,
     pub buffering_delay_msec: u32,
-    pub remote_addr: String, // ip:port
-    pub remote_ip: String,   // ip only
+    pub remote_addr: EcoString, // ip:port
+    pub remote_ip: EcoString,   // ip only
     pub chunksize: usize,
     pub streamsize: Option<usize>,
-    pub url: String,
+    pub url: EcoString,
 }
 
 impl StreamingContext {
@@ -198,17 +199,17 @@ impl StreamingContext {
             flac_streamsize: cfg.flac_stream_size.unwrap(),
             rf64_streamsize: cfg.rf64_stream_size.unwrap(),
             buffering_delay_msec: cfg.buffering_delay_msec.unwrap_or(0),
-            remote_addr: String::new(),
-            remote_ip: String::new(),
+            remote_addr: EcoString::new(),
+            remote_ip: EcoString::new(),
             chunksize: 0,
             streamsize: None,
-            url: String::new(),
+            url: EcoString::new(),
         }
     }
     /// initialize remote_addr and remote_ip
     pub fn set_remote_addr(&mut self, rq: &Request) {
-        self.url = rq.url().to_string();
-        self.remote_addr = rq.remote_addr().unwrap().to_string();
+        self.url = EcoString::from(rq.url());
+        self.remote_addr = EcoString::from(rq.remote_addr().unwrap().to_string());
         self.remote_ip = self.remote_addr.clone();
         if let Some(i) = self.remote_addr.find(':') {
             self.remote_ip.truncate(i);

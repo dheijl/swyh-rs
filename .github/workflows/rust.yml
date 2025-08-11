@@ -29,7 +29,6 @@ jobs:
                 libglu1-mesa-dev
         fi
     - uses: actions/checkout@v4
-    - uses: seanmiddleditch/gha-setup-ninja@master
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:

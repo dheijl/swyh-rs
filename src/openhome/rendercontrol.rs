@@ -950,44 +950,47 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
             Ok(XmlEvent::EndElement { name }) => {
                 let end_elem = name.local_name;
                 if end_elem == "service" {
-                    match service.service_id.as_str() {
-                        id if ["Playlist", "urn:av-openhome-org:service"]
-                            .iter()
-                            .all(|&p| id.contains(p)) =>
-                        {
-                            renderer.oh_control_url.clone_from(&service.control_url);
-                            renderer.supported_protocols |= SupportedProtocols::OPENHOME;
-                        }
-                        id if ["Volume", "urn:av-openhome-org:service"]
-                            .iter()
-                            .all(|&p| id.contains(p)) =>
-                        {
-                            renderer.oh_volume_url.clone_from(&service.control_url);
-                        }
-                        id if id.contains(":AVTransport") => {
-                            renderer.av_control_url.clone_from(&service.control_url);
-                            renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
-                        }
-                        id if id.contains(":RenderingControl") => {
-                            renderer.av_volume_url.clone_from(&service.control_url);
-                        }
-                        _ => (),
+                    let id = service.service_id.as_str();
+                    if ["Playlist", "urn:av-openhome-org:service"]
+                        .iter()
+                        .all(|&p| id.contains(p))
+                    {
+                        renderer.oh_control_url.clone_from(&service.control_url);
+                        renderer.supported_protocols |= SupportedProtocols::OPENHOME;
+                    } else if ["Volume", "urn:av-openhome-org:service"]
+                        .iter()
+                        .all(|&p| id.contains(p))
+                    {
+                        renderer.oh_volume_url.clone_from(&service.control_url);
+                    } else if id.contains(":AVTransport") {
+                        renderer.av_control_url.clone_from(&service.control_url);
+                        renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
+                    } else if id.contains(":RenderingControl") {
+                        renderer.av_volume_url.clone_from(&service.control_url);
                     }
                     renderer.services.push(service);
                     service = AvService::new();
                 }
             }
-            Ok(XmlEvent::Characters(value)) => match cur_elem.as_str() {
+            Ok(XmlEvent::Characters(value)) => {
+                let el = cur_elem.as_str();
                 // these values come from various tags, ignoring xml hierarchy
-                el if el.contains("serviceType") => service.service_type = value,
-                el if el.contains("serviceId") => service.service_id = value,
-                el if el.contains("modelName") => renderer.dev_model = value,
-                el if el.contains("friendlyName") => renderer.dev_name = value,
-                el if el.contains("deviceType") => renderer.dev_type = value,
-                el if el.contains("URLBase") => renderer.dev_url = value,
-                el if el.contains("controlURL") => service.control_url = normalize_url(&value),
-                _ => (),
-            },
+                if el.contains("serviceType") {
+                    service.service_type = value;
+                } else if el.contains("serviceId") {
+                    service.service_id = value;
+                } else if el.contains("modelName") {
+                    renderer.dev_model = value;
+                } else if el.contains("friendlyName") {
+                    renderer.dev_name = value;
+                } else if el.contains("deviceType") {
+                    renderer.dev_type = value;
+                } else if el.contains("URLBase") {
+                    renderer.dev_url = value;
+                } else if el.contains("controlURL") {
+                    service.control_url = normalize_url(&value);
+                }
+            }
             Err(e) => {
                 error!("SSDP Get Renderer Description Error: {e}");
                 return None;

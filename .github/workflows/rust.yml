@@ -28,7 +28,7 @@ jobs:
                 lib{xcursor,xrender,xfixes,png,gl1-mesa,rust-alsa-sys}-dev\
                 libglu1-mesa-dev
         fi
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:

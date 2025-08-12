@@ -9,16 +9,15 @@ use crate::{
     globals::statics::{APP_VERSION, get_config},
 };
 use bitflags::bitflags;
+use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::{button::LightButton, valuator::HorNiceSlider};
 use hashbrown::HashMap;
 use log::{debug, error, info};
-use std::collections::HashMap as StdHashMap;
 use std::{
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
-use strfmt::strfmt;
 use url::Url;
 use xml::reader::{EventReader, XmlEvent};
 
@@ -364,7 +363,7 @@ impl Renderer {
         streaminfo: StreamInfo,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
-        let mut fmt_vars = StdHashMap::new();
+        let mut fmt_vars = Context::new();
         let addr = format!("{local_addr}:{server_port}");
 
         let local_url = match streaminfo.streaming_format {
@@ -373,17 +372,17 @@ impl Renderer {
             StreamingFormat::Flac => format!("http://{addr}/stream/swyh.flac"),
             StreamingFormat::Rf64 => format!("http://{addr}/stream/swyh.rf64"),
         };
-        fmt_vars.insert("server_uri".to_string(), local_url);
+        fmt_vars.insert("server_uri", Value::String(local_url));
         fmt_vars.insert(
-            "bits_per_sample".to_string(),
-            streaminfo.bits_per_sample.to_string(),
+            "bits_per_sample",
+            Value::String(streaminfo.bits_per_sample.to_string()),
         );
         fmt_vars.insert(
-            "sample_rate".to_string(),
-            streaminfo.sample_rate.to_string(),
+            "sample_rate",
+            Value::String(streaminfo.sample_rate.to_string()),
         );
-        fmt_vars.insert("duration".to_string(), "00:00:00".to_string());
-        let mut didl_prot: String;
+        fmt_vars.insert("duration", Value::String("00:00:00".to_string()));
+        let didl_prot: String;
         if streaminfo.streaming_format == StreamingFormat::Flac {
             didl_prot = htmlescape::encode_minimal(FLAC_PROT_INFO);
         } else if streaminfo.streaming_format == StreamingFormat::Wav
@@ -395,25 +394,40 @@ impl Renderer {
         } else {
             didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
         }
-        match strfmt(&didl_prot, &fmt_vars) {
-            Ok(s) => didl_prot = s,
+        let template = match Template::<'{', '}'>::parse(&didl_prot) {
+            Ok(s) => s,
             Err(e) => {
-                didl_prot = format!("oh_play: error {e} formatting didl_prot");
-                log(&didl_prot);
+                log(&format!(
+                    "oh_play: error {e} parsing DIDL_PROTOCOL template"
+                ));
                 return Err(BAD_TEMPL);
             }
-        }
-        fmt_vars.insert("didl_prot_info".to_string(), didl_prot);
-        let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
-        match strfmt(&didl_data, &fmt_vars) {
-            Ok(s) => didl_data = s,
+        };
+        let didl_prot = match template.format(&fmt_vars) {
+            Ok(s) => s,
             Err(e) => {
-                didl_data = format!("oh_play: error {e} formatting didl_data xml");
-                log(&didl_data);
+                log(&format!("oh_play: error {e} formatting didl_protol"));
                 return Err(BAD_TEMPL);
             }
-        }
-        fmt_vars.insert("didl_data".to_string(), didl_data);
+        };
+        fmt_vars.insert("didl_prot_info", Value::String(didl_prot));
+        let didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
+        let template = match Template::<'{', '}'>::parse(&didl_data) {
+            //.expect("DIDL DATA template parse error");
+            Ok(s) => s,
+            Err(e) => {
+                log(&format!("oh_play: error {e} parsing DIDL_DATA template"));
+                return Err(BAD_TEMPL);
+            }
+        };
+        let formatted_didl = match template.format(&fmt_vars) {
+            Ok(s) => s,
+            Err(e) => {
+                log(&format!("oh_play: error {e} formatting didl_data xml"));
+                return Err(BAD_TEMPL);
+            }
+        };
+        fmt_vars.insert("didl_data", Value::String(formatted_didl));
         // now send the start playing commands
         if self
             .supported_protocols
@@ -442,11 +456,7 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn oh_play(
-        &mut self,
-        log: &dyn Fn(&str),
-        fmt_vars: &StdHashMap<String, String>,
-    ) -> Result<(), &str> {
+    fn oh_play(&mut self, log: &dyn Fn(&str), fmt_vars: &Context) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
         self.oh_stop_play(&url, log);
@@ -455,7 +465,14 @@ impl Renderer {
             "OH Inserting new playlist on {} host={} port={}",
             self.dev_name, self.host, self.port
         ));
-        let xmlbody = match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
+        let template = match Template::<'{', '}'>::parse(OH_INSERT_PL_TEMPLATE) {
+            Ok(s) => s,
+            Err(e) => {
+                log(&format!("oh_play: error {e} parsing OH_INSERT_PL_TEMPLATE"));
+                return Err(BAD_TEMPL);
+            }
+        };
+        let xmlbody = match template.format(fmt_vars) {
             Ok(s) => s,
             Err(e) => {
                 log(&format!("oh_play: error {e} formatting oh playlist xml"));
@@ -488,17 +505,22 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn av_play(
-        &mut self,
-        log: &dyn Fn(&str),
-        fmt_vars: &StdHashMap<String, String>,
-    ) -> Result<(), &str> {
+    fn av_play(&mut self, log: &dyn Fn(&str), fmt_vars: &Context) -> Result<(), &str> {
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(&url, log);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let xmlbody = match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
+        let template = match Template::<'{', '}'>::parse(AV_SET_TRANSPORT_URI_TEMPLATE) {
+            Ok(s) => s,
+            Err(e) => {
+                log(&format!(
+                    "av_play: error {e} parsing AV_SET_TRANSPORT_URI_TEMPLATE"
+                ));
+                return Err(BAD_TEMPL);
+            }
+        };
+        let xmlbody = match template.format(fmt_vars) {
             Ok(s) => s,
             Err(e) => {
                 log(&format!("av_play: error {e} formatting set transport uri"));

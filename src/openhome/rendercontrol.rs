@@ -173,7 +173,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Envelope>";
 
 /// Bad XML template error
-static BAD_TEMPL: &str = "Bad xml template (strfmt)";
+static BAD_TEMPL: &str = "Error parsing/formatting XML template.";
 
 // some audio config info
 #[derive(Debug, Clone, Copy)]

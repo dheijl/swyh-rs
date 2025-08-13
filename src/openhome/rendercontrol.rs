@@ -21,6 +21,9 @@ use std::{
 use url::Url;
 use xml::reader::{EventReader, XmlEvent};
 
+/// a Figura Template with Curly Braces as delimiter
+type CbTemplate = Template<'{', '}'>;
+
 /// OH insert playlist template
 static OH_INSERT_PL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
@@ -394,7 +397,7 @@ impl Renderer {
         } else {
             didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
         }
-        let template = match Template::<'{', '}'>::parse(&didl_prot) {
+        let template = match CbTemplate::parse(&didl_prot) {
             Ok(s) => s,
             Err(e) => {
                 log(&format!(
@@ -412,7 +415,7 @@ impl Renderer {
         };
         fmt_vars.insert("didl_prot_info", Value::String(didl_prot));
         let didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
-        let template = match Template::<'{', '}'>::parse(&didl_data) {
+        let template = match CbTemplate::parse(&didl_data) {
             //.expect("DIDL DATA template parse error");
             Ok(s) => s,
             Err(e) => {
@@ -465,7 +468,7 @@ impl Renderer {
             "OH Inserting new playlist on {} host={} port={}",
             self.dev_name, self.host, self.port
         ));
-        let template = match Template::<'{', '}'>::parse(OH_INSERT_PL_TEMPLATE) {
+        let template = match CbTemplate::parse(OH_INSERT_PL_TEMPLATE) {
             Ok(s) => s,
             Err(e) => {
                 log(&format!("oh_play: error {e} parsing OH_INSERT_PL_TEMPLATE"));
@@ -511,7 +514,7 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(&url, log);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let template = match Template::<'{', '}'>::parse(AV_SET_TRANSPORT_URI_TEMPLATE) {
+        let template = match CbTemplate::parse(AV_SET_TRANSPORT_URI_TEMPLATE) {
             Ok(s) => s,
             Err(e) => {
                 log(&format!(

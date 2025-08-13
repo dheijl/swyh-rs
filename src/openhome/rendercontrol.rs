@@ -381,7 +381,7 @@ impl Renderer {
             "sample_rate",
             Value::String(streaminfo.sample_rate.to_string()),
         );
-        fmt_vars.insert("duration", Value::String("00:00:00".to_string()));
+        fmt_vars.insert("duration", Value::Str("00:00:00"));
         let didl_prot: String;
         if streaminfo.streaming_format == StreamingFormat::Flac {
             didl_prot = htmlescape::encode_minimal(FLAC_PROT_INFO);

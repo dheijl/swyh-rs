@@ -1,10 +1,10 @@
 # swyh-rs Changelog
 
 - 1.12.12 (unreleased)
-  - refactor http streaming server
+  - major refactoring of http streaming server
   - rust 1.89
-  - use ecow EcoString for the small strings that get cloned frequently
-  - replace strfmt with figura for dynamic string formatting
+  - use [ecow](https://github.com/typst/ecow) EcoString for the small strings that get cloned frequently
+  - replace [strfmt](https://github.com/vitiral/strfmt) with [figura](https://github.com/saverioscagnoli/figura) for dynamic string formatting
 
 - 1.12.11 (Aug 1 2025 dheijl)
   - more small refactorings

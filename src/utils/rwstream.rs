@@ -113,9 +113,9 @@ impl ChannelStream {
             #[cfg(feature = "trace_samples")]
             {
                 let zs = if samples.iter().any(|&s| s != 0.0) {
-                    "nonero"
-                } else {
                     "nonzero"
+                } else {
+                    "zero"
                 };
                 debug!("writing {zs} sample buffer");
             }

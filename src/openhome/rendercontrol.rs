@@ -280,7 +280,7 @@ impl Renderer {
         }
     }
 
-    /// extract host and port from dev_url
+    /// extract host and port from device url
     fn parse_url(&mut self, log: &dyn Fn(&str)) {
         let host: String;
         let port: u16;
@@ -741,7 +741,7 @@ MX: 3\r\n\r\n";
 // returns a list of all AVTransport DLNA and Openhome rendering devices
 //
 pub fn discover(
-    agent: ureq::Agent,
+    agent: &ureq::Agent,
     rmap: &HashMap<String, Renderer>,
     logger: &dyn Fn(&str),
 ) -> Option<Vec<Renderer>> {
@@ -800,7 +800,7 @@ pub fn discover(
                     let status_code = response[0]
                         .trim_start_matches("HTTP/1.1 ")
                         .chars()
-                        .take_while(|x| x.is_ascii_digit())
+                        .take_while(char::is_ascii_digit)
                         .collect::<String>()
                         .parse::<u32>()
                         .unwrap_or(0);
@@ -887,10 +887,10 @@ pub fn discover(
     let mut renderers: Vec<Renderer> = Vec::with_capacity(devices.len());
 
     for (location, from) in devices {
-        if let Some(xml) = get_service_description(&agent, &location)
-            && let Some(mut rend) = get_renderer(&agent, &xml)
+        if let Some(xml) = get_service_description(agent, &location)
+            && let Some(mut rend) = get_renderer(agent, &xml)
         {
-            rend.location = location.clone();
+            rend.location.clone_from(&location);
             let mut s = from.to_string();
             if let Some(i) = s.find(':') {
                 s.truncate(i);

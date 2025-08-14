@@ -15,11 +15,11 @@ use std::sync::{Once, atomic::Ordering};
 ///
 /// The internal device may be retrieved via [`AsRef::as_ref`].
 pub struct Device {
-    /// Indicates if [cpal::Device] is primarily output or input.
+    /// Indicates if `cpal::Device` is primarily output or input.
     kind: DeviceKind,
     /// Device name as reported by the backend.
     name: String,
-    /// Default stream config based on [DeviceKind].
+    /// Default stream config based on [`DeviceKind`].
     stream_config: SupportedStreamConfig,
 }
 
@@ -54,10 +54,10 @@ impl DeviceKind {
 }
 
 impl Device {
-    // Construct a [Device] from a [cpal::Device].
-    //
-    // Devices may support both input and output.
-    // This defaults to output if both are present on one device.
+    /// Construct a [`Device`] from a [`cpal::Device`].
+    ///
+    /// Devices may support both input and output.
+    /// This defaults to output if both are present on one device.
     pub fn from_device(device: cpal::Device) -> Result<Self, DefaultStreamConfigError> {
         let name = device.name().unwrap_or_else(|e| {
             debug!("Unable to retrieve device name due to:\n\t{e}");
@@ -66,19 +66,15 @@ impl Device {
 
         // Only use the default config for output or input
         // Prefer output if a device supports both
-        let (kind, stream_config) = match device.default_output_config() {
-            Ok(conf) => {
-                debug!("    Default output stream config:\n      {conf:?}");
-                (DeviceKind::Output(device), conf)
-            }
-            _ => {
-                // If there's no output AND no input then return the error.
-                let conf = device.default_input_config()?;
-                debug!("    Default input stream config:\n      {conf:?}");
-                (DeviceKind::Input(device), conf)
-            }
+        let (kind, stream_config) = if let Ok(conf) = device.default_output_config() {
+            debug!("    Default output stream config:\n      {conf:?}");
+            (DeviceKind::Output(device), conf)
+        } else {
+            // If there's no output AND no input then return the error.
+            let conf = device.default_input_config()?;
+            debug!("    Default input stream config:\n      {conf:?}");
+            (DeviceKind::Input(device), conf)
         };
-
         Ok(Self {
             kind,
             name,
@@ -125,7 +121,7 @@ impl TryFrom<DeviceKind> for Device {
     }
 }
 
-// Log all supported stream configs for both input and output devices.
+/// Log all supported stream configs for both input and output devices.
 fn log_stream_configs(
     // Iterator returned by [cpal::Device::supported_input_configs] or [cpal::Device::supported_output_configs].
     configs: Result<
@@ -155,7 +151,7 @@ fn log_stream_configs(
         Err(e) => {
             debug!("Error retrieving {cfg_type} stream configs: {e:?}");
         }
-    };
+    }
 }
 
 #[must_use]

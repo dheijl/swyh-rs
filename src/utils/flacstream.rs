@@ -120,53 +120,47 @@ impl FlacChannel {
                 // read and FLAC encode samples
                 let mut time_out = Duration::from_millis(NOISE_PERIOD_MS);
                 while l_active.load(Relaxed) {
-                    match samples_rdr.recv_timeout(time_out) {
-                        Ok(f32_samples) => {
+                    if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
+                        #[cfg(feature = "trace_samples")]
+                        {
+                            let zs = if f32_samples.iter().any(|&s| s != 0.0) {
+                                "nonero"
+                            } else {
+                                "nonzero"
+                            };
+                            debug!("Encoding {} flac {zs} samples", f32_samples.len());
+                        }
+                        time_out = Duration::from_millis(NOISE_PERIOD_MS);
+                        let samples = f32_samples
+                            .iter()
+                            .map(|s| s.to_sample::<i32>() >> shift)
+                            .collect::<Vec<i32>>();
+                        if enc
+                            .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
+                            .is_err()
+                        {
+                            info!("Flac encoding interrupted.");
+                            break;
+                        }
+                    } else {
+                        time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
+                        // if no samples for a certain time: send very faint near silence bursts
+                        if l_active.load(Relaxed) {
+                            fill_noise_buffer(&mut rng, &mut noise_buf);
+                            let samples = noise_buf
+                                .iter()
+                                .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
+                                .collect::<Vec<i32>>();
                             #[cfg(feature = "trace_samples")]
                             {
-                                let zs = if f32_samples.iter().any(|&s| s != 0.0) {
-                                    "nonero"
-                                } else {
-                                    "nonzero"
-                                };
-                                debug!("Encoding {} flac {zs} samples", f32_samples.len());
+                                debug!("Encoding FLAC silence");
                             }
-                            time_out = Duration::from_millis(NOISE_PERIOD_MS);
-                            let samples = f32_samples
-                                .iter()
-                                .map(|s| s.to_sample::<i32>() >> shift)
-                                .collect::<Vec<i32>>();
                             if enc
                                 .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                                 .is_err()
                             {
-                                info!("Flac encoding interrupted.");
+                                info!("Flac inject near silence interrupted.");
                                 break;
-                            }
-                        }
-                        _ => {
-                            time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
-                            // if no samples for a certain time: send very faint near silence bursts
-                            if l_active.load(Relaxed) {
-                                fill_noise_buffer(&mut rng, &mut noise_buf);
-                                let samples = noise_buf
-                                    .iter()
-                                    .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
-                                    .collect::<Vec<i32>>();
-                                #[cfg(feature = "trace_samples")]
-                                {
-                                    debug!("Encoding FLAC silence");
-                                }
-                                if enc
-                                    .process_interleaved(
-                                        samples.as_slice(),
-                                        (samples.len() / 2) as u32,
-                                    )
-                                    .is_err()
-                                {
-                                    info!("Flac inject near silence interrupted.");
-                                    break;
-                                }
                             }
                         }
                     }
@@ -185,7 +179,7 @@ impl FlacChannel {
 /// fill the pre-allocated noise buffer with white noise
 ///
 fn fill_noise_buffer(rng: &mut Rng, noise_buf: &mut [f32]) {
-    noise_buf
-        .iter_mut()
-        .for_each(|sample| *sample = (rng.f32() * 2.0) - 1.0);
+    for sample in noise_buf.iter_mut() {
+        *sample = (rng.f32() * 2.0) - 1.0
+    }
 }

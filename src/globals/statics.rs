@@ -18,7 +18,7 @@ pub const APP_DATE: Option<&str> = option_env!("BUILD_DAY");
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;
 
-/// one_minute duration for sleep
+/// `one_minute` duration for sleep
 pub const ONE_MINUTE: f64 = 60.0 * 1000.0;
 
 /// the thread stack size

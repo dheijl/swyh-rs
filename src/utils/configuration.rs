@@ -83,7 +83,7 @@ pub struct Configuration {
     pub flac_stream_size: Option<StreamSize>,
     // removed in 1.10.8 (obsolete)
     #[serde(alias = "UseWaveFormat", skip, default)]
-    pub _use_wave_format: bool,
+    _use_wave_format: bool,
     #[serde(alias = "BitsPerSample", default = "CfgDefaults::bits_per_sample")]
     pub bits_per_sample: Option<u16>,
     #[serde(alias = "StreamingFormat", default)]

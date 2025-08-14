@@ -16,7 +16,7 @@ pub fn get_local_addr() -> Option<IpAddr> {
     match socket.connect("8.8.8.8:80") {
         Ok(()) => (),
         Err(_) => return None,
-    };
+    }
     // now we can return the IP address of this interface
     match socket.local_addr() {
         Ok(addr) => Some(addr.ip()),

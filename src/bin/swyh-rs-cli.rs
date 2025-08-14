@@ -572,7 +572,7 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     let agent = ureq::agent();
     loop {
-        let renderers = discover(agent.clone(), &rmap, &ui_log).unwrap_or_default();
+        let renderers = discover(&agent, &rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             rmap.entry(r.remote_addr.clone()).or_insert_with(|| {
                 info!(

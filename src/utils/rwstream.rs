@@ -126,23 +126,20 @@ impl ChannelStream {
     #[inline(never)]
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
-        match self.r.recv_timeout(time_out) {
-            Ok(chunk) => {
-                #[cfg(feature = "trace_samples")]
-                {
-                    debug!("got sample chunk");
-                }
-                self.fifo.extend(chunk);
-                self.sending_silence = false;
+        if let Ok(chunk) = self.r.recv_timeout(time_out) {
+            #[cfg(feature = "trace_samples")]
+            {
+                debug!("got sample chunk");
             }
-            _ => {
-                self.fifo.extend(self.silence.clone());
-                #[cfg(feature = "trace_samples")]
-                {
-                    debug!("sending silence");
-                }
-                self.sending_silence = true;
+            self.fifo.extend(chunk);
+            self.sending_silence = false;
+        } else {
+            self.fifo.extend(self.silence.clone());
+            #[cfg(feature = "trace_samples")]
+            {
+                debug!("sending silence");
             }
+            self.sending_silence = true;
         }
     }
 }
@@ -187,16 +184,16 @@ impl Read for ChannelStream {
             // wave format = litlle endian, default = big endian
             match (self.use_wave_format, bytes_per_sample) {
                 (true, 2) => chunks_iter.for_each(|(chunk, sample)| {
-                    chunk.copy_from_slice(&(i16::from_sample(sample).to_le_bytes()))
+                    chunk.copy_from_slice(&(i16::from_sample(sample).to_le_bytes()));
                 }),
                 (true, 3) => chunks_iter.for_each(|(chunk, sample)| {
-                    chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_le_bytes())[..=2])
+                    chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_le_bytes())[..=2]);
                 }),
                 (false, 2) => chunks_iter.for_each(|(chunk, sample)| {
-                    chunk.copy_from_slice(&(i16::from_sample(sample).to_be_bytes()))
+                    chunk.copy_from_slice(&(i16::from_sample(sample).to_be_bytes()));
                 }),
                 (false, 3) => chunks_iter.for_each(|(chunk, sample)| {
-                    chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_be_bytes())[1..])
+                    chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_be_bytes())[1..]);
                 }),
                 // unsupported format, ignore
                 (_, _) => error!("Unsupported audio format!"),

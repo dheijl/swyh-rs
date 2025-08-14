@@ -206,7 +206,7 @@ impl StreamingContext {
             url: EcoString::new(),
         }
     }
-    /// initialize remote_addr and remote_ip
+    /// initialize `remote_addr` and `remote_ip`
     pub fn set_remote_addr(&mut self, rq: &Request) {
         self.url = EcoString::from(rq.url());
         self.remote_addr = EcoString::from(rq.remote_addr().unwrap().to_string());
@@ -215,7 +215,7 @@ impl StreamingContext {
             self.remote_ip.truncate(i);
         }
     }
-    /// intialize sample rate and format from WavData
+    /// intialize sample rate and format from `WavData`
     pub fn set_sample_data(&mut self, wd: WavData) {
         self.sample_rate = wd.sample_rate.0;
         self.sample_format = wd.sample_format;

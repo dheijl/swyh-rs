@@ -321,7 +321,12 @@ fn main() {
                                     let still_streaming = get_clients().values().any(|chanstrm| {
                                         chanstrm.remote_ip == streamer_feedback.remote_ip
                                     });
-                                    if !still_streaming {
+                                    if still_streaming {
+                                        // still streaming, this is possible with Bubble/Nest
+                                        button.set(true);
+                                        update_playstate(&streamer_feedback.remote_ip, true);
+                                    } else {
+                                        // streaming has really ended
                                         update_playstate(&streamer_feedback.remote_ip, false);
                                         if mf.auto_resume.is_set() && button.is_set() {
                                             let streaminfo = {
@@ -346,10 +351,6 @@ fn main() {
                                         } else {
                                             button.set(false);
                                         }
-                                    } else {
-                                        // still streaming, this is possible with Bubble/Nest
-                                        button.set(true);
-                                        update_playstate(&streamer_feedback.remote_ip, true);
                                     }
                                 }
                             }
@@ -426,7 +427,7 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     loop {
-        let renderers = discover(agent.clone(), &rmap, &ui_log).unwrap_or_default();
+        let renderers = discover(&agent, &rmap, &ui_log).unwrap_or_default();
         for r in &renderers {
             rmap.entry(r.location.clone()).or_insert_with(|| {
                 info!(

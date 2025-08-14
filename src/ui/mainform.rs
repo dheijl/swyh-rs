@@ -151,7 +151,7 @@ impl MainForm {
                                     {
                                         button.hide();
                                         if let Some(mut slider) = player.rend_ui.slider {
-                                            slider.hide()
+                                            slider.hide();
                                         }
                                         let mut config = get_config_mut();
                                         config.hidden_renderers.push(player.remote_addr.clone());
@@ -896,15 +896,12 @@ impl MainForm {
     fn apply_theme(theme_index: usize) -> &'static str {
         // number of available themes (excluding the last dummy one, "None")
         const NTHEMES: usize = THEMES.len() - 1;
-        match theme_index {
-            0..NTHEMES => {
-                ColorTheme::new(THEMES_ARRAY[theme_index].colormap).apply();
-                THEMES_ARRAY[theme_index].name
-            }
-            _ => {
-                fltk_theme::reset_color_map();
-                THEMES[NTHEMES]
-            }
+        if let 0..NTHEMES = theme_index {
+            ColorTheme::new(THEMES_ARRAY[theme_index].colormap).apply();
+            THEMES_ARRAY[theme_index].name
+        } else {
+            fltk_theme::reset_color_map();
+            THEMES[NTHEMES]
         }
     }
 }

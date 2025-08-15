@@ -15,7 +15,7 @@ use cpal::traits::StreamTrait;
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, error, info};
-use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
 use swyh_rs::{
     enums::{
         messages::MessageType,
@@ -77,7 +77,6 @@ fn main() -> Result<(), i32> {
         println!("Loaded configuration -c {config_id}");
     }
     config.monitor_rms = false;
-    println!("Current config: {config:?}");
     // set args loglevel
     if let Some(level) = args.log_level {
         config.log_level = level;
@@ -90,14 +89,20 @@ fn main() -> Result<(), i32> {
     let config_id = config.config_id.clone().unwrap();
     let logfilename = "log{}.txt".replace("{}", &config_id);
     let logfile = Path::new(&config.log_dir()).join(logfilename);
+    let log_config = ConfigBuilder::new()
+        .set_time_format_rfc2822()
+        .set_time_offset_to_local()
+        .unwrap()
+        .build();
+
     let _ = CombinedLogger::init(vec![
         TermLogger::new(
             loglevel,
-            Config::default(),
+            log_config.clone(),
             simplelog::TerminalMode::Stderr,
             ColorChoice::Auto,
         ),
-        WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
+        WriteLogger::new(loglevel, log_config.clone(), File::create(logfile).unwrap()),
     ]);
 
     info!(
@@ -112,6 +117,8 @@ fn main() -> Result<(), i32> {
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
     }
+    info!("Current config: {config:?}");
+
     if args.inject_silence.is_some() {
         config.inject_silence = args.inject_silence;
     }

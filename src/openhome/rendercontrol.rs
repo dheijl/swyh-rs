@@ -378,12 +378,9 @@ impl Renderer {
         fmt_vars.insert("server_uri", Value::String(local_url));
         fmt_vars.insert(
             "bits_per_sample",
-            Value::String(streaminfo.bits_per_sample.to_string()),
+            Value::Int(streaminfo.bits_per_sample.into()),
         );
-        fmt_vars.insert(
-            "sample_rate",
-            Value::String(streaminfo.sample_rate.to_string()),
-        );
+        fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
         fmt_vars.insert("duration", Value::Str("00:00:00"));
         let didl_prot: String;
         if streaminfo.streaming_format == StreamingFormat::Flac {

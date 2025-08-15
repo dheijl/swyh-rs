@@ -64,7 +64,7 @@ use crossbeam_channel::{Receiver, Sender, unbounded};
 use fltk::{app, misc::Progress, prelude::ButtonExt};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, info};
-use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, Config, ConfigBuilder, TermLogger, WriteLogger};
 use std::{cell::Cell, fs::File, net::IpAddr, path::Path, rc::Rc, thread, time::Duration};
 
 pub const APP_NAME: &str = "SWYH-RS";
@@ -101,16 +101,21 @@ fn main() {
         config.log_level = LevelFilter::Debug;
     }
     let loglevel = config.log_level;
+    let log_config = ConfigBuilder::new()
+        .set_time_format_rfc2822()
+        .set_time_offset_to_local()
+        .unwrap()
+        .build();
     // disable TermLogger on susbsystem Windows because it panics now with Rust edition 2021
     if cfg!(debug_assertions) || cfg!(target_os = "linux") {
         let _ = CombinedLogger::init(vec![
             TermLogger::new(
                 loglevel,
-                Config::default(),
+                log_config.clone(),
                 simplelog::TerminalMode::Stderr,
                 ColorChoice::Auto,
             ),
-            WriteLogger::new(loglevel, Config::default(), File::create(logfile).unwrap()),
+            WriteLogger::new(loglevel, log_config.clone(), File::create(logfile).unwrap()),
         ]);
     } else {
         let _ = CombinedLogger::init(vec![WriteLogger::new(

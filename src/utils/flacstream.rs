@@ -180,6 +180,6 @@ impl FlacChannel {
 ///
 fn fill_noise_buffer(rng: &mut Rng, noise_buf: &mut [f32]) {
     for sample in noise_buf.iter_mut() {
-        *sample = (rng.f32() * 2.0) - 1.0
+        *sample = (rng.f32() * 2.0) - 1.0;
     }
 }

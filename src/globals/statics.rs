@@ -24,11 +24,13 @@ pub const ONE_MINUTE: f64 = 60.0 * 1000.0;
 /// the thread stack size
 pub const THREAD_STACK: usize = 4 * 1024 * 1024;
 
-/// the list of known fltk theme names
-pub static THEMES: &[&str] = &["Shake", "Gray", "Tan", "Dark", "Black", "None"];
-
 /// the global "enable rms monitor" flag
 pub static RUN_RMS_MONITOR: AtomicBool = AtomicBool::new(false);
+
+/// the list of known fltk theme names
+pub static THEMES: &[&str] = &["Shake", "Gray", "Tan", "Dark", "Black", "None"];
+/// number of available themes (excluding the last dummy one, "None")
+pub const NTHEMES: usize = THEMES.len() - 1;
 
 /// streaming clients of the webserver
 static CLIENTS: LazyLock<RwLock<HashMap<EcoString, ChannelStream>>> =

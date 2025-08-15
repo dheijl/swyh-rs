@@ -5,7 +5,8 @@ use crate::{
         StreamingFormat::{self, Flac},
     },
     globals::statics::{
-        RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers, get_renderers_mut,
+        NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers,
+        get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
@@ -894,8 +895,6 @@ impl MainForm {
 
     /// change the theme
     fn apply_theme(theme_index: usize) -> &'static str {
-        // number of available themes (excluding the last dummy one, "None")
-        const NTHEMES: usize = THEMES.len() - 1;
         if let 0..NTHEMES = theme_index {
             ColorTheme::new(THEMES_ARRAY[theme_index].colormap).apply();
             THEMES_ARRAY[theme_index].name

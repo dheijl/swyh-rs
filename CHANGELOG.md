@@ -5,6 +5,7 @@
   - rust 1.89
   - use [ecow](https://github.com/typst/ecow) EcoString for the small strings that get cloned frequently
   - replace [strfmt](https://github.com/vitiral/strfmt) with [figura](https://github.com/saverioscagnoli/figura) for dynamic string formatting
+  - improve log time display (rfc 2822 date + time in localtime)
 
 - 1.12.11 (Aug 1 2025 dheijl)
   - more small refactorings

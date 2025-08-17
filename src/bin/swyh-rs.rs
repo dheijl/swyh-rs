@@ -64,7 +64,7 @@ use crossbeam_channel::{Receiver, Sender, unbounded};
 use fltk::{app, misc::Progress, prelude::ButtonExt};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, info};
-use simplelog::{ColorChoice, CombinedLogger, Config, ConfigBuilder, TermLogger, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
 use std::{cell::Cell, fs::File, net::IpAddr, path::Path, rc::Rc, thread, time::Duration};
 
 pub const APP_NAME: &str = "SWYH-RS";
@@ -120,7 +120,7 @@ fn main() {
     } else {
         let _ = CombinedLogger::init(vec![WriteLogger::new(
             loglevel,
-            Config::default(),
+            log_config.clone(),
             File::create(logfile).unwrap(),
         )]);
     }

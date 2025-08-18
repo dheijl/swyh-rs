@@ -42,22 +42,19 @@ impl StreamingParams {
         }
         let fmt = {
             if let Some(format_start) = lc_path.find("/stream/swyh.") {
-                match lc_path.to_lowercase().get(format_start + 13..) {
-                    Some("flac") => Some(StreamingFormat::Flac),
-                    Some("wav") => Some(StreamingFormat::Wav),
-                    Some("rf64") => Some(StreamingFormat::Rf64),
-                    Some("raw") => Some(StreamingFormat::Lpcm),
-                    None | Some(&_) => None,
+                if let Some(format) = lc_path.get(format_start + 13..)
+                    && let Ok(fmt) = StreamingFormat::from_str(format)
+                {
+                    Some(fmt)
+                } else {
+                    None
                 }
             } else {
                 None
             }
         };
         result.fmt = fmt;
-        if fmt.is_none() {
-            return result;
-        }
-        if parts.len() < 2 {
+        if fmt.is_none() || parts.len() < 2 {
             return result;
         }
         // parse key=value pairs from querystring if present

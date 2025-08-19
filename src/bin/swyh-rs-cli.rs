@@ -63,12 +63,14 @@ fn main() -> Result<(), i32> {
     // initialize config
     let mut config = {
         let mut conf = get_config_mut();
-        if conf.sound_source.is_none() && conf.sound_source_index.is_none() {
-            if let Some(ref audio_output_device) = audio_output_device_opt {
-                conf.sound_source = Some(audio_output_device.name().into());
-                let _ = conf.update_config();
-            }
+        if conf.sound_source.is_none()
+            && conf.sound_source_index.is_none()
+            && let Some(ref audio_output_device) = audio_output_device_opt
+        {
+            conf.sound_source = Some(audio_output_device.name().into());
+            let _ = conf.update_config();
         }
+
         conf.clone()
     };
     if let Some(config_id) = &config.config_id
@@ -519,18 +521,18 @@ fn main() -> Result<(), i32> {
                                 let still_streaming = get_clients().values().any(|chanstrm| {
                                     chanstrm.remote_ip == streamer_feedback.remote_ip
                                 });
-                                if !still_streaming && autoresume {
-                                    if let Some(r) = get_renderers_mut()
+                                if !still_streaming
+                                    && autoresume
+                                    && let Some(r) = get_renderers_mut()
                                         .iter_mut()
                                         .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                                    {
-                                        let _ = r.play(
-                                            &local_addr,
-                                            server_port.unwrap_or_default(),
-                                            &ui_log,
-                                            streaminfo,
-                                        );
-                                    }
+                                {
+                                    let _ = r.play(
+                                        &local_addr,
+                                        server_port.unwrap_or_default(),
+                                        &ui_log,
+                                        streaminfo,
+                                    );
                                 }
                             }
                         }

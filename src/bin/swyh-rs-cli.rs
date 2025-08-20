@@ -25,7 +25,7 @@ use swyh_rs::{
         },
     },
     globals::statics::{
-        APP_DATE, APP_VERSION, ONE_MINUTE, THREAD_STACK, get_clients, get_config, get_config_mut,
+        APP_DATE, APP_VERSION, ONE_MINUTE, THREAD_STACK, get_clients, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
@@ -244,7 +244,7 @@ fn main() -> Result<(), i32> {
 
     // If silence injector is on, create a silence injector stream.
     let _silence_stream = {
-        if let Some(true) = get_config().inject_silence {
+        if let Some(true) = config.inject_silence {
             if let Some(stream) = run_silence_injector(&audio_output_device) {
                 ui_log("Injecting silence into the output stream");
                 Some(stream)

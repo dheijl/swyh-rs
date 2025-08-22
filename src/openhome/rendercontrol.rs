@@ -636,10 +636,17 @@ impl Renderer {
             }
         }
         self.volume = str_volume.parse::<i32>().unwrap_or(-1);
-        log(&format!(
-            "OH Get Volume on {} host={} port={} = {}%",
-            self.dev_name, self.host, self.port, self.volume,
-        ));
+        if self.volume >= 0 {
+            log(&format!(
+                "OH Get Volume on {} host={} port={} = {}%",
+                self.dev_name, self.host, self.port, self.volume,
+            ));
+        } else {
+            log(&format!(
+                "OH Get Volume not available for {}.",
+                self.dev_name
+            ));
+        }
         self.volume
     }
 
@@ -679,10 +686,17 @@ impl Renderer {
             }
         }
         self.volume = str_volume.parse::<i32>().unwrap_or(-1);
-        log(&format!(
-            "AV Get Volume on {} host={} port={} = {}%",
-            self.dev_name, self.host, self.port, self.volume,
-        ));
+        if self.volume >= 0 {
+            log(&format!(
+                "AV Get Volume on {} host={} port={} = {}%",
+                self.dev_name, self.host, self.port, self.volume,
+            ));
+        } else {
+            log(&format!(
+                "AV Get Volume not available for {}.",
+                self.dev_name
+            ));
+        }
         self.volume
     }
 

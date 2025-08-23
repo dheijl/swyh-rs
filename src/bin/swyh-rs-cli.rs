@@ -119,6 +119,7 @@ fn main() -> Result<(), i32> {
     if cfg!(debug_assertions) {
         ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
     }
+    info!("Commandline args: {args:?}");
     info!("Current config: {config:?}");
 
     if args.inject_silence.is_some() {
@@ -568,6 +569,7 @@ fn main() -> Result<(), i32> {
                     println!("^C: Time-out waiting for HTTP streaming shutdown - exiting.");
                 }
             }
+            log::logger().flush();
             std::process::exit(0);
         }
     }

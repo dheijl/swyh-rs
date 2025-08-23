@@ -413,6 +413,7 @@ fn main() {
     if !get_clients().is_empty() {
         info!("Time-out waiting for HTTP streaming shutdown - exiting.");
     }
+    log::logger().flush();
 }
 
 /// update the playstate for the renderer with this ip address

@@ -421,7 +421,9 @@ fn update_playstate(remote_addr: &str, playing: bool) {
     get_renderers_mut()
         .iter_mut()
         .find(|r| r.remote_addr == remote_addr)
-        .expect("Global Renderers list unconsistent with local Renderers")
+        .expect(&format!(
+            "Global Renderers list unconsistent with local Renderers for {remote_addr}"
+        ))
         .playing = playing;
 }
 

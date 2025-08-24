@@ -213,7 +213,7 @@ Hint: use the **-n (dry-run) mode** to get the index of the sound source device 
 
 You can also specify a sounde source **name** instead of an index, or a unique substring of the name. If you have multiple identically named soundcards, you can append _:n_ to the name, where n is a zero-based index in the duplicates.
 
-For the player(s) **-o** you can also use the name(s) or a sub-string unique to the player name(s) instead of the IP address(es)I'm glad that your issue seems solved! As an aside, even `-o 3842` should work as  this sub-string is unique  to the device name of the master.
+For the player(s) **-o** you can also use the name(s) or a sub-string unique to the player name(s) instead of the IP address(es).
 
 Streaming is started automatically, and you can stop and restart streaming with the remote of your player as long as the app is running.
 The only way to stop the cli app is by killing it,  with "CONTROL C" or task manager or any other way you use to kill processes.

@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.12.12 (unreleased)
+- 1.12.12 (Aug 25 2025, dheijl)
   - major refactoring of http streaming server
   - rust 1.89
   - use [ecow](https://github.com/typst/ecow) EcoString for the small strings that get cloned frequently
@@ -8,7 +8,7 @@
   - improve log time display (rfc 2822 date + time in localtime)
   - also log CLI arguments
   - improve some messages
-  - CLI: fix sound source not being picked from config if argument missing (#219)
+  - CLI: fix sound source index not being picked up from config if CLI argument missing (#219), and not always being stored correctly if present
 
 - 1.12.11 (Aug 1 2025 dheijl)
   - more small refactorings

@@ -7,6 +7,8 @@
   - replace [strfmt](https://github.com/vitiral/strfmt) with [figura](https://github.com/saverioscagnoli/figura) for dynamic string formatting
   - improve log time display (rfc 2822 date + time in localtime)
   - also log CLI arguments
+  - improve some messages
+  - CLI: fix sound source not being picked from config if argument missing (#219)
 
 - 1.12.11 (Aug 1 2025 dheijl)
   - more small refactorings

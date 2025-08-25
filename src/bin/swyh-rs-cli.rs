@@ -125,17 +125,38 @@ fn main() -> Result<(), i32> {
     if args.inject_silence.is_some() {
         config.inject_silence = args.inject_silence;
     }
-    // set soundsource index or name
+    // set soundsource index or name from args or config
     let audio_devices = get_output_audio_devices();
-    if let Some(index) = args.sound_source_index {
+    // get the index from args or config
+    let mut ss_index = if let Some(index) = args.sound_source_index {
+        args.sound_source_name = None;
+        index
+    } else if let Some(index) = config.sound_source_index {
+        index
+    } else {
+        -1i32
+    };
+    // config index can be overridden by name from args
+    let ss_name = {
+        if let Some(name) = args.sound_source_name {
+            ss_index = -1i32;
+            name
+        } else if let Some(name) = config.sound_source.clone() {
+            name
+        } else {
+            String::new()
+        }
+    };
+    // use index from config if present and no name arg present
+    if ss_index >= 0 {
         // args - sound source index
-        config.sound_source_index = Some(index);
+        config.sound_source_index = Some(ss_index);
         for (index, adev) in audio_devices.into_iter().enumerate() {
             let devname = adev.name().to_owned();
             ui_log(&format!(
                 "Found Audio Source: index = {index}, name = {devname}"
             ));
-            if index == config.sound_source_index.unwrap() as usize {
+            if index == ss_index as usize {
                 audio_output_device_opt = Some(adev);
                 config.sound_source = Some(devname.clone());
                 ui_log(&format!("Selected audio source: {devname}[#{index}]"));
@@ -147,10 +168,10 @@ fn main() -> Result<(), i32> {
                 }
             }
         }
-    } else if let Some(ref name) = args.sound_source_name {
+    } else if !ss_name.is_empty() {
         // args = sound source name, check for duplicate name position
-        let (dupname, duppos) = if name.contains(':') {
-            let parts: Vec<&str> = name.split(':').collect();
+        let (dupname, duppos) = if ss_name.contains(':') {
+            let parts: Vec<&str> = ss_name.split(':').collect();
             (parts[0], parts[1])
         } else {
             ("", "")
@@ -161,9 +182,10 @@ fn main() -> Result<(), i32> {
                 ui_log(&format!(
                     "Found Audio Source: index = {index}, name = {devname}"
                 ));
-                if devname.to_uppercase().contains(&name.to_uppercase()) {
+                if devname.to_uppercase().contains(&ss_name.to_uppercase()) {
                     audio_output_device_opt = Some(adev);
                     config.sound_source = Some(devname.clone());
+                    config.sound_source_index = Some(index as i32);
                     ui_log(&format!("Selected audio source: {devname}[#{index}]"));
                 } else if devname == *config.sound_source.as_ref().unwrap() {
                     audio_output_device_opt = Some(adev);

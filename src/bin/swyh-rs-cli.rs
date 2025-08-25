@@ -195,13 +195,15 @@ fn main() -> Result<(), i32> {
         } else if let Ok(pos) = duppos.parse::<usize>() {
             let dups: Vec<_> = audio_devices
                 .into_iter()
-                .filter(|d| d.name().to_uppercase().contains(&dupname.to_uppercase()))
+                .enumerate()
+                .filter(|(_i, d)| d.name().to_uppercase().contains(&dupname.to_uppercase()))
                 .collect();
             for (index, dev) in dups.into_iter().enumerate() {
                 if index == pos {
-                    let devname = dev.name().to_string();
-                    audio_output_device_opt = Some(dev);
+                    let devname = dev.1.name().to_string();
+                    audio_output_device_opt = Some(dev.1);
                     config.sound_source = Some(devname.clone());
+                    config.sound_source_index = Some(dev.0 as i32);
                     ui_log(&format!("Selected audio source: {devname}:{pos}"));
                 }
             }

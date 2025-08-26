@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.12.13 (unreleased)
+
 - 1.12.12 (Aug 25 2025, dheijl)
   - major refactoring of http streaming server
   - rust 1.89

@@ -1,6 +1,13 @@
 # swyh-rs Changelog
 
 - 1.12.13 (unreleased)
+  - binaries are now built with lld as the linker using **.cargo/config.toml**:
+    - on Windows :
+    `[target.x86_64-pc-windows-msvc]`
+    `rustflags = ["-C", "link-arg=-fuse-ld=lld"]`
+    - on Linux:
+    `[target.x86_64-unknown-linux-gnu]`
+    `rustflags = ["-C", "link-arg=-fuse-ld=lld"]`
 
 - 1.12.12 (Aug 25 2025, dheijl)
   - major refactoring of http streaming server

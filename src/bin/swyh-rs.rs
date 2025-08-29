@@ -65,7 +65,15 @@ use fltk::{app, misc::Progress, prelude::ButtonExt};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, info};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
-use std::{cell::Cell, fs::File, net::IpAddr, path::Path, rc::Rc, thread, time::Duration};
+use std::{
+    cell::Cell,
+    fs::File,
+    net::IpAddr,
+    path::Path,
+    rc::Rc,
+    thread::{self},
+    time::Duration,
+};
 
 pub const APP_NAME: &str = "SWYH-RS";
 
@@ -216,8 +224,9 @@ fn main() {
 
     // capture system audio
     debug!("Try capturing system audio");
-    let stream: cpal::Stream;
-    match capture_output_audio(&audio_output_device, rms_channel.0) {
+    let mut stream: cpal::Stream;
+    let rms_chan1 = rms_channel.clone();
+    match capture_output_audio(&audio_output_device, rms_chan1.0) {
         Some(s) => {
             stream = s;
             stream.play().unwrap();
@@ -260,7 +269,8 @@ fn main() {
         ui_log("SSDP interval 0 => Skipping SSDP discovery");
     }
     // also start the "monitor_rms" thread
-    let rms_receiver = rms_channel.1;
+    let rms_chan2 = rms_channel.clone();
+    let rms_receiver = rms_chan2.1;
     let mon_l = mf.rms_mon_l.clone();
     let mon_r = mf.rms_mon_r.clone();
     let _ = thread::Builder::new()
@@ -283,6 +293,9 @@ fn main() {
         .unwrap();
     // give the webserver a chance to start
     thread::yield_now();
+
+    // retry count when audio capture is broken
+    let mut capture_retry_count = 5i32;
 
     // and now we can run the GUI event loop, app::awake() is used by the various threads to
     // trigger updates when something has changed, some threads use Crossbeam channels
@@ -378,7 +391,40 @@ fn main() {
                 MessageType::LogMessage(msg) => {
                     mf.add_log_msg(&msg);
                 }
-                MessageType::CaptureAborted() => (),
+                MessageType::CaptureAborted() => {
+                    while capture_retry_count >= 0 {
+                        capture_retry_count -= 1;
+                        thread::sleep(Duration::from_millis(250));
+                        let audio_devices = get_output_audio_devices();
+                        let config_name = config.sound_source.as_ref().unwrap();
+                        let mut found_device = false;
+                        for (index, adev) in audio_devices.into_iter().enumerate() {
+                            let adevname = adev.name().to_string();
+                            if let Some(config_id) = config.sound_source_index {
+                                // index is needed for duplicate audio device names in Windows
+                                if config_id == index as i32 && adevname == *config_name {
+                                    audio_output_device = adev;
+                                    info!("Reselected audio source: {adevname}[#{index}]");
+                                    found_device = true;
+                                }
+                            } else if adevname == *config_name {
+                                audio_output_device = adev;
+                                info!("Reselected audio source: {adevname}");
+                                found_device = true;
+                            }
+                        }
+                        if found_device {
+                            let rms_chan3 = rms_channel.clone();
+                            if let Some(s) = capture_output_audio(&audio_output_device, rms_chan3.0)
+                            {
+                                stream = s;
+                                stream.play().unwrap();
+                                capture_retry_count = 5;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
     } // while app::wait()

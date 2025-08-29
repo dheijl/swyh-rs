@@ -294,9 +294,6 @@ fn main() {
     // give the webserver a chance to start
     thread::yield_now();
 
-    // retry count when audio capture is broken
-    let mut capture_retry_count = 5i32;
-
     // and now we can run the GUI event loop, app::awake() is used by the various threads to
     // trigger updates when something has changed, some threads use Crossbeam channels
     // to signal what has changed
@@ -392,34 +389,32 @@ fn main() {
                     mf.add_log_msg(&msg);
                 }
                 MessageType::CaptureAborted() => {
-                    while capture_retry_count >= 0 {
-                        capture_retry_count -= 1;
+                    // retry count when audio capture is broken
+                    let mut capture_retry_count = 0i32;
+                    while capture_retry_count <= 5 {
                         thread::sleep(Duration::from_millis(250));
+                        capture_retry_count += 1;
+                        debug!("Retrying capturing audio #{capture_retry_count}");
                         let audio_devices = get_output_audio_devices();
-                        let config_name = config.sound_source.as_ref().unwrap();
-                        let mut found_device = false;
-                        for (index, adev) in audio_devices.into_iter().enumerate() {
+                        let config_name: &String = config.sound_source.as_ref().unwrap();
+                        // ignore sound index as it may have changed, so duplicate names won't probably work
+                        let mut found_audio_device = false;
+                        for adev in audio_devices.into_iter() {
                             let adevname = adev.name().to_string();
-                            if let Some(config_id) = config.sound_source_index {
-                                // index is needed for duplicate audio device names in Windows
-                                if config_id == index as i32 && adevname == *config_name {
-                                    audio_output_device = adev;
-                                    info!("Reselected audio source: {adevname}[#{index}]");
-                                    found_device = true;
-                                }
-                            } else if adevname == *config_name {
+                            if adevname == *config_name {
                                 audio_output_device = adev;
-                                info!("Reselected audio source: {adevname}");
-                                found_device = true;
+                                info!("Audio capture: reselecting audio source: {adevname}");
+                                found_audio_device = true;
+                                break;
                             }
                         }
-                        if found_device {
+                        if found_audio_device {
                             let rms_chan3 = rms_channel.clone();
                             if let Some(s) = capture_output_audio(&audio_output_device, rms_chan3.0)
                             {
                                 stream = s;
                                 stream.play().unwrap();
-                                capture_retry_count = 5;
+                                info!("Audio capture resumed.");
                                 break;
                             }
                         }

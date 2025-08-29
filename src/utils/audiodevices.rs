@@ -1,5 +1,6 @@
 use crate::{
-    globals::statics::{RUN_RMS_MONITOR, get_clients, get_config},
+    enums::messages::MessageType,
+    globals::statics::{RUN_RMS_MONITOR, get_clients, get_config, get_msgchannel},
     utils::ui_logger::ui_log,
 };
 use cpal::{
@@ -280,9 +281,15 @@ pub fn capture_output_audio(
     }
 }
 
-/// `capture_err_fn` - called whan it's impossible to build an audio input stream
+/// `capture_err_fn` - called whan it's impossible to start/continue streaming
 fn capture_err_fn(err: cpal::StreamError) {
-    ui_log(&format!("Error {err} building audio input stream"));
+    ui_log(&format!("Error {err} capturing audio input stream"));
+    if err == cpal::StreamError::DeviceNotAvailable {
+        get_msgchannel()
+            .0
+            .send(MessageType::CaptureAborted())
+            .unwrap();
+    }
 }
 
 /// `wave_reader` - the captured audio input stream reader

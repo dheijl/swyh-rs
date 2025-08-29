@@ -378,6 +378,7 @@ fn main() {
                 MessageType::LogMessage(msg) => {
                     mf.add_log_msg(&msg);
                 }
+                MessageType::CaptureAborted() => (),
             }
         }
     } // while app::wait()

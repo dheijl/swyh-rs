@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.12.13 (unreleased)
+- 1.12.13 (Aug 30 2025, dheijl)
   - binaries are now built with lld as the linker using **.cargo/config.toml**:
     - on Windows :
     `[target.x86_64-pc-windows-msvc]`
@@ -8,6 +8,7 @@
     - on Linux:
     `[target.x86_64-unknown-linux-gnu]`
     `rustflags = ["-C", "link-arg=-fuse-ld=lld"]`
+  - Fix for issue #221 by @DrCWO: when an RDP client (dis)connects while audio is being captured, the capture is aborted by Windows. Try to restart audio capture from the same device if it still exists. The RDP client should have audio disabled to make this work. Caveat: if you have multiple sound devices with the same name this will always pick the first one, as the sound index may have changed.
 
 - 1.12.12 (Aug 25 2025, dheijl)
   - major refactoring of http streaming server

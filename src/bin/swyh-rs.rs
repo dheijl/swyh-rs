@@ -65,7 +65,15 @@ use fltk::{app, misc::Progress, prelude::ButtonExt};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, info};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
-use std::{cell::Cell, fs::File, net::IpAddr, path::Path, rc::Rc, thread, time::Duration};
+use std::{
+    cell::Cell,
+    fs::File,
+    net::IpAddr,
+    path::Path,
+    rc::Rc,
+    thread::{self},
+    time::Duration,
+};
 
 pub const APP_NAME: &str = "SWYH-RS";
 
@@ -216,8 +224,9 @@ fn main() {
 
     // capture system audio
     debug!("Try capturing system audio");
-    let stream: cpal::Stream;
-    match capture_output_audio(&audio_output_device, rms_channel.0) {
+    let mut stream: cpal::Stream;
+    let rms_chan1 = rms_channel.clone();
+    match capture_output_audio(&audio_output_device, rms_chan1.0) {
         Some(s) => {
             stream = s;
             stream.play().unwrap();
@@ -260,7 +269,8 @@ fn main() {
         ui_log("SSDP interval 0 => Skipping SSDP discovery");
     }
     // also start the "monitor_rms" thread
-    let rms_receiver = rms_channel.1;
+    let rms_chan2 = rms_channel.clone();
+    let rms_receiver = rms_chan2.1;
     let mon_l = mf.rms_mon_l.clone();
     let mon_r = mf.rms_mon_r.clone();
     let _ = thread::Builder::new()
@@ -377,6 +387,38 @@ fn main() {
                 // check the logchannel for new log messages to show in the logger textbox
                 MessageType::LogMessage(msg) => {
                     mf.add_log_msg(&msg);
+                }
+                MessageType::CaptureAborted() => {
+                    // retry count when audio capture is broken
+                    let mut capture_retry_count = 0i32;
+                    while capture_retry_count <= 5 {
+                        thread::sleep(Duration::from_millis(250));
+                        capture_retry_count += 1;
+                        debug!("Retrying capturing audio #{capture_retry_count}");
+                        let audio_devices = get_output_audio_devices();
+                        let config_name: &String = config.sound_source.as_ref().unwrap();
+                        // ignore sound index as it may have changed, so duplicate names won't probably work
+                        let mut found_audio_device = false;
+                        for adev in audio_devices.into_iter() {
+                            let adevname = adev.name().to_string();
+                            if adevname == *config_name {
+                                audio_output_device = adev;
+                                info!("Audio capture: reselecting audio source: {adevname}");
+                                found_audio_device = true;
+                                break;
+                            }
+                        }
+                        if found_audio_device {
+                            let rms_chan3 = rms_channel.clone();
+                            if let Some(s) = capture_output_audio(&audio_output_device, rms_chan3.0)
+                            {
+                                stream = s;
+                                stream.play().unwrap();
+                                info!("Audio capture resumed.");
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -378,6 +378,7 @@ fn main() -> Result<(), i32> {
                 }
                 MessageType::PlayerMessage(_) => (),
                 MessageType::LogMessage(_) => (),
+                MessageType::CaptureAborted() => (),
             }
         }
         // now check for player names(s) instead of ip addresses
@@ -564,6 +565,7 @@ fn main() -> Result<(), i32> {
                     }
                 }
                 MessageType::LogMessage(msg) => ui_log(&msg),
+                MessageType::CaptureAborted() => (),
             }
         }
         // check the logchannel for new log messages to show in the logger textbox

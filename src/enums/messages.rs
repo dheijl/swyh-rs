@@ -4,4 +4,5 @@ pub enum MessageType {
     SsdpMessage(Box<Renderer>), // boxed to reduce enum size
     PlayerMessage(StreamerFeedBack),
     LogMessage(String),
+    CaptureAborted(),
 }

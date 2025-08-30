@@ -210,7 +210,7 @@ fn main() -> Result<(), i32> {
         }
     }
 
-    let audio_output_device = audio_output_device_opt.expect("No default audio device");
+    let mut audio_output_device = audio_output_device_opt.expect("No default audio device");
 
     // get the list of available networks
     let networks = get_interfaces();
@@ -258,7 +258,8 @@ fn main() -> Result<(), i32> {
 
     // capture system audio
     debug!("Try capturing system audio");
-    let stream: cpal::Stream = match capture_output_audio(&audio_output_device, rms_channel.0) {
+    let rms_chan1 = rms_channel.clone();
+    let mut stream: cpal::Stream = match capture_output_audio(&audio_output_device, rms_chan1.0) {
         Some(s) => s,
         _ => {
             ui_log("*E*E*> Could not capture audio ...Please check configuration.");
@@ -565,7 +566,38 @@ fn main() -> Result<(), i32> {
                     }
                 }
                 MessageType::LogMessage(msg) => ui_log(&msg),
-                MessageType::CaptureAborted() => (),
+                MessageType::CaptureAborted() => {
+                    // retry count when audio capture is broken
+                    let mut capture_retry_count = 0i32;
+                    while capture_retry_count <= 5 {
+                        thread::sleep(Duration::from_millis(250));
+                        capture_retry_count += 1;
+                        debug!("Retrying capturing audio #{capture_retry_count}");
+                        let audio_devices = get_output_audio_devices();
+                        let config_name: &String = config.sound_source.as_ref().unwrap();
+                        // ignore sound index as it may have changed, so duplicate names won't probably work
+                        let mut found_audio_device = false;
+                        for adev in audio_devices.into_iter() {
+                            let adevname = adev.name().to_string();
+                            if adevname == *config_name {
+                                audio_output_device = adev;
+                                info!("Audio capture: reselecting audio source: {adevname}");
+                                found_audio_device = true;
+                                break;
+                            }
+                        }
+                        if found_audio_device {
+                            let rms_chan2 = rms_channel.clone();
+                            if let Some(s) = capture_output_audio(&audio_output_device, rms_chan2.0)
+                            {
+                                stream = s;
+                                stream.play().unwrap();
+                                info!("Audio capture resumed.");
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
         // check the logchannel for new log messages to show in the logger textbox

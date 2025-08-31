@@ -87,9 +87,9 @@ Audio is captured using the excellent Rust [cpal library](https://github.com/Rus
 [fltk-rs](https://github.com/MoAlyousef/fltk-rs) is used for the GUI, as it's easy to use, and it's small, cross-platform, fast and works well.
 For FLAC encoding the of use [flac-bound](https://github.com/nabijaczleweli/flac-bound) made adding FLAC encoding using the [libflac-sys Rust bindings](https://github.com/mgeier/libflac-sys/blob/master/src/bindings.rs) a breeze. This allowed me to link [libflac](https://github.com/xiph/flac) statically in the swyh-rs binary, no dlls needed!
 
-Tested on Windows 10 and on Ubuntu 20.04 LTS (Mint 20) and 22.04 LTS (Mint 21) with Raspberry Pi/Hifi-Berry based devices, currently running MoodeAudio 8.x. I don't have access to a Mac, so I don't know if this also works.
+Tested on Windows 10 and on Ubuntu 20.04 LTS and Debian Bookworm (LMDE 6) with Raspberry Pi/Hifi-Berry based devices, currently running MoodeAudio 9.x. I don't have access to a Mac, so I don't know if that also works.
 
-Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 4 MB).
+Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 8 MB).
 
 ## swyh-rs as your local internet radio station
 
@@ -113,7 +113,7 @@ This is also true when running the GUI if SSDP discovery has been disabled by se
 You can get the latest Windows binary from the [Release page](https://github.com/dheijl/swyh-rs/releases).
 No install needed, no runtime, no dependencies. Just unzip the binary in a convenient place and run it.
 
-Debug build and a release builds and a setup for Windows 64 bit are included in the release assets, I also sometimes add a Linux (Ubuntu 20.04) binary.
+Debug build and a release builds and a setup for Windows 64 bit are included in the release assets, I also add Linux appimages for Ubuntu 20.04 LTS and Debian Bookworm.
 You would only ever need the debug build in the unlikely case rust "panics", and the program vanishes without a message. In a release build you will have a logging file in the _.swyh-rs_ folder in your home directory. But when rust "panics" you can't log it, so you will need to start the debug build from a console/terminal window. A debug build automatically raises the log level to "DEBUG". This will also allow you to catch the Rust "panic" message in the console window (release builds do not have a console on Windows). Depending on the log level you set (info/warn/debug) the release build will provide all information needed to help in troubleshooting, aside from "panics".
 
 If you want to build swyh-rs yourself, you can find some information in the [wiki](https://github.com/dheijl/swyh-rs/wiki).
@@ -175,6 +175,7 @@ The icon was designed by @numanair, thanks!
 - Since 1.10.5 you can enable **initial buffering** audio for a number of milliseconds before streaming starts, this may help to prevent stuttering on flaky (WiFi) networks or with streamers that don't have a configurable buffer size or that have a flaky system clock.
 - Since 1.11.1 you can select one of the FLTK color themes, using a new dropdown near the top of the window (PR #139 by @Villardo)
 - Since 1.12.10 you can hide a player by right-clicking it. To unhide all hidden players right-click the label"_UPNP rendering devices..._" above the players.
+- On Windows starting/closing an RDP session reinitializes the sound system, this aborts audio capture and sound is lost. swyh-rs will try to restore audio capture from the original device if possible (since 1.12.13).
 
 ### The CLI binary
 

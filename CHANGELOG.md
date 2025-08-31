@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.12.14 (unreleased)
+
 - 1.12.13 (Aug 30 2025, dheijl)
   - binaries are now built with lld as the linker using **.cargo/config.toml**:
     - on Windows :

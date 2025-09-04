@@ -6,7 +6,8 @@ use crate::{
     globals::statics::get_clients_mut,
     openhome::rendercontrol::WavData,
     server::query_params::StreamingParams,
-    utils::{rwstream::ChannelStream, ui_logger::ui_log},
+    utils::rwstream::ChannelStream,
+    utils::ui_logger::{LogCategory, ui_log},
 };
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use ecow::EcoString;
@@ -35,9 +36,10 @@ pub fn run_server(
     feedback_tx: &Sender<MessageType>,
 ) {
     let addr = format!("{local_addr}:{server_port}");
-    ui_log(&format!(
-        "The streaming server is listening on http://{addr}/stream/swyh.wav"
-    ));
+    ui_log(
+        LogCategory::Info,
+        &format!("The streaming server is listening on http://{addr}/stream/swyh.wav"),
+    );
     // get the needed config info upfront
     let stream_config = StreamingContext::from_config();
     let logmsg = {
@@ -46,7 +48,7 @@ pub fn run_server(
             wd.sample_rate.0, stream_config.bits_per_sample, stream_config.streaming_format,
         )
     };
-    ui_log(&logmsg);
+    ui_log(LogCategory::Info, &logmsg);
     let server = Arc::new(Server::http(addr).unwrap());
     let mut handles = Vec::new();
     // always have two threads ready to serve new requests
@@ -137,10 +139,13 @@ fn streaming_request(
     headers: Vec<Header>,
     request: tiny_http::Request,
 ) {
-    ui_log(&format!(
-        "Streaming request {} from {}",
-        streaming_ctx.url, streaming_ctx.remote_addr
-    ));
+    ui_log(
+        LogCategory::Info,
+        &format!(
+            "Streaming request {} from {}",
+            streaming_ctx.url, streaming_ctx.remote_addr
+        ),
+    );
     // create the channelstream that receives the samples and streams them on demand
     let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
     let channel_stream = ChannelStream::new(
@@ -172,15 +177,18 @@ fn streaming_request(
             streaming_ctx.buffering_delay_msec.into(),
         ));
     }
-    ui_log(&format!(
-        "Streaming {}, input sample format {:?}, \
+    ui_log(
+        LogCategory::Info,
+        &format!(
+            "Streaming {}, input sample format {:?}, \
                             channels=2, rate={}, bps = {}, to {}",
-        streaming_ctx.dlna_string(),
-        streaming_ctx.sample_format,
-        streaming_ctx.sample_rate,
-        streaming_ctx.bits_per_sample,
-        streaming_ctx.remote_addr
-    ));
+            streaming_ctx.dlna_string(),
+            streaming_ctx.sample_format,
+            streaming_ctx.sample_rate,
+            streaming_ctx.bits_per_sample,
+            streaming_ctx.remote_addr
+        ),
+    );
     let response = Response::new(
         tiny_http::StatusCode(200),
         headers,
@@ -192,10 +200,13 @@ fn streaming_request(
     dump_resp_headers(&response);
     let e = request.respond(response);
     if e.is_err() {
-        ui_log(&format!(
-            "=>Http connection with {} terminated [{e:?}]",
-            streaming_ctx.remote_addr
-        ));
+        ui_log(
+            LogCategory::Info,
+            &format!(
+                "=>Http connection with {} terminated [{e:?}]",
+                streaming_ctx.remote_addr
+            ),
+        );
     }
     let nclients = {
         let mut clients = get_clients_mut();
@@ -214,10 +225,10 @@ fn streaming_request(
             streaming_state: StreamingState::Ended,
         }))
         .unwrap();
-    ui_log(&format!(
-        "Streaming to {} has ended",
-        streaming_ctx.remote_addr
-    ));
+    ui_log(
+        LogCategory::Info,
+        &format!("Streaming to {} has ended", streaming_ctx.remote_addr),
+    );
 }
 
 /// HEAD METHOD request
@@ -231,20 +242,26 @@ fn head_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: tiny
         None,
     );
     if let Err(e) = rq.respond(response) {
-        ui_log(&format!(
-            "=>Http HEAD connection with {} terminated [{e}]",
-            streaming_ctx.remote_addr
-        ));
+        ui_log(
+            LogCategory::Info,
+            &format!(
+                "=>Http HEAD connection with {} terminated [{e}]",
+                streaming_ctx.remote_addr
+            ),
+        );
     }
 }
 
 /// invalid METHOD request
 fn invalid_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: tiny_http::Request) {
-    ui_log(&format!(
-        "Unsupported HTTP method request {:?} from {}",
-        *rq.method(),
-        streaming_ctx.remote_addr
-    ));
+    ui_log(
+        LogCategory::Info,
+        &format!(
+            "Unsupported HTTP method request {:?} from {}",
+            *rq.method(),
+            streaming_ctx.remote_addr
+        ),
+    );
     let response = Response::new(
         tiny_http::StatusCode(405),
         headers,
@@ -253,20 +270,26 @@ fn invalid_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: t
         None,
     );
     if let Err(e) = rq.respond(response) {
-        ui_log(&format!(
-            "=>Http connection with {} terminated [{e}]",
-            streaming_ctx.remote_addr
-        ));
+        ui_log(
+            LogCategory::Info,
+            &format!(
+                "=>Http connection with {} terminated [{e}]",
+                streaming_ctx.remote_addr
+            ),
+        );
     }
 }
 
 /// this request is not recognized, reject with an error 404
 fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: Vec<Header>) {
-    ui_log(&format!(
-        "Unrecognized request '{}' from {}'",
-        rq.url(),
-        rq.remote_addr().unwrap()
-    ));
+    ui_log(
+        LogCategory::Info,
+        &format!(
+            "Unrecognized request '{}' from {}'",
+            rq.url(),
+            rq.remote_addr().unwrap()
+        ),
+    );
     let response = Response::new(
         tiny_http::StatusCode(404),
         headers,
@@ -275,9 +298,10 @@ fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: Vec<
         None,
     );
     if let Err(e) = rq.respond(response) {
-        ui_log(&format!(
-            "=>Http streaming request with {remote_addr} terminated [{e}]"
-        ));
+        ui_log(
+            LogCategory::Info,
+            &format!("=>Http streaming request with {remote_addr} terminated [{e}]"),
+        );
     }
 }
 

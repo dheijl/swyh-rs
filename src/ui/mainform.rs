@@ -9,7 +9,7 @@ use crate::{
         get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
-    utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
+    utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::*},
 };
 use fltk::{
     app,
@@ -256,9 +256,10 @@ impl MainForm {
                     return;
                 }
                 let name = &networks[(b.value() as usize).clamp(0, networks.len() - 1)];
-                ui_log(&format!(
-                    "*W*W*> Network changed to {name}, restart required!!"
-                ));
+                ui_log(
+                    LogCategory::Info,
+                    &format!("Network changed to {name}, restart required!!"),
+                );
                 {
                     let mut conf = get_config_mut();
                     conf.last_network = Some(name.to_string());
@@ -276,7 +277,7 @@ impl MainForm {
         let mut pas = Flex::new(0, 0, GW, 25, "");
         pas.end();
         let cur_audio_src = format!("Audio Source: {}", config.sound_source.as_ref().unwrap());
-        ui_log("Setup audio sources");
+        ui_log(LogCategory::Info, "Setup audio sources");
         let mut choose_audio_source_but =
             MenuButton::new(0, 0, 0, 25, None).with_label(&cur_audio_src);
         for name in audio_sources {
@@ -294,9 +295,10 @@ impl MainForm {
                     return;
                 }
                 let name = &audio_sources[(b.value() as usize).clamp(0, audio_sources.len() - 1)];
-                ui_log(&format!(
-                    "*W*W*> Audio source changed to {name}, restart required!!"
-                ));
+                ui_log(
+                    LogCategory::Info,
+                    &format!("Audio source changed to {name}, restart required!!"),
+                );
                 b.set_label(&format!("New Audio Source: {name}",));
                 {
                     let mut conf = get_config_mut();
@@ -366,8 +368,8 @@ impl MainForm {
                             }
                         }
                         if ssdp_interval_mins >= 0.0 {
-                            ui_log(&format!(
-                                "*W*W*> ssdp interval changed to {ssdp_interval_mins} minutes, restart required!!"
+                            ui_log(LogCategory::Warning,&format!(
+                                "ssdp interval changed to {ssdp_interval_mins} minutes, restart required!!"
                             ));
                             config_changed.set(true);
                         }
@@ -399,9 +401,10 @@ impl MainForm {
                     return;
                 }
                 let level = log_levels[b.value() as usize];
-                ui_log(&format!(
-                    "*W*W*> Log level changed to {level}, restart required!!"
-                ));
+                ui_log(
+                    LogCategory::Warning,
+                    &format!("Log level changed to {level}, restart required!!"),
+                );
                 let loglevel = level.parse().unwrap_or(LevelFilter::Info);
                 {
                     let mut conf = get_config_mut();
@@ -456,7 +459,10 @@ impl MainForm {
                     return;
                 }
                 let format = formats[b.value() as usize].clone();
-                ui_log(&format!("Current streaming Format changed to {format}"));
+                ui_log(
+                    LogCategory::Info,
+                    &format!("Current streaming Format changed to {format}"),
+                );
                 let newformat = StreamingFormat::from_str(&format).unwrap();
                 {
                     let mut conf = get_config_mut();
@@ -584,9 +590,10 @@ impl MainForm {
                     let _ = conf.update_config();
                     conf.streaming_format.unwrap()
                 };
-                ui_log(&format!(
-                    "StreamSize for {streaming_format} changed to {newsize}"
-                ));
+                ui_log(
+                    LogCategory::Info,
+                    &format!("StreamSize for {streaming_format} changed to {newsize}"),
+                );
                 let fmt = format!("StrmSize: {newsize}");
                 b.set_label(&fmt);
                 rlock.store(false, Ordering::Release);

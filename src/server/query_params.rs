@@ -19,26 +19,26 @@ pub struct StreamingParams {
 impl StreamingParams {
     #[must_use]
     pub fn from_query_string(url: &str) -> StreamingParams {
-        let mut result = StreamingParams {
+        let mut params = StreamingParams {
             path: None,
             bd: None,
             ss: None,
             fmt: None,
         };
         if !url.contains('/') {
-            return result;
+            return params;
         }
         let parts: Vec<&str> = url.split('?').collect();
         if parts.is_empty() {
-            return result;
+            return params;
         }
         let path = parts[0];
         if path.is_empty() {
-            return result;
+            return params;
         }
         let lc_path = path.to_lowercase();
         if VALID_URLS.contains(&lc_path.as_str()) {
-            result.path = Some(lc_path.clone());
+            params.path = Some(lc_path.clone());
         }
         let fmt = {
             if let Some(format_start) = lc_path.find("/stream/swyh.") {
@@ -53,9 +53,9 @@ impl StreamingParams {
                 None
             }
         };
-        result.fmt = fmt;
+        params.fmt = fmt;
         if fmt.is_none() || parts.len() < 2 {
-            return result;
+            return params;
         }
         // parse key=value pairs from querystring if present
         // extract bd (bit depth) and ss (streamsize) if found
@@ -71,12 +71,12 @@ impl StreamingParams {
                     }
                 })
                 .for_each(|kv_pair| match kv_pair.0 {
-                    "bd" => result.bd = Some(BitDepth::from_str(kv_pair.1).unwrap()),
-                    "ss" => result.ss = Some(StreamSize::from_str(kv_pair.1).unwrap()),
+                    "bd" => params.bd = Some(BitDepth::from_str(kv_pair.1).unwrap()),
+                    "ss" => params.ss = Some(StreamSize::from_str(kv_pair.1).unwrap()),
                     _ => (),
                 });
         }
-        result
+        params
     }
 }
 

@@ -55,7 +55,7 @@ use swyh_rs::{
         bincommon::run_silence_injector,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
-        ui_logger::ui_log,
+        ui_logger::*,
     },
 };
 
@@ -142,15 +142,21 @@ fn main() {
         std::env::consts::OS
     );
     if cfg!(debug_assertions) {
-        ui_log("*W*W*>Running DEBUG build => log level set to DEBUG!");
+        ui_log(
+            LogCategory::Warning,
+            ">Running DEBUG build => log level set to DEBUG!",
+        );
     }
 
     if let Some(config_id) = &config.config_id
         && !config_id.is_empty()
     {
-        ui_log(&format!("Loaded configuration -c {config_id}"));
+        ui_log(
+            LogCategory::Info,
+            &format!("Loaded configuration -c {config_id}"),
+        );
     }
-    ui_log(&format!("{config:?}"));
+    ui_log(LogCategory::Info, &format!("{config:?}"));
 
     info!("Config: {config:?}");
 
@@ -232,7 +238,10 @@ fn main() {
             stream.play().unwrap();
         }
         _ => {
-            ui_log("*E*E*> Could not capture audio ...Please check configuration.");
+            ui_log(
+                LogCategory::Error,
+                "> Could not capture audio ...Please check configuration.",
+            );
         }
     }
 
@@ -240,10 +249,13 @@ fn main() {
     let _silence_stream = {
         if let Some(true) = config.inject_silence {
             if let Some(stream) = run_silence_injector(&audio_output_device) {
-                ui_log("Injecting silence into the output stream");
+                ui_log(
+                    LogCategory::Info,
+                    "Injecting silence into the output stream",
+                );
                 Some(stream)
             } else {
-                ui_log("*E*E*E Unable to inject silence !!");
+                ui_log(LogCategory::Error, "Unable to inject silence !!");
                 None
             }
         } else {
@@ -257,7 +269,7 @@ fn main() {
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     if config.ssdp_interval_mins > 0.0 {
-        ui_log("Starting SSDP discovery");
+        ui_log(LogCategory::Info, "Starting SSDP discovery");
         let ssdp_int = config.ssdp_interval_mins;
         let ssdp_tx = msg_tx.clone();
         let _ = thread::Builder::new()
@@ -266,7 +278,10 @@ fn main() {
             .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
             .unwrap();
     } else {
-        ui_log("SSDP interval 0 => Skipping SSDP discovery");
+        ui_log(
+            LogCategory::Info,
+            "SSDP interval 0 => Skipping SSDP discovery",
+        );
     }
     // also start the "monitor_rms" thread
     let rms_chan2 = rms_channel.clone();
@@ -431,7 +446,10 @@ fn main() {
         if let Some(button) = renderer.rend_ui.button.as_ref()
             && button.is_set()
         {
-            ui_log(&format!("Shutting down {}", &renderer.dev_name));
+            ui_log(
+                LogCategory::Info,
+                &format!("Shutting down {}", &renderer.dev_name),
+            );
             app::redraw();
             active_players.push(renderer.remote_addr.clone());
             renderer.stop_play(&ui_log);

@@ -1,4 +1,4 @@
-use crate::utils::ui_logger::ui_log;
+use crate::utils::ui_logger::{LogCategory, ui_log};
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
@@ -13,9 +13,10 @@ pub fn raise_priority() {
         if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS).is_err() {
             let e = GetLastError();
             let p = GetCurrentProcessId();
-            ui_log(&format!(
-                "*E*E*>Failed to set process priority id={p}, error={e:?}"
-            ));
+            ui_log(
+                Error,
+                &format!("Failed to set process priority id={p}, error={e:?}"),
+            );
         }
     }
     ui_log("Now running at ABOVE_NORMAL_PRIORITY_CLASS");
@@ -32,9 +33,12 @@ pub fn raise_priority() {
         if pri >= 0 {
             let rc = setpriority(PRIO_PROCESS, 0, -10);
             if rc != 0 {
-                ui_log("Sorry, but you don't have permissions to raise priority...");
+                ui_log(
+                    LogCategory::Warning,
+                    "Sorry, but you don't have permissions to raise priority...",
+                );
             } else {
-                ui_log("Now running at nice value -10");
+                ui_log(LogCategory::Info, "Now running at nice value -10");
             }
         }
     }

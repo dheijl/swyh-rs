@@ -22,6 +22,9 @@ use std::{
 use url::Url;
 use xml::reader::{EventReader, XmlEvent};
 
+/// the ui_log function
+type LogFn = dyn Fn(LogCategory, &str);
+
 /// a Figura Template with Curly Braces as delimiter
 type CbTemplate = Template<'{', '}'>;
 
@@ -282,7 +285,7 @@ impl Renderer {
     }
 
     /// extract host and port from device url
-    fn parse_url(&mut self, log: &dyn Fn(LogCategory, &str)) {
+    fn parse_url(&mut self, log: &LogFn) {
         let host: String;
         let port: u16;
         match Url::parse(&self.dev_url) {
@@ -331,7 +334,7 @@ impl Renderer {
     }
 
     /// get volume
-    pub fn get_volume(&mut self, log: &dyn Fn(LogCategory, &str)) -> i32 {
+    pub fn get_volume(&mut self, log: &LogFn) -> i32 {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
@@ -346,7 +349,7 @@ impl Renderer {
         -1
     }
 
-    pub fn set_volume(&mut self, log: &dyn Fn(LogCategory, &str), vol: i32) {
+    pub fn set_volume(&mut self, log: &LogFn, vol: i32) {
         self.volume = vol;
         if self
             .supported_protocols
@@ -366,7 +369,7 @@ impl Renderer {
         &mut self,
         local_addr: &IpAddr,
         server_port: u16,
-        log: &dyn Fn(LogCategory, &str),
+        log: &LogFn,
         streaminfo: StreamInfo,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
@@ -479,7 +482,7 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn oh_play(&mut self, log: &dyn Fn(LogCategory, &str), fmt_vars: &Context) -> Result<(), &str> {
+    fn oh_play(&mut self, log: &LogFn, fmt_vars: &Context) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
         self.oh_stop_play(&url, log);
@@ -540,7 +543,7 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn av_play(&mut self, log: &dyn Fn(LogCategory, &str), fmt_vars: &Context) -> Result<(), &str> {
+    fn av_play(&mut self, log: &LogFn, fmt_vars: &Context) -> Result<(), &str> {
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
@@ -587,7 +590,7 @@ impl Renderer {
     }
 
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
-    pub fn stop_play(&mut self, log: &dyn Fn(LogCategory, &str)) {
+    pub fn stop_play(&mut self, log: &LogFn) {
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
         if self
             .supported_protocols
@@ -608,7 +611,7 @@ impl Renderer {
     }
 
     /// `oh_stop_play` - delete the playlist on the `OpenHome` renderer, so that it stops playing
-    fn oh_stop_play(&mut self, url: &str, log: &dyn Fn(LogCategory, &str)) {
+    fn oh_stop_play(&mut self, url: &str, log: &LogFn) {
         log(
             LogCategory::Info,
             &format!(
@@ -628,7 +631,7 @@ impl Renderer {
     }
 
     /// `av_stop_play` - stop playing on the AV renderer
-    fn av_stop_play(&mut self, url: &str, log: &dyn Fn(LogCategory, &str)) {
+    fn av_stop_play(&mut self, url: &str, log: &LogFn) {
         log(
             LogCategory::Info,
             &format!(
@@ -647,7 +650,7 @@ impl Renderer {
             .unwrap_or_default();
     }
 
-    fn oh_get_volume(&mut self, log: &dyn Fn(LogCategory, &str)) -> i32 {
+    fn oh_get_volume(&mut self, log: &LogFn) -> i32 {
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
 
         // get current volume
@@ -701,7 +704,7 @@ impl Renderer {
         self.volume
     }
 
-    fn av_get_volume(&mut self, log: &dyn Fn(LogCategory, &str)) -> i32 {
+    fn av_get_volume(&mut self, log: &LogFn) -> i32 {
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
 
         // get current volume
@@ -754,7 +757,7 @@ impl Renderer {
         self.volume
     }
 
-    fn oh_set_volume(&mut self, log: &dyn Fn(LogCategory, &str)) {
+    fn oh_set_volume(&mut self, log: &LogFn) {
         let vol = self.volume;
         let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
@@ -776,7 +779,7 @@ impl Renderer {
         debug!("oh_set_volume response: {vol_xml}");
     }
 
-    fn av_set_volume(&mut self, log: &dyn Fn(LogCategory, &str)) {
+    fn av_set_volume(&mut self, log: &LogFn) {
         let vol = self.volume;
         let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
@@ -814,7 +817,7 @@ MX: 3\r\n\r\n";
 pub fn discover(
     agent: &ureq::Agent,
     rmap: &HashMap<String, Renderer>,
-    logger: &dyn Fn(LogCategory, &str),
+    logger: &LogFn,
 ) -> Option<Vec<Renderer>> {
     static AV_SCHEMA: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
     static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";

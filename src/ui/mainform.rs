@@ -369,7 +369,7 @@ impl MainForm {
                         }
                         if ssdp_interval_mins >= 0.0 {
                             ui_log(LogCategory::Warning,&format!(
-                                "ssdp interval changed to {ssdp_interval_mins} minutes, restart required!!"
+                                "SSDP interval changed to {ssdp_interval_mins} minutes, restart required!!"
                             ));
                             config_changed.set(true);
                         }

@@ -33,7 +33,7 @@ pub fn ui_log(cat: LogCategory, s: &str) {
         use fltk::app;
         get_msgchannel()
             .0
-            .send(MessageType::LogMessage(s.to_string()))
+            .send(MessageType::LogMessage(msg.to_string()))
             .unwrap();
         app::awake();
     }

@@ -16,15 +16,15 @@ impl Display for LogCategory {
         }
     }
 }
+
 /// `ui_log`
 /// - log a messgae to the terminal and the logfile
 /// - send a logmessage to the textbox on the Crossbeam LOGCHANNEL when runing the GUI
 pub fn ui_log(cat: LogCategory, s: &str) {
-    let msg = cat.to_string() + s;
     match cat {
-        LogCategory::Warning => warn!("tb_log: {msg}"),
-        LogCategory::Error => error!("tb_log: {msg}"),
-        LogCategory::Info => info!("tb_log: {msg}"),
+        LogCategory::Warning => warn!("tb_log: {s}"),
+        LogCategory::Error => error!("tb_log: {s}"),
+        LogCategory::Info => info!("tb_log: {s}"),
     };
     #[cfg(feature = "gui")]
     {
@@ -33,7 +33,7 @@ pub fn ui_log(cat: LogCategory, s: &str) {
         use fltk::app;
         get_msgchannel()
             .0
-            .send(MessageType::LogMessage(msg.to_string()))
+            .send(MessageType::LogMessage(cat.to_string() + s))
             .unwrap();
         app::awake();
     }

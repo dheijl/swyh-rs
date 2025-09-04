@@ -14,12 +14,16 @@ pub fn raise_priority() {
             let e = GetLastError();
             let p = GetCurrentProcessId();
             ui_log(
-                Error,
+                LogCategory::Error,
                 &format!("Failed to set process priority id={p}, error={e:?}"),
             );
+            return;
         }
     }
-    ui_log("Now running at ABOVE_NORMAL_PRIORITY_CLASS");
+    ui_log(
+        LogCategory::Info,
+        "Now running at ABOVE_NORMAL_PRIORITY_CLASS",
+    );
 }
 
 #[cfg(target_os = "linux")]

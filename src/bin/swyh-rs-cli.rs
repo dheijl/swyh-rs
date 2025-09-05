@@ -537,16 +537,11 @@ fn main() -> Result<(), i32> {
             {
                 let mut player = pl.clone();
                 if let Some(vol) = args.volume
-                    && player.get_volume(&ui_log) > -1
+                    && player.get_volume() > -1
                 {
-                    player.set_volume(&ui_log, vol.into());
+                    player.set_volume(vol.into());
                 }
-                let _ = player.play(
-                    &local_addr,
-                    config.server_port.unwrap_or(5901),
-                    &ui_log,
-                    streaminfo,
-                );
+                let _ = player.play(&local_addr, config.server_port.unwrap_or(5901), streaminfo);
                 let pl_name = &player.dev_url;
                 ui_log(LogCategory::Info, &format!("Playing to {pl_name}"));
                 playing.push(player);
@@ -594,7 +589,6 @@ fn main() -> Result<(), i32> {
                                     let _ = r.play(
                                         &local_addr,
                                         server_port.unwrap_or_default(),
-                                        &ui_log,
                                         streaminfo,
                                     );
                                 }
@@ -649,7 +643,7 @@ fn main() -> Result<(), i32> {
                         .any(|cs| cs.remote_ip == pl.remote_addr)
                     {
                         println!("^C: Stopping streaming to {}", pl.dev_name);
-                        pl.stop_play(&ui_log);
+                        pl.stop_play();
                     }
                 }
                 // also wait some time for the player(s) to drop the HTTP streaming connection

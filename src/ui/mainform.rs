@@ -820,9 +820,9 @@ impl MainForm {
                             config.server_port.unwrap_or_default(),
                         )
                     };
-                    let _ = newr_c.play(&local_addr, server_port, &ui_log, streaminfo);
+                    let _ = newr_c.play(&local_addr, server_port, streaminfo);
                 } else {
-                    newr_c.stop_play(&ui_log);
+                    newr_c.stop_play();
                 }
                 get_renderers_mut()[player_index].playing = b.is_on();
             }
@@ -853,7 +853,7 @@ impl MainForm {
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
                     debug!("Setting new volume for {} to {vol}", this_renderer.dev_name);
-                    this_renderer.set_volume(&ui_log, vol);
+                    this_renderer.set_volume(vol);
                     get_renderers_mut()[player_index].volume = vol;
                     if app::is_event_shift() {
                         debug!("Syncing volume for other active renderers");
@@ -865,7 +865,7 @@ impl MainForm {
                                 // and it supports setting the volume: sync volume
                                 if let Some(mut slider) = rend.rend_ui.slider.clone() {
                                     debug!("Setting new volume for {} to {vol}", rend.dev_name);
-                                    rend.set_volume(&ui_log, vol);
+                                    rend.set_volume(vol);
                                     // update the original renderer volume value
                                     get_renderers_mut()[index].volume = vol;
                                     // and update the slider too

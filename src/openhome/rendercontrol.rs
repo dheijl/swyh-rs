@@ -7,7 +7,7 @@
 use crate::{
     enums::streaming::StreamingFormat,
     globals::statics::{APP_VERSION, get_config},
-    utils::ui_logger::LogCategory,
+    utils::ui_logger::{LogCategory, ui_log},
 };
 use bitflags::bitflags;
 use figura::{Context, Template, Value};
@@ -285,7 +285,7 @@ impl Renderer {
     }
 
     /// extract host and port from device url
-    fn parse_url(&mut self, log: &LogFn) {
+    fn parse_url(&mut self) {
         let host: String;
         let port: u16;
         match Url::parse(&self.dev_url) {
@@ -294,7 +294,7 @@ impl Renderer {
                 port = url.port_or_known_default().unwrap();
             }
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!(
                         "parse_url(): Error '{e}' while parsing base url '{}'",
@@ -334,33 +334,33 @@ impl Renderer {
     }
 
     /// get volume
-    pub fn get_volume(&mut self, log: &LogFn) -> i32 {
+    pub fn get_volume(&mut self) -> i32 {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            return self.oh_get_volume(log);
+            return self.oh_get_volume();
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            return self.av_get_volume(log);
+            return self.av_get_volume();
         }
         -1
     }
 
-    pub fn set_volume(&mut self, log: &LogFn, vol: i32) {
+    pub fn set_volume(&mut self, vol: i32) {
         self.volume = vol;
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            self.oh_set_volume(log);
+            self.oh_set_volume();
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            self.av_set_volume(log);
+            self.av_set_volume();
         }
     }
 
@@ -369,7 +369,7 @@ impl Renderer {
         &mut self,
         local_addr: &IpAddr,
         server_port: u16,
-        log: &LogFn,
+
         streaminfo: StreamInfo,
     ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
@@ -404,7 +404,7 @@ impl Renderer {
         let template = match CbTemplate::parse(&didl_prot) {
             Ok(s) => s,
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} parsing DIDL_PROTOCOL template"),
                 );
@@ -414,7 +414,7 @@ impl Renderer {
         let didl_prot = match template.format(&fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} formatting didl_protol"),
                 );
@@ -427,7 +427,7 @@ impl Renderer {
             //.expect("DIDL DATA template parse error");
             Ok(s) => s,
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} parsing DIDL_DATA template"),
                 );
@@ -437,7 +437,7 @@ impl Renderer {
         let formatted_didl = match template.format(&fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} formatting didl_data xml"),
                 );
@@ -450,28 +450,28 @@ impl Renderer {
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            log(
+            ui_log(
                 LogCategory::Info,
                 &format!(
                     "OH Start playing on {} host={} port={} from {local_addr} using OH Playlist",
                     self.dev_name, self.host, self.port
                 ),
             );
-            return self.oh_play(log, &fmt_vars);
+            return self.oh_play(&fmt_vars);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            log(
+            ui_log(
                 LogCategory::Info,
                 &format!(
                     "AV Start playing on {} host={} port={} from {local_addr} using AV Play",
                     self.dev_name, self.host, self.port
                 ),
             );
-            return self.av_play(log, &fmt_vars);
+            return self.av_play(&fmt_vars);
         }
-        log(
+        ui_log(
             LogCategory::Error,
             "ERROR: play: no supported renderer protocol found",
         );
@@ -482,12 +482,12 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn oh_play(&mut self, log: &LogFn, fmt_vars: &Context) -> Result<(), &str> {
+    fn oh_play(&mut self, fmt_vars: &Context) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
-        self.oh_stop_play(&url, log);
+        self.oh_stop_play(&url);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
-        log(
+        ui_log(
             LogCategory::Info,
             &format!(
                 "OH Inserting new playlist on {} host={} port={}",
@@ -497,7 +497,7 @@ impl Renderer {
         let template = match CbTemplate::parse(OH_INSERT_PL_TEMPLATE) {
             Ok(s) => s,
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} parsing OH_INSERT_PL_TEMPLATE"),
                 );
@@ -507,7 +507,7 @@ impl Renderer {
         let xmlbody = match template.format(fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} formatting oh playlist xml"),
                 );
@@ -522,7 +522,7 @@ impl Renderer {
             )
             .unwrap_or_default();
         // send the Play command
-        log(
+        ui_log(
             LogCategory::Info,
             &format!(
                 "OH Play on {} host={} port={}",
@@ -543,16 +543,16 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn av_play(&mut self, log: &LogFn, fmt_vars: &Context) -> Result<(), &str> {
+    fn av_play(&mut self, fmt_vars: &Context) -> Result<(), &str> {
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
-        self.av_stop_play(&url, log);
+        self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
         let template = match CbTemplate::parse(AV_SET_TRANSPORT_URI_TEMPLATE) {
             Ok(s) => s,
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!("av_play: error {e} parsing AV_SET_TRANSPORT_URI_TEMPLATE"),
                 );
@@ -562,7 +562,7 @@ impl Renderer {
         let xmlbody = match template.format(fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                log(
+                ui_log(
                     LogCategory::Info,
                     &format!("av_play: error {e} formatting set transport uri"),
                 );
@@ -590,20 +590,20 @@ impl Renderer {
     }
 
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
-    pub fn stop_play(&mut self, log: &LogFn) {
+    pub fn stop_play(&mut self) {
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            self.oh_stop_play(&url, log);
+            self.oh_stop_play(&url);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            self.av_stop_play(&url, log);
+            self.av_stop_play(&url);
         } else {
-            log(
+            ui_log(
                 LogCategory::Error,
                 "ERROR: stop_play: no supported renderer protocol found",
             );
@@ -611,8 +611,8 @@ impl Renderer {
     }
 
     /// `oh_stop_play` - delete the playlist on the `OpenHome` renderer, so that it stops playing
-    fn oh_stop_play(&mut self, url: &str, log: &LogFn) {
-        log(
+    fn oh_stop_play(&mut self, url: &str) {
+        ui_log(
             LogCategory::Info,
             &format!(
                 "OH Delete playlist on {} => {}",
@@ -631,8 +631,8 @@ impl Renderer {
     }
 
     /// `av_stop_play` - stop playing on the AV renderer
-    fn av_stop_play(&mut self, url: &str, log: &LogFn) {
-        log(
+    fn av_stop_play(&mut self, url: &str) {
+        ui_log(
             LogCategory::Info,
             &format!(
                 "AV Stop playing on {} => {}",
@@ -650,7 +650,7 @@ impl Renderer {
             .unwrap_or_default();
     }
 
-    fn oh_get_volume(&mut self, log: &LogFn) -> i32 {
+    fn oh_get_volume(&mut self) -> i32 {
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
 
         // get current volume
@@ -688,7 +688,7 @@ impl Renderer {
         }
         self.volume = str_volume.parse::<i32>().unwrap_or(-1);
         if self.volume >= 0 {
-            log(
+            ui_log(
                 LogCategory::Info,
                 &format!(
                     "OH Get Volume on {} host={} port={} = {}%",
@@ -696,7 +696,7 @@ impl Renderer {
                 ),
             );
         } else {
-            log(
+            ui_log(
                 LogCategory::Info,
                 &format!("OH Get Volume not available for {}.", self.dev_name),
             );
@@ -704,7 +704,7 @@ impl Renderer {
         self.volume
     }
 
-    fn av_get_volume(&mut self, log: &LogFn) -> i32 {
+    fn av_get_volume(&mut self) -> i32 {
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
 
         // get current volume
@@ -741,7 +741,7 @@ impl Renderer {
         }
         self.volume = str_volume.parse::<i32>().unwrap_or(-1);
         if self.volume >= 0 {
-            log(
+            ui_log(
                 LogCategory::Info,
                 &format!(
                     "AV Get Volume on {} host={} port={} = {}%",
@@ -749,7 +749,7 @@ impl Renderer {
                 ),
             );
         } else {
-            log(
+            ui_log(
                 LogCategory::Info,
                 &format!("AV Get Volume not available for {}.", self.dev_name),
             );
@@ -757,11 +757,11 @@ impl Renderer {
         self.volume
     }
 
-    fn oh_set_volume(&mut self, log: &LogFn) {
+    fn oh_set_volume(&mut self) {
         let vol = self.volume;
         let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
-        log(
+        ui_log(
             LogCategory::Info,
             &format!(
                 "OH Set New Volume on {} host={} port={} to {vol}%",
@@ -779,11 +779,11 @@ impl Renderer {
         debug!("oh_set_volume response: {vol_xml}");
     }
 
-    fn av_set_volume(&mut self, log: &LogFn) {
+    fn av_set_volume(&mut self) {
         let vol = self.volume;
         let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
-        log(
+        ui_log(
             LogCategory::Info,
             &format!(
                 "AV Set New Volume on {} host={} port={} to {vol}%",
@@ -986,7 +986,7 @@ pub fn discover(
                 }
                 rend.dev_url = format!("http://{url_base}/");
             }
-            rend.parse_url(logger);
+            rend.parse_url();
             renderers.push(rend);
         }
     }
@@ -1117,17 +1117,15 @@ fn normalize_url(value: &str) -> String {
 mod tests {
     use super::*;
 
-    fn log(_c: LogCategory, _s: &str) {}
-
     #[test]
     fn renderer() {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://192.168.1.26:80/".to_string();
-        rend.parse_url(&log);
+        rend.parse_url();
         assert_eq!(rend.host, "192.168.1.26");
         assert_eq!(rend.port, 80); // default port
         rend.dev_url = "http://192.168.1.26:12345/".to_string();
-        rend.parse_url(&log);
+        rend.parse_url();
         assert_eq!(rend.host, "192.168.1.26");
         assert_eq!(rend.port, 12345); // other port
     }

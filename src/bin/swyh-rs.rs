@@ -371,12 +371,8 @@ fn main() {
                                                         .unwrap_or(Flac),
                                                 }
                                             };
-                                            let _ = renderer.play(
-                                                &local_addr,
-                                                server_port,
-                                                &ui_log,
-                                                streaminfo,
-                                            );
+                                            let _ =
+                                                renderer.play(&local_addr, server_port, streaminfo);
                                             update_playstate(&streamer_feedback.remote_ip, true);
                                         } else {
                                             button.set(false);
@@ -394,7 +390,7 @@ fn main() {
                 // check the ssdp discovery thread channel for newly discovered renderers
                 // add a new button below the last one for each discovered renderer
                 MessageType::SsdpMessage(mut newr) => {
-                    let vol = newr.get_volume(&ui_log);
+                    let vol = newr.get_volume();
                     debug!("Renderer {} Volume: {vol}", newr.dev_name);
                     // add a button for the new player
                     mf.add_renderer_button(&mut newr);
@@ -452,7 +448,7 @@ fn main() {
             );
             app::redraw();
             active_players.push(renderer.remote_addr.clone());
-            renderer.stop_play(&ui_log);
+            renderer.stop_play();
             app::redraw();
         }
     }

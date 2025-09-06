@@ -80,7 +80,7 @@ pub fn run_server(
                     let sp = StreamingParams::from_query_string(rq.url());
                     // - check for valid request uri
                     if sp.path.is_none() {
-                        return bad_request(rq, &streaming_ctx.remote_addr, get_std_headers());
+                        return bad_request(rq, &streaming_ctx.remote_addr);
                     }
                     // - update streaming context from querystring (if present), this completes the context
                     streaming_ctx.update_format(&sp);
@@ -283,7 +283,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
 }
 
 /// this request is not recognized, reject with an error 404
-fn bad_request(rq: tiny_http::Request, remote_addr: &str, headers: Vec<Header>) {
+fn bad_request(rq: tiny_http::Request, remote_addr: &str) {
     ui_log(
         LogCategory::Info,
         &format!(
@@ -292,6 +292,7 @@ fn bad_request(rq: tiny_http::Request, remote_addr: &str, headers: Vec<Header>) 
             rq.remote_addr().unwrap()
         ),
     );
+    let headers = get_std_headers();
     let response = Response::new(
         tiny_http::StatusCode(404),
         headers,

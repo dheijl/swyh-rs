@@ -69,8 +69,6 @@ pub fn run_server(
                     if cfg!(debug_assertions) {
                         dump_rq_headers(&rq);
                     }
-                    // - build standard response headers
-                    let mut headers = get_default_headers();
                     // create fresh streaming context from config info for each new streaming request
                     // as some parameters may have changed
                     let mut streaming_ctx = StreamingContext::from_config();
@@ -82,23 +80,21 @@ pub fn run_server(
                     let sp = StreamingParams::from_query_string(rq.url());
                     // - check for valid request uri
                     if sp.path.is_none() {
-                        return unrecognized_request(rq, &streaming_ctx.remote_addr, headers);
+                        return bad_request(rq, &streaming_ctx.remote_addr, get_std_headers());
                     }
                     // - update streaming context from querystring (if present), this completes the context
                     streaming_ctx.update_format(&sp);
                     debug!("{streaming_ctx:?}");
-                    // - now add the dlna headers to the header collection
-                    add_dlna_headers(&mut headers, &streaming_ctx);
                     // handle response, streaming if GET, headers only otherwise
                     match *rq.method() {
                         Method::Get => {
-                            streaming_request(&streaming_ctx, &feedback_tx_c, headers, rq);
+                            streaming_request(&streaming_ctx, &feedback_tx_c, rq);
                         }
                         Method::Head => {
-                            head_request(&streaming_ctx, headers, rq);
+                            head_request(&streaming_ctx, rq);
                         }
                         _ => {
-                            invalid_request(&streaming_ctx, headers, rq);
+                            invalid_request(&streaming_ctx, rq);
                         }
                     }
                 });
@@ -136,7 +132,6 @@ fn dump_rq_headers(rq: &tiny_http::Request) {
 fn streaming_request(
     streaming_ctx: &StreamingContext,
     feedback_channel: &Sender<MessageType>,
-    headers: Vec<Header>,
     request: tiny_http::Request,
 ) {
     ui_log(
@@ -146,6 +141,9 @@ fn streaming_request(
             streaming_ctx.url, streaming_ctx.remote_addr
         ),
     );
+    // get the dlna headers
+    let headers = get_dlna_headers(streaming_ctx);
+
     // create the channelstream that receives the samples and streams them on demand
     let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
     let channel_stream = ChannelStream::new(
@@ -232,8 +230,11 @@ fn streaming_request(
 }
 
 /// HEAD METHOD request
-fn head_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: tiny_http::Request) {
+fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     debug!("HEAD rq from {}", streaming_ctx.remote_addr);
+    // get the dlna headers
+    let headers = get_dlna_headers(streaming_ctx);
+
     let response = Response::new(
         tiny_http::StatusCode(200),
         headers,
@@ -253,7 +254,7 @@ fn head_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: tiny
 }
 
 /// invalid METHOD request
-fn invalid_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: tiny_http::Request) {
+fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     ui_log(
         LogCategory::Info,
         &format!(
@@ -262,6 +263,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: t
             streaming_ctx.remote_addr
         ),
     );
+    let headers = get_std_headers();
     let response = Response::new(
         tiny_http::StatusCode(405),
         headers,
@@ -281,7 +283,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, headers: Vec<Header>, rq: t
 }
 
 /// this request is not recognized, reject with an error 404
-fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: Vec<Header>) {
+fn bad_request(rq: tiny_http::Request, remote_addr: &str, headers: Vec<Header>) {
     ui_log(
         LogCategory::Info,
         &format!(
@@ -305,8 +307,9 @@ fn unrecognized_request(rq: tiny_http::Request, remote_addr: &str, headers: Vec<
     }
 }
 
-/// Add the dlna headers
-fn add_dlna_headers(headers: &mut Vec<Header>, stream_context: &StreamingContext) {
+/// get the dlna headers
+fn get_dlna_headers(stream_context: &StreamingContext) -> Vec<Header> {
+    let mut headers = get_std_headers();
     // get the dlna format string
     let ct_text = {
         match stream_context.streaming_format {
@@ -331,16 +334,19 @@ fn add_dlna_headers(headers: &mut Vec<Header>, stream_context: &StreamingContext
     // and add dlna headers
     headers.push(Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap());
     headers.push(Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..]).unwrap());
+    headers
 }
 
-/// build the default http response headers
-fn get_default_headers() -> Vec<Header> {
+/// get the standard headers
+fn get_std_headers() -> Vec<Header> {
     let mut headers = Vec::with_capacity(8);
     headers.push(Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap());
     headers.push(Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap());
     headers.push(Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap());
-    // don't accept range headers (Linn) until I know how to handle them
-    // but don't send this header as the MPD player ignores the "none" value anyway and uses ranges
-    // headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap());
+
+    /* don't accept range headers (Linn) until I know how to handle them
+    but don't send this header as the MPD player ignores the "none" value anyway and uses ranges
+    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap()); */
+
     headers
 }

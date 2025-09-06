@@ -66,9 +66,8 @@ pub fn run_server(
                         rq.url(),
                         rq.remote_addr().unwrap()
                     );
-                    if cfg!(debug_assertions) {
-                        dump_rq_headers(&rq);
-                    }
+                    #[cfg(debug_assertions)]
+                    dump_rq_headers(&rq);
                     // create fresh streaming context from config info for each new streaming request
                     // as some parameters may have changed
                     let mut streaming_ctx = StreamingContext::from_config();
@@ -108,20 +107,20 @@ pub fn run_server(
 }
 
 /// dump response headers
+#[cfg(debug_assertions)]
 fn dump_resp_headers(response: &Response<ChannelStream>) {
-    if cfg!(debug_assertions) {
-        debug!("==> Response:");
-        debug!(
-            " ==> Content-Length: {}",
-            response.data_length().unwrap_or(0)
-        );
-        for hdr in response.headers() {
-            debug!(" ==> Response {hdr:?}");
-        }
+    debug!("==> Response:");
+    debug!(
+        " ==> Content-Length: {}",
+        response.data_length().unwrap_or(0)
+    );
+    for hdr in response.headers() {
+        debug!(" ==> Response {hdr:?}");
     }
 }
 
 /// dump the request headers
+#[cfg(debug_assertions)]
 fn dump_rq_headers(rq: &tiny_http::Request) {
     for hdr in rq.headers() {
         debug!(" <== Request {hdr:?}");
@@ -195,6 +194,7 @@ fn streaming_request(
         None,
     )
     .with_chunked_threshold(streaming_ctx.chunksize);
+    #[cfg(debug_assertions)]
     dump_resp_headers(&response);
     let e = request.respond(response);
     if e.is_err() {

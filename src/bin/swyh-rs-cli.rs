@@ -116,12 +116,12 @@ fn main() -> Result<(), i32> {
         std::env::consts::FAMILY,
         std::env::consts::OS
     );
-    if cfg!(debug_assertions) {
-        ui_log(
-            LogCategory::Warning,
-            "Running DEBUG build => log level set to DEBUG!",
-        );
-    }
+    #[cfg(debug_assertions)]
+    ui_log(
+        LogCategory::Warning,
+        "Running DEBUG build => log level set to DEBUG!",
+    );
+
     info!("Commandline args: {args:?}");
     info!("Current config: {config:?}");
 

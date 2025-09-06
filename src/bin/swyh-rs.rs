@@ -115,23 +115,23 @@ fn main() {
         .unwrap()
         .build();
     // disable TermLogger on susbsystem Windows because it panics now with Rust edition 2021
-    if cfg!(debug_assertions) || cfg!(target_os = "linux") {
-        let _ = CombinedLogger::init(vec![
-            TermLogger::new(
-                loglevel,
-                log_config.clone(),
-                simplelog::TerminalMode::Stderr,
-                ColorChoice::Auto,
-            ),
-            WriteLogger::new(loglevel, log_config.clone(), File::create(logfile).unwrap()),
-        ]);
-    } else {
-        let _ = CombinedLogger::init(vec![WriteLogger::new(
+    #[cfg(any(debug_assertions, target_os = "linux"))]
+    let _ = CombinedLogger::init(vec![
+        TermLogger::new(
             loglevel,
             log_config.clone(),
-            File::create(logfile).unwrap(),
-        )]);
-    }
+            simplelog::TerminalMode::Stderr,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(loglevel, log_config.clone(), File::create(logfile).unwrap()),
+    ]);
+    #[cfg(not(any(debug_assertions, target_os = "linux")))]
+    let _ = CombinedLogger::init(vec![WriteLogger::new(
+        loglevel,
+        log_config.clone(),
+        File::create(logfile).unwrap(),
+    )]);
+
     info!(
         "{} V {}(build: {}) - Running on {}, {}, {} - Logging started.",
         APP_NAME,
@@ -141,12 +141,11 @@ fn main() {
         std::env::consts::FAMILY,
         std::env::consts::OS
     );
-    if cfg!(debug_assertions) {
-        ui_log(
-            LogCategory::Warning,
-            ">Running DEBUG build => log level set to DEBUG!",
-        );
-    }
+    #[cfg(debug_assertions)]
+    ui_log(
+        LogCategory::Warning,
+        ">Running DEBUG build => log level set to DEBUG!",
+    );
 
     if let Some(config_id) = &config.config_id
         && !config_id.is_empty()

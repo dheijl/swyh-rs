@@ -315,7 +315,8 @@ impl Configuration {
                 break;
             }
         }
-        if cfg!(feature = "cli") && config_id.is_empty() {
+        #[cfg(feature = "cli")]
+        if config_id.is_empty() {
             config_id = "_cli".to_string();
         }
         config_id

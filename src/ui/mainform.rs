@@ -748,8 +748,13 @@ impl MainForm {
     /// show a log message in the text box
     pub fn add_log_msg(&mut self, msg: &str) {
         if let Some(mut textbuffer) = self.tb.buffer() {
+            let start = textbuffer.length() as usize;
+            let end = start + msg.len();
             textbuffer.append(msg);
             textbuffer.append("\n");
+            if let Some(b'*') = msg.bytes().nth(0) {
+                textbuffer.highlight(start as i32, end as i32);
+            }
             let buflen = textbuffer.length();
             self.tb.set_insert_position(buflen);
             let buflines = self.tb.count_lines(0, buflen, true);

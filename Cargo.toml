@@ -48,7 +48,7 @@ winres = "0.1.12"
 bitflags = "2.9.4"
 cpal = "0.16.0"
 crossbeam-channel = "0.5.15"
-ctrlc = { version = "3.4.7", features = ["termination"] }
+ctrlc = { version = "3.5.0", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "6.0.0"
 ecow = "0.2.6"
@@ -71,7 +71,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 tiny_http = "0.12.0"
 toml = "0.9.5"
-ureq = { version = "3.1.0", default-features = false, features = [
+ureq = { version = "3.1.1", default-features = false, features = [
     "charset",
     "gzip",
 ] }

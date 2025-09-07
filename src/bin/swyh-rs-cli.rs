@@ -284,7 +284,7 @@ fn main() -> Result<(), i32> {
         _ => {
             ui_log(
                 LogCategory::Error,
-                "> Could not capture audio ...Please check configuration.",
+                "Could not capture audio ...Please check configuration.",
             );
             return Err(-2);
         }

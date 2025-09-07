@@ -144,7 +144,7 @@ fn main() {
     #[cfg(debug_assertions)]
     ui_log(
         LogCategory::Warning,
-        ">Running DEBUG build => log level set to DEBUG!",
+        "Running DEBUG build => log level set to DEBUG!",
     );
 
     if let Some(config_id) = &config.config_id
@@ -239,7 +239,7 @@ fn main() {
         _ => {
             ui_log(
                 LogCategory::Error,
-                "> Could not capture audio ...Please check configuration.",
+                "Could not capture audio ...Please check configuration.",
             );
         }
     }

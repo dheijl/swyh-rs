@@ -64,7 +64,10 @@ use crossbeam_channel::{Receiver, Sender, unbounded};
 use fltk::{app, misc::Progress, prelude::ButtonExt};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, info};
+#[cfg(any(debug_assertions, target_os = "linux"))]
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
+#[cfg(not(any(debug_assertions, target_os = "linux")))]
+use simplelog::{CombinedLogger, ConfigBuilder, WriteLogger};
 use std::{
     cell::Cell,
     fs::File,

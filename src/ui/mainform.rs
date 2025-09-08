@@ -752,7 +752,7 @@ impl MainForm {
             let end = start + msg.len();
             textbuffer.append(msg);
             textbuffer.append("\n");
-            if let Some(b'*') = msg.bytes().nth(0) {
+            if let Some(b'*') = msg.as_bytes().first() {
                 textbuffer.highlight(start as i32, end as i32);
             }
             let buflen = textbuffer.length();

@@ -14,7 +14,7 @@ use crate::{
 use fltk::{
     app,
     button::{Button, CheckButton, LightButton},
-    enums::{Align, Color, Event, FrameType},
+    enums::{self, Align, Color, Event, FrameType},
     frame::Frame,
     group::{Flex, FlexType, Pack, PackType},
     image::SvgImage,
@@ -715,6 +715,7 @@ impl MainForm {
         pfeedback.end();
         let buf = TextBuffer::default();
         let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
+        tb.set_selection_color(enums::Color::DarkYellow);
         tb.set_buffer(Some(buf));
         pfeedback.add(&tb);
         pfeedback.resizable(&tb);
@@ -848,7 +849,7 @@ impl MainForm {
             sl.set_selection_color(Color::XtermGreen);
             sl.set_color(Color::XtermWhite);
             sl.set_value(new_renderer.volume.into());
-            sl.set_trigger(fltk::enums::CallbackTrigger::Release);
+            sl.set_trigger(enums::CallbackTrigger::Release);
             // slider callback
             sl.set_callback({
                 let player_index = self.player_index;

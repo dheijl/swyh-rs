@@ -184,14 +184,14 @@ impl MainForm {
         wind.add(&vpack);
 
         // title frame
-        let mut p1 = Flex::new(0, 0, GW, 25, "");
-        p1.end();
+        let mut flx_title = Flex::new(0, 0, GW, 25, "");
+        flx_title.end();
         let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
         opt_frame.set_frame(FrameType::BorderBox);
         opt_frame.set_label("Configuration Options");
         opt_frame.set_color(title_color);
-        p1.add(&opt_frame);
-        vpack.add(&p1);
+        flx_title.add(&opt_frame);
+        vpack.add(&flx_title);
 
         // show config option widgets
 
@@ -229,8 +229,8 @@ impl MainForm {
         vpack.add(&ptheme);
 
         // network selection
-        let mut pnw = Flex::new(0, 0, GW, 25, "");
-        pnw.end();
+        let mut flx_netwrk = Flex::new(0, 0, GW, 25, "");
+        flx_netwrk.end();
         let cur_nw = {
             if config.last_network.is_none() {
                 format!("Active network: {local_addr}")
@@ -268,12 +268,12 @@ impl MainForm {
                 rlock.store(false, Ordering::Release);
             }
         });
-        pnw.add(&choose_network_but);
-        vpack.add(&pnw);
+        flx_netwrk.add(&choose_network_but);
+        vpack.add(&flx_netwrk);
 
         // setup audio source choice
-        let mut pas = Flex::new(0, 0, GW, 25, "");
-        pas.end();
+        let mut flx_ausrc = Flex::new(0, 0, GW, 25, "");
+        flx_ausrc.end();
         let cur_audio_src = format!("Audio Source: {}", config.sound_source.as_ref().unwrap());
         ui_log(LogCategory::Info, "Setup audio sources");
         let mut choose_audio_source_but =
@@ -308,14 +308,14 @@ impl MainForm {
                 rlock.store(false, Ordering::Release);
             }
         });
-        pas.add(&choose_audio_source_but);
-        vpack.add(&pas);
+        flx_ausrc.add(&choose_audio_source_but);
+        vpack.add(&flx_ausrc);
 
         // all other options
-        let mut pconfig1 = Flex::new(0, 0, GW, 20, "");
-        pconfig1.set_spacing(10);
-        pconfig1.set_type(FlexType::Row);
-        pconfig1.end();
+        let mut flx_options = Flex::new(0, 0, GW, 20, "");
+        flx_options.set_spacing(10);
+        flx_options.set_type(FlexType::Row);
+        flx_options.end();
 
         // auto_resume button for AVTransport autoresume play
         let mut auto_resume = CheckButton::new(0, 0, 0, 0, "Autoresume play");
@@ -327,7 +327,7 @@ impl MainForm {
             conf.auto_resume = b.is_set();
             let _ = conf.update_config();
         });
-        pconfig1.add(&auto_resume);
+        flx_options.add(&auto_resume);
 
         // AutoReconnect to last renderer on startup button
         let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, "Autoreconnect");
@@ -339,7 +339,7 @@ impl MainForm {
             conf.auto_reconnect = b.is_set();
             let _ = conf.update_config();
         });
-        pconfig1.add(&auto_reconnect);
+        flx_options.add(&auto_reconnect);
 
         // SSDP interval counter
         let mut ssdp_interval = Counter::new(0, 0, 0, 0, "SSDP Interval (in minutes)");
@@ -377,7 +377,7 @@ impl MainForm {
                 }
             }
         });
-        pconfig1.add(&ssdp_interval);
+        flx_options.add(&ssdp_interval);
 
         // show log level choice
         let ll = format!("Log Level: {}", config.log_level);
@@ -415,19 +415,19 @@ impl MainForm {
                 rlock.store(false, Ordering::Release);
             }
         });
-        pconfig1.add(&log_level_choice);
+        flx_options.add(&log_level_choice);
         //pconfig1.auto_layout();
-        pconfig1.make_resizable(true);
-        vpack.add(&pconfig1);
+        flx_options.make_resizable(true);
+        vpack.add(&flx_options);
         // spacer
-        let mut pspacer = Flex::new(0, 0, GW, 10, "");
-        pspacer.make_resizable(true);
-        vpack.add(&pspacer);
+        let mut flx_spacer = Flex::new(0, 0, GW, 10, "");
+        flx_spacer.make_resizable(true);
+        vpack.add(&flx_spacer);
 
-        let mut pconfig2 = Flex::new(0, 0, GW, 20, "");
-        pconfig2.set_spacing(10);
-        pconfig2.set_type(FlexType::Row);
-        pconfig2.end();
+        let mut flx_options2 = Flex::new(0, 0, GW, 20, "");
+        flx_options2.set_spacing(10);
+        flx_options2.set_type(FlexType::Row);
+        flx_options2.end();
 
         // streaming format
         let fmt = if let Some(format) = config.streaming_format {
@@ -472,7 +472,7 @@ impl MainForm {
                 rlock.store(false, Ordering::Release);
             }
         });
-        pconfig2.add(&fmt_choice);
+        flx_options2.add(&fmt_choice);
 
         // checkbutton to select 24 bit samples instead of the 16 bit default
         let mut b24_bit = CheckButton::new(0, 0, 0, 0, "24 bit");
@@ -490,7 +490,7 @@ impl MainForm {
                 let _ = conf.update_config();
             }
         });
-        pconfig2.add(&b24_bit);
+        flx_options2.add(&b24_bit);
         // HTTP server listen port
         let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
         listen_port.set_value(&get_config().server_port.unwrap_or_default().to_string());
@@ -512,7 +512,7 @@ impl MainForm {
             }
         });
 
-        pconfig2.add(&listen_port);
+        flx_options2.add(&listen_port);
         // inject continuous silence into audio stream checkbox
         // to prevent Sonos to disconnect if no audio is being captured
         let mut inj_silence = CheckButton::new(0, 0, 0, 0, "Inject silence");
@@ -528,17 +528,17 @@ impl MainForm {
                 config_changed.set(true);
             }
         });
-        pconfig2.add(&inj_silence);
+        flx_options2.add(&inj_silence);
 
         //pconfig2.auto_layout();
-        pconfig2.make_resizable(true);
-        vpack.add(&pconfig2);
+        flx_options2.make_resizable(true);
+        vpack.add(&flx_options2);
 
         // streaming content length and chunking
-        let mut pconfig3 = Flex::new(0, 0, GW, 20, "");
-        pconfig3.set_spacing(10);
-        pconfig3.set_type(FlexType::Row);
-        pconfig3.end();
+        let mut flx_options3 = Flex::new(0, 0, GW, 20, "");
+        flx_options3.set_spacing(10);
+        flx_options3.set_type(FlexType::Row);
+        flx_options3.end();
 
         let streamsize = if let Some(fmt) = config.streaming_format {
             match fmt {
@@ -597,10 +597,10 @@ impl MainForm {
                 rlock.store(false, Ordering::Release);
             }
         });
-        pconfig3.add(&ss_choice);
+        flx_options3.add(&ss_choice);
 
         let label_ms = Frame::default().with_label("                       Inital buffer (msec): ");
-        pconfig3.add(&label_ms);
+        flx_options3.add(&label_ms);
         let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
         upfront_buffer_ms.set_maximum_size(5);
         let b_config = config.buffering_delay_msec.unwrap_or_default();
@@ -623,17 +623,17 @@ impl MainForm {
                 }
             }
         });
-        pconfig3.add(&upfront_buffer_ms);
+        flx_options3.add(&upfront_buffer_ms);
 
         //pconfig3.auto_layout();
-        pconfig3.make_resizable(true);
-        vpack.add(&pconfig3);
+        flx_options3.make_resizable(true);
+        vpack.add(&flx_options3);
 
         // RMS animation
-        let mut pconfig4 = Flex::new(0, 0, GW, 20, "");
-        pconfig4.set_spacing(10);
-        pconfig4.set_type(FlexType::Row);
-        pconfig4.end();
+        let mut flx_options4 = Flex::new(0, 0, GW, 20, "");
+        flx_options4.set_spacing(10);
+        flx_options4.set_type(FlexType::Row);
+        flx_options4.end();
         // RMS animation enable checkbox
         let mut show_rms = CheckButton::new(0, 0, 0, 0, "RMS Monitor");
         if config.monitor_rms {
@@ -666,24 +666,24 @@ impl MainForm {
                 let _ = conf.update_config();
             }
         });
-        pconfig4.add(&show_rms);
-        // vertical pack for the RMS meters
-        let mut pconfig3_v = Flex::new(0, 0, GW, 16, "");
-        pconfig3_v.set_spacing(4);
-        pconfig3_v.set_type(FlexType::Column);
-        pconfig3_v.end();
-        pconfig3_v.add(&rms_mon_l);
-        pconfig3_v.add(&rms_mon_r);
+        flx_options4.add(&show_rms);
+        // vertical flex for the RMS meters
+        let mut flx_options4_v = Flex::new(0, 0, GW, 16, "");
+        flx_options4_v.set_spacing(4);
+        flx_options4_v.set_type(FlexType::Column);
+        flx_options4_v.end();
+        flx_options4_v.add(&rms_mon_l);
+        flx_options4_v.add(&rms_mon_r);
         //pconfig3_v.auto_layout();
-        pconfig3_v.make_resizable(true);
-        pconfig4.add(&pconfig3_v);
+        flx_options4_v.make_resizable(true);
+        flx_options4.add(&flx_options4_v);
 
         //pconfig4.auto_layout();
-        pconfig4.make_resizable(true);
-        vpack.add(&pconfig4);
+        flx_options4.make_resizable(true);
+        vpack.add(&flx_options4);
 
         // hidden restart button
-        let mut prestart = Flex::new(0, 0, GW, 25, "");
+        let mut flx_restart = Flex::new(0, 0, GW, 25, "");
         let mut restartbutton =
             Button::default().with_label("Press to apply configuration changes");
         restartbutton.set_label_color(Color::Red);
@@ -693,40 +693,40 @@ impl MainForm {
                 .expect("Unable to spawn myself!");
             std::process::exit(0)
         });
-        prestart.add(&restartbutton);
-        prestart.hide();
-        vpack.add(&prestart);
+        flx_restart.add(&restartbutton);
+        flx_restart.hide();
+        vpack.add(&flx_restart);
 
         // show renderer buttons title with our local ip address
-        let mut pbuttons = Flex::new(0, 0, GW, 25, "");
-        pbuttons.end();
+        let mut flx_buttons = Flex::new(0, 0, GW, 25, "");
+        flx_buttons.end();
         let mut frame = Frame::new(0, 0, FW, 25, "").with_align(Align::Center);
         frame.set_frame(FrameType::BorderBox);
         frame.set_label(&format!("UPNP rendering devices on network {local_addr}"));
         frame.set_color(title_color);
-        pbuttons.add(&frame);
-        vpack.add(&pbuttons);
+        flx_buttons.add(&frame);
+        vpack.add(&flx_buttons);
 
         // ssdp discovered renderer buttons go here
         let btn_insert_index = vpack.children();
 
         // setup feedback textbox at the bottom
-        let mut pfeedback = Flex::new(0, 0, GW, 156, "");
-        pfeedback.end();
+        let mut flx_feedback = Flex::new(0, 0, GW, 156, "");
+        flx_feedback.end();
         let buf = TextBuffer::default();
         let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
         tb.set_selection_color(enums::Color::DarkYellow);
         tb.set_buffer(Some(buf));
-        pfeedback.add(&tb);
-        pfeedback.resizable(&tb);
-        vpack.add(&pfeedback);
-        vpack.resizable(&pfeedback);
+        flx_feedback.add(&tb);
+        flx_feedback.resizable(&tb);
+        vpack.add(&flx_feedback);
+        vpack.resizable(&flx_feedback);
 
         MainForm {
             player_index: 0,
             wind,
             vpack,
-            restartbutton: prestart,
+            restartbutton: flx_restart,
             auto_resume,
             auto_reconnect,
             ssdp_interval,
@@ -831,13 +831,13 @@ impl MainForm {
                 get_renderers_mut()[player_index].playing = b.is_on();
             }
         });
-        // the pack for the new button
-        let mut pbutton = Flex::new(0, 0, self.bwidth, self.bheight, "");
-        pbutton.set_spacing(5);
-        pbutton.set_type(FlexType::Row);
-        pbutton.end();
+        // the flex for the new button
+        let mut flx_button = Flex::new(0, 0, self.bwidth, self.bheight, "");
+        flx_button.set_spacing(5);
+        flx_button.set_type(FlexType::Row);
+        flx_button.end();
         // add the renderer button to the window
-        pbutton.add(&pbut);
+        flx_button.add(&pbut);
         // Only if GetVolume worked: add the volume slider
         if show_vol_slider {
             let mut sl = HorNiceSlider::default()
@@ -880,7 +880,7 @@ impl MainForm {
                     }
                 }
             });
-            pbutton.add(&sl);
+            flx_button.add(&sl);
             new_renderer.rend_ui.slider = Some(sl.clone());
         } else {
             new_renderer.rend_ui.slider = None;
@@ -888,7 +888,7 @@ impl MainForm {
         new_renderer.rend_ui.button = Some(pbut.clone());
         // add the new renderer to the global list of renderers
         get_renderers_mut().push(new_renderer.clone());
-        self.vpack.insert(&pbutton, self.btn_index);
+        self.vpack.insert(&flx_button, self.btn_index);
         app::redraw();
         // now add the new player to the global list of renderers
         // check if autoreconnect is set for this renderer

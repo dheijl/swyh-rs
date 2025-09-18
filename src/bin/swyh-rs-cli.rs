@@ -131,23 +131,21 @@ fn main() -> Result<(), i32> {
     // set soundsource index or name from args or config
     let audio_devices = get_output_audio_devices();
     // get the index from args or config
-    let mut ss_index = if let Some(index) = args.sound_source_index {
-        args.sound_source_name = None;
-        index
-    } else if let Some(index) = config.sound_source_index {
-        index
-    } else {
-        -1i32
+    let mut ss_index = {
+        if let Some(index) = args.sound_source_index {
+            args.sound_source_name = None;
+            index
+        } else {
+            config.sound_source_index.unwrap_or(-1i32)
+        }
     };
     // config index can be overridden by name from args
     let ss_name = {
         if let Some(name) = args.sound_source_name {
             ss_index = -1i32;
             name
-        } else if let Some(name) = config.sound_source.clone() {
-            name
         } else {
-            String::new()
+            config.sound_source.clone().unwrap_or_default()
         }
     };
     // use index from config if present and no name arg present

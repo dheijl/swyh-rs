@@ -128,17 +128,13 @@ impl ChannelStream {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
             #[cfg(feature = "trace_samples")]
-            {
-                debug!("got sample chunk");
-            }
+            debug!("got sample chunk");
             self.fifo.extend(chunk);
             self.sending_silence = false;
         } else {
             self.fifo.extend(self.silence.clone());
             #[cfg(feature = "trace_samples")]
-            {
-                debug!("sending silence");
-            }
+            debug!("sending silence");
             self.sending_silence = true;
         }
     }
@@ -199,12 +195,10 @@ impl Read for ChannelStream {
                 (_, _) => error!("Unsupported audio format!"),
             }
             #[cfg(feature = "trace_samples")]
-            {
-                debug!(
-                    "Returned buffer: {}",
-                    (buf.len() / bytes_per_sample) * bytes_per_sample
-                );
-            }
+            debug!(
+                "Returned buffer: {}",
+                (buf.len() / bytes_per_sample) * bytes_per_sample
+            );
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
         } else {
             // FLAC
@@ -213,9 +207,7 @@ impl Read for ChannelStream {
             while self.flac_fifo.len() < buf.len() {
                 if let Ok(chunk) = flac_in.recv() {
                     #[cfg(feature = "trace_samples")]
-                    {
-                        debug!("got flac encoded chunk({})", chunk.len());
-                    }
+                    debug!("got flac encoded chunk({})", chunk.len());
                     self.flac_fifo.extend(chunk);
                 }
             }
@@ -225,9 +217,7 @@ impl Read for ChannelStream {
             // and store them in the buffer
             buf.iter_mut().zip(drain).for_each(|(b, f)| *b = f);
             #[cfg(feature = "trace_samples")]
-            {
-                debug!("Returned FLAC buffer: {}", buf.len());
-            }
+            debug!("Returned FLAC buffer: {}", buf.len());
             Ok(buf.len())
         }
     }

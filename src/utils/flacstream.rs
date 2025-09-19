@@ -152,9 +152,7 @@ impl FlacChannel {
                                 .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
                                 .collect::<Vec<i32>>();
                             #[cfg(feature = "trace_samples")]
-                            {
-                                debug!("Encoding FLAC silence");
-                            }
+                            debug!("Encoding FLAC silence");
                             if enc
                                 .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                                 .is_err()

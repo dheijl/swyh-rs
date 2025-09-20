@@ -95,3 +95,4 @@ libc = "0.2.175"
 #cpal = { git = "https://github.com/RustAudio/cpal" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
+figura = { git = "https://github.com/dheijl/figura_value" }

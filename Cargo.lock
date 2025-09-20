@@ -317,8 +317,7 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 [[package]]
 name = "figura"
 version = "1.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ef236c95591fbc367c245c6453b35a45d18a2a49cf7d9f13c0d7b12ef6cb109"
+source = "git+https://github.com/dheijl/figura_value#b5d768f337ced4f7d4f8b7a9941ac0becde05222"
 dependencies = [
  "smacro",
  "thiserror 2.0.16",

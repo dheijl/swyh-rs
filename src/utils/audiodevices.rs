@@ -328,15 +328,6 @@ where
     });
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
-    #[cfg(feature = "trace_samples")]
-    {
-        let zs = if f32_samples.iter().all(|&s| s == 0.0) {
-            "allzero"
-        } else {
-            "nonzero"
-        };
-        debug!("wave_reader: got {} {zs} samples", f32_samples.len());
-    }
     get_clients()
         .iter()
         .for_each(|(_, client)| client.write(f32_samples));

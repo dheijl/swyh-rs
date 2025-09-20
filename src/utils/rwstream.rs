@@ -110,15 +110,6 @@ impl ChannelStream {
         // 10_000 messages (capture buffers, not samples) is a quite a lot
         if self.s.len() < 10_000 {
             self.s.send(samples.to_vec()).unwrap();
-            #[cfg(feature = "trace_samples")]
-            {
-                let zs = if samples.iter().any(|&s| s != 0.0) {
-                    "nonzero"
-                } else {
-                    "zero"
-                };
-                debug!("writing {zs} sample buffer");
-            }
         }
     }
 
@@ -127,14 +118,10 @@ impl ChannelStream {
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
-            #[cfg(feature = "trace_samples")]
-            debug!("got sample chunk");
             self.fifo.extend(chunk);
             self.sending_silence = false;
         } else {
             self.fifo.extend(self.silence.clone());
-            #[cfg(feature = "trace_samples")]
-            debug!("sending silence");
             self.sending_silence = true;
         }
     }
@@ -194,11 +181,6 @@ impl Read for ChannelStream {
                 // unsupported format, ignore
                 (_, _) => error!("Unsupported audio format!"),
             }
-            #[cfg(feature = "trace_samples")]
-            debug!(
-                "Returned buffer: {}",
-                (buf.len() / bytes_per_sample) * bytes_per_sample
-            );
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
         } else {
             // FLAC
@@ -206,8 +188,6 @@ impl Read for ChannelStream {
             // make sure we have enough data for this read buffer
             while self.flac_fifo.len() < buf.len() {
                 if let Ok(chunk) = flac_in.recv() {
-                    #[cfg(feature = "trace_samples")]
-                    debug!("got flac encoded chunk({})", chunk.len());
                     self.flac_fifo.extend(chunk);
                 }
             }
@@ -216,8 +196,6 @@ impl Read for ChannelStream {
             debug_assert!(buf.len() == drain.len(), "FLAC: buf.len <> drain.len");
             // and store them in the buffer
             buf.iter_mut().zip(drain).for_each(|(b, f)| *b = f);
-            #[cfg(feature = "trace_samples")]
-            debug!("Returned FLAC buffer: {}", buf.len());
             Ok(buf.len())
         }
     }

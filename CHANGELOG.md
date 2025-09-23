@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
 - 1.12.14 (unreleased)
+  - some small changes
+  - optimize filling the flac streaming buffer
 
 - 1.12.13 (Aug 30 2025, dheijl)
   - binaries are now built with lld as the linker using **.cargo/config.toml**:

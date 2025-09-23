@@ -193,28 +193,21 @@ impl Read for ChannelStream {
             }
             // copy the number of FLAC bytes needed from the fifo
             let (s1, s2) = self.flac_fifo.as_slices();
-            let (p1, p2) = {
+            let (l1, l2) = {
                 if s1.len() >= buf.len() {
                     (buf.len(), 0)
                 } else {
                     (s1.len(), buf.len() - s1.len())
                 }
             };
-            //eprintln!("p1} {p2}");
-            //if p1 != 8192 {
-            //    eprintln!("{p1} {p2}")
-            //}
-            buf[..p1].copy_from_slice(&s1[..p1]);
-            if p2 > 0 {
-                buf[p1 + 1..].copy_from_slice(&s2[..p2]);
+            debug_assert!(l1 + l2 == buf.len());
+            buf[..l1].copy_from_slice(&s1[..l1]);
+            if l2 > 0 {
+                buf[l1 + 1..].copy_from_slice(&s2[..l2]);
             }
             // what I really need here is truncate_front() to stabilize
             let drain = self.flac_fifo.drain(0..buf.len());
-            //debug_assert!(buf.len() == drain.len(), "FLAC: buf.len <> drain.len");
-            //drain.enumerate().for_each(|(i, b)| assert_eq!(b, buf[i]));
             drop(drain);
-            // and store them in the buffer
-            //buf.iter_mut().zip(drain).for_each(|(b, f)| *b = f);
             Ok(buf.len())
         }
     }

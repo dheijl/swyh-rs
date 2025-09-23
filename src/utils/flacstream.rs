@@ -102,7 +102,7 @@ impl FlacChannel {
                     .channels(ch)
                     .bits_per_sample(bps)
                     .sample_rate(sr)
-                    .compression_level(0)
+                    .compression_level(1)
                     .set_limit_min_bitrate(true)
                     .init_write(&mut outw)
                     .unwrap();

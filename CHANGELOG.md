@@ -2,8 +2,10 @@
 
 - 1.12.14 (unreleased)
   - some small changes
-  - optimize filling the flac streaming buffer
-  - increase flac compression level to 1 (from 0)
+  - introduce a LogCategory in the logging
+  - more refactoring in http server
+  - optimize filling the flac streaming buffers (replace iterator loops with slice copies)
+  - increase flac compression level from 0 to 1
 
 - 1.12.13 (Aug 30 2025, dheijl)
   - binaries are now built with lld as the linker using **.cargo/config.toml**:

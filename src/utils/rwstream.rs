@@ -188,7 +188,8 @@ impl Read for ChannelStream {
             // make sure we have enough data for this read buffer
             while self.flac_fifo.len() < buf.len() {
                 if let Ok(chunk) = flac_in.recv() {
-                    self.flac_fifo.extend(chunk);
+                    println!("chunk: {}", chunk.len());
+                    self.flac_fifo.append(&mut VecDeque::from(chunk));
                 }
             }
             // copy the number of FLAC bytes needed from the fifo

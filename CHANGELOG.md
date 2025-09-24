@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.14 (unreleased)
+  - rust 1.90
   - some small changes
   - introduce a LogCategory in the logging
   - more refactoring in http server

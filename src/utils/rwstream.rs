@@ -118,10 +118,10 @@ impl ChannelStream {
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
-            self.fifo.extend(chunk);
+            self.fifo.append(&mut VecDeque::from(chunk));
             self.sending_silence = false;
         } else {
-            self.fifo.extend(self.silence.clone());
+            self.fifo.append(&mut VecDeque::from(self.silence.clone()));
             self.sending_silence = true;
         }
     }

@@ -79,7 +79,7 @@ xml-rs = "1.0.0"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.14", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-windows = { version = "0.62.0", features = [
+windows = { version = "0.62.1", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
 ] }

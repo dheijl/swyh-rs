@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.12.14 (unreleased)
+- 1.12.14 (Sep 25 2025, dheijl)
   - rust 1.90
   - some small changes
   - introduce a LogCategory in the UI logging

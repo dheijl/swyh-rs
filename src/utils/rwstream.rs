@@ -191,7 +191,7 @@ impl Read for ChannelStream {
                     self.flac_fifo.append(&mut VecDeque::from(chunk));
                 }
             }
-            // copy the number of FLAC bytes needed from the fifo
+            // fill the buffer with the number of FLAC bytes needed from the fifo
             let (s1, s2) = self.flac_fifo.as_slices();
             let (l1, l2) = {
                 if s1.len() >= buf.len() {
@@ -205,9 +205,9 @@ impl Read for ChannelStream {
             if l2 > 0 {
                 buf[l1 + 1..].copy_from_slice(&s2[..l2]);
             }
-            // what I really need here is truncate_front() to stabilize
-            let drain = self.flac_fifo.drain(0..buf.len());
-            drop(drain);
+            // remove the copied bytes from the fifo
+            // use drain() hack until truncate_front() is stabilized
+            self.flac_fifo.drain(0..buf.len());
             Ok(buf.len())
         }
     }

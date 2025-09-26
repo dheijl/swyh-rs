@@ -11,7 +11,7 @@ authors = [
 ]
 edition = "2024"
 name = "swyh-rs"
-version = "1.12.14"
+version = "1.12.15"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"
@@ -66,7 +66,7 @@ log = { version = "0.4.28", features = [
     "release_max_level_debug",
     "serde",
 ] }
-serde = { version = "1.0.226", features = ["derive"] }
+serde = { version = "1.0.227", features = ["derive"] }
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 tiny_http = "0.12.0"
 toml = "0.9.7"

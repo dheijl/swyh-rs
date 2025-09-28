@@ -1,9 +1,10 @@
 use crate::enums::streaming::{BitDepth, StreamSize, StreamingFormat};
 use std::str::FromStr;
 
-const VALID_URLS: [&str; 4] = [
+const VALID_URLS: [&str; 5] = [
     "/stream/swyh.wav",
     "/stream/swyh.raw",
+    "/stream/swyh.lpcm",
     "/stream/swyh.flac",
     "/stream/swyh.rf64",
 ];
@@ -102,6 +103,11 @@ mod tests {
         assert_eq!(sp.fmt, Some(StreamingFormat::Rf64));
         let sp = StreamingParams::from_query_string("/stream/swyh.RAW");
         assert_eq!(sp.path, Some("/stream/swyh.raw".to_string()));
+        assert_eq!(sp.bd, None);
+        assert_eq!(sp.ss, None);
+        assert_eq!(sp.fmt, Some(StreamingFormat::Lpcm));
+        let sp = StreamingParams::from_query_string("/stream/swyh.Lpcm");
+        assert_eq!(sp.path, Some("/stream/swyh.lpcm".to_string()));
         assert_eq!(sp.bd, None);
         assert_eq!(sp.ss, None);
         assert_eq!(sp.fmt, Some(StreamingFormat::Lpcm));

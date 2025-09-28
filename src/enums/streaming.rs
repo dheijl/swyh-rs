@@ -39,7 +39,7 @@ impl FromStr for StreamingFormat {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_ascii_lowercase().as_str() {
-            "lpcm" => Ok(StreamingFormat::Lpcm),
+            "lpcm" | "raw" => Ok(StreamingFormat::Lpcm),
             "wav" => Ok(StreamingFormat::Wav),
             "flac" => Ok(StreamingFormat::Flac),
             "rf64" => Ok(StreamingFormat::Rf64),

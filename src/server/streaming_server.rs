@@ -318,16 +318,10 @@ fn get_dlna_headers(stream_context: &StreamingContext) -> Vec<Header> {
             StreamingFormat::Wav | StreamingFormat::Rf64 => "audio/vnd.wave;codec=1".to_string(),
             StreamingFormat::Lpcm => match stream_context.bits_per_sample {
                 BitDepth::Bits16 => {
-                    format!(
-                        "audio/L16;rate={};channels=2",
-                        stream_context.bits_per_sample
-                    )
+                    format!("audio/L16;rate={};channels=2", stream_context.sample_rate)
                 }
                 BitDepth::Bits24 => {
-                    format!(
-                        "audio/L24;rate={};channels=2",
-                        stream_context.bits_per_sample
-                    )
+                    format!("audio/L24;rate={};channels=2", stream_context.sample_rate)
                 }
             },
         }

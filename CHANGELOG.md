@@ -2,6 +2,7 @@
 
 - 1.12.15 (unreleased)
   - bugfix: /swyh-rs.raw is the same as /swyh-rs.lpcm in the streaming url
+  - bugfix: fix refactoring typo that caused LPCM to no longer work...
 
 - 1.12.14 (Sep 25 2025, dheijl)
   - rust 1.90

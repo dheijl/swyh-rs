@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
-- 1.12.15 (unreleased)
+- 1.12.16 (unreleased)
+
+- 1.12.15 (Oct 2 2025, dheijl)
   - bugfix: /swyh-rs.raw is the same as /swyh-rs.lpcm in the streaming url
   - bugfix: fix refactoring typo that caused LPCM to no longer work...
 
@@ -502,3 +504,4 @@
 
 - 0.9.2  (Oct 20 2020 dheijl)
     rerun SSDP discovery every minute, updating the renderers
+

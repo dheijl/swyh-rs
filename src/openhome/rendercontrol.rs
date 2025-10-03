@@ -389,19 +389,20 @@ impl Renderer {
         );
         fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
         fmt_vars.insert("duration", Value::Str("00:00:00"));
-        let didl_prot: String;
-        if streaminfo.streaming_format == StreamingFormat::Flac {
-            didl_prot = htmlescape::encode_minimal(FLAC_PROT_INFO);
-        } else if streaminfo.streaming_format == StreamingFormat::Wav
-            || streaminfo.streaming_format == StreamingFormat::Rf64
-        {
-            didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
-        } else if streaminfo.bits_per_sample == 16 {
-            didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
-        } else {
-            didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
-        }
-        let template = match CbTemplate::parse(&didl_prot) {
+        let didl_prot = {
+            match streaminfo.streaming_format {
+                StreamingFormat::Flac => FLAC_PROT_INFO,
+                StreamingFormat::Rf64 | StreamingFormat::Wav => WAV_PROT_INFO,
+                StreamingFormat::Lpcm => {
+                    if streaminfo.bits_per_sample == 16 {
+                        L16_PROT_INFO
+                    } else {
+                        L24_PROT_INFO
+                    }
+                }
+            }
+        };
+        let template = match CbTemplate::parse(&htmlescape::encode_minimal(didl_prot)) {
             Ok(s) => s,
             Err(e) => {
                 ui_log(

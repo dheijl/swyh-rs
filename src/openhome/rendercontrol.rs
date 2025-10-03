@@ -393,16 +393,14 @@ impl Renderer {
             match streaminfo.streaming_format {
                 StreamingFormat::Flac => FLAC_PROT_INFO,
                 StreamingFormat::Rf64 | StreamingFormat::Wav => WAV_PROT_INFO,
-                StreamingFormat::Lpcm => {
-                    if streaminfo.bits_per_sample == 16 {
-                        L16_PROT_INFO
-                    } else {
-                        L24_PROT_INFO
-                    }
-                }
+                StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
+                    16 => L16_PROT_INFO,
+                    24 => L24_PROT_INFO,
+                    _ => L16_PROT_INFO,
+                },
             }
         };
-        let template = match CbTemplate::parse(&htmlescape::encode_minimal(didl_prot)) {
+        let template = match CbTemplate::parse(htmlescape::encode_minimal(didl_prot)) {
             Ok(s) => s,
             Err(e) => {
                 ui_log(

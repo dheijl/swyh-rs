@@ -39,7 +39,7 @@ SOFTWARE.
 use swyh_rs::{
     enums::{
         messages::MessageType,
-        streaming::{StreamingFormat::Flac, StreamingState},
+        streaming::{BitDepth, StreamingFormat::Flac, StreamingState},
     },
     globals::statics::{
         APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config,
@@ -365,9 +365,9 @@ fn main() {
                                                 let config = get_config();
                                                 StreamInfo {
                                                     sample_rate: wd.sample_rate.0,
-                                                    bits_per_sample: config
-                                                        .bits_per_sample
-                                                        .unwrap_or(16),
+                                                    bits_per_sample: BitDepth::from(
+                                                        config.bits_per_sample.unwrap_or(16),
+                                                    ),
                                                     streaming_format: config
                                                         .streaming_format
                                                         .unwrap_or(Flac),

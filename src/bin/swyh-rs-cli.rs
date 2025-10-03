@@ -20,12 +20,13 @@ use swyh_rs::{
     enums::{
         messages::MessageType,
         streaming::{
+            BitDepth,
             StreamingFormat::{Flac, Lpcm, Rf64, Wav},
             StreamingState,
         },
     },
     globals::statics::{
-        APP_DATE, APP_VERSION, ONE_MINUTE, THREAD_STACK, get_clients, get_config_mut,
+        APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
@@ -515,14 +516,14 @@ fn main() -> Result<(), i32> {
     };
     let streaminfo = StreamInfo {
         sample_rate: wd.sample_rate.0,
-        bits_per_sample: config.bits_per_sample.unwrap_or(16),
+        bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
         streaming_format: config.streaming_format.unwrap_or(Lpcm),
     };
 
     // start playing unless only serving
     let mut playing = Vec::new();
     if serve_only {
-        let port = config.server_port.unwrap_or(5901);
+        let port = config.server_port.unwrap_or(SERVER_PORT);
         ui_log(
             LogCategory::Info,
             &format!("Serving started on port {port}..."),
@@ -539,7 +540,11 @@ fn main() -> Result<(), i32> {
                 {
                     player.set_volume(vol.into());
                 }
-                let _ = player.play(&local_addr, config.server_port.unwrap_or(5901), streaminfo);
+                let _ = player.play(
+                    &local_addr,
+                    config.server_port.unwrap_or(SERVER_PORT),
+                    streaminfo,
+                );
                 let pl_name = &player.dev_url;
                 ui_log(LogCategory::Info, &format!("Playing to {pl_name}"));
                 playing.push(player);
@@ -551,7 +556,7 @@ fn main() -> Result<(), i32> {
     let streaminfo = {
         StreamInfo {
             sample_rate: wd.sample_rate.0,
-            bits_per_sample: config.bits_per_sample.unwrap_or(16),
+            bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
             streaming_format: config.streaming_format.unwrap_or(Flac),
         }
     };

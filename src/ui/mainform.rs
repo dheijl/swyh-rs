@@ -1,11 +1,11 @@
 #![cfg(feature = "gui")]
 use crate::{
     enums::streaming::{
-        StreamSize,
+        BitDepth, StreamSize,
         StreamingFormat::{self, Flac},
     },
     globals::statics::{
-        NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers,
+        NTHEMES, RUN_RMS_MONITOR, SERVER_PORT, THEMES, get_config, get_config_mut, get_renderers,
         get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
@@ -813,17 +813,19 @@ impl MainForm {
                         conf.last_renderer = Some(b.label());
                         let _ = conf.update_config();
                     }
-                    let (streaminfo, server_port) = {
+                    let (bps, format) = {
                         let config = get_config();
                         (
-                            StreamInfo {
-                                sample_rate: wd.sample_rate.0,
-                                bits_per_sample: config.bits_per_sample.unwrap_or(16),
-                                streaming_format: config.streaming_format.unwrap_or(Flac),
-                            },
-                            config.server_port.unwrap_or_default(),
+                            config.bits_per_sample.unwrap_or(16),
+                            config.streaming_format.unwrap_or(Flac),
                         )
                     };
+                    let streaminfo = StreamInfo {
+                        sample_rate: wd.sample_rate.0,
+                        bits_per_sample: BitDepth::from(bps),
+                        streaming_format: format,
+                    };
+                    let server_port = config.server_port.unwrap_or(SERVER_PORT);
                     let _ = newr_c.play(&local_addr, server_port, streaminfo);
                 } else {
                     newr_c.stop_play();

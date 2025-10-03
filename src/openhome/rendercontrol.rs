@@ -5,7 +5,7 @@
 ///
 ///
 use crate::{
-    enums::streaming::StreamingFormat,
+    enums::streaming::{BitDepth, StreamingFormat},
     globals::statics::{APP_VERSION, get_config},
     utils::ui_logger::{LogCategory, ui_log},
 };
@@ -190,7 +190,7 @@ pub struct WavData {
 #[derive(Debug, Clone, Copy)]
 pub struct StreamInfo {
     pub sample_rate: u32,
-    pub bits_per_sample: u16,
+    pub bits_per_sample: BitDepth,
     pub streaming_format: StreamingFormat,
 }
 
@@ -385,7 +385,7 @@ impl Renderer {
         fmt_vars.insert("server_uri", Value::String(local_url));
         fmt_vars.insert(
             "bits_per_sample",
-            Value::Int(streaminfo.bits_per_sample.into()),
+            Value::Int(streaminfo.bits_per_sample as i64),
         );
         fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
         fmt_vars.insert("duration", Value::Str("00:00:00"));
@@ -394,9 +394,8 @@ impl Renderer {
                 StreamingFormat::Flac => FLAC_PROT_INFO,
                 StreamingFormat::Rf64 | StreamingFormat::Wav => WAV_PROT_INFO,
                 StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
-                    16 => L16_PROT_INFO,
-                    24 => L24_PROT_INFO,
-                    _ => L16_PROT_INFO,
+                    BitDepth::Bits16 => L16_PROT_INFO,
+                    BitDepth::Bits24 => L24_PROT_INFO,
                 },
             }
         };

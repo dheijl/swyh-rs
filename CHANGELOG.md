@@ -504,4 +504,3 @@
 
 - 0.9.2  (Oct 20 2020 dheijl)
     rerun SSDP discovery every minute, updating the renderers
-

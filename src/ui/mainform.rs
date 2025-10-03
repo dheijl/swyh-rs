@@ -813,13 +813,10 @@ impl MainForm {
                         conf.last_renderer = Some(b.label());
                         let _ = conf.update_config();
                     }
-                    let (bps, format) = {
-                        let config = get_config();
-                        (
-                            config.bits_per_sample.unwrap_or(16),
-                            config.streaming_format.unwrap_or(Flac),
-                        )
-                    };
+                    let (bps, format) = (
+                        config.bits_per_sample.unwrap_or(16),
+                        config.streaming_format.unwrap_or(Flac),
+                    );
                     let streaminfo = StreamInfo {
                         sample_rate: wd.sample_rate.0,
                         bits_per_sample: BitDepth::from(bps),

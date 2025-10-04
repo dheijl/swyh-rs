@@ -37,13 +37,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 use swyh_rs::{
-    enums::{
-        messages::MessageType,
-        streaming::StreamingState,
-    },
+    enums::{messages::MessageType, streaming::StreamingState},
     globals::statics::{
-        APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients,
-        get_config_mut, get_msgchannel, get_renderers, get_renderers_mut,
+        APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
+        get_msgchannel, get_renderers, get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,

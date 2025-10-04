@@ -20,7 +20,6 @@ use swyh_rs::{
     enums::{
         messages::MessageType,
         streaming::{
-            BitDepth,
             StreamingFormat::{Flac, Lpcm, Rf64, Wav},
             StreamingState,
         },

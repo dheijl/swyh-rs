@@ -514,12 +514,7 @@ fn main() -> Result<(), i32> {
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
     };
-    let streaminfo = StreamInfo {
-        sample_rate: wd.sample_rate.0,
-        bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
-        streaming_format: config.streaming_format.unwrap_or(Lpcm),
-        server_port: config.server_port.unwrap_or(SERVER_PORT),
-    };
+    let streaminfo = StreamInfo::new(wd.sample_rate.0);
 
     // start playing unless only serving
     let mut playing = Vec::new();

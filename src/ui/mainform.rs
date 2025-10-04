@@ -1,11 +1,11 @@
 #![cfg(feature = "gui")]
 use crate::{
     enums::streaming::{
-        BitDepth, StreamSize,
-        StreamingFormat::{self, Flac},
+        StreamSize,
+        StreamingFormat::{self},
     },
     globals::statics::{
-        NTHEMES, RUN_RMS_MONITOR, SERVER_PORT, THEMES, get_config, get_config_mut, get_renderers,
+        NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers,
         get_renderers_mut,
     },
     openhome::rendercontrol::{Renderer, StreamInfo, WavData},
@@ -774,8 +774,10 @@ impl MainForm {
     /// add the associated UI button and slider to the renderer
     /// add the new renderer to the global renderer list
     pub fn add_renderer_button(&mut self, new_renderer: &mut Renderer) {
-        let config = get_config().clone();
-        if config.hidden_renderers.contains(&new_renderer.remote_addr) {
+        if get_config()
+            .hidden_renderers
+            .contains(&new_renderer.remote_addr)
+        {
             return;
         }
         // initialize renderers player_index
@@ -813,12 +815,7 @@ impl MainForm {
                         conf.last_renderer = Some(b.label());
                         let _ = conf.update_config();
                     }
-                    let streaminfo = StreamInfo {
-                        sample_rate: wd.sample_rate.0,
-                        bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
-                        streaming_format: config.streaming_format.unwrap_or(Flac),
-                        server_port: config.server_port.unwrap_or(SERVER_PORT),
-                    };
+                    let streaminfo = StreamInfo::new(wd.sample_rate.0);
                     let _ = newr_c.play(&local_addr, streaminfo);
                 } else {
                     newr_c.stop_play();

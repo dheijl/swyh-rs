@@ -6,7 +6,7 @@
 ///
 use crate::{
     enums::streaming::{BitDepth, StreamingFormat},
-    globals::statics::{APP_VERSION, get_config},
+    globals::statics::{APP_VERSION, SERVER_PORT, get_config},
     utils::ui_logger::{LogCategory, ui_log},
 };
 use bitflags::bitflags;
@@ -193,6 +193,18 @@ pub struct StreamInfo {
     pub bits_per_sample: BitDepth,
     pub streaming_format: StreamingFormat,
     pub server_port: u16,
+}
+
+impl StreamInfo {
+    pub fn new(sample_rate: u32) -> StreamInfo {
+        let config = get_config();
+        StreamInfo {
+            sample_rate,
+            bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
+            streaming_format: config.streaming_format.unwrap_or(StreamingFormat::Flac),
+            server_port: config.server_port.unwrap_or(SERVER_PORT),
+        }
+    }
 }
 
 /// An UPNP/DLNA service desciption

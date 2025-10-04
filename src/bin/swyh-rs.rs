@@ -361,20 +361,8 @@ fn main() {
                                         // streaming has really ended
                                         update_playstate(&streamer_feedback.remote_ip, false);
                                         if mf.auto_resume.is_set() && button.is_set() {
-                                            let streaminfo = {
-                                                let config = get_config();
-                                                StreamInfo {
-                                                    sample_rate: wd.sample_rate.0,
-                                                    bits_per_sample: BitDepth::from(
-                                                        config.bits_per_sample.unwrap_or(16),
-                                                    ),
-                                                    streaming_format: config
-                                                        .streaming_format
-                                                        .unwrap_or(Flac),
-                                                }
-                                            };
-                                            let _ =
-                                                renderer.play(&local_addr, server_port, streaminfo);
+                                            let streaminfo = get_streaminfo(wd);
+                                            let _ = renderer.play(&local_addr, streaminfo);
                                             update_playstate(&streamer_feedback.remote_ip, true);
                                         } else {
                                             button.set(false);
@@ -472,6 +460,17 @@ fn main() {
         info!("Time-out waiting for HTTP streaming shutdown - exiting.");
     }
     log::logger().flush();
+}
+
+/// get streaminfo
+fn get_streaminfo(wd: WavData) -> StreamInfo {
+    let config = get_config();
+    StreamInfo {
+        sample_rate: wd.sample_rate.0,
+        bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
+        streaming_format: config.streaming_format.unwrap_or(Flac),
+        server_port: config.server_port.unwrap_or(SERVER_PORT),
+    }
 }
 
 /// update the playstate for the renderer with this ip address

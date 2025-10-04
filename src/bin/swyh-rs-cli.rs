@@ -518,6 +518,7 @@ fn main() -> Result<(), i32> {
         sample_rate: wd.sample_rate.0,
         bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
         streaming_format: config.streaming_format.unwrap_or(Lpcm),
+        server_port: config.server_port.unwrap_or(SERVER_PORT),
     };
 
     // start playing unless only serving
@@ -540,11 +541,7 @@ fn main() -> Result<(), i32> {
                 {
                     player.set_volume(vol.into());
                 }
-                let _ = player.play(
-                    &local_addr,
-                    config.server_port.unwrap_or(SERVER_PORT),
-                    streaminfo,
-                );
+                let _ = player.play(&local_addr, streaminfo);
                 let pl_name = &player.dev_url;
                 ui_log(LogCategory::Info, &format!("Playing to {pl_name}"));
                 playing.push(player);
@@ -553,14 +550,6 @@ fn main() -> Result<(), i32> {
     }
 
     let autoresume = config.auto_resume;
-    let streaminfo = {
-        StreamInfo {
-            sample_rate: wd.sample_rate.0,
-            bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
-            streaming_format: config.streaming_format.unwrap_or(Flac),
-        }
-    };
-
     loop {
         while let Ok(msg) = msg_rx.try_recv() {
             match msg {
@@ -589,11 +578,7 @@ fn main() -> Result<(), i32> {
                                         .iter_mut()
                                         .find(|r| r.remote_addr == streamer_feedback.remote_ip)
                                 {
-                                    let _ = r.play(
-                                        &local_addr,
-                                        server_port.unwrap_or_default(),
-                                        streaminfo,
-                                    );
+                                    let _ = r.play(&local_addr, streaminfo);
                                 }
                             }
                         }

@@ -192,6 +192,7 @@ pub struct StreamInfo {
     pub sample_rate: u32,
     pub bits_per_sample: BitDepth,
     pub streaming_format: StreamingFormat,
+    pub server_port: u16,
 }
 
 /// An UPNP/DLNA service desciption
@@ -365,16 +366,10 @@ impl Renderer {
     }
 
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
-    pub fn play(
-        &mut self,
-        local_addr: &IpAddr,
-        server_port: u16,
-
-        streaminfo: StreamInfo,
-    ) -> Result<(), &str> {
+    pub fn play(&mut self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = Context::new();
-        let addr = format!("{local_addr}:{server_port}");
+        let addr = format!("{local_addr}:{}", streaminfo.server_port);
 
         let local_url = match streaminfo.streaming_format {
             StreamingFormat::Wav => format!("http://{addr}/stream/swyh.wav"),

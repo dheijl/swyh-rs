@@ -813,17 +813,13 @@ impl MainForm {
                         conf.last_renderer = Some(b.label());
                         let _ = conf.update_config();
                     }
-                    let (bps, format) = (
-                        config.bits_per_sample.unwrap_or(16),
-                        config.streaming_format.unwrap_or(Flac),
-                    );
                     let streaminfo = StreamInfo {
                         sample_rate: wd.sample_rate.0,
-                        bits_per_sample: BitDepth::from(bps),
-                        streaming_format: format,
+                        bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
+                        streaming_format: config.streaming_format.unwrap_or(Flac),
+                        server_port: config.server_port.unwrap_or(SERVER_PORT),
                     };
-                    let server_port = config.server_port.unwrap_or(SERVER_PORT);
-                    let _ = newr_c.play(&local_addr, server_port, streaminfo);
+                    let _ = newr_c.play(&local_addr, streaminfo);
                 } else {
                     newr_c.stop_play();
                 }

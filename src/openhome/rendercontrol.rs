@@ -179,7 +179,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 /// Bad XML template error
 static BAD_TEMPL: &str = "Error parsing/formatting XML template.";
 
-// some audio config info
+/// some captured audio parameters (from CPAL)
 #[derive(Debug, Clone, Copy)]
 pub struct WavData {
     pub sample_format: cpal::SampleFormat,
@@ -187,6 +187,7 @@ pub struct WavData {
     pub channels: u16,
 }
 
+/// the parameters needed for streaming
 #[derive(Debug, Clone, Copy)]
 pub struct StreamInfo {
     pub sample_rate: u32,
@@ -383,13 +384,14 @@ impl Renderer {
         let mut fmt_vars = Context::new();
         let addr = format!("{local_addr}:{}", streaminfo.server_port);
 
-        let local_url = match streaminfo.streaming_format {
-            StreamingFormat::Wav => format!("http://{addr}/stream/swyh.wav"),
-            StreamingFormat::Lpcm => format!("http://{addr}/stream/swyh.raw"),
-            StreamingFormat::Flac => format!("http://{addr}/stream/swyh.flac"),
-            StreamingFormat::Rf64 => format!("http://{addr}/stream/swyh.rf64"),
+        let base_url = ["http://", &addr, "/stream/swyh."].concat();
+        let streaming_url = match streaminfo.streaming_format {
+            StreamingFormat::Wav => [&base_url, "wav"].concat(),
+            StreamingFormat::Lpcm => [&base_url, "raw"].concat(),
+            StreamingFormat::Flac => [&base_url, "flac"].concat(),
+            StreamingFormat::Rf64 => [&base_url, "rf64"].concat(),
         };
-        fmt_vars.insert("server_uri", Value::String(local_url));
+        fmt_vars.insert("server_uri", Value::String(streaming_url));
         fmt_vars.insert(
             "bits_per_sample",
             Value::Int(streaminfo.bits_per_sample as i64),

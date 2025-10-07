@@ -41,7 +41,7 @@ impl StreamingParams {
         if VALID_URLS.contains(&lc_path.as_str()) {
             params.path = Some(lc_path.clone());
         }
-        let fmt = {
+        params.fmt = {
             if let Some(format_start) = lc_path.find("/stream/swyh.") {
                 if let Some(format) = lc_path.get(format_start + 13..)
                     && let Ok(fmt) = StreamingFormat::from_str(format)
@@ -54,8 +54,7 @@ impl StreamingParams {
                 None
             }
         };
-        params.fmt = fmt;
-        if fmt.is_none() || parts.len() < 2 {
+        if params.fmt.is_none() || parts.len() < 2 {
             return params;
         }
         // parse key=value pairs from querystring if present

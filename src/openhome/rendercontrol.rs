@@ -22,9 +22,6 @@ use std::{
 use url::Url;
 use xml::reader::{EventReader, XmlEvent};
 
-/// the ui_log function
-type LogFn = dyn Fn(LogCategory, &str);
-
 /// a Figura Template with Curly Braces as delimiter
 type CbTemplate = Template<'{', '}'>;
 
@@ -821,11 +818,7 @@ MX: 3\r\n\r\n";
 //
 // returns a list of all AVTransport DLNA and Openhome rendering devices
 //
-pub fn discover(
-    agent: &ureq::Agent,
-    rmap: &HashMap<String, Renderer>,
-    logger: &LogFn,
-) -> Option<Vec<Renderer>> {
+pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
     static AV_SCHEMA: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
     static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";
     static OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
@@ -934,7 +927,7 @@ pub fn discover(
                     .iter()
                     .any(|s| error_text.contains(*s));
                 if !to_ignore {
-                    logger(
+                    ui_log(
                         LogCategory::Error,
                         &format!("Error reading SSDP M-SEARCH response: {e}"),
                     );

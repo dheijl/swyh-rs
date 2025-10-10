@@ -316,22 +316,23 @@ fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender
 where
     T: Sample + ToSample<f32>,
 {
-    static ONFIRSTCALL: Once = Once::new();
-    ONFIRSTCALL.call_once(|| {
-        ui_log(
-            LogCategory::Info,
-            "The wave_reader is now receiving samples",
-        );
+    fn capture_started() {
+        ui_log(LogCategory::Info, "Audio capture is now receiving samples.");
         if get_config().monitor_rms {
             RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
         }
-    });
+    }
+    fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<Vec<f32>>) {
+        get_clients()
+            .iter()
+            .for_each(|(_, client)| client.write(f32_samples));
+        if RUN_RMS_MONITOR.load(Ordering::Acquire) {
+            rms_sender.send(Vec::from(f32_samples)).unwrap();
+        }
+    }
+    static ONFIRSTCALL: Once = Once::new();
+    ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
-    get_clients()
-        .iter()
-        .for_each(|(_, client)| client.write(f32_samples));
-    if RUN_RMS_MONITOR.load(Ordering::Acquire) {
-        rms_sender.send(Vec::from(f32_samples.as_slice())).unwrap();
-    }
+    distribute_samples(f32_samples, rms_sender);
 }

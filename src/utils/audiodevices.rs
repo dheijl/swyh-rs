@@ -233,7 +233,7 @@ pub fn capture_output_audio(
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             &audio_cfg.config(),
-            move |data, _: &_| wave_reader::<f32>(data, &mut f32_samples, &rms_sender),
+            move |data, _: &_| wave_reader_f32(data, &mut f32_samples, &rms_sender),
             capture_err_fn,
             None,
         ) {
@@ -307,6 +307,21 @@ fn capture_err_fn(err: cpal::StreamError) {
     }
 }
 
+/// helper functions for generic and speceialized ave reader
+fn capture_started() {
+    ui_log(LogCategory::Info, "Audio capture is now receiving samples.");
+    if get_config().monitor_rms {
+        RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
+    }
+}
+fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<Vec<f32>>) {
+    get_clients()
+        .iter()
+        .for_each(|(_, client)| client.write(f32_samples));
+    if RUN_RMS_MONITOR.load(Ordering::Acquire) {
+        rms_sender.send(Vec::from(f32_samples)).unwrap();
+    }
+}
 /// `wave_reader` - the captured audio input stream reader
 ///
 /// writes the captured samples to all registered clients in the
@@ -316,23 +331,26 @@ fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender
 where
     T: Sample + ToSample<f32>,
 {
-    fn capture_started() {
-        ui_log(LogCategory::Info, "Audio capture is now receiving samples.");
-        if get_config().monitor_rms {
-            RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
-        }
-    }
-    fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<Vec<f32>>) {
-        get_clients()
-            .iter()
-            .for_each(|(_, client)| client.write(f32_samples));
-        if RUN_RMS_MONITOR.load(Ordering::Acquire) {
-            rms_sender.send(Vec::from(f32_samples)).unwrap();
-        }
-    }
     static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
+    distribute_samples(f32_samples, rms_sender);
+}
+
+/// specialized version of above for the "default" f32 case with Alsa/WasApi/PipieWire/Pulse
+/// uses a memcpy to copy the samples
+/// SAFETY: the length of the samples is known
+fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>) {
+    static ONFIRSTCALL: Once = Once::new();
+    ONFIRSTCALL.call_once(capture_started);
+    f32_samples.clear();
+    if f32_samples.len() < samples.len() {
+        f32_samples.reserve(samples.len() - f32_samples.len());
+    }
+    unsafe {
+        f32_samples.set_len(samples.len());
+        f32_samples.copy_from_slice(samples);
+    }
     distribute_samples(f32_samples, rms_sender);
 }

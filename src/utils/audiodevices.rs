@@ -338,9 +338,10 @@ where
     distribute_samples(f32_samples, rms_sender);
 }
 
-/// specialized version of above for the "default" f32 case with Alsa/WasApi/PipieWire/Pulse
-/// uses a memcpy to copy the samples
-/// SAFETY: the length of the samples is known
+/// specialized version of the generic wave_reader() above for the "default" f32 case with Alsa/WasApi/PipieWire/Pulse.
+/// Uses a memcpy to copy the samples instead of the samples conversion iterator.
+/// SAFETY: the length of the samples is known and the capacityof f32_samples
+/// is increased as needed before using set_len()
 fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>) {
     static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(capture_started);
@@ -350,7 +351,8 @@ fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sen
     }
     unsafe {
         f32_samples.set_len(samples.len());
-        f32_samples.copy_from_slice(samples);
     }
+    f32_samples.copy_from_slice(samples);
+
     distribute_samples(f32_samples, rms_sender);
 }

@@ -346,13 +346,12 @@ fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sen
     static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
-    if f32_samples.len() < samples.len() {
-        f32_samples.reserve(samples.len() - f32_samples.len());
+    if f32_samples.capacity() < samples.len() {
+        f32_samples.reserve(samples.len() - f32_samples.capacity());
     }
     unsafe {
         f32_samples.set_len(samples.len());
     }
     f32_samples.copy_from_slice(samples);
-
     distribute_samples(f32_samples, rms_sender);
 }

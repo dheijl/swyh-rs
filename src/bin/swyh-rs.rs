@@ -56,7 +56,7 @@ use swyh_rs::{
     },
 };
 
-use cpal::{Sample, traits::StreamTrait};
+use cpal::traits::StreamTrait;
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use fltk::{app, misc::Progress, prelude::ButtonExt};
 use hashbrown::HashMap;
@@ -512,8 +512,8 @@ fn run_rms_monitor(
         total_samples += samples.len();
         // sum left and right channel samples
         ch_sum = samples.chunks(2).fold(ch_sum, |acc, x| {
-            let vl = f64::from(i16::from_sample(x[0]));
-            let vr = f64::from(i16::from_sample(x[1]));
+            let vl = f64::from(x[0] * 32767.0);
+            let vr = f64::from(x[1] * 32767.0);
             (acc.0 + (vl * vl), acc.1 + (vr * vr))
         });
         // compute and show current RMS values if enough samples collected

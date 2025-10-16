@@ -498,12 +498,15 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     }
 }
 
+/// compute the left and right channel RMS value for every 100 ms period
+/// and show the values in the UI
 fn run_rms_monitor(
     wd: WavData,
     rms_receiver: &Receiver<Vec<f32>>,
     mut rms_frame_l: Progress,
     mut rms_frame_r: Progress,
 ) {
+    const I16_MAX: f32 = i16::MAX as f32;
     // compute # of samples needed to get a 10 Hz refresh rate
     let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
@@ -512,8 +515,8 @@ fn run_rms_monitor(
         total_samples += samples.len();
         // sum left and right channel samples
         ch_sum = samples.chunks(2).fold(ch_sum, |acc, x| {
-            let vl = f64::from(x[0] * 32767.0);
-            let vr = f64::from(x[1] * 32767.0);
+            let vl = f64::from(x[0] * I16_MAX);
+            let vr = f64::from(x[1] * I16_MAX);
             (acc.0 + (vl * vl), acc.1 + (vr * vr))
         });
         // compute and show current RMS values if enough samples collected

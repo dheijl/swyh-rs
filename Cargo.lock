@@ -350,9 +350,9 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.5.17"
+version = "1.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bbd413a9508f72cdd5d017ad9ee02a2f82e24354a0e46d82db0cfad2eaa9d13"
+checksum = "7429b2b1ba9acbcae0baed7299ef790315a599672689197aee8c03ed044fb504"
 dependencies = [
  "bitflags 2.9.4",
  "crossbeam-channel",
@@ -364,9 +364,9 @@ dependencies = [
 
 [[package]]
 name = "fltk-sys"
-version = "1.5.15"
+version = "1.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b630a800757b2be016ccdd9e8d80f9c30c97422e21230b18d78b5befecd48fd"
+checksum = "385fb24ba98b69a068c934f953b6b73970ab034db76090c61e12157baf7fb675"
 dependencies = [
  "cmake",
  "cmk",
@@ -572,9 +572,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.11.4"
+version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
+checksum = "6717a8d2a5a929a1a2eb43a12812498ed141a0bcfb7e8f7844fbdbe4303bba9f"
 dependencies = [
  "equivalent",
  "hashbrown",

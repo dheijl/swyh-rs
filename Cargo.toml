@@ -44,7 +44,7 @@ required-features = ["cli"]
 winres = "0.1.12"
 
 [dependencies]
-bitflags = "2.9.4"
+bitflags = "2.10.0"
 cpal = "0.16.0"
 crossbeam-channel = "0.5.15"
 ctrlc = { version = "3.5.0", features = ["termination"] }
@@ -77,7 +77,7 @@ ureq = { version = "3.1.2", default-features = false, features = [
 url = "2.5.7"
 xml-rs = "1.0.0"
 [target.'cfg(windows)'.dependencies]
-fltk = { version = "1.5.19", features = ["use-ninja"], optional = true }
+fltk = { version = "1.5.20", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
 windows = { version = "0.62.2", features = [
     "Win32_Foundation",
@@ -85,14 +85,14 @@ windows = { version = "0.62.2", features = [
 ] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
-fltk = { version = "1.5.19", features = ["use-ninja"], optional = true }
+fltk = { version = "1.5.20", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
 libc = "0.2.177"
 
 [patch.crates-io]
-#fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
-#tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
-#cpal = { git = "https://github.com/RustAudio/cpal" }
+#cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
 figura = { git = "https://github.com/dheijl/figura_value" }
+#fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
+#tiny_http = { git = "https://github.com/tiny-http/tiny-http" }

@@ -1,6 +1,6 @@
 [package]
 resolver = "3"
-rust-version = "1.90"
+rust-version = "1.91"
 authors = [
     "dheijl",
     "joshuamegnauth54",

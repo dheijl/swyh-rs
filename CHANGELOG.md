@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.12.16 (unreleased)
+  - rust 1.91
   - some minor refactoring
   - optimize f32 audio capture (replace the generic samples conversion to f32 with a memcpy for the case of f32 samples)
 

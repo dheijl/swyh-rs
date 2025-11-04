@@ -510,20 +510,20 @@ fn run_rms_monitor(
     // compute # of samples needed to get a 10 Hz refresh rate
     let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
-    let mut ch_sum = (0f64, 0f64);
+    let mut ch_sum = (0f32, 0f32);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
         // sum left and right channel samples
         ch_sum = samples.chunks(2).fold(ch_sum, |acc, x| {
-            let vl = f64::from(x[0] * I16_MAX);
-            let vr = f64::from(x[1] * I16_MAX);
+            let vl = x[0] * I16_MAX;
+            let vr = x[1] * I16_MAX;
             (acc.0 + (vl * vl), acc.1 + (vr * vr))
         });
         // compute and show current RMS values if enough samples collected
         if total_samples >= samples_per_update {
-            let samples_per_channel = (total_samples / wd.channels as usize) as f64;
-            let rms_l = (ch_sum.0 / samples_per_channel).sqrt();
-            let rms_r = (ch_sum.1 / samples_per_channel).sqrt();
+            let samples_per_channel = (total_samples / wd.channels as usize) as f32;
+            let rms_l = f64::from((ch_sum.0 / samples_per_channel).sqrt());
+            let rms_r = f64::from((ch_sum.1 / samples_per_channel).sqrt());
             total_samples = 0;
             ch_sum = (0.0, 0.0);
             rms_frame_l.set_value(rms_l);

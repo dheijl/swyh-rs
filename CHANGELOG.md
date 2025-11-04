@@ -3,7 +3,8 @@
 - 1.12.16 (unreleased)
   - rust 1.91
   - some minor refactoring
-  - optimize f32 audio capture (replace the generic samples conversion to f32 with a memcpy for the case of f32 samples)
+  - optimize the default f32 audio capture (replace the generic samples conversion to f32 with a memcpy for the case of f32 samples)
+  - f32 rms monitor is substantially faster than f64
 
 - 1.12.15 (Oct 2 2025, dheijl)
   - bugfix: /swyh-rs.raw is the same as /swyh-rs.lpcm in the streaming url

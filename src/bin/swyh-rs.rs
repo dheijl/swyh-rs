@@ -507,8 +507,9 @@ fn run_rms_monitor(
     mut rms_frame_r: Progress,
 ) {
     const I16_MAX: f32 = i16::MAX as f32;
-    // compute # of samples needed to get a 10 Hz refresh rate
-    let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
+    // compute # of samples needed to get a 10 Hz refresh rate, multiple of 4 samples
+    let samples_per_update =
+        (((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize) & !3usize;
     let mut total_samples = 0usize;
     let mut ch_sum = (0f32, 0f32);
     while let Ok(samples) = rms_receiver.recv() {

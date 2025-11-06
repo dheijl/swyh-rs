@@ -518,8 +518,8 @@ fn run_rms_monitor(
         ch_sum = samples.chunks(4).fold(ch_sum, |acc, x| {
             let vl1 = x[0] * I16_MAX;
             let vr1 = x[1] * I16_MAX;
-            let vl2 = x[0] * I16_MAX;
-            let vr2 = x[1] * I16_MAX;
+            let vl2 = x[2] * I16_MAX;
+            let vr2 = x[3] * I16_MAX;
             (
                 acc.0 + (vl1 * vl1) + (vl2 * vl2),
                 acc.1 + (vr1 * vr1) + (vr2 * vr2),

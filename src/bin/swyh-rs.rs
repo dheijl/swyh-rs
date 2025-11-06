@@ -513,12 +513,26 @@ fn run_rms_monitor(
     let mut ch_sum = (0f32, 0f32);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
-        // sum left and right channel samples
-        ch_sum = samples.chunks(2).fold(ch_sum, |acc, x| {
-            let vl = x[0] * I16_MAX;
-            let vr = x[1] * I16_MAX;
-            (acc.0 + (vl * vl), acc.1 + (vr * vr))
+        // sum left and right channel samples, 4 samples at a time
+        // this uses SIMD movps/addps/mulps for 4 f32s at a time
+        let chunks = samples.chunks_exact(4);
+        let remainder = chunks.remainder();
+        ch_sum = chunks.fold(ch_sum, |acc, x| {
+            let vl1 = x[0] * I16_MAX;
+            let vr1 = x[1] * I16_MAX;
+            let vl2 = x[2] * I16_MAX;
+            let vr2 = x[3] * I16_MAX;
+            (
+                acc.0 + (vl1 * vl1) + (vl2 * vl2),
+                acc.1 + (vr1 * vr1) + (vr2 * vr2),
+            )
         });
+        if remainder.len() == 2 {
+            let vl = remainder[0] * I16_MAX;
+            let vr = remainder[1] * I16_MAX;
+            ch_sum.0 += vl * vl;
+            ch_sum.1 += vr * vr;
+        }
         // compute and show current RMS values if enough samples collected
         if total_samples >= samples_per_update {
             let samples_per_channel = (total_samples / wd.channels as usize) as f32;

@@ -92,7 +92,7 @@ libc = "0.2.177"
 [patch.crates-io]
 #cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/pipewire-alsa-latency" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git" }
-# modified local copy of the fix-pipewire-alsa-latence branch, see issue #1036 
+# modified local copy of the fix-pipewire-alsa-latency branch, see issue #1036 
 #cpal = { path = "../cpal/" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }

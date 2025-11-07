@@ -5,6 +5,7 @@ use crossbeam_channel::{Receiver, Sender};
 use fltk::{app, misc::Progress};
 use hashbrown::HashMap;
 use log::info;
+use wide::f32x4;
 
 use crate::{
     enums::messages::MessageType,
@@ -52,39 +53,34 @@ pub fn run_rms_monitor(
     // compute # of samples needed to get a 10 Hz refresh rate
     let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
-    let mut ch_sum = (0f32, 0f32, 0f32, 0f32);
+    let mut ch_sum = f32x4::from([0f32, 0f32, 0f32, 0f32]);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
         // sum left and right channel samples, 4 samples at a time
         // this could use SIMD SSE movps/addps/mulps with 4 f32s at a time
         // it does so in GodBolt but not here for some reason
+        // so switch to wide crate
         let chunks = samples.chunks_exact(4);
         let remainder = chunks.remainder();
         ch_sum = chunks.fold(ch_sum, |acc, x| {
-            let vl1 = x[0] * I16_MAX;
-            let vr1 = x[1] * I16_MAX;
-            let vl2 = x[2] * I16_MAX;
-            let vr2 = x[3] * I16_MAX;
-            (
-                acc.0 + (vl1 * vl1),
-                acc.1 + (vr1 * vr1),
-                acc.2 + (vl2 * vl2),
-                acc.3 + (vr2 * vr2),
-            )
+            let imax = f32x4::from([I16_MAX, I16_MAX, I16_MAX, I16_MAX]);
+            let f4 = f32x4::from(x);
+            let i4 = f4 * imax;
+            let sum = i4.mul_add(i4, acc);
+            sum
         });
         if remainder.len() == 2 {
-            let vl = remainder[0] * I16_MAX;
-            let vr = remainder[1] * I16_MAX;
-            ch_sum.0 += vl * vl;
-            ch_sum.1 += vr * vr;
+            let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
+            ch_sum = rem.mul_add(rem, ch_sum);
         }
         // compute and show current RMS values if enough samples collected
         if total_samples >= samples_per_update {
+            let rms = ch_sum.to_array();
             let samples_per_channel = (total_samples / wd.channels as usize) as f32;
-            let rms_l = f64::from(((ch_sum.0 + ch_sum.2) / samples_per_channel).sqrt());
-            let rms_r = f64::from(((ch_sum.1 + ch_sum.3) / samples_per_channel).sqrt());
+            let rms_l = f64::from(((rms[0] + rms[2]) / samples_per_channel).sqrt());
+            let rms_r = f64::from(((rms[1] + rms[3]) / samples_per_channel).sqrt());
             total_samples = 0;
-            ch_sum = (0.0, 0.0, 0.0, 0.0);
+            ch_sum = f32x4::from([0f32, 0f32, 0f32, 0f32]);
             rms_frame_l.set_value(rms_l);
             rms_frame_r.set_value(rms_r);
             app::awake();

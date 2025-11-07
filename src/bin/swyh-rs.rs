@@ -39,10 +39,10 @@ SOFTWARE.
 use swyh_rs::{
     enums::{messages::MessageType, streaming::StreamingState},
     globals::statics::{
-        APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
+        APP_DATE, APP_VERSION, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
     },
-    openhome::rendercontrol::{Renderer, StreamInfo, WavData, discover},
+    openhome::rendercontrol::{Renderer, StreamInfo, WavData},
     server::streaming_server::run_server,
     ui::mainform::MainForm,
     utils::{
@@ -50,6 +50,7 @@ use swyh_rs::{
             capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
         },
         bincommon::run_silence_injector,
+        extra_threads::{run_rms_monitor, run_ssdp_updater},
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::*,
@@ -58,8 +59,7 @@ use swyh_rs::{
 
 use cpal::traits::StreamTrait;
 use crossbeam_channel::{Receiver, Sender, unbounded};
-use fltk::{app, misc::Progress, prelude::ButtonExt};
-use hashbrown::HashMap;
+use fltk::{app, prelude::ButtonExt};
 use log::{LevelFilter, debug, info};
 #[cfg(any(debug_assertions, target_os = "linux"))]
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
@@ -468,83 +468,4 @@ fn update_playstate(remote_addr: &str, playing: bool) {
             panic!("Global Renderers list unconsistent with local Renderers for {remote_addr}")
         })
         .playing = playing;
-}
-
-/// run the `ssdp_updater` - thread that periodically run ssdp discovery
-/// and detect new renderers
-/// send any new renderers to te main thread on the Crossbeam ssdp channel
-fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
-    let agent = ureq::agent();
-    // the hashmap used to detect new renderers
-    let mut rmap: HashMap<String, Renderer> = HashMap::new();
-    loop {
-        let renderers = discover(&agent, &rmap).unwrap_or_default();
-        for r in &renderers {
-            rmap.entry(r.location.clone()).or_insert_with(|| {
-                info!(
-                    "Found new renderer {} {}  at {}",
-                    r.dev_name, r.dev_model, r.remote_addr
-                );
-                ssdp_tx
-                    .send(MessageType::SsdpMessage(Box::new(r.clone())))
-                    .unwrap();
-                app::awake();
-                r.clone()
-            });
-        }
-        thread::sleep(Duration::from_millis(
-            (ssdp_interval_mins * ONE_MINUTE) as u64,
-        ));
-    }
-}
-
-/// compute the left and right channel RMS value for every 100 ms period
-/// and show the values in the UI
-fn run_rms_monitor(
-    wd: WavData,
-    rms_receiver: &Receiver<Vec<f32>>,
-    mut rms_frame_l: Progress,
-    mut rms_frame_r: Progress,
-) {
-    const I16_MAX: f32 = i16::MAX as f32;
-    // compute # of samples needed to get a 10 Hz refresh rate
-    let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
-    let mut total_samples = 0usize;
-    let mut ch_sum = (0f32, 0f32, 0f32, 0f32);
-    while let Ok(samples) = rms_receiver.recv() {
-        total_samples += samples.len();
-        // sum left and right channel samples, 4 samples at a time
-        // this uses SIMD SSE movps/addps/mulps with 4 f32s at a time
-        let chunks = samples.chunks_exact(4);
-        let remainder = chunks.remainder();
-        ch_sum = chunks.fold(ch_sum, |acc, x| {
-            let vl1 = x[0] * I16_MAX;
-            let vr1 = x[1] * I16_MAX;
-            let vl2 = x[2] * I16_MAX;
-            let vr2 = x[3] * I16_MAX;
-            (
-                acc.0 + (vl1 * vl1),
-                acc.1 + (vr1 * vr1),
-                acc.2 + (vl2 * vl2),
-                acc.3 + (vr2 * vr2),
-            )
-        });
-        if remainder.len() == 2 {
-            let vl = remainder[0] * I16_MAX;
-            let vr = remainder[1] * I16_MAX;
-            ch_sum.0 += vl * vl;
-            ch_sum.1 += vr * vr;
-        }
-        // compute and show current RMS values if enough samples collected
-        if total_samples >= samples_per_update {
-            let samples_per_channel = (total_samples / wd.channels as usize) as f32;
-            let rms_l = f64::from(((ch_sum.0 + ch_sum.2) / samples_per_channel).sqrt());
-            let rms_r = f64::from(((ch_sum.1 + ch_sum.3) / samples_per_channel).sqrt());
-            total_samples = 0;
-            ch_sum = (0.0, 0.0, 0.0, 0.0);
-            rms_frame_l.set_value(rms_l);
-            rms_frame_r.set_value(rms_r);
-            app::awake();
-        }
-    }
 }

@@ -507,15 +507,14 @@ fn run_rms_monitor(
     mut rms_frame_r: Progress,
 ) {
     const I16_MAX: f32 = i16::MAX as f32;
-    // compute # of samples needed to get a 10 Hz refresh rate, multiple of 4 samples
-    let samples_per_update =
-        (((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize) & !3usize;
+    // compute # of samples needed to get a 10 Hz refresh rate
+    let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
-    let mut ch_sum = (0f32, 0f32);
+    let mut ch_sum = (0f32, 0f32, 0f32, 0f32);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
         // sum left and right channel samples, 4 samples at a time
-        // this uses SIMD movps/addps/mulps for 4 f32s at a time
+        // this uses SIMD SSE movps/addps/mulps with 4 f32s at a time
         let chunks = samples.chunks_exact(4);
         let remainder = chunks.remainder();
         ch_sum = chunks.fold(ch_sum, |acc, x| {
@@ -524,8 +523,10 @@ fn run_rms_monitor(
             let vl2 = x[2] * I16_MAX;
             let vr2 = x[3] * I16_MAX;
             (
-                acc.0 + (vl1 * vl1) + (vl2 * vl2),
-                acc.1 + (vr1 * vr1) + (vr2 * vr2),
+                acc.0 + (vl1 * vl1),
+                acc.1 + (vr1 * vr1),
+                acc.2 + (vl2 * vl2),
+                acc.3 + (vr2 * vr2),
             )
         });
         if remainder.len() == 2 {
@@ -537,10 +538,10 @@ fn run_rms_monitor(
         // compute and show current RMS values if enough samples collected
         if total_samples >= samples_per_update {
             let samples_per_channel = (total_samples / wd.channels as usize) as f32;
-            let rms_l = f64::from((ch_sum.0 / samples_per_channel).sqrt());
-            let rms_r = f64::from((ch_sum.1 / samples_per_channel).sqrt());
+            let rms_l = f64::from(((ch_sum.0 + ch_sum.2) / samples_per_channel).sqrt());
+            let rms_r = f64::from(((ch_sum.1 + ch_sum.3) / samples_per_channel).sqrt());
             total_samples = 0;
-            ch_sum = (0.0, 0.0);
+            ch_sum = (0.0, 0.0, 0.0, 0.0);
             rms_frame_l.set_value(rms_l);
             rms_frame_r.set_value(rms_r);
             app::awake();

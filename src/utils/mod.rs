@@ -7,5 +7,6 @@ pub mod flacstream;
 pub mod local_ip_address;
 pub mod priority;
 pub mod rwstream;
+pub mod samples_conv;
 pub mod traits;
 pub mod ui_logger;

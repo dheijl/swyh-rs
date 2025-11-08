@@ -43,6 +43,10 @@ pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) 
 
 /// compute the left and right channel RMS value for every 100 ms period
 /// and show the values in the UI
+/// sums left and right channel samples, 4 samples at a time
+/// this could use SIMD SSE movps/addps/mulps with 4 f32s at a time
+/// it does so in GodBolt but not here for some reason
+/// so I switched to the wide crate
 pub fn run_rms_monitor(
     wd: WavData,
     rms_receiver: &Receiver<Vec<f32>>,
@@ -57,17 +61,12 @@ pub fn run_rms_monitor(
     let imax = f32x4::from([I16_MAX, I16_MAX, I16_MAX, I16_MAX]);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
-        // sum left and right channel samples, 4 samples at a time
-        // this could use SIMD SSE movps/addps/mulps with 4 f32s at a time
-        // it does so in GodBolt but not here for some reason
-        // so switch to wide crate
         let chunks = samples.chunks_exact(4);
         let remainder = chunks.remainder();
         ch_sum = chunks.fold(ch_sum, |acc, x| {
             let f4 = f32x4::from(x);
             let i4 = f4 * imax;
-            let sum = i4.mul_add(i4, acc);
-            sum
+            i4.mul_add(i4, acc)
         });
         if remainder.len() == 2 {
             let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);

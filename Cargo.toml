@@ -70,12 +70,12 @@ serde = { version = "1.0.228", features = ["derive"] }
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 tiny_http = "0.12.0"
 toml = "0.9.8"
-ureq = { version = "3.1.2", default-features = false, features = [
+ureq = { version = "3.1.4", default-features = false, features = [
     "charset",
     "gzip",
 ] }
 url = "2.5.7"
-wide = "0.8.1"
+wide = "0.8.2"
 xml-rs = "1.0.0"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.21", features = ["use-ninja"], optional = true }

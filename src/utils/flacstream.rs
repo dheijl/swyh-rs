@@ -11,6 +11,7 @@ use std::{
     },
     time::Duration,
 };
+use wide::f32x4;
 
 use crate::globals::statics::THREAD_STACK;
 
@@ -117,13 +118,35 @@ impl FlacChannel {
                 noise_buf.resize(noise_bufsize, 0.0);
                 // read and FLAC encode samples
                 let mut time_out = Duration::from_millis(NOISE_PERIOD_MS);
+                const I32_MAX: f32 = (i32::MAX as f32) + 1.0;
+                let mut samples = Vec::<i32>::with_capacity(16384);
+                let imax = f32x4::from(I32_MAX);
                 while l_active.load(Relaxed) {
                     if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS);
-                        let samples = f32_samples
-                            .iter()
-                            .map(|s| s.to_sample::<i32>() >> shift)
-                            .collect::<Vec<i32>>();
+                        samples.clear();
+                        let chunks = f32_samples.chunks_exact(4);
+                        let remainder = chunks.remainder();
+                        chunks.into_iter().for_each(|chunk| {
+                            let fchunk = f32x4::from(chunk);
+                            let fchunk_ixx = fchunk * imax;
+                            let ichunk = fchunk_ixx.trunc_int();
+                            let mut islice = ichunk.to_array();
+                            for s in islice.iter_mut() {
+                                *s = *s >> shift
+                            }
+                            samples.extend_from_slice(&islice);
+                        });
+                        if remainder.len() == 2 {
+                            let fchunk = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
+                            let fchunk_ixx = fchunk * imax;
+                            let ichunk = fchunk_ixx.trunc_int();
+                            let mut islice = ichunk.to_array();
+                            for s in islice[0..2].iter_mut() {
+                                *s >>= shift
+                            }
+                            samples.extend_from_slice(&islice[0..2]);
+                        }
                         if enc
                             .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
                             .is_err()

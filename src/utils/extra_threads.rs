@@ -49,11 +49,12 @@ pub fn run_rms_monitor(
     mut rms_frame_l: Progress,
     mut rms_frame_r: Progress,
 ) {
-    const I16_MAX: f32 = i16::MAX as f32;
+    const I16_MAX: f32 = (i16::MAX as f32) + 1.0;
     // compute # of samples needed to get a 10 Hz refresh rate
     let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
     let mut ch_sum = f32x4::from([0f32, 0f32, 0f32, 0f32]);
+    let imax = f32x4::from([I16_MAX, I16_MAX, I16_MAX, I16_MAX]);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
         // sum left and right channel samples, 4 samples at a time
@@ -63,7 +64,6 @@ pub fn run_rms_monitor(
         let chunks = samples.chunks_exact(4);
         let remainder = chunks.remainder();
         ch_sum = chunks.fold(ch_sum, |acc, x| {
-            let imax = f32x4::from([I16_MAX, I16_MAX, I16_MAX, I16_MAX]);
             let f4 = f32x4::from(x);
             let i4 = f4 * imax;
             let sum = i4.mul_add(i4, acc);
@@ -71,7 +71,8 @@ pub fn run_rms_monitor(
         });
         if remainder.len() == 2 {
             let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
-            ch_sum = rem.mul_add(rem, ch_sum);
+            let i4 = rem * imax;
+            ch_sum = i4.mul_add(i4, ch_sum);
         }
         // compute and show current RMS values if enough samples collected
         if total_samples >= samples_per_update {

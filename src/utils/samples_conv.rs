@@ -8,7 +8,7 @@ use wide::f32x4;
 pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8) {
     i32_samples.clear();
     const I32_MAX: f32 = (i32::MAX as f32) + 1.0;
-    let imax = f32x4::from(I32_MAX);
+    let imax = f32x4::splat(I32_MAX);
     let mut f32_array = [0.0; 4];
     let chunks = f32_samples.chunks_exact(4);
     let remainder = chunks.remainder();

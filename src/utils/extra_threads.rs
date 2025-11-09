@@ -57,8 +57,8 @@ pub fn run_rms_monitor(
     // compute # of samples needed to get a 10 Hz refresh rate
     let samples_per_update = ((wd.sample_rate.0 * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
-    let mut ch_sum = f32x4::from([0f32, 0f32, 0f32, 0f32]);
-    let imax = f32x4::from([I16_MAX, I16_MAX, I16_MAX, I16_MAX]);
+    let mut ch_sum = f32x4::splat(0f32);
+    let imax = f32x4::splat(I16_MAX);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
         let chunks = samples.chunks_exact(4);
@@ -80,7 +80,7 @@ pub fn run_rms_monitor(
             let rms_l = f64::from(((rms[0] + rms[2]) / samples_per_channel).sqrt());
             let rms_r = f64::from(((rms[1] + rms[3]) / samples_per_channel).sqrt());
             total_samples = 0;
-            ch_sum = f32x4::from([0f32, 0f32, 0f32, 0f32]);
+            ch_sum = f32x4::splat(0f32);
             rms_frame_l.set_value(rms_l);
             rms_frame_r.set_value(rms_r);
             app::awake();

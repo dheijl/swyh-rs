@@ -1,6 +1,6 @@
 use std::ops::Shr;
 
-use wide::{f32x4, i32x4};
+use wide::f32x4;
 
 /// convert f32 samples to i32
 /// but scaled to i16 or i24 according to shift (8 or 16)
@@ -16,7 +16,7 @@ pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8
         f32_array.copy_from_slice(chunk); // the array forces a MOVUPS of all 4 f32 values 
         let fchunk = f32x4::from(f32_array); // into the xmm reg without using the array at all
         let fchunk_i32 = fchunk * imax;
-        let mut s4i = i32x4::from(fchunk_i32.trunc_int().to_array());
+        let mut s4i = fchunk_i32.trunc_int();
         s4i = s4i.shr(shift);
         let i_array = s4i.to_array();
         i32_samples.extend(&i_array);
@@ -25,7 +25,7 @@ pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8
         f32_array = [remainder[0], remainder[1], 0.0, 0.0];
         let fchunk = f32x4::from(f32_array);
         let fchunk_i32 = fchunk * imax;
-        let mut s4i = i32x4::from(fchunk_i32.trunc_int().to_array());
+        let mut s4i = fchunk_i32.trunc_int();
         s4i = s4i.shr(shift);
         let i_array = s4i.to_array();
         i32_samples.extend(&i_array[0..2]);

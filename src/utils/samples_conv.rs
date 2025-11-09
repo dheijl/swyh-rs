@@ -16,18 +16,16 @@ pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8
         f32_array.copy_from_slice(chunk); // the array forces a MOVUPS of all 4 f32 values 
         let fchunk = f32x4::from(f32_array); // into the xmm reg without using the array at all
         let fchunk_i32 = fchunk * imax;
-        let mut s4i = fchunk_i32.trunc_int();
-        s4i = s4i.shr(shift);
-        let i_array = s4i.to_array();
+        let s4i = fchunk_i32.trunc_int();
+        let i_array = s4i.shr(shift).to_array();
         i32_samples.extend(&i_array);
     });
     if remainder.len() == 2 {
         f32_array = [remainder[0], remainder[1], 0.0, 0.0];
         let fchunk = f32x4::from(f32_array);
         let fchunk_i32 = fchunk * imax;
-        let mut s4i = fchunk_i32.trunc_int();
-        s4i = s4i.shr(shift);
-        let i_array = s4i.to_array();
+        let s4i = fchunk_i32.trunc_int();
+        let i_array = s4i.shr(shift).to_array();
         i32_samples.extend(&i_array[0..2]);
     }
 }

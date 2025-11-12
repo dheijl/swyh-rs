@@ -167,14 +167,16 @@ impl Read for ChannelStream {
                 "PCM: drain.len <> samples_needed"
             );
             let drain_iter = drain.chunks(4);
-            // return a buffer with an integral number of samples
+            // return a buffer with sample chunks (1 chunk = 4 samples)
             // the drain now contains the exact number of samples needed to fill the streaming buffer
-            // so we can zip the buf in chunks with the drain
+            // so we can zip the buf in chunks of 4 samples (chunksize) with the drain
             let chunks_iter = buf.chunks_exact_mut(chunksize).zip(&drain_iter);
-            let mut f32_array = [0f32; 4];
+            // setup sample conversion parameters
+            let little_endian = self.use_wave_format;
             let shift = if bytes_per_sample == 3 { 8u8 } else { 16u8 };
-            // wave format = litlle endian, default = big endian
-            match (self.use_wave_format, bytes_per_sample) {
+            // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
+            let mut f32_array = [0f32; 4];
+            match (little_endian, bytes_per_sample) {
                 (true, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
                     f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
                     let i32_array = f32_to_i32(shift, f32_array);

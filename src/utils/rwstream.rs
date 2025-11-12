@@ -155,7 +155,7 @@ impl Read for ChannelStream {
             let bytes_per_sample = (self.bits_per_sample / 8) as usize;
             let chunksize = bytes_per_sample * 4;
             let chunks_needed = buf.len() / chunksize;
-            let samples_needed = chunksize * 4;
+            let samples_needed = chunks_needed * 4;
             while self.fifo.len() < samples_needed {
                 self.get_samples();
             }

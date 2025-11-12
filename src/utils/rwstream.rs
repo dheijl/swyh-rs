@@ -9,13 +9,17 @@
 /// to the media Renderer
 ///
 */
-use crate::{enums::streaming::StreamingFormat, globals::statics::get_config};
+use crate::{
+    enums::streaming::StreamingFormat, globals::statics::get_config,
+    utils::samples_conv::f32_to_i32,
+};
 use crossbeam_channel::{Receiver, Sender};
-use dasp_sample::Sample;
 use ecow::EcoString;
 use fastrand::Rng;
+use itertools::Itertools;
 use log::{debug, error};
 use std::{
+    array,
     collections::VecDeque,
     io::{Read, Result as IoResult},
     time::Duration,
@@ -149,7 +153,9 @@ impl Read for ChannelStream {
             }
             // make sure we have enough samples ready to fill the read buffer
             let bytes_per_sample = (self.bits_per_sample / 8) as usize;
-            let samples_needed = buf.len() / bytes_per_sample;
+            let chunksize = bytes_per_sample * 4;
+            let chunks_needed = buf.len() / chunksize;
+            let samples_needed = chunks_needed * 4;
             while self.fifo.len() < samples_needed {
                 self.get_samples();
             }
@@ -160,27 +166,59 @@ impl Read for ChannelStream {
                 drain.len() == samples_needed,
                 "PCM: drain.len <> samples_needed"
             );
+            let drain_iter = drain.chunks(4);
             // return a buffer with an integral number of samples
             // the drain now contains the exact number of samples needed to fill the streaming buffer
             // so we can zip the buf in chunks with the drain
-            let chunks_iter = buf.chunks_exact_mut(bytes_per_sample).zip(drain);
+            let chunks_iter = buf.chunks_exact_mut(chunksize).zip(&drain_iter);
+            let mut f32_array = [0f32; 4];
+            let shift = if bytes_per_sample == 3 { 8u8 } else { 16u8 };
             // wave format = litlle endian, default = big endian
             match (self.use_wave_format, bytes_per_sample) {
-                (true, 2) => chunks_iter.for_each(|(chunk, sample)| {
-                    chunk.copy_from_slice(&(i16::from_sample(sample).to_le_bytes()));
+                (true, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
+                    f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
+                    let i32_array = f32_to_i32(shift, f32_array);
+                    chunk
+                        .chunks_exact_mut(bytes_per_sample)
+                        .zip(i32_array)
+                        .for_each(|(bchunk, i)| {
+                            bchunk.copy_from_slice(&i.to_le_bytes()[..2]);
+                        });
                 }),
-                (true, 3) => chunks_iter.for_each(|(chunk, sample)| {
-                    chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_le_bytes())[..=2]);
+                (true, 3) => chunks_iter.for_each(|(chunk, mut sample)| {
+                    f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
+                    let i32_array = f32_to_i32(shift, f32_array);
+                    chunk
+                        .chunks_exact_mut(bytes_per_sample)
+                        .zip(i32_array)
+                        .for_each(|(bchunk, i)| {
+                            bchunk.copy_from_slice(&i.to_le_bytes()[..3]);
+                        });
                 }),
-                (false, 2) => chunks_iter.for_each(|(chunk, sample)| {
-                    chunk.copy_from_slice(&(i16::from_sample(sample).to_be_bytes()));
+                (false, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
+                    f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
+                    let i32_array = f32_to_i32(shift, f32_array);
+                    chunk
+                        .chunks_exact_mut(bytes_per_sample)
+                        .zip(i32_array)
+                        .for_each(|(bchunk, i)| {
+                            bchunk.copy_from_slice(&i.to_be_bytes()[2..]);
+                        });
                 }),
-                (false, 3) => chunks_iter.for_each(|(chunk, sample)| {
-                    chunk.copy_from_slice(&((i32::from_sample(sample) >> 8).to_be_bytes())[1..]);
+                (false, 3) => chunks_iter.for_each(|(chunk, mut sample)| {
+                    f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
+                    let i32_array = f32_to_i32(shift, f32_array);
+                    chunk
+                        .chunks_exact_mut(bytes_per_sample)
+                        .zip(i32_array)
+                        .for_each(|(bchunk, i)| {
+                            bchunk.copy_from_slice(&i.to_be_bytes()[1..]);
+                        });
                 }),
                 // unsupported format, ignore
                 (_, _) => error!("Unsupported audio format!"),
             }
+            debug_assert_eq!(buf.len(), chunks_needed * bytes_per_sample * 4);
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
         } else {
             // FLAC

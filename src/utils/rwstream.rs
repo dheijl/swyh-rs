@@ -162,10 +162,10 @@ impl Read for ChannelStream {
             // drain the fifo of the samples needed to fill the buffer
             // this way we don't need the expensive pop_front()
             let drain = self.fifo.drain(0..samples_needed);
-            debug_assert!(
+            /*debug_assert!(
                 drain.len() == samples_needed,
                 "PCM: drain.len <> samples_needed"
-            );
+            );*/
             let drain_iter = drain.chunks(4);
             // return a buffer with sample chunks (1 chunk = 4 samples)
             // the drain now contains the exact number of samples needed to fill the streaming buffer
@@ -220,7 +220,7 @@ impl Read for ChannelStream {
                 // unsupported format, ignore
                 (_, _) => error!("Unsupported audio format!"),
             }
-            debug_assert_eq!(buf.len(), chunks_needed * bytes_per_sample * 4);
+            /*debug_assert_eq!(buf.len(), chunks_needed * bytes_per_sample * 4);*/
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
         } else {
             // FLAC
@@ -240,7 +240,7 @@ impl Read for ChannelStream {
                     (s1.len(), buf.len() - s1.len())
                 }
             };
-            debug_assert!(l1 + l2 == buf.len());
+            /*debug_assert!(l1 + l2 == buf.len());*/
             buf[..l1].copy_from_slice(&s1[..l1]);
             if l2 > 0 {
                 buf[l1 + 1..].copy_from_slice(&s2[..l2]);

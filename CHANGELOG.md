@@ -3,7 +3,7 @@
 - 1.12.16 (unreleased)
   - rust 1.91
   - some minor refactoring
-  - optimize the default f32 audio capture for Alsa and WasApi (replace the generic samples conversion to f32 with a plain memcpy)
+  - optimize the default f32 audio capture for Alsa and WasApi (replace the generic samples conversion to f32 iterator with a plain memcpy)
   - optimize RMS monitor using SIMD SSE2 instructions (4 lanes)
   - optimize flac encoding using SIMD SSE2 instructions (4 lanes)
   - optimize LPCM and WAV/RF64 with SIMD SSE2 instructions (4 lanes)

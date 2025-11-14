@@ -155,20 +155,15 @@ impl Read for ChannelStream {
             let bytes_per_sample = (self.bits_per_sample / 8) as usize;
             let chunksize = bytes_per_sample * 4;
             let chunks_needed = buf.len() / chunksize;
-            let samples_needed = chunks_needed * 4;
+            let samples_needed: usize = chunks_needed * 4;
             while self.fifo.len() < samples_needed {
                 self.get_samples();
             }
-            // drain the fifo of the samples needed to fill the buffer
+            // drain the fifo of the samples needed to fill the buffer in 4 samples chunks
             // this way we don't need the expensive pop_front()
-            let drain = self.fifo.drain(0..samples_needed);
-            /*debug_assert!(
-                drain.len() == samples_needed,
-                "PCM: drain.len <> samples_needed"
-            );*/
-            let drain_iter = drain.chunks(4);
-            // return a buffer with sample chunks (1 chunk = 4 samples)
-            // the drain now contains the exact number of samples needed to fill the streaming buffer
+            // the drain contains the exact number of samples needed to fill the streaming buffer
+            let drain_iter = self.fifo.drain(0..samples_needed).chunks(4);
+            // fill the buffer with sample chunks (1 chunk = 4 samples)
             // so we can zip the buf in chunks of 4 samples (chunksize) with the drain
             let chunks_iter = buf.chunks_exact_mut(chunksize).zip(&drain_iter);
             // setup sample conversion parameters

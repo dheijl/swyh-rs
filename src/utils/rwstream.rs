@@ -10,8 +10,9 @@
 ///
 */
 use crate::{
-    enums::streaming::StreamingFormat, globals::statics::get_config,
-    utils::samples_conv::f32_to_i32,
+    enums::streaming::StreamingFormat,
+    globals::statics::get_config,
+    utils::samples_conv::{f32_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le},
 };
 use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
@@ -175,42 +176,22 @@ impl Read for ChannelStream {
                 (true, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
                     f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
                     let i32_array = f32_to_i32(shift, f32_array);
-                    chunk
-                        .chunks_exact_mut(bytes_per_sample)
-                        .zip(i32_array)
-                        .for_each(|(bchunk, i)| {
-                            bchunk.copy_from_slice(&i.to_le_bytes()[..2]);
-                        });
+                    i32_to_i16le(&i32_array, chunk);
                 }),
                 (true, 3) => chunks_iter.for_each(|(chunk, mut sample)| {
                     f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
                     let i32_array = f32_to_i32(shift, f32_array);
-                    chunk
-                        .chunks_exact_mut(bytes_per_sample)
-                        .zip(i32_array)
-                        .for_each(|(bchunk, i)| {
-                            bchunk.copy_from_slice(&i.to_le_bytes()[..3]);
-                        });
+                    i32_to_i24le(&i32_array, chunk);
                 }),
                 (false, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
                     f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
                     let i32_array = f32_to_i32(shift, f32_array);
-                    chunk
-                        .chunks_exact_mut(bytes_per_sample)
-                        .zip(i32_array)
-                        .for_each(|(bchunk, i)| {
-                            bchunk.copy_from_slice(&i.to_be_bytes()[2..]);
-                        });
+                    i32_to_i16be(&i32_array, chunk);
                 }),
                 (false, 3) => chunks_iter.for_each(|(chunk, mut sample)| {
                     f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
                     let i32_array = f32_to_i32(shift, f32_array);
-                    chunk
-                        .chunks_exact_mut(bytes_per_sample)
-                        .zip(i32_array)
-                        .for_each(|(bchunk, i)| {
-                            bchunk.copy_from_slice(&i.to_be_bytes()[1..]);
-                        });
+                    i32_to_i24be(&i32_array, chunk);
                 }),
                 // unsupported format, ignore
                 (_, _) => error!("Unsupported audio format!"),

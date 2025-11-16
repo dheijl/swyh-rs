@@ -131,6 +131,12 @@ pub enum BitDepth {
     Bits16 = 16,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Endian {
+    Little,
+    Big,
+}
+
 impl From<u16> for BitDepth {
     fn from(bps: u16) -> Self {
         match bps {

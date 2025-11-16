@@ -10,7 +10,11 @@
 ///
 */
 use crate::{
-    enums::streaming::StreamingFormat,
+    enums::streaming::{
+        BitDepth::{self, *},
+        Endian::{self, *},
+        StreamingFormat,
+    },
     globals::statics::get_config,
     utils::samples_conv::{
         f32chunk_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,
@@ -20,7 +24,7 @@ use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
 use fastrand::Rng;
 use itertools::Itertools;
-use log::{debug, error};
+use log::debug;
 use std::{
     collections::VecDeque,
     io::{Read, Result as IoResult},
@@ -169,28 +173,27 @@ impl Read for ChannelStream {
             // so we can zip the buf in chunks of 4 samples (chunksize) with the drain
             let chunks_iter = buf.chunks_exact_mut(chunksize).zip(&drain_iter);
             // setup sample conversion parameters
-            let little_endian = self.use_wave_format;
-            let shift = if bytes_per_sample == 3 { 8u8 } else { 16u8 };
+            let endianness: Endian = if self.use_wave_format { Little } else { Big };
+            let bitdepth = BitDepth::from(self.bits_per_sample);
+            let shift = if bitdepth == Bits24 { 8u8 } else { 16u8 };
             // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
-            match (little_endian, bytes_per_sample) {
-                (true, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
-                    let i32_array = f32chunk_to_i32(shift, &mut sample);
+            match (endianness, bitdepth) {
+                (Little, Bits16) => chunks_iter.for_each(|(chunk, mut sample_chunk)| {
+                    let i32_array = f32chunk_to_i32(shift, &mut sample_chunk);
                     i32_to_i16le(&i32_array, chunk);
                 }),
-                (true, 3) => chunks_iter.for_each(|(chunk, mut sample)| {
-                    let i32_array = f32chunk_to_i32(shift, &mut sample);
+                (Little, Bits24) => chunks_iter.for_each(|(chunk, mut sample_chunk)| {
+                    let i32_array = f32chunk_to_i32(shift, &mut sample_chunk);
                     i32_to_i24le(&i32_array, chunk);
                 }),
-                (false, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
-                    let i32_array = f32chunk_to_i32(shift, &mut sample);
+                (Big, Bits16) => chunks_iter.for_each(|(chunk, mut sample_chunk)| {
+                    let i32_array = f32chunk_to_i32(shift, &mut sample_chunk);
                     i32_to_i16be(&i32_array, chunk);
                 }),
-                (false, 3) => chunks_iter.for_each(|(chunk, mut sample)| {
-                    let i32_array = f32chunk_to_i32(shift, &mut sample);
+                (Big, Bits24) => chunks_iter.for_each(|(chunk, mut sample_chunk)| {
+                    let i32_array = f32chunk_to_i32(shift, &mut sample_chunk);
                     i32_to_i24be(&i32_array, chunk);
                 }),
-                // unsupported format, ignore
-                (_, _) => error!("Unsupported audio format!"),
             }
             /*debug_assert_eq!(buf.len(), chunks_needed * bytes_per_sample * 4);*/
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)

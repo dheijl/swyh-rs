@@ -1,8 +1,8 @@
 # swyh-rs Changelog
 
-- 1.12.16 (unreleased)
+- 1.12.16 (Nov 16 2025, dheijl)
   - rust 1.91
-  - some minor refactoring
+  - some minor refactoring and renaming for clarity
   - optimize the default f32 audio capture for Alsa and WasApi (replace the generic samples conversion to f32 iterator with a plain memcpy)
   - optimize RMS monitor using SIMD SSE2 instructions (4 lanes)
   - optimize flac encoding using SIMD SSE2 instructions (4 lanes)

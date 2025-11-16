@@ -12,7 +12,9 @@
 use crate::{
     enums::streaming::StreamingFormat,
     globals::statics::get_config,
-    utils::samples_conv::{f32_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le},
+    utils::samples_conv::{
+        f32chunk_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,
+    },
 };
 use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
@@ -20,7 +22,6 @@ use fastrand::Rng;
 use itertools::Itertools;
 use log::{debug, error};
 use std::{
-    array,
     collections::VecDeque,
     io::{Read, Result as IoResult},
     time::Duration,
@@ -171,26 +172,21 @@ impl Read for ChannelStream {
             let little_endian = self.use_wave_format;
             let shift = if bytes_per_sample == 3 { 8u8 } else { 16u8 };
             // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
-            let mut f32_array = [0f32; 4];
             match (little_endian, bytes_per_sample) {
                 (true, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
-                    f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
-                    let i32_array = f32_to_i32(shift, f32_array);
+                    let i32_array = f32chunk_to_i32(shift, &mut sample);
                     i32_to_i16le(&i32_array, chunk);
                 }),
                 (true, 3) => chunks_iter.for_each(|(chunk, mut sample)| {
-                    f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
-                    let i32_array = f32_to_i32(shift, f32_array);
+                    let i32_array = f32chunk_to_i32(shift, &mut sample);
                     i32_to_i24le(&i32_array, chunk);
                 }),
                 (false, 2) => chunks_iter.for_each(|(chunk, mut sample)| {
-                    f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
-                    let i32_array = f32_to_i32(shift, f32_array);
+                    let i32_array = f32chunk_to_i32(shift, &mut sample);
                     i32_to_i16be(&i32_array, chunk);
                 }),
                 (false, 3) => chunks_iter.for_each(|(chunk, mut sample)| {
-                    f32_array = array::from_fn(|_| sample.next().expect("chunk not 4 samples"));
-                    let i32_array = f32_to_i32(shift, f32_array);
+                    let i32_array = f32chunk_to_i32(shift, &mut sample);
                     i32_to_i24be(&i32_array, chunk);
                 }),
                 // unsupported format, ignore

@@ -1,5 +1,6 @@
-use std::ops::Shr;
+use std::{array, collections::vec_deque::Drain, ops::Shr};
 
+use itertools::Chunk;
 use wide::f32x4;
 
 /// convert f32 samples to i32 for flac encoding
@@ -12,21 +13,33 @@ pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8
     let remainder = chunks.remainder();
     chunks.into_iter().for_each(|chunk| {
         f32_array.copy_from_slice(chunk);
-        let i_array = f32_to_i32(shift, f32_array);
+        let i_array = f32_to_i32(shift, &f32_array);
         i32_samples.extend(&i_array);
     });
     if remainder.len() == 2 {
         f32_array = [remainder[0], remainder[1], 0.0, 0.0];
-        let i_array = f32_to_i32(shift, f32_array);
+        let i_array = f32_to_i32(shift, &f32_array);
         i32_samples.extend(&i_array[0..2]);
     }
 }
 
 /// convert 4 f32 samples to 4 i32 samples using SSE2
 #[inline(always)]
-pub fn f32_to_i32(shift: u8, f32_array: [f32; 4]) -> [i32; 4] {
+pub fn f32_to_i32(shift: u8, f32_array: &[f32; 4]) -> [i32; 4] {
     const I32_MAX: f32 = (i32::MAX as f32) + 1.0;
     let imax = f32x4::splat(I32_MAX);
+    let fchunk = f32x4::from(*f32_array);
+    let fchunk_i32 = fchunk * imax;
+    let s4i = fchunk_i32.trunc_int().shr(shift);
+    s4i.to_array()
+}
+
+/// convert an f32 samples chunk to 4 i32 samples using SSE2
+#[inline(always)]
+pub fn f32chunk_to_i32(shift: u8, f32_chunk: &mut Chunk<'_, Drain<'_, f32>>) -> [i32; 4] {
+    const I32_MAX: f32 = (i32::MAX as f32) + 1.0;
+    let imax = f32x4::splat(I32_MAX);
+    let f32_array = array::from_fn(|_| f32_chunk.next().expect("f32 chunk not 4 samples"));
     let fchunk = f32x4::from(f32_array);
     let fchunk_i32 = fchunk * imax;
     let s4i = fchunk_i32.trunc_int().shr(shift);

@@ -1112,7 +1112,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "swyh-rs"
-version = "1.12.16"
+version = "1.12.17"
 dependencies = [
  "bitflags 2.10.0",
  "cpal",

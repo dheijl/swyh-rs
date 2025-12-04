@@ -54,13 +54,23 @@ impl DeviceKind {
     }
 }
 
+///
+/// get the cpal 0.16.0 compatible device name from the cpal::Device
+///
+fn get_device_name(device: &cpal::Device) -> Result<String, cpal::DeviceNameError> {
+    match device.description() {
+        Ok(desc) => Ok(desc.name().to_string()),
+        Err(e) => Err(e),
+    }
+}
+
 impl Device {
     /// Construct a [`Device`] from a [`cpal::Device`].
     ///
     /// Devices may support both input and output.
     /// This defaults to output if both are present on one device.
     pub fn from_device(device: cpal::Device) -> Result<Self, DefaultStreamConfigError> {
-        let name = device.name().unwrap_or_else(|e| {
+        let name = get_device_name(&device).unwrap_or_else(|e| {
             debug!("Unable to retrieve device name due to:\n\t{e}");
             "Unknown/unnamed".into()
         });
@@ -109,10 +119,7 @@ impl TryFrom<DeviceKind> for Device {
 
     #[inline]
     fn try_from(kind: DeviceKind) -> Result<Self, Self::Error> {
-        let name = kind
-            .as_ref()
-            .name()
-            .unwrap_or_else(|_| "Unknown/unnamed".into());
+        let name = get_device_name(kind.as_ref()).unwrap_or_else(|_| "Unknown/unnamed".into());
         let stream_config = kind.default_config_any()?;
         Ok(Self {
             kind,
@@ -166,10 +173,14 @@ pub fn get_output_audio_devices() -> Vec<Device> {
         debug!("{}", host_id.name());
         let host = cpal::host_from_id(host_id).unwrap();
 
-        let default_out = host.default_output_device().and_then(|e| e.name().ok());
+        let default_out = host
+            .default_output_device()
+            .and_then(|e| get_device_name(&e).ok());
         debug!("  Default Output Device:\n    {default_out:?}");
 
-        let default_in = host.default_input_device().and_then(|e| e.name().ok());
+        let default_in = host
+            .default_input_device()
+            .and_then(|e| get_device_name(&e).ok());
         debug!("  Default Input Device:\n    {default_in:?}");
 
         let devices = host.devices().unwrap();
@@ -178,7 +189,7 @@ pub fn get_output_audio_devices() -> Vec<Device> {
             debug!(
                 "  {}. \"{}\"",
                 device_index + 1,
-                device.name().unwrap_or_default()
+                get_device_name(&device).unwrap_or_default()
             );
             // List all of the supported stream configs per device.
             log_stream_configs(device.supported_output_configs(), "output", device_index);
@@ -219,9 +230,7 @@ pub fn capture_output_audio(
         LogCategory::Info,
         &format!(
             "Capturing audio from: {}",
-            device
-                .name()
-                .expect("Could not get default audio device name")
+            get_device_name(&device).expect("Could not get default audio device name")
         ),
     );
     let audio_cfg = device_wrap

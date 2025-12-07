@@ -61,8 +61,8 @@ htmlescape = "0.3.1"
 if-addrs = "0.14.0"
 itertools = "0.14.0"
 lexopt = "0.3.1"
-local-ip-address = { version = "0.6.5", optional = true }
-log = { version = "0.4.28", features = [
+local-ip-address = { version = "0.6.6", optional = true }
+log = { version = "0.4.29", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",
@@ -89,7 +89,7 @@ winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-libc = "0.2.177"
+libc = "0.2.178"
 
 [patch.crates-io]
 #cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/pipewire-alsa-latency" }

@@ -358,7 +358,7 @@ fn main() {
                                         // streaming has really ended
                                         update_playstate(&streamer_feedback.remote_ip, false);
                                         if mf.auto_resume.is_set() && button.is_set() {
-                                            let streaminfo = StreamInfo::new(wd.sample_rate.0);
+                                            let streaminfo = StreamInfo::new(wd.sample_rate);
                                             let _ = renderer.play(&local_addr, streaminfo);
                                             update_playstate(&streamer_feedback.remote_ip, true);
                                         } else {

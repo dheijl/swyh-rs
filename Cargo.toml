@@ -76,7 +76,7 @@ ureq = { version = "3.1.4", default-features = false, features = [
     "gzip",
 ] }
 url = "2.5.7"
-wide = "1.0.2"
+wide = "1.1.0"
 xml-rs = "1.0.0"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }

@@ -135,9 +135,9 @@ checksum = "6e4de3bc4ea267985becf712dc6d9eed8b04c953b3fcfb339ebc87acd9804901"
 
 [[package]]
 name = "cmake"
-version = "0.1.54"
+version = "0.1.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7caa3f9de89ddbe2c607f4101924c5abec803763ae9534e4f4d7d8f84aa81f0"
+checksum = "d49d74c227b6cc9f3c51a2c7c667a05b6453f7f0f952a5f8e4493bb9e731d68e"
 dependencies = [
  "cc",
 ]
@@ -175,7 +175,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.16.0"
-source = "git+https://github.com/RustAudio/cpal.git#40005e6fb09b513055db9340aa3004a83461c54a"
+source = "git+https://github.com/RustAudio/cpal.git#9ec324144bb513855e7ad15158cb8e1f77b322c3"
 dependencies = [
  "alsa",
  "coreaudio-rs",
@@ -1660,9 +1660,9 @@ dependencies = [
 
 [[package]]
 name = "wide"
-version = "1.0.2"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbace5de6cfc4866f684318ad85761c89380cfb191982ae96aa65c295bf5897e"
+checksum = "8afd0e867c652e7c27e88620e1fbf073ad060a919235f50b64f273d9d4092931"
 dependencies = [
  "bytemuck",
  "safe_arch",

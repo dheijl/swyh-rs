@@ -815,7 +815,7 @@ impl MainForm {
                         conf.last_renderer = Some(b.label());
                         let _ = conf.update_config();
                     }
-                    let streaminfo = StreamInfo::new(wd.sample_rate.0);
+                    let streaminfo = StreamInfo::new(wd.sample_rate);
                     let _ = newr_c.play(&local_addr, streaminfo);
                 } else {
                     newr_c.stop_play();

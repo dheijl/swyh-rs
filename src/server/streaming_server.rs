@@ -45,7 +45,7 @@ pub fn run_server(
     let logmsg = {
         format!(
             "Default streaming sample rate: {}, bits per sample: {}, format: {}",
-            wd.sample_rate.0, stream_config.bits_per_sample, stream_config.streaming_format,
+            wd.sample_rate, stream_config.bits_per_sample, stream_config.streaming_format,
         )
     };
     ui_log(LogCategory::Info, &logmsg);

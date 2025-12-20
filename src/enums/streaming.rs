@@ -223,7 +223,7 @@ impl StreamingContext {
     }
     /// intialize sample rate and format from `WavData`
     pub fn set_sample_data(&mut self, wd: WavData) {
-        self.sample_rate = wd.sample_rate.0;
+        self.sample_rate = wd.sample_rate;
         self.sample_format = wd.sample_format;
     }
     /// update values from query parameters if present

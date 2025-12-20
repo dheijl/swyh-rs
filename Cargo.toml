@@ -45,7 +45,7 @@ winres = "0.1.12"
 
 [dependencies]
 bitflags = "2.10.0"
-cpal = "0.16.0"
+cpal = "0.17.0"
 crossbeam-channel = "0.5.15"
 ctrlc = { version = "3.5.1", features = ["termination"] }
 dasp_sample = "0.11.0"
@@ -93,7 +93,7 @@ libc = "0.2.178"
 
 [patch.crates-io]
 #cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/pipewire-alsa-latency" }
-cpal = { git = "https://github.com/RustAudio/cpal.git" }
+#cpal = { git = "https://github.com/RustAudio/cpal.git" }
 # modified local copy of the fix-pipewire-alsa-latency branch, see issue #1036 
 #cpal = { path = "../cpal/" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }

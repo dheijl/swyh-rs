@@ -16,9 +16,7 @@ use crate::{
         StreamingFormat,
     },
     globals::statics::get_config,
-    utils::samples_conv::{
-        f32chunk_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,
-    },
+    utils::samples_conv::{f32_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le},
 };
 use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
@@ -137,6 +135,9 @@ impl ChannelStream {
     }
 }
 
+/// the f32 samples are converted in chunks of 4 f32 values (SSE2 f32x4)
+const CHUNK_SIZE: usize = 4;
+
 /// implement the Read trait for the HTTP writer
 ///
 /// for LPCM/WAV/RF64 the f32 samples are read from the f32 input channel and pushed
@@ -159,8 +160,8 @@ impl Read for ChannelStream {
             }
             // make sure we have enough samples ready to fill the read buffer
             let bytes_per_sample = (self.bits_per_sample / 8) as usize;
-            let chunksize = bytes_per_sample * 4;
-            let chunks_needed = buf.len() / chunksize;
+            let buf_chunksize = bytes_per_sample * 4;
+            let chunks_needed = buf.len() / buf_chunksize;
             let samples_needed: usize = chunks_needed * 4;
             while self.fifo.len() < samples_needed {
                 self.get_samples();
@@ -168,30 +169,30 @@ impl Read for ChannelStream {
             // drain the fifo of the samples needed to fill the buffer in 4 samples chunks
             // this way we don't need the expensive pop_front()
             // the drain contains the exact number of samples needed to fill the streaming buffer
-            let drain_iter = self.fifo.drain(0..samples_needed).chunks(4);
+            let drain_iter = self.fifo.drain(0..samples_needed).chunks(CHUNK_SIZE);
             // fill the buffer with sample chunks (1 chunk = 4 samples)
             // so we can zip the buf in chunks of 4 samples (chunksize) with the drain
-            let chunks_iter = buf.chunks_exact_mut(chunksize).zip(&drain_iter);
+            let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(&drain_iter);
             // setup sample conversion parameters
             let endianness: Endian = if self.use_wave_format { Little } else { Big };
             let bitdepth = BitDepth::from(self.bits_per_sample);
             let shift = if bitdepth == Bits24 { 8u8 } else { 16u8 };
             // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
             match (endianness, bitdepth) {
-                (Little, Bits16) => chunks_iter.for_each(|(chunk, mut sample_chunk)| {
-                    let i32_array = f32chunk_to_i32(shift, &mut sample_chunk);
+                (Little, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
+                    let i32_array = sample_chunk_to_i32(shift, sample_chunk);
                     i32_to_i16le(&i32_array, chunk);
                 }),
-                (Little, Bits24) => chunks_iter.for_each(|(chunk, mut sample_chunk)| {
-                    let i32_array = f32chunk_to_i32(shift, &mut sample_chunk);
+                (Little, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
+                    let i32_array = sample_chunk_to_i32(shift, sample_chunk);
                     i32_to_i24le(&i32_array, chunk);
                 }),
-                (Big, Bits16) => chunks_iter.for_each(|(chunk, mut sample_chunk)| {
-                    let i32_array = f32chunk_to_i32(shift, &mut sample_chunk);
+                (Big, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
+                    let i32_array = sample_chunk_to_i32(shift, sample_chunk);
                     i32_to_i16be(&i32_array, chunk);
                 }),
-                (Big, Bits24) => chunks_iter.for_each(|(chunk, mut sample_chunk)| {
-                    let i32_array = f32chunk_to_i32(shift, &mut sample_chunk);
+                (Big, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
+                    let i32_array = sample_chunk_to_i32(shift, sample_chunk);
                     i32_to_i24be(&i32_array, chunk);
                 }),
             }
@@ -226,6 +227,18 @@ impl Read for ChannelStream {
             Ok(buf.len())
         }
     }
+}
+
+/// convert a 4 f32 samples chunk to an i32 array (scaled to bitdepth)
+#[inline(always)]
+fn sample_chunk_to_i32(
+    shift: u8,
+    sample_chunk: itertools::Chunk<'_, std::collections::vec_deque::Drain<'_, f32>>,
+) -> [i32; 4] {
+    let f32_array = sample_chunk
+        .collect_array::<CHUNK_SIZE>()
+        .expect("sample chunk not 4 samples!");
+    f32_to_i32(shift, &f32_array)
 }
 
 // create an "infinite size" wav hdr

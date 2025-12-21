@@ -1,6 +1,5 @@
-use std::{array, collections::vec_deque::Drain, ops::Shr};
+use std::ops::Shr;
 
-use itertools::Chunk;
 use wide::f32x4;
 
 /// conversion constant for f32 sample to i32
@@ -30,18 +29,11 @@ pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8
 
 /// convert 4 f32 samples to 4 i32 samples using SSE2
 #[inline(always)]
-fn f32_to_i32(shift: u8, f32_array: &[f32; 4]) -> [i32; 4] {
+pub fn f32_to_i32(shift: u8, f32_array: &[f32; 4]) -> [i32; 4] {
     let fchunk = f32x4::from(*f32_array);
     let fchunk_i32 = fchunk * I32_MAX_XMM;
     let s4i = fchunk_i32.trunc_int().shr(shift);
     s4i.to_array()
-}
-
-/// convert a 4 x f32 samples chunk to 4 i32 samples using SSE2
-#[inline(always)]
-pub fn f32chunk_to_i32(shift: u8, f32_chunk: &mut Chunk<'_, Drain<'_, f32>>) -> [i32; 4] {
-    let f32_array = array::from_fn(|_| f32_chunk.next().expect("LPCM: f32 chunk not 4 samples"));
-    f32_to_i32(shift, &f32_array)
 }
 
 #[inline(always)]

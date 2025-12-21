@@ -235,9 +235,8 @@ fn sample_chunk_to_i32(
     shift: u8,
     sample_chunk: itertools::Chunk<'_, std::collections::vec_deque::Drain<'_, f32>>,
 ) -> [i32; 4] {
-    let f32_array = sample_chunk
-        .collect_array::<CHUNK_SIZE>()
-        .expect("sample chunk not 4 samples!");
+    let mut f32_array = [0f32; 4];
+    f32_array.iter_mut().set_from(sample_chunk);
     f32_to_i32(shift, &f32_array)
 }
 

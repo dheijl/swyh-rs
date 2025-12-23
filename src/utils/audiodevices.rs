@@ -230,7 +230,7 @@ pub fn capture_output_audio(
         LogCategory::Info,
         &format!(
             "Capturing audio from: {}",
-            get_device_name(&device).expect("Could not get default audio device name")
+            get_device_name(device).expect("Could not get default audio device name")
         ),
     );
     let audio_cfg = device_wrap

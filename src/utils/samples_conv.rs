@@ -38,27 +38,38 @@ pub fn f32_to_i32(shift: u8, f32_array: &[f32; 4]) -> [i32; 4] {
 
 #[inline(always)]
 pub fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
+    // remove bounds checks
+    assert!(buf.len() == 8);
     buf[0..=1].copy_from_slice(&i32_array[0].to_le_bytes()[..=1]);
     buf[2..=3].copy_from_slice(&i32_array[1].to_le_bytes()[..=1]);
     buf[4..=5].copy_from_slice(&i32_array[2].to_le_bytes()[..=1]);
     buf[6..=7].copy_from_slice(&i32_array[3].to_le_bytes()[..=1]);
 }
+
 #[inline(always)]
 pub fn i32_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
+    // remove bounds checks
+    assert!(buf.len() == 12);
     buf[0..=2].copy_from_slice(&i32_array[0].to_le_bytes()[..=2]);
     buf[3..=5].copy_from_slice(&i32_array[1].to_le_bytes()[..=2]);
     buf[6..=8].copy_from_slice(&i32_array[2].to_le_bytes()[..=2]);
     buf[9..=11].copy_from_slice(&i32_array[3].to_le_bytes()[..=2]);
 }
+
 #[inline(always)]
 pub fn i32_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
+    // remove bounds checks
+    assert!(buf.len() == 8);
     buf[0..=1].copy_from_slice(&i32_array[0].to_be_bytes()[2..]);
     buf[2..=3].copy_from_slice(&i32_array[1].to_be_bytes()[2..]);
     buf[4..=5].copy_from_slice(&i32_array[2].to_be_bytes()[2..]);
     buf[6..=7].copy_from_slice(&i32_array[3].to_be_bytes()[2..]);
 }
+
 #[inline(always)]
 pub fn i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
+    // remove bounds checks
+    assert!(buf.len() == 12);
     buf[0..=2].copy_from_slice(&i32_array[0].to_be_bytes()[1..]);
     buf[3..=5].copy_from_slice(&i32_array[1].to_be_bytes()[1..]);
     buf[6..=8].copy_from_slice(&i32_array[2].to_be_bytes()[1..]);

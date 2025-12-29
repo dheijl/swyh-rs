@@ -398,12 +398,12 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 [[package]]
 name = "figura"
 version = "1.3.3"
-source = "git+https://github.com/dheijl/figura_dh#b0b0aec543f9b8b8e00d9e06c7f9f2bf5b2906b3"
+source = "git+https://github.com/dheijl/figura_dh#d9c14d7a3ae45c818c5f35ab5020a9741e2dc233"
 dependencies = [
  "itoa",
- "ryu",
  "smacro",
  "thiserror 2.0.17",
+ "zmij",
 ]
 
 [[package]]
@@ -1176,12 +1176,6 @@ name = "rustversion"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
-
-[[package]]
-name = "ryu"
-version = "1.0.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a50f4cf475b65d88e057964e0e9bb1f0aa9bbb2036dc65c64596b42932536984"
 
 [[package]]
 name = "safe_arch"
@@ -2054,3 +2048,9 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "zmij"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f4a4e8e9dc5c62d159f04fcdbe07f4c3fb710415aab4754bf11505501e3251d"

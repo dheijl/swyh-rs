@@ -98,6 +98,6 @@ libc = "0.2.178"
 #cpal = { path = "../cpal/" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
-#figura = { git = "https://github.com/dheijl/figura_dh" }
+figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }

@@ -2,6 +2,7 @@
 
 - 1.12.17 (unreleased)
   - migrate to CPAL 0.17.0
+  - use figura with ryu replaced by zmij
 
 - 1.12.16 (Nov 16 2025, dheijl)
   - rust 1.91

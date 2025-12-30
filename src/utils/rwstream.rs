@@ -180,20 +180,16 @@ impl Read for ChannelStream {
             // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
             match (endianness, bitdepth) {
                 (Little, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    let i32_array = sample_chunk_to_i32(shift, sample_chunk);
-                    i32_to_i16le(&i32_array, chunk);
+                    i32_to_i16le(&sample_chunk_to_i32(shift, sample_chunk), chunk);
                 }),
                 (Little, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    let i32_array = sample_chunk_to_i32(shift, sample_chunk);
-                    i32_to_i24le(&i32_array, chunk);
+                    i32_to_i24le(&sample_chunk_to_i32(shift, sample_chunk), chunk);
                 }),
                 (Big, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    let i32_array = sample_chunk_to_i32(shift, sample_chunk);
-                    i32_to_i16be(&i32_array, chunk);
+                    i32_to_i16be(&sample_chunk_to_i32(shift, sample_chunk), chunk);
                 }),
                 (Big, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    let i32_array = sample_chunk_to_i32(shift, sample_chunk);
-                    i32_to_i24be(&i32_array, chunk);
+                    i32_to_i24be(&sample_chunk_to_i32(shift, sample_chunk), chunk);
                 }),
             }
             /*debug_assert_eq!(buf.len(), chunks_needed * bytes_per_sample * 4);*/

@@ -1,5 +1,5 @@
 use if_addrs::IfAddr;
-#[cfg(not(feature = "gui"))]
+#[cfg(feature = "cli")]
 use local_ip_address::local_ip;
 use std::net::IpAddr;
 #[cfg(feature = "gui")]
@@ -24,7 +24,7 @@ pub fn get_local_addr() -> Option<IpAddr> {
     }
 }
 
-#[cfg(not(feature = "gui"))]
+#[cfg(feature = "cli")]
 pub fn get_local_addr() -> Result<IpAddr, local_ip_address::Error> {
     local_ip()
 }

@@ -58,7 +58,6 @@ assert withGui || withCli; let
     cargoLock.outputHashes = {
       "figura-1.3.3" = "sha256-QnheoM/G9aYQe9OytfkPg2648cTJNiL+IaKFdb66r8I=";
     };
-    buildNoDefaultFeatures = true;
     buildPhase =
       ''
         runHook preBuild
@@ -68,10 +67,10 @@ assert withGui || withCli; let
         preBuildHooks=()
       ''
       + (lib.optionalString withGui ''
-        cargoBuildFeatures="gui"
         cargoBuildHook
       '')
       + (lib.optionalString withCli ''
+        cargoBuildFlags="--no-default-features"
         cargoBuildFeatures="cli"
         cargoBuildHook
       '')

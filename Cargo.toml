@@ -89,15 +89,14 @@ winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-libc = "0.2.178"
+libc = "0.2.179"
 
 [patch.crates-io]
-#cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/pipewire-alsa-latency" }
-#cpal = { git = "https://github.com/RustAudio/cpal.git" }
-# modified local copy of the fix-pipewire-alsa-latency branch, see issue #1036 
-#cpal = { path = "../cpal/" }
-#flac-bound = { git = "https://github.com/dheijl/flac-bound" }
-#flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
+#figura = { git = "https://github.com/saverioscagnoli/figura.git", branch = "v2" }
 figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
+#cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/pipewire-alsa-latency" }
+#cpal = { git = "https://github.com/RustAudio/cpal.git" }
+#flac-bound = { git = "https://github.com/dheijl/flac-bound" }
+#flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }

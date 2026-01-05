@@ -75,7 +75,7 @@ ureq = { version = "3.1.4", default-features = false, features = [
     "charset",
     "gzip",
 ] }
-url = "2.5.7"
+url = "2.5.8"
 wide = "1.1.1"
 xml-rs = "1.0.0"
 [target.'cfg(windows)'.dependencies]

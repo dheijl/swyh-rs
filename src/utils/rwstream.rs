@@ -16,7 +16,9 @@ use crate::{
         StreamingFormat,
     },
     globals::statics::get_config,
-    utils::samples_conv::{f32_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le},
+    utils::samples_conv::{
+        F32_4, f32_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,
+    },
 };
 use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
@@ -231,8 +233,8 @@ fn sample_chunk_to_i32(
     shift: u8,
     sample_chunk: itertools::Chunk<'_, std::collections::vec_deque::Drain<'_, f32>>,
 ) -> [i32; 4] {
-    let mut f32_array = [0f32; 4];
-    f32_array.iter_mut().set_from(sample_chunk);
+    let mut f32_array = F32_4 { data: [0f32; 4] };
+    f32_array.data.iter_mut().set_from(sample_chunk);
     f32_to_i32(shift, &f32_array)
 }
 

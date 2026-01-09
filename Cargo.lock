@@ -398,7 +398,7 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 [[package]]
 name = "figura"
 version = "1.3.3"
-source = "git+https://github.com/dheijl/figura_dh#433ef66cbb619791c994edd54a263b2db350f2e6"
+source = "git+https://github.com/dheijl/figura_dh#f2faa9cdd3b70a5b16c550cd68750a6b95ea56de"
 dependencies = [
  "itoa",
  "smacro",

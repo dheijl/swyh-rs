@@ -64,7 +64,7 @@ pub fn run_rms_monitor(
         let chunks = samples.chunks_exact(4);
         let remainder = chunks.remainder();
         ch_sum = chunks.fold(ch_sum, |acc, x| {
-            let f4 = f32x4::from(x); // moved into xmm reg with a single MOVUPS
+            let f4 = f32x4::from(x);
             let i4 = f4 * imax;
             i4.mul_add(i4, acc)
         });

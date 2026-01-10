@@ -70,7 +70,7 @@ log = { version = "0.4.29", features = [
 serde = { version = "1.0.228", features = ["derive"] }
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 tiny_http = "0.12.0"
-toml = "0.9.10"
+toml = "0.9.11"
 ureq = { version = "3.1.4", default-features = false, features = [
     "charset",
     "gzip",
@@ -89,7 +89,7 @@ winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-libc = "0.2.179"
+libc = "0.2.180"
 
 [patch.crates-io]
 #figura = { git = "https://github.com/saverioscagnoli/figura.git", branch = "v2" }

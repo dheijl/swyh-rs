@@ -19,6 +19,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 - [Known problems](#known-problems)
 - [Artwork Credits](#artwork-credits)
 - [How does it work](#how-does-it-work)
+- [VPN and SSDP failure](#ssdp-and-vpn)
 - [The CLI binary](#the-cli-binary)
 - [Windows tray-icon code (Python) by @phil2sat](https://github.com/dheijl/swyh-rs/blob/master/tray_icon/)
 - [Latency, streaming format and stream duration](#latency-and-streaming-format-and-stream-duration)
@@ -176,6 +177,10 @@ The icon was designed by @numanair, thanks!
 - Since 1.11.1 you can select one of the FLTK color themes, using a new dropdown near the top of the window (PR #139 by @Villardo)
 - Since 1.12.10 you can hide a player by right-clicking it. To unhide all hidden players right-click the label"_UPNP rendering devices..._" above the players.
 - On Windows starting/closing an RDP session reinitializes the sound system, this aborts audio capture and sound is lost. swyh-rs will try to restore audio capture from the original device if possible (since 1.12.13).
+
+### SSDP and VPN
+
+If you have a VPN active, like NordVPN, it's possible that SSDP will fail to find your devices, because the VPN reroutes the internal network. See issue #247.
 
 ### The CLI binary
 

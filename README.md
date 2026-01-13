@@ -180,7 +180,7 @@ The icon was designed by @numanair, thanks!
 
 ### SSDP and VPN
 
-If you have a VPN active, like NordVPN, it's possible that SSDP will fail to find your devices, because the VPN reroutes the internal network. See issue #247.
+If you have a VPN active, like NordVPN, it's possible that SSDP will fail to find your devices, because the VPN reroutes the internal network. See [issue #247](https://github.com/dheijl/swyh-rs/issues/247).
 
 ### The CLI binary
 

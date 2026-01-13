@@ -1,8 +1,9 @@
 # swyh-rs Changelog
 
 - 1.12.17 (unreleased)
-  - migrate to CPAL 0.17.0
-  - use figura with ryu replaced by zmij
+  - migrate to CPAL 0.17
+  - figura fork with ryu replaced by zmij
+  - small refactorings and dependency updates
 
 - 1.12.16 (Nov 16 2025, dheijl)
   - rust 1.91

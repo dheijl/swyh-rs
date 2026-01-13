@@ -61,7 +61,7 @@ htmlescape = "0.3.1"
 if-addrs = "0.14.0"
 itertools = "0.14.0"
 lexopt = "0.3.1"
-local-ip-address = { version = "0.6.8", optional = true }
+local-ip-address = { version = "0.6.9", optional = true }
 log = { version = "0.4.29", features = [
     "max_level_trace",
     "release_max_level_debug",
@@ -94,10 +94,8 @@ libc = "0.2.180"
 [patch.crates-io]
 #figura = { git = "https://github.com/saverioscagnoli/figura.git", branch = "v2" }
 figura = { git = "https://github.com/dheijl/figura_dh" }
-#xml-rs = { git = "https://github.com/kornelski/xml-rs.git" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
-#cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/pipewire-alsa-latency" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }

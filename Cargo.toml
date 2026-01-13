@@ -77,7 +77,7 @@ ureq = { version = "3.1.4", default-features = false, features = [
 ] }
 url = "2.5.8"
 wide = "1.1.1"
-xml-rs = "1.0.0"
+xml = "1.2.1"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
@@ -94,6 +94,7 @@ libc = "0.2.180"
 [patch.crates-io]
 #figura = { git = "https://github.com/saverioscagnoli/figura.git", branch = "v2" }
 figura = { git = "https://github.com/dheijl/figura_dh" }
+#xml-rs = { git = "https://github.com/kornelski/xml-rs.git" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/pipewire-alsa-latency" }

@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.12.18(unreleased)
+
 - 1.12.17 (Jan 14 2026, dheijl)
   - rust 1.92
   - migrate to CPAL 0.17

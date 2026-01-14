@@ -1,10 +1,10 @@
 # swyh-rs Changelog
 
-- 1.12.17 (unreleased)
+- 1.12.17 (Jan 14 2026, dheijl)
   - rust 1.92
   - migrate to CPAL 0.17
   - figura fork with ryu replaced by zmij for formatting floats.
-  - small refactorings, and dependency updates
+  - small refactorings, dependency updates
   - the appimages now contain update information so they can be updated with the AppImageUpdate tool.
 
 - 1.12.16 (Nov 16 2025, dheijl)

@@ -1,16 +1,18 @@
 # swyh-rs Changelog
 
 - 1.12.17 (unreleased)
+  - rust 1.92
   - migrate to CPAL 0.17
-  - figura fork with ryu replaced by zmij
-  - small refactorings and dependency updates
+  - figura fork with ryu replaced by zmij for formatting floats.
+  - small refactorings, and dependency updates
+  - the appimages now contain update information so they can be updated with the AppImageUpdate tool.
 
 - 1.12.16 (Nov 16 2025, dheijl)
   - rust 1.91
   - some minor refactoring and renaming for clarity
   - optimize the default f32 audio capture for Alsa and WasApi (replace the generic samples conversion to f32 iterator with a plain memcpy)
   - optimize RMS monitor using SIMD SSE2 instructions (4 lanes)
-  - optimize flac encoding using SIMD SSE2 instructions (4 lanes)
+  - optimize flac f32 to i32 conversion using SIMD SSE2 instructions (4 lanes)
   - optimize LPCM and WAV/RF64 with SIMD SSE2 instructions (4 lanes)
 
 - 1.12.15 (Oct 2 2025, dheijl)

@@ -388,13 +388,13 @@ impl Renderer {
             StreamingFormat::Flac => [&base_url, "flac"].concat(),
             StreamingFormat::Rf64 => [&base_url, "rf64"].concat(),
         };
-        fmt_vars.insert("server_uri", Value::String(streaming_url));
+        fmt_vars.insert("server_uri", Value::owned_str(streaming_url));
         fmt_vars.insert(
             "bits_per_sample",
             Value::Int(streaminfo.bits_per_sample as i64),
         );
         fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
-        fmt_vars.insert("duration", Value::Str("00:00:00"));
+        fmt_vars.insert("duration", Value::static_str("00:00:00"));
         let didl_prot = {
             match streaminfo.streaming_format {
                 StreamingFormat::Flac => FLAC_PROT_INFO,
@@ -405,7 +405,7 @@ impl Renderer {
                 },
             }
         };
-        let template = match CbTemplate::parse(htmlescape::encode_minimal(didl_prot)) {
+        let template = match CbTemplate::compile(htmlescape::encode_minimal(didl_prot)) {
             Ok(s) => s,
             Err(e) => {
                 ui_log(
@@ -425,9 +425,9 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
-        fmt_vars.insert("didl_prot_info", Value::String(didl_prot));
+        fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
         let didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
-        let template = match CbTemplate::parse(&didl_data) {
+        let template = match CbTemplate::compile(&didl_data) {
             //.expect("DIDL DATA template parse error");
             Ok(s) => s,
             Err(e) => {
@@ -448,7 +448,7 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
-        fmt_vars.insert("didl_data", Value::String(formatted_didl));
+        fmt_vars.insert("didl_data", Value::owned_str(formatted_didl));
         // now send the start playing commands
         if self
             .supported_protocols
@@ -498,7 +498,7 @@ impl Renderer {
                 self.dev_name, self.host, self.port
             ),
         );
-        let template = match CbTemplate::parse(OH_INSERT_PL_TEMPLATE) {
+        let template = match CbTemplate::compile(OH_INSERT_PL_TEMPLATE) {
             Ok(s) => s,
             Err(e) => {
                 ui_log(
@@ -553,7 +553,7 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let template = match CbTemplate::parse(AV_SET_TRANSPORT_URI_TEMPLATE) {
+        let template = match CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE) {
             Ok(s) => s,
             Err(e) => {
                 ui_log(

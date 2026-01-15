@@ -397,11 +397,11 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "figura"
-version = "1.3.3"
-source = "git+https://github.com/dheijl/figura_dh#889e943408f0e9f7edd676a398744062e6a7dc7a"
+version = "2.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12efb8b73ec1e2270777f6233470b7b01a01336a1379afc864d0dc3df45e2e69"
 dependencies = [
  "itoa",
- "smacro",
  "thiserror 2.0.17",
  "zmij",
 ]
@@ -1261,12 +1261,6 @@ dependencies = [
  "termcolor",
  "time",
 ]
-
-[[package]]
-name = "smacro"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00f63f580dfd8e0495907740ed13ddcf1e73221f474f4db2b28da019e3de1472"
 
 [[package]]
 name = "smallvec"

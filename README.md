@@ -263,9 +263,13 @@ See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
 The binaries I publish in [Releases](https://github.com/dheijl/swyh-rs/releases) are built on
 
-- Windows: W11 with the current Rust stable version and current Visual Studio Community edition MSVC
-- Linux: Debian 12 Bookworm (LMDE 6) appimages with the current Rust stable version
-- Linux: since V12.10: also Ubuntu 20.04LTS appimages with the current Rust stable version
+- Windows:
+  - the binaries are built on Windows 11 with the latest Rust stable version and Visual Studio 2022 Community edition MSVC
+  - the setup is built with InnoSetup
+  - the setup and the binaries are not digitally signed, so Smartscreen or Defender may complain.
+- Linux:
+  - since V12.17 the appimages are built on an Ubuntu 20.04LTS Pro VM with the latest Rust stable version, so they should run on most systems.
+  - the appimages contain update information, so you can update them using the [UpdateAppImage](https://github.com/AppImageCommunity/AppImageUpdate) tool.
 
 I do my best to keep everything up-to-date.
 

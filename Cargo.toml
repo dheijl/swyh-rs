@@ -8,6 +8,7 @@ authors = [
     "Villardo",
     "theavege",
     "MoAlyousef",
+    "saverioscagnoli",
 ]
 edition = "2024"
 name = "swyh-rs"
@@ -92,7 +93,6 @@ fltk-theme = { version = "0.7.9", optional = true }
 libc = "0.2.180"
 
 [patch.crates-io]
-#figura = { git = "https://github.com/saverioscagnoli/figura.git", branch = "v2" }
 #figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }

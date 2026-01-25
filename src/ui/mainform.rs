@@ -232,10 +232,10 @@ impl MainForm {
         let mut flx_netwrk = Flex::new(0, 0, GW, 25, "");
         flx_netwrk.end();
         let cur_nw = {
-            if config.last_network.is_none() {
-                format!("Active network: {local_addr}")
+            if let Some(nw) = &config.last_network {
+                format!("Active network: {nw}")
             } else {
-                format!("Active network: {}", config.last_network.as_ref().unwrap())
+                format!("Active network: {local_addr}")
             }
         };
         let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);

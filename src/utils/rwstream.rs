@@ -152,7 +152,34 @@ const CHUNK_SIZE: usize = 4;
 /// for transmission  
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        if self.flac_channel.is_none() {
+        if let Some(flac) = &self.flac_channel {
+            // FLAC
+            let flac_in = flac.flac_in.clone();
+            // make sure we have enough data for this read buffer
+            while self.flac_fifo.len() < buf.len() {
+                if let Ok(chunk) = flac_in.recv() {
+                    self.flac_fifo.append(&mut VecDeque::from(chunk));
+                }
+            }
+            // fill the buffer with the number of FLAC bytes needed from the fifo
+            let (s1, s2) = self.flac_fifo.as_slices();
+            let (l1, l2) = {
+                if s1.len() >= buf.len() {
+                    (buf.len(), 0)
+                } else {
+                    (s1.len(), buf.len() - s1.len())
+                }
+            };
+            /*debug_assert!(l1 + l2 == buf.len());*/
+            buf[..l1].copy_from_slice(&s1[..l1]);
+            if l2 > 0 {
+                buf[l1 + 1..].copy_from_slice(&s2[..l2]);
+            }
+            // remove the copied bytes from the fifo
+            // use drain() hack until truncate_front() is stabilized
+            self.flac_fifo.drain(0..buf.len());
+            Ok(buf.len())
+        } else {
             // LPCM (naked LPCM or WAV/RF64)
             if self.use_wave_format && !self.wav_hdr.is_empty() {
                 let i = self.wav_hdr.len();
@@ -196,33 +223,6 @@ impl Read for ChannelStream {
             }
             /*debug_assert_eq!(buf.len(), chunks_needed * bytes_per_sample * 4);*/
             Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
-        } else {
-            // FLAC
-            let flac_in = self.flac_channel.as_ref().unwrap().flac_in.clone();
-            // make sure we have enough data for this read buffer
-            while self.flac_fifo.len() < buf.len() {
-                if let Ok(chunk) = flac_in.recv() {
-                    self.flac_fifo.append(&mut VecDeque::from(chunk));
-                }
-            }
-            // fill the buffer with the number of FLAC bytes needed from the fifo
-            let (s1, s2) = self.flac_fifo.as_slices();
-            let (l1, l2) = {
-                if s1.len() >= buf.len() {
-                    (buf.len(), 0)
-                } else {
-                    (s1.len(), buf.len() - s1.len())
-                }
-            };
-            /*debug_assert!(l1 + l2 == buf.len());*/
-            buf[..l1].copy_from_slice(&s1[..l1]);
-            if l2 > 0 {
-                buf[l1 + 1..].copy_from_slice(&s2[..l2]);
-            }
-            // remove the copied bytes from the fifo
-            // use drain() hack until truncate_front() is stabilized
-            self.flac_fifo.drain(0..buf.len());
-            Ok(buf.len())
         }
     }
 }

@@ -418,9 +418,9 @@ fn main() -> Result<(), i32> {
             );
             args.player_ip = Some(r.remote_addr.clone());
         }
-        if args.active_players.is_some() {
+        if let Some(active_players) = &args.active_players {
             let mut ip_players: Vec<String> = Vec::new();
-            args.active_players.as_ref().unwrap().iter().for_each(|ap| {
+            active_players.iter().for_each(|ap| {
                 if let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(ap)) {
                     ip_players.push(r.remote_addr.clone());
                     ui_log(

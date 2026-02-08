@@ -59,7 +59,7 @@ flac-bound = { version = "0.5.0", default-features = false, features = [
 ] }
 hashbrown = "0.16.1"
 htmlescape = "0.3.1"
-if-addrs = "0.14.0"
+if-addrs = "0.15.0"
 itertools = "0.14.0"
 lexopt = "0.3.1"
 local-ip-address = { version = "0.6.10", optional = true }
@@ -72,7 +72,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 tiny_http = "0.12.0"
 toml = "0.9.11"
-ureq = { version = "3.1.4", default-features = false, features = [
+ureq = { version = "3.2.0", default-features = false, features = [
     "charset",
     "gzip",
 ] }

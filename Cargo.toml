@@ -48,7 +48,7 @@ winres = "0.1.12"
 bitflags = "2.10.0"
 cpal = "0.17.1"
 crossbeam-channel = "0.5.15"
-ctrlc = { version = "3.5.1", features = ["termination"] }
+ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "6.0.0"
 ecow = "0.2.6"
@@ -71,7 +71,7 @@ log = { version = "0.4.29", features = [
 serde = { version = "1.0.228", features = ["derive"] }
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 tiny_http = "0.12.0"
-toml = "0.9.11"
+toml = "0.9.12"
 ureq = { version = "3.2.0", default-features = false, features = [
     "charset",
     "gzip",
@@ -90,7 +90,7 @@ winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-libc = "0.2.181"
+libc = "0.2.180"
 
 [patch.crates-io]
 #figura = { git = "https://github.com/dheijl/figura_dh" }

@@ -90,7 +90,7 @@ winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-libc = "0.2.180"
+libc = "0.2.181"
 
 [patch.crates-io]
 #figura = { git = "https://github.com/dheijl/figura_dh" }

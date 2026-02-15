@@ -4,6 +4,7 @@
   - upgrade figura to V2
   - rust 1.93.1
   - pin libc to 0.2.180 because nix now pins it to this version
+  - use VS2026 on Windows with CMake 4.2
 
 - 1.12.17 (Jan 14 2026, dheijl)
   - rust 1.92

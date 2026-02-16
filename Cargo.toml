@@ -45,7 +45,7 @@ required-features = ["cli"]
 winres = "0.1.12"
 
 [dependencies]
-bitflags = "2.10.0"
+bitflags = "2.11.0"
 cpal = "0.17.1"
 crossbeam-channel = "0.5.15"
 ctrlc = { version = "3.5.2", features = ["termination"] }

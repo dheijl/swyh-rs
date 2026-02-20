@@ -82,10 +82,7 @@ xml = "1.2.1"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-windows = { version = "0.62.2", features = [
-    "Win32_Foundation",
-    "Win32_System_Threading",
-] }
+winapi-easy = { version = "0.3.0", features = ["process"] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }

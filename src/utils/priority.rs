@@ -2,23 +2,14 @@ use crate::utils::ui_logger::{LogCategory, ui_log};
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
-    use windows::Win32::{
-        Foundation::GetLastError,
-        System::Threading::{
-            ABOVE_NORMAL_PRIORITY_CLASS, GetCurrentProcess, GetCurrentProcessId, SetPriorityClass,
-        },
-    };
-    unsafe {
-        let id = GetCurrentProcess();
-        if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS).is_err() {
-            let e = GetLastError();
-            let p = GetCurrentProcessId();
-            ui_log(
-                LogCategory::Error,
-                &format!("Failed to set process priority id={p}, error={e:?}"),
-            );
-            return;
-        }
+    use winapi_easy::process::{Process, ProcessPriority};
+    let rc = Process::current().set_priority(ProcessPriority::AboveNormal);
+    if rc.is_err() {
+        ui_log(
+            LogCategory::Error,
+            &format!("Failed to set process priority to ABOVE_NORMAL, error={rc:?}"),
+        );
+        return;
     }
     ui_log(
         LogCategory::Info,

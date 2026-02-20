@@ -316,13 +316,14 @@ fn capture_err_fn(err: cpal::StreamError) {
     }
 }
 
-/// helper functions for generic and speceialized ave reader
+/// helper functions for generic and specialized wave reader
 fn capture_started() {
     ui_log(LogCategory::Info, "Audio capture is now receiving samples.");
     if get_config().monitor_rms {
         RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
     }
 }
+/// distribute the audio samples to all our HTTP clients, and to the RMS monitor if needed
 fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<Vec<f32>>) {
     get_clients()
         .iter()
@@ -358,6 +359,7 @@ fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sen
     if f32_samples.capacity() < samples.len() {
         f32_samples.reserve(samples.len() - f32_samples.capacity());
     }
+    // SAFETY: the length can now be safely set as the capacity has been increased as needed above
     unsafe {
         f32_samples.set_len(samples.len());
     }

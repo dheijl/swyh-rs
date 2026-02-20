@@ -356,13 +356,20 @@ fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sen
     static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
-    if f32_samples.capacity() < samples.len() {
-        f32_samples.reserve(samples.len() - f32_samples.capacity());
-    }
-    // SAFETY: the length can now be safely set as the capacity has been increased as needed above
-    unsafe {
-        f32_samples.set_len(samples.len());
-    }
-    f32_samples.copy_from_slice(samples);
+    f32array_to_vec(samples, f32_samples);
     distribute_samples(f32_samples, rms_sender);
+}
+
+/// copy an f32 array to a vec<f32> with memcpy
+#[inline(always)]
+fn f32array_to_vec(array: &[f32], vec: &mut Vec<f32>) {
+    if vec.capacity() < array.len() {
+        vec.reserve(array.len() - vec.capacity());
+    }
+    // SAFETY: the length of vec can now be safely set as the capacity has been increased
+    // to the length of array
+    unsafe {
+        vec.set_len(array.len());
+    }
+    vec.copy_from_slice(array);
 }

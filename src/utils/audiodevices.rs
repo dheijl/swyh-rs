@@ -355,7 +355,6 @@ where
 fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>) {
     static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(capture_started);
-    f32_samples.clear();
     f32array_to_vec(samples, f32_samples);
     distribute_samples(f32_samples, rms_sender);
 }
@@ -366,6 +365,8 @@ fn f32array_to_vec(array: &[f32], vec: &mut Vec<f32>) {
     if vec.capacity() < array.len() {
         vec.reserve(array.len() - vec.capacity());
     }
+    // clear doesn't really do anything but setting len = 0
+    vec.clear();
     // SAFETY: the length of vec can now be safely set as the capacity has been increased
     // to the length of array
     unsafe {

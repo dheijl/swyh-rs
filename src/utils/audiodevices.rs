@@ -332,6 +332,9 @@ fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<Vec<f32>>) {
         rms_sender.send(Vec::from(f32_samples)).unwrap();
     }
 }
+
+static ONFIRSTCALL: Once = Once::new();
+
 /// `wave_reader` - the captured audio input stream reader
 ///
 /// writes the captured samples to all registered clients in the
@@ -341,7 +344,6 @@ fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender
 where
     T: Sample + ToSample<f32>,
 {
-    static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
@@ -353,7 +355,6 @@ where
 /// SAFETY: the length of the samples is known and the capacityof f32_samples
 /// is increased as needed before using set_len()
 fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>) {
-    static ONFIRSTCALL: Once = Once::new();
     ONFIRSTCALL.call_once(capture_started);
     f32array_to_vec(samples, f32_samples);
     distribute_samples(f32_samples, rms_sender);

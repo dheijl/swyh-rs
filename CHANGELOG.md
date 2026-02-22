@@ -1,9 +1,9 @@
 # swyh-rs Changelog
 
-- 1.12.18(unreleased)
+- 1.12.18 (unreleased)
   - upgrade figura to V2
   - rust 1.93.1
-  - pin libc to 0.2.180 because nix now pins it to this version
+  - replace the (unsafe) use of libc and Windows with rustix and winapi-easy
   - use VS2026 on Windows with CMake 4.2
   - CPAL 0.17.3
 

@@ -679,10 +679,10 @@ impl Renderer {
                         have_vol_response = true;
                     }
                 }
-                Ok(XmlEvent::Characters(value)) => {
-                    if cur_elem.contains("Value") && have_vol_response {
-                        str_volume = value;
-                    }
+                Ok(XmlEvent::Characters(value))
+                    if cur_elem.contains("Value") && have_vol_response =>
+                {
+                    str_volume = value;
                 }
                 Err(e) => {
                     error!("OH Volume XML parse error: {e}");
@@ -732,10 +732,10 @@ impl Renderer {
                         have_vol_response = true;
                     }
                 }
-                Ok(XmlEvent::Characters(value)) => {
-                    if cur_elem.contains("CurrentVolume") && have_vol_response {
-                        str_volume = value;
-                    }
+                Ok(XmlEvent::Characters(value))
+                    if cur_elem.contains("CurrentVolume") && have_vol_response =>
+                {
+                    str_volume = value;
                 }
                 Err(e) => {
                     error!("AV Volume XML parse error: {e}");

@@ -96,4 +96,3 @@ rustix = { version = "1.1.4", features = ["process"] }
 #cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
-nix = { git = "https://github.com/nix-rust/nix" }

@@ -61,7 +61,7 @@ hashbrown = "0.16.1"
 htmlescape = "0.3.1"
 if-addrs = "0.15.0"
 itertools = "0.14.0"
-lexopt = "0.3.1"
+lexopt = "0.3.2"
 local-ip-address = { version = "0.6.10", optional = true }
 log = { version = "0.4.29", features = [
     "max_level_trace",
@@ -82,12 +82,14 @@ xml = "1.2.1"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-winapi-easy = { version = "0.3.0", features = ["process"] }
+winapi-easy = { version = "0.3.0", default-features = false, features = [
+    "process",
+] }
 winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.22", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-rustix = { version = "1.1.4", features = ["process"] }
+rustix = { version = "1.1.4", default-features = false, features = ["process"] }
 
 [patch.crates-io]
 #figura = { git = "https://github.com/dheijl/figura_dh" }

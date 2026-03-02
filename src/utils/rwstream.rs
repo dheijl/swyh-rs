@@ -2,7 +2,7 @@
 ///
 /// rwstream.rs
 ///
-/// ChannelStream: the write method sends the received samples on the CrssBeam channel
+/// ChannelStream: the write method sends the received samples on the CrossBeam channel
 /// for the Read trait to read them back
 ///
 /// the Read trait implementation is used by the HTTP response to send the response PCM/L16 stream
@@ -72,14 +72,14 @@ impl ChannelStream {
         } else {
             None
         };
-        let capture_timout = u64::from(get_config().capture_timeout.unwrap());
+        let capture_timeout = u64::from(get_config().capture_timeout.unwrap());
         let chs = ChannelStream {
             s: tx,
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             flac_fifo: VecDeque::with_capacity(16384),
-            silence: get_silence_buffer(sample_rate, capture_timout / 4),
-            capture_timeout: Duration::from_millis(capture_timout), // silence kicks in after CAPTURE_TIMEOUT seconds
+            silence: get_silence_buffer(sample_rate, capture_timeout / 4),
+            capture_timeout: Duration::from_millis(capture_timeout), // silence kicks in after CAPTURE_TIMEOUT seconds
             sending_silence: false,
             remote_ip: remote_ip_addr,
             wav_hdr: if streaming_format == StreamingFormat::Wav {
@@ -170,10 +170,10 @@ impl Read for ChannelStream {
                     (s1.len(), buf.len() - s1.len())
                 }
             };
-            /*debug_assert!(l1 + l2 == buf.len());*/
+            debug_assert!(l1 + l2 == buf.len());
             buf[..l1].copy_from_slice(&s1[..l1]);
             if l2 > 0 {
-                buf[l1 + 1..].copy_from_slice(&s2[..l2]);
+                buf[l1..].copy_from_slice(&s2[..l2]);
             }
             // remove the copied bytes from the fifo
             // use drain() hack until truncate_front() is stabilized
@@ -322,7 +322,7 @@ fn create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let ds64chunksize: u32 = 28;
     let ds64riffsize: u64 = i64::MAX as u64 - 64;
     let ds64datasize: u64 = ds64riffsize - 8u64;
-    let ds64nsamples: u64 = ds64datasize / u64::from(bytes_per_sample);
+    let ds64nsamples: u64 = ds64datasize / (u64::from(bytes_per_sample) * u64::from(channels));
     let ds64tablelength = 0u32;
     hdr[4..8].copy_from_slice(&rf64chunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format

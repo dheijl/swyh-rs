@@ -42,13 +42,13 @@ pub fn run_server(
     );
     // get the needed config info upfront
     let stream_config = StreamingContext::from_config();
-    let logmsg = {
-        format!(
+    ui_log(
+        LogCategory::Info,
+        &format!(
             "Default streaming sample rate: {}, bits per sample: {}, format: {}",
             wd.sample_rate, stream_config.bits_per_sample, stream_config.streaming_format,
-        )
-    };
-    ui_log(LogCategory::Info, &logmsg);
+        ),
+    );
     let server = Arc::new(Server::http(addr).unwrap());
     let mut handles = Vec::new();
     // always have two threads ready to serve new requests
@@ -199,7 +199,7 @@ fn streaming_request(
     let e = request.respond(response);
     if e.is_err() {
         ui_log(
-            LogCategory::Info,
+            LogCategory::Error,
             &format!(
                 "=>Http connection with {} terminated [{e:?}]",
                 streaming_ctx.remote_addr
@@ -244,7 +244,7 @@ fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     );
     if let Err(e) = rq.respond(response) {
         ui_log(
-            LogCategory::Info,
+            LogCategory::Error,
             &format!(
                 "=>Http HEAD connection with {} terminated [{e}]",
                 streaming_ctx.remote_addr
@@ -256,7 +256,7 @@ fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
 /// invalid METHOD request
 fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     ui_log(
-        LogCategory::Info,
+        LogCategory::Error,
         &format!(
             "Unsupported HTTP method request {:?} from {}",
             *rq.method(),
@@ -273,7 +273,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     );
     if let Err(e) = rq.respond(response) {
         ui_log(
-            LogCategory::Info,
+            LogCategory::Error,
             &format!(
                 "=>Http connection with {} terminated [{e}]",
                 streaming_ctx.remote_addr
@@ -285,9 +285,9 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
 /// this request is not recognized, reject with an error 404
 fn bad_request(rq: tiny_http::Request, remote_addr: &str) {
     ui_log(
-        LogCategory::Info,
+        LogCategory::Warning,
         &format!(
-            "Unrecognized request '{}' from {}'",
+            "Unrecognized request '{}' from'{}'",
             rq.url(),
             rq.remote_addr().unwrap()
         ),
@@ -302,7 +302,7 @@ fn bad_request(rq: tiny_http::Request, remote_addr: &str) {
     );
     if let Err(e) = rq.respond(response) {
         ui_log(
-            LogCategory::Info,
+            LogCategory::Error,
             &format!("=>Http streaming request with {remote_addr} terminated [{e}]"),
         );
     }

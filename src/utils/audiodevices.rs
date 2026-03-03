@@ -354,7 +354,7 @@ where
 fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>) {
     ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
-    // uses memcpy (secialization)
+    // uses memcpy (specialization)
     f32_samples.extend_from_slice(samples);
     distribute_samples(f32_samples, rms_sender);
 }

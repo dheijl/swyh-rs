@@ -1,11 +1,12 @@
 # swyh-rs Changelog
 
-- 1.12.18 (unreleased)
+- 1.12.18 (Mar 3 2026, dheijl)
   - upgrade figura to V2
   - rust 1.93.1
   - replace the (unsafe) use of libc and Windows with rustix and winapi-easy
   - use VS2026 on Windows with CMake 4.2
   - CPAL 0.17.3
+  - bugfix: possible off-by-one error in flac streaming
 
 - 1.12.17 (Jan 14 2026, dheijl)
   - rust 1.92

@@ -211,7 +211,6 @@ pub fn get_output_audio_devices() -> Vec<Device> {
 #[must_use]
 pub fn get_default_audio_output_device() -> Option<Device> {
     // audio hosts
-    let _available_hosts = cpal::available_hosts();
     let default_host = cpal::default_host();
     default_host
         .default_output_device()
@@ -302,10 +301,10 @@ pub fn capture_output_audio(
     }
 }
 
-/// `capture_err_fn` - called whan it's impossible to start/continue streaming
+/// `capture_err_fn` - called when it's impossible to start/continue streaming
 fn capture_err_fn(err: cpal::StreamError) {
     ui_log(
-        LogCategory::Info,
+        LogCategory::Error,
         &format!("Error {err} capturing audio input stream"),
     );
     if err == cpal::StreamError::DeviceNotAvailable {
@@ -338,7 +337,7 @@ static ONFIRSTCALL: Once = Once::new();
 /// `wave_reader` - the captured audio input stream reader
 ///
 /// writes the captured samples to all registered clients in the
-/// CLIENTS `ChannnelStream` hashmap
+/// CLIENTS `ChannelStream` hashmap
 /// also feeds the RMS monitor channel if the RMS option is set
 fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>)
 where
@@ -350,28 +349,12 @@ where
     distribute_samples(f32_samples, rms_sender);
 }
 
-/// specialized version of the generic wave_reader() above for the "default" f32 case with Alsa/WasApi/PipieWire/Pulse.
+/// specialized version of the generic wave_reader() above for the "default" f32 case with Alsa/WasApi/PipeWire/Pulse.
 /// Uses a memcpy to copy the samples instead of the samples conversion iterator.
-/// SAFETY: the length of the samples is known and the capacityof f32_samples
-/// is increased as needed before using set_len()
 fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>) {
     ONFIRSTCALL.call_once(capture_started);
-    f32array_to_vec(samples, f32_samples);
+    f32_samples.clear();
+    // uses memcpy (secialization)
+    f32_samples.extend_from_slice(samples);
     distribute_samples(f32_samples, rms_sender);
-}
-
-/// copy an f32 array to a vec<f32> with memcpy
-#[inline(always)]
-fn f32array_to_vec(array: &[f32], vec: &mut Vec<f32>) {
-    if vec.capacity() < array.len() {
-        vec.reserve(array.len() - vec.capacity());
-    }
-    // clear doesn't really do anything but setting len = 0
-    vec.clear();
-    // SAFETY: the length of vec can now be safely set as the capacity has been increased
-    // to the length of array
-    unsafe {
-        vec.set_len(array.len());
-    }
-    vec.copy_from_slice(array);
 }

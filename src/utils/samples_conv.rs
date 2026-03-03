@@ -9,14 +9,14 @@ static I32_MAX_XMM: f32x4 = f32x4::splat(I32_MAX);
 
 /// 16-byte aligned f32x4 array
 #[repr(align(16))]
-pub struct F32_4 {
+pub(crate) struct F32_4 {
     pub data: [f32; 4],
 }
 
 /// convert f32 samples to i32 for flac encoding
 /// but scaled to i16 or i24 according to shift (8 or 16)
 /// using SIMD SSE xmm registers (with the wide crate)
-pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8) {
+pub(crate) fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8) {
     i32_samples.clear();
     let mut f32_array = F32_4 { data: [0.0; 4] };
     let chunks = f32_samples.chunks_exact(4);
@@ -35,7 +35,7 @@ pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8
 
 /// convert 4 f32 samples to 4 i32 samples using SSE2
 #[inline(always)]
-pub fn f32_to_i32(shift: u8, f32_array: &F32_4) -> [i32; 4] {
+pub(crate) fn f32_to_i32(shift: u8, f32_array: &F32_4) -> [i32; 4] {
     let fchunk = f32x4::new(f32_array.data);
     let fchunk_i32 = fchunk * I32_MAX_XMM;
     let s4i = fchunk_i32.trunc_int().shr(shift);
@@ -43,7 +43,7 @@ pub fn f32_to_i32(shift: u8, f32_array: &F32_4) -> [i32; 4] {
 }
 
 #[inline(always)]
-pub fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
+pub(crate) fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
     // remove bounds checks
     assert!(buf.len() == 8);
     buf[0..=1].copy_from_slice(&i32_array[0].to_le_bytes()[..=1]);
@@ -53,7 +53,7 @@ pub fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
 }
 
 #[inline(always)]
-pub fn i32_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
+pub(crate) fn i32_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
     // remove bounds checks
     assert!(buf.len() == 12);
     buf[0..=2].copy_from_slice(&i32_array[0].to_le_bytes()[..=2]);
@@ -63,7 +63,7 @@ pub fn i32_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
 }
 
 #[inline(always)]
-pub fn i32_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
+pub(crate) fn i32_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
     // remove bounds checks
     assert!(buf.len() == 8);
     buf[0..=1].copy_from_slice(&i32_array[0].to_be_bytes()[2..]);
@@ -73,7 +73,7 @@ pub fn i32_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
 }
 
 #[inline(always)]
-pub fn i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
+pub(crate) fn i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
     // remove bounds checks
     assert!(buf.len() == 12);
     buf[0..=2].copy_from_slice(&i32_array[0].to_be_bytes()[1..]);

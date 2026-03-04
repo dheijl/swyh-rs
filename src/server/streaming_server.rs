@@ -287,7 +287,7 @@ fn bad_request(rq: tiny_http::Request, remote_addr: &str) {
     ui_log(
         LogCategory::Warning,
         &format!(
-            "Unrecognized request '{}' from'{}'",
+            "Unrecognized request '{}' from '{}'",
             rq.url(),
             rq.remote_addr().unwrap()
         ),

@@ -7,7 +7,7 @@
 ///
 /// I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
 ///
-/// For the moment all music is streamed in wav-format (audio/l16) with the sample rate of the music source (the default audio device, I use `HiFi` Cable Input).
+/// All music is streamed in LPCM, WAV/RF64 or FLAC format with the sample rate of the music source (the default audio device, I use `HiFi` Cable Input).
 ///
 /// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio DLNA renderers and with a Harman-Kardon AVR DLNA device.
 /// I don't have access to a Mac, so I don't know if this would also work.
@@ -86,9 +86,11 @@ pub const APP_NAME: &str = "SWYH-RS";
 /// - run the GUI, and show any renderers found in the GUI as buttons (to start/stop playing)
 fn main() {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
-    let mut audio_output_device =
-        get_default_audio_output_device().expect("No default audio device");
-
+    let ad = get_default_audio_output_device();
+    if ad.is_none() {
+        fatal_error("No default audio device found!");
+    }
+    let mut audio_output_device = ad.unwrap();
     // initialize config
     let mut config = {
         let mut conf = get_config_mut();
@@ -102,7 +104,7 @@ fn main() {
     let config_changed: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
     // configure simplelogger
-    let config_id = config.config_id.clone().unwrap();
+    let config_id = config.config_id.clone().unwrap_or_default();
     let logfilename = "log{}.txt".replace("{}", &config_id);
     let logfile = Path::new(&config.log_dir()).join(logfilename);
     if cfg!(debug_assertions) {
@@ -112,7 +114,7 @@ fn main() {
     let log_config = ConfigBuilder::new()
         .set_time_format_rfc2822()
         .set_time_offset_to_local()
-        .unwrap()
+        .unwrap_or(&mut ConfigBuilder::new())
         .build();
     // disable TermLogger on susbsystem Windows because it panics now with Rust edition 2021
     #[cfg(any(debug_assertions, target_os = "linux"))]
@@ -162,6 +164,9 @@ fn main() {
     // get the output device from the config and get all available audio source names
     let audio_devices = get_output_audio_devices();
     let mut source_names: Vec<String> = Vec::with_capacity(audio_devices.len());
+    if config.sound_source.is_none() {
+        fatal_error("No sound source in config!");
+    }
     let config_name = config.sound_source.as_ref().unwrap();
     for (index, adev) in audio_devices.into_iter().enumerate() {
         let adevname = adev.name().to_string();
@@ -191,7 +196,7 @@ fn main() {
             addr
         }
         if let Some(ref net) = config.last_network {
-            let mut nw = net.parse().unwrap();
+            let mut nw = net.parse().unwrap_or_else(|_| get_default_address());
             if !networks.contains(net) {
                 nw = get_default_address();
             }
@@ -229,12 +234,11 @@ fn main() {
 
     // capture system audio
     debug!("Try capturing system audio");
-    let mut stream: cpal::Stream;
+    let mut stream: Option<cpal::Stream> = None;
     let rms_chan1 = rms_channel.clone();
     match capture_output_audio(&audio_output_device, rms_chan1.0) {
         Some(s) => {
-            stream = s;
-            stream.play().unwrap();
+            stream = Some(s);
         }
         _ => {
             ui_log(
@@ -242,6 +246,11 @@ fn main() {
                 "Could not capture audio ...Please check configuration.",
             );
         }
+    }
+    if let Some(ref s) = stream
+        && s.play().is_err()
+    {
+        ui_log(LogCategory::Error, "Unable to play audio stream.");
     }
 
     // If silence injector is on, create a silence injector stream and keep it alive
@@ -271,11 +280,16 @@ fn main() {
         ui_log(LogCategory::Info, "Starting SSDP discovery");
         let ssdp_int = config.ssdp_interval_mins;
         let ssdp_tx = msg_tx.clone();
-        let _ = thread::Builder::new()
+        let _jh = thread::Builder::new()
             .name("ssdp_updater".into())
             .stack_size(THREAD_STACK)
-            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
-            .unwrap();
+            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int));
+        if let Err(e) = _jh {
+            ui_log(
+                LogCategory::Error,
+                &format!("Unable to spawn SSDP discovery thread: {e:?}"),
+            );
+        }
     } else {
         ui_log(
             LogCategory::Info,
@@ -287,24 +301,34 @@ fn main() {
     let rms_receiver = rms_chan2.1;
     let mon_l = mf.rms_mon_l.clone();
     let mon_r = mf.rms_mon_r.clone();
-    let _ = thread::Builder::new()
+    let _jh = thread::Builder::new()
         .name("rms_monitor".into())
         .stack_size(THREAD_STACK)
         .spawn(move || {
             run_rms_monitor(wd, &rms_receiver, mon_l, mon_r);
-        })
-        .unwrap();
+        });
+    if let Err(e) = _jh {
+        ui_log(
+            LogCategory::Error,
+            &format!("Unable to spawn RMS monitor thread: {e:?}"),
+        );
+    }
 
     // finally start a webserver on the local address,
     let server_port = config.server_port.unwrap_or(SERVER_PORT);
     let feedback_tx = msg_tx.clone();
-    let _ = thread::Builder::new()
+    let _jh = thread::Builder::new()
         .name("swyh_rs_webserver".into())
         .stack_size(THREAD_STACK)
         .spawn(move || {
             run_server(&local_addr, server_port, wd, &feedback_tx);
-        })
-        .unwrap();
+        });
+    if let Err(e) = _jh {
+        ui_log(
+            LogCategory::Error,
+            &format!("Unable to spawn HTTP Streaming Server thread: {e:?}"),
+        );
+    }
     // give the webserver a chance to start
     thread::yield_now();
 
@@ -329,9 +353,9 @@ fn main() {
                 MessageType::PlayerMessage(streamer_feedback) => {
                     // check for multiple renderers at same ip address (Bubble UPNP)
                     let mut same_ip: Vec<Renderer> = get_renderers()
-                        .clone()
-                        .into_iter()
+                        .iter()
                         .filter(|r| r.remote_addr == streamer_feedback.remote_ip)
+                        .cloned()
                         .collect();
                     // the following only works for players with a unique IP address
                     if same_ip.len() == 1 {
@@ -389,6 +413,7 @@ fn main() {
                 MessageType::CaptureAborted() => {
                     // retry count when audio capture is broken
                     let mut capture_retry_count = 0i32;
+                    stream = None;
                     while capture_retry_count <= 5 {
                         thread::sleep(Duration::from_millis(250));
                         capture_retry_count += 1;
@@ -410,12 +435,16 @@ fn main() {
                             let rms_chan3 = rms_channel.clone();
                             if let Some(s) = capture_output_audio(&audio_output_device, rms_chan3.0)
                             {
-                                stream = s;
-                                stream.play().unwrap();
+                                stream = Some(s);
                                 info!("Audio capture resumed.");
                                 break;
                             }
                         }
+                    }
+                    if let Some(ref s) = stream
+                        && s.play().is_err()
+                    {
+                        ui_log(LogCategory::Error, "Unable to play the audio stream");
                     }
                 }
             }
@@ -459,13 +488,25 @@ fn main() {
     log::logger().flush();
 }
 
+/// show a fatal error message
+fn fatal_error(msg: &str) -> ! {
+    fltk::dialog::message_default(msg);
+    while app::wait() {
+        thread::sleep(Duration::from_millis(250));
+        if app::should_program_quit() {
+            break;
+        }
+    }
+    std::process::exit(-1);
+}
+
 /// update the playstate for the renderer with this ip address
 fn update_playstate(remote_addr: &str, playing: bool) {
     get_renderers_mut()
         .iter_mut()
         .find(|r| r.remote_addr == remote_addr)
-        .unwrap_or_else(|| {
-            panic!("Global Renderers list unconsistent with local Renderers for {remote_addr}")
-        })
-        .playing = playing;
+        .iter_mut()
+        .for_each(|r| {
+            r.playing = playing;
+        });
 }

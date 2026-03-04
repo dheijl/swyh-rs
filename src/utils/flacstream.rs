@@ -123,7 +123,10 @@ impl FlacChannel {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS);
                         samples_to_i32(&f32_samples, &mut i32_samples, shift);
                         if enc
-                            .process_interleaved(&i32_samples, (i32_samples.len() / 2) as u32)
+                            .process_interleaved(
+                                &i32_samples,
+                                (i32_samples.len() / ch as usize) as u32,
+                            )
                             .is_err()
                         {
                             info!("Flac encoding interrupted.");
@@ -139,7 +142,10 @@ impl FlacChannel {
                                 .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
                                 .collect::<Vec<i32>>();
                             if enc
-                                .process_interleaved(samples.as_slice(), (samples.len() / 2) as u32)
+                                .process_interleaved(
+                                    samples.as_slice(),
+                                    (samples.len() / ch as usize) as u32,
+                                )
                                 .is_err()
                             {
                                 info!("Flac inject near silence interrupted.");

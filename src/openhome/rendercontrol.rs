@@ -301,8 +301,8 @@ impl Renderer {
         let port: u16;
         match Url::parse(&self.dev_url) {
             Ok(url) => {
-                host = url.host_str().unwrap().to_string();
-                port = url.port_or_known_default().unwrap();
+                host = url.host_str().unwrap_or("0.0.0.0").to_string();
+                port = url.port_or_known_default().unwrap_or(0);
             }
             Err(e) => {
                 ui_log(
@@ -479,7 +479,7 @@ impl Renderer {
             LogCategory::Error,
             "ERROR: play: no supported renderer protocol found",
         );
-        Ok(())
+        Err("No protocol")
     }
 
     /// `oh_play` - set up a playlist on this `OpenHome` renderer and tell it to play it
@@ -595,16 +595,17 @@ impl Renderer {
 
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
     pub fn stop_play(&mut self) {
-        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
+            let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
             self.oh_stop_play(&url);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
+            let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
             self.av_stop_play(&url);
         } else {
             ui_log(
@@ -644,7 +645,7 @@ impl Renderer {
             ),
         );
 
-        // delete current playlist
+        // Stop play
         let _resp = self
             .soap_request(
                 url,
@@ -654,6 +655,7 @@ impl Renderer {
             .unwrap_or_default();
     }
 
+    /// get OpenHome Volume
     fn oh_get_volume(&mut self) -> i32 {
         let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
 
@@ -708,6 +710,7 @@ impl Renderer {
         self.volume
     }
 
+    /// get AV Volume
     fn av_get_volume(&mut self) -> i32 {
         let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
 
@@ -761,6 +764,7 @@ impl Renderer {
         self.volume
     }
 
+    /// set Openhome Volume
     fn oh_set_volume(&mut self) {
         let vol = self.volume;
         let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
@@ -783,6 +787,7 @@ impl Renderer {
         debug!("oh_set_volume response: {vol_xml}");
     }
 
+    /// set AV Volume
     fn av_set_volume(&mut self) {
         let vol = self.volume;
         let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
@@ -820,9 +825,9 @@ MX: 3\r\n\r\n";
 //
 pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
     static AV_SCHEMA: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
+    static AV_DEVICE: &str = AV_SCHEMA;
     static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";
-    static OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
-    static AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
+    static OH_DEVICE: &str = OH_SCHEMA;
     const DEFAULT_SEARCH_TTL: u32 = 2;
 
     debug!("SSDP discovery started");

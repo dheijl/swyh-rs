@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.12.20 (unreleased)
+  -minor code cleanup
+
 - 1.12.19 (Mar 4 2026, dheijl)
   - some (much needed) code cleanup
   - AV stop play used the OpenHome endpoint URL instead of the AV transport endpoint URL...

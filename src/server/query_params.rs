@@ -30,9 +30,6 @@ impl StreamingParams {
             return params;
         }
         let parts: Vec<&str> = url.split('?').collect();
-        if parts.is_empty() {
-            return params;
-        }
         let path = parts[0];
         if path.is_empty() {
             return params;
@@ -42,14 +39,11 @@ impl StreamingParams {
             params.path = Some(lc_path.clone());
         }
         params.fmt = {
-            if let Some(format_start) = lc_path.find("/stream/swyh.") {
-                if let Some(format) = lc_path.get(format_start + 13..)
-                    && let Ok(fmt) = StreamingFormat::from_str(format)
-                {
-                    Some(fmt)
-                } else {
-                    None
-                }
+            // we know now path starts with "/stream/swyh.", so query starts at +13
+            if let Some(format) = lc_path.get(13..)
+                && let Ok(fmt) = StreamingFormat::from_str(format)
+            {
+                Some(fmt)
             } else {
                 None
             }
@@ -71,8 +65,13 @@ impl StreamingParams {
                     }
                 })
                 .for_each(|kv_pair| match kv_pair.0 {
-                    "bd" => params.bd = Some(BitDepth::from_str(kv_pair.1).unwrap()),
-                    "ss" => params.ss = Some(StreamSize::from_str(kv_pair.1).unwrap()),
+                    "bd" => {
+                        params.bd = Some(BitDepth::from_str(kv_pair.1).unwrap_or(BitDepth::Bits16))
+                    }
+                    "ss" => {
+                        params.ss =
+                            Some(StreamSize::from_str(kv_pair.1).unwrap_or(StreamSize::NoneChunked))
+                    }
                     _ => (),
                 });
         }
@@ -90,6 +89,11 @@ mod tests {
         assert_eq!(sp.bd, Some(BitDepth::Bits24));
         assert_eq!(sp.ss, None);
         assert_eq!(sp.fmt, Some(StreamingFormat::Wav));
+        let sp = StreamingParams::from_query_string("/stream/Swyh.wav?bd=25&");
+        assert_eq!(sp.path, Some("/stream/swyh.wav".to_string()));
+        assert_eq!(sp.bd, Some(BitDepth::Bits16));
+        assert_eq!(sp.ss, None);
+        assert_eq!(sp.fmt, Some(StreamingFormat::Wav));
         let sp = StreamingParams::from_query_string("/stream/swyh.Flac?ss=u32maxchunked");
         assert_eq!(sp.path, Some("/stream/swyh.flac".to_string()));
         assert_eq!(sp.bd, None);
@@ -99,6 +103,11 @@ mod tests {
         assert_eq!(sp.path, Some("/stream/swyh.rf64".to_string()));
         assert_eq!(sp.bd, Some(BitDepth::Bits24));
         assert_eq!(sp.ss, Some(StreamSize::U32maxChunked));
+        assert_eq!(sp.fmt, Some(StreamingFormat::Rf64));
+        let sp = StreamingParams::from_query_string("/stream/swyh.rf64?bd=24&ss=u3maxchunked");
+        assert_eq!(sp.path, Some("/stream/swyh.rf64".to_string()));
+        assert_eq!(sp.bd, Some(BitDepth::Bits24));
+        assert_eq!(sp.ss, Some(StreamSize::NoneChunked));
         assert_eq!(sp.fmt, Some(StreamingFormat::Rf64));
         let sp = StreamingParams::from_query_string("/stream/swyh.RAW");
         assert_eq!(sp.path, Some("/stream/swyh.raw".to_string()));

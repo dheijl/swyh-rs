@@ -91,11 +91,10 @@ fn main() -> Result<(), i32> {
     let config_id = config.config_id.clone().unwrap();
     let logfilename = "log{}.txt".replace("{}", &config_id);
     let logfile = Path::new(&config.log_dir()).join(logfilename);
-    let log_config = ConfigBuilder::new()
-        .set_time_format_rfc2822()
-        .set_time_offset_to_local()
-        .unwrap()
-        .build();
+    let mut log_config_builder = ConfigBuilder::new();
+    log_config_builder.set_time_format_rfc2822();
+    let _ = log_config_builder.set_time_offset_to_local(); // silently fall back to UTC on error
+    let log_config = log_config_builder.build();
 
     let _ = CombinedLogger::init(vec![
         TermLogger::new(
@@ -261,7 +260,7 @@ fn main() -> Result<(), i32> {
         }
     };
     // we need to pass some audio config data to the streaming server
-    let audio_cfg = audio_output_device.default_config().clone();
+    let audio_cfg = audio_output_device.default_config();
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
@@ -287,9 +286,10 @@ fn main() -> Result<(), i32> {
             return Err(-2);
         }
     };
-    stream.play().unwrap();
+    stream.play().expect("Unable to play audio stream");
 
     // If silence injector is on, create a silence injector stream.
+    // it has to be kept alive, it only seems unused
     let _silence_stream = {
         if let Some(true) = config.inject_silence {
             if let Some(stream) = run_silence_injector(&audio_output_device) {
@@ -307,19 +307,14 @@ fn main() -> Result<(), i32> {
         }
     };
 
-    // set args ssdp_interval
+    // set args ssdp_interval, minimum is 0.5 minutes
     if let Some(mut minutes) = args.ssdp_interval_mins {
-        minutes = minutes.clamp(0.5, minutes);
+        minutes = minutes.max(0.5);
         config.ssdp_interval_mins = minutes;
     }
 
     // update config with new args
-    let _ = config.update_config();
-    // update in_memory shared config for other threads
-    {
-        let mut conf = get_config_mut();
-        *conf = config.clone();
-    }
+    sync_config(&config);
 
     // get the message channel
     let msg_tx = get_msgchannel().0.clone();
@@ -456,12 +451,7 @@ fn main() -> Result<(), i32> {
         config.auto_reconnect = true;
     }
     // update config with new args
-    let _ = config.update_config();
-    // update in_memory shared config for other threads
-    {
-        let mut conf = get_config_mut();
-        *conf = config.clone();
-    }
+    sync_config(&config);
 
     let mut player: Option<Renderer> = None;
     // select the player unless only serving
@@ -492,13 +482,7 @@ fn main() -> Result<(), i32> {
     }
 
     // update config with new args
-    let _ = config.update_config();
-    // update in_memory shared config for other threads
-    {
-        let mut conf = get_config_mut();
-        *conf = config.clone();
-    }
-
+    sync_config(&config);
     info!("New config: {config:?}");
 
     // exit here if dry-run
@@ -508,11 +492,6 @@ fn main() -> Result<(), i32> {
     }
 
     // prepare for playing
-    let wd = WavData {
-        sample_format: audio_cfg.sample_format(),
-        sample_rate: audio_cfg.sample_rate(),
-        channels: audio_cfg.channels(),
-    };
     let streaminfo = StreamInfo::new(wd.sample_rate);
 
     // start playing unless only serving
@@ -582,7 +561,7 @@ fn main() -> Result<(), i32> {
                 MessageType::CaptureAborted() => {
                     // retry count when audio capture is broken
                     let mut capture_retry_count = 0i32;
-                    while capture_retry_count <= 5 {
+                    while capture_retry_count < 5 {
                         thread::sleep(Duration::from_millis(250));
                         capture_retry_count += 1;
                         debug!("Retrying capturing audio #{capture_retry_count}");
@@ -604,7 +583,7 @@ fn main() -> Result<(), i32> {
                             if let Some(s) = capture_output_audio(&audio_output_device, rms_chan2.0)
                             {
                                 stream = s;
-                                stream.play().unwrap();
+                                stream.play().expect("Unable to play audio stream");
                                 info!("Audio capture resumed.");
                                 break;
                             }
@@ -643,6 +622,15 @@ fn main() -> Result<(), i32> {
             log::logger().flush();
             std::process::exit(0);
         }
+    }
+}
+
+fn sync_config(config: &Configuration) {
+    let _ = config.update_config();
+    // update in_memory shared config for other threads
+    {
+        let mut conf = get_config_mut();
+        *conf = config.clone();
     }
 }
 

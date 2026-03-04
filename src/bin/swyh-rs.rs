@@ -87,10 +87,8 @@ pub const APP_NAME: &str = "SWYH-RS";
 fn main() {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let ad = get_default_audio_output_device();
-    if ad.is_none() {
-        fatal_error("No default audio device found!");
-    }
-    let mut audio_output_device = ad.unwrap();
+    let mut audio_output_device =
+        ad.unwrap_or_else(|| fatal_error("No default audio device found!"));
     // initialize config
     let mut config = {
         let mut conf = get_config_mut();
@@ -111,11 +109,10 @@ fn main() {
         config.log_level = LevelFilter::Debug;
     }
     let loglevel = config.log_level;
-    let log_config = ConfigBuilder::new()
-        .set_time_format_rfc2822()
-        .set_time_offset_to_local()
-        .unwrap_or(&mut ConfigBuilder::new())
-        .build();
+    let mut log_config_builder = ConfigBuilder::new();
+    log_config_builder.set_time_format_rfc2822();
+    let _ = log_config_builder.set_time_offset_to_local(); // silently fall back to UTC on error
+    let log_config = log_config_builder.build();
     // disable TermLogger on susbsystem Windows because it panics now with Rust edition 2021
     #[cfg(any(debug_assertions, target_os = "linux"))]
     let _ = CombinedLogger::init(vec![
@@ -414,7 +411,7 @@ fn main() {
                     // retry count when audio capture is broken
                     let mut capture_retry_count = 0i32;
                     stream = None;
-                    while capture_retry_count <= 5 {
+                    while capture_retry_count < 5 {
                         thread::sleep(Duration::from_millis(250));
                         capture_retry_count += 1;
                         debug!("Retrying capturing audio #{capture_retry_count}");
@@ -453,7 +450,7 @@ fn main() {
 
     // if anyone is still streaming: stop them first
     let mut active_players: Vec<String> = Vec::new();
-    let renderers = get_renderers_mut().clone();
+    let renderers = get_renderers().clone();
     for mut renderer in renderers {
         if let Some(button) = renderer.rend_ui.button.as_ref()
             && button.is_set()
@@ -502,11 +499,10 @@ fn fatal_error(msg: &str) -> ! {
 
 /// update the playstate for the renderer with this ip address
 fn update_playstate(remote_addr: &str, playing: bool) {
-    get_renderers_mut()
+    if let Some(r) = get_renderers_mut()
         .iter_mut()
         .find(|r| r.remote_addr == remote_addr)
-        .iter_mut()
-        .for_each(|r| {
-            r.playing = playing;
-        });
+    {
+        r.playing = playing;
+    }
 }

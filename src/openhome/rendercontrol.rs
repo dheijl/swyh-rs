@@ -407,8 +407,8 @@ impl Renderer {
             }
         };
         let t1 = OnceCell::new();
-        let template = t1
-            .get_or_init(
+        let _template =
+            t1.get_or_init(
                 || match CbTemplate::compile(htmlescape::encode_minimal(didl_prot)) {
                     Ok(s) => Ok(s),
                     Err(e) => {
@@ -416,12 +416,15 @@ impl Renderer {
                             LogCategory::Info,
                             &format!("oh_play: error {e} parsing DIDL_PROTOCOL template"),
                         );
-                        return Err(BAD_TEMPL);
+                        Err(e)
                     }
                 },
-            )
-            .as_ref()
-            .unwrap();
+            );
+        let template = if let Ok(t) = _template {
+            t
+        } else {
+            return Err(BAD_TEMPL);
+        };
         let didl_prot = match template.format(&fmt_vars) {
             Ok(s) => s,
             Err(e) => {
@@ -435,20 +438,22 @@ impl Renderer {
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
         let didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
         let t2 = OnceCell::new();
-        let template = t2
-            .get_or_init(|| match CbTemplate::compile(&didl_data) {
-                //.expect("DIDL DATA template parse error");
-                Ok(s) => Ok(s),
-                Err(e) => {
-                    ui_log(
-                        LogCategory::Info,
-                        &format!("oh_play: error {e} parsing DIDL_DATA template"),
-                    );
-                    return Err(BAD_TEMPL);
-                }
-            })
-            .as_ref()
-            .unwrap();
+        let _template = t2.get_or_init(|| match CbTemplate::compile(&didl_data) {
+            //.expect("DIDL DATA template parse error");
+            Ok(s) => Ok(s),
+            Err(e) => {
+                ui_log(
+                    LogCategory::Info,
+                    &format!("oh_play: error {e} parsing DIDL_DATA template"),
+                );
+                Err(e)
+            }
+        });
+        let template = if let Ok(t) = _template {
+            t
+        } else {
+            return Err(BAD_TEMPL);
+        };
         let formatted_didl = match template.format(&fmt_vars) {
             Ok(s) => s,
             Err(e) => {
@@ -510,19 +515,21 @@ impl Renderer {
             ),
         );
         let t1 = OnceCell::new();
-        let template = t1
-            .get_or_init(|| match CbTemplate::compile(OH_INSERT_PL_TEMPLATE) {
-                Ok(s) => Ok(s),
-                Err(e) => {
-                    ui_log(
-                        LogCategory::Info,
-                        &format!("oh_play: error {e} parsing OH_INSERT_PL_TEMPLATE"),
-                    );
-                    return Err(BAD_TEMPL);
-                }
-            })
-            .as_ref()
-            .unwrap();
+        let _template = t1.get_or_init(|| match CbTemplate::compile(OH_INSERT_PL_TEMPLATE) {
+            Ok(s) => Ok(s),
+            Err(e) => {
+                ui_log(
+                    LogCategory::Info,
+                    &format!("oh_play: error {e} parsing OH_INSERT_PL_TEMPLATE"),
+                );
+                Err(e)
+            }
+        });
+        let template = if let Ok(t) = _template {
+            t
+        } else {
+            return Err(BAD_TEMPL);
+        };
         let xmlbody = match template.format(fmt_vars) {
             Ok(s) => s,
             Err(e) => {
@@ -569,8 +576,8 @@ impl Renderer {
         self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
         let t1 = OnceCell::new();
-        let template = t1
-            .get_or_init(
+        let _template =
+            t1.get_or_init(
                 || match CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE) {
                     Ok(s) => Ok(s),
                     Err(e) => {
@@ -578,12 +585,15 @@ impl Renderer {
                             LogCategory::Info,
                             &format!("av_play: error {e} parsing AV_SET_TRANSPORT_URI_TEMPLATE"),
                         );
-                        return Err(BAD_TEMPL);
+                        Err(e)
                     }
                 },
-            )
-            .as_ref()
-            .unwrap();
+            );
+        let template = if let Ok(t) = _template {
+            t
+        } else {
+            return Err(BAD_TEMPL);
+        };
         let xmlbody = match template.format(fmt_vars) {
             Ok(s) => s,
             Err(e) => {
@@ -1189,28 +1199,6 @@ mod tests {
         e = "bla bla os error 12 bla bla";
         let to_ignore = ok_errors.iter().any(|s| e.contains(*s));
         assert!(!to_ignore);
-    }
-
-    #[test]
-    fn test_format() {
-        let bps = 24;
-        let format = StreamingFormat::Flac;
-        let url = "http://192.168.0.135:5901/Stream/Swyh.raw".to_ascii_lowercase();
-        let (req_bps, req_format) = {
-            if let Some(format_start) = url.find("/stream/swyh.") {
-                match url.get(format_start + 13..) {
-                    Some("flac") => (24, StreamingFormat::Flac),
-                    Some("wav") => (16, StreamingFormat::Wav),
-                    Some("rf64") => (16, StreamingFormat::Rf64),
-                    Some("raw") => (16, StreamingFormat::Lpcm),
-                    None | Some(&_) => (bps, format),
-                }
-            } else {
-                (bps, format)
-            }
-        };
-        assert!(req_format == StreamingFormat::Lpcm);
-        assert!(req_bps == 16);
     }
 
     #[test]

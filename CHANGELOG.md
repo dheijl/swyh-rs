@@ -1,5 +1,8 @@
 # swyh-rs Changelog
 
+- 1.12.19 (unreleased)
+  - some (much needed) code cleanup
+
 - 1.12.18 (Mar 3 2026, dheijl)
   - upgrade figura to V2
   - rust 1.93.1

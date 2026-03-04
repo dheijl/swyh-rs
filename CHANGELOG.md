@@ -3,6 +3,7 @@
 - 1.12.19 (unreleased)
   - some (much needed) code cleanup
   - AV stop play used the OpenHome URL instead of the AV transport URL...
+  - don't recompile the figura templates on every play call
 
 - 1.12.18 (Mar 3 2026, dheijl)
   - upgrade figura to V2

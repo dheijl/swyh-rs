@@ -16,7 +16,6 @@ use fltk::{button::LightButton, valuator::HorNiceSlider};
 use hashbrown::HashMap;
 use log::{debug, error, info};
 use std::{
-    cell::OnceCell,
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
@@ -406,21 +405,17 @@ impl Renderer {
                 },
             }
         };
-        let t1 = OnceCell::new();
-        let _template =
-            t1.get_or_init(
-                || match CbTemplate::compile(htmlescape::encode_minimal(didl_prot)) {
-                    Ok(s) => Ok(s),
-                    Err(e) => {
-                        ui_log(
-                            LogCategory::Info,
-                            &format!("oh_play: error {e} parsing DIDL_PROTOCOL template"),
-                        );
-                        Err(e)
-                    }
-                },
-            );
-        let template = if let Ok(t) = _template {
+        let _t = match CbTemplate::compile(htmlescape::encode_minimal(didl_prot)) {
+            Ok(s) => Ok(s),
+            Err(e) => {
+                ui_log(
+                    LogCategory::Info,
+                    &format!("oh_play: error {e} parsing DIDL_PROTOCOL template"),
+                );
+                Err(e)
+            }
+        };
+        let template = if let Ok(t) = _t {
             t
         } else {
             return Err(BAD_TEMPL);
@@ -437,9 +432,7 @@ impl Renderer {
         };
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
         let didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
-        let t2 = OnceCell::new();
-        let _template = t2.get_or_init(|| match CbTemplate::compile(&didl_data) {
-            //.expect("DIDL DATA template parse error");
+        let _t = match CbTemplate::compile(&didl_data) {
             Ok(s) => Ok(s),
             Err(e) => {
                 ui_log(
@@ -448,8 +441,8 @@ impl Renderer {
                 );
                 Err(e)
             }
-        });
-        let template = if let Ok(t) = _template {
+        };
+        let template = if let Ok(t) = _t {
             t
         } else {
             return Err(BAD_TEMPL);
@@ -514,8 +507,7 @@ impl Renderer {
                 self.dev_name, self.host, self.port
             ),
         );
-        let t1 = OnceCell::new();
-        let _template = t1.get_or_init(|| match CbTemplate::compile(OH_INSERT_PL_TEMPLATE) {
+        let _t = match CbTemplate::compile(OH_INSERT_PL_TEMPLATE) {
             Ok(s) => Ok(s),
             Err(e) => {
                 ui_log(
@@ -524,8 +516,8 @@ impl Renderer {
                 );
                 Err(e)
             }
-        });
-        let template = if let Ok(t) = _template {
+        };
+        let template = if let Ok(t) = _t {
             t
         } else {
             return Err(BAD_TEMPL);
@@ -575,21 +567,17 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let t1 = OnceCell::new();
-        let _template =
-            t1.get_or_init(
-                || match CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE) {
-                    Ok(s) => Ok(s),
-                    Err(e) => {
-                        ui_log(
-                            LogCategory::Info,
-                            &format!("av_play: error {e} parsing AV_SET_TRANSPORT_URI_TEMPLATE"),
-                        );
-                        Err(e)
-                    }
-                },
-            );
-        let template = if let Ok(t) = _template {
+        let _t = match CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE) {
+            Ok(s) => Ok(s),
+            Err(e) => {
+                ui_log(
+                    LogCategory::Info,
+                    &format!("av_play: error {e} parsing AV_SET_TRANSPORT_URI_TEMPLATE"),
+                );
+                Err(e)
+            }
+        };
+        let template = if let Ok(t) = _t {
             t
         } else {
             return Err(BAD_TEMPL);
@@ -864,14 +852,41 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
     debug!("SSDP discovery started");
 
     // get the address of the selected interface
-    let ip = get_config().last_network.as_ref().unwrap().clone();
+    let ip = if let Some(s) = get_config().last_network.clone() {
+        s
+    } else {
+        ui_log(LogCategory::Error, "SSDP: no active network in config.");
+        return None;
+    };
     info!("running SSDP on {ip}");
-    let local_addr: IpAddr = ip.parse().unwrap();
+    let local_addr: IpAddr = if let Ok(addr) = ip.parse() {
+        addr
+    } else {
+        ui_log(
+            LogCategory::Error,
+            "SSDP: Unable to parse local ip address.",
+        );
+        return None;
+    };
     let bind_addr = SocketAddr::new(local_addr, 0);
-    let socket = UdpSocket::bind(bind_addr).unwrap();
-    socket.set_broadcast(true).unwrap();
-    socket.set_multicast_ttl_v4(DEFAULT_SEARCH_TTL).unwrap();
-
+    let socket = if let Ok(s) = UdpSocket::bind(bind_addr) {
+        s
+    } else {
+        ui_log(LogCategory::Error, "SSDP: Unable to bind to socket.");
+        return None;
+    };
+    if socket.set_broadcast(true).is_err() {
+        ui_log(
+            LogCategory::Error,
+            "SSDP:  Unable to set socket to broadcast.",
+        )
+    }
+    if socket.set_multicast_ttl_v4(DEFAULT_SEARCH_TTL).is_err() {
+        ui_log(
+            LogCategory::Error,
+            "SSDP: Unable to set DEFAULT_SEARCH_TTL on socket.",
+        );
+    }
     // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
     let mut oh_devices: Vec<(String, SocketAddr)> = Vec::new();
     let mut av_devices: Vec<(String, SocketAddr)> = Vec::new();
@@ -879,9 +894,19 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
     //  SSDP UDP broadcast address
     let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", OH_DEVICE);
-    socket.send_to(msg.as_bytes(), broadcast_address).unwrap();
+    if socket.send_to(msg.as_bytes(), broadcast_address).is_err() {
+        ui_log(
+            LogCategory::Error,
+            "SSDP: unable to send OpenHome discover message",
+        );
+    }
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", AV_DEVICE);
-    socket.send_to(msg.as_bytes(), broadcast_address).unwrap();
+    if socket.send_to(msg.as_bytes(), broadcast_address).is_err() {
+        ui_log(
+            LogCategory::Error,
+            "SSDP: unable to send AV Transport discover message",
+        );
+    }
     // collect the responses and remeber all new renderers
     let start = Instant::now();
     loop {
@@ -893,12 +918,12 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
         let max_wait_time = 3100 - duration;
         socket
             .set_read_timeout(Some(Duration::from_millis(max_wait_time)))
-            .unwrap();
+            .ok();
         let mut buf: [u8; 2048] = [0; 2048];
         let resp: String;
         match socket.recv_from(&mut buf) {
             Ok((received, from)) => {
-                resp = std::str::from_utf8(&buf[0..received]).unwrap().to_string();
+                resp = String::from_utf8_lossy(&buf[0..received]).to_string();
                 debug!(
                     "SSDP: HTTP response at {} from {}: \r\n{}",
                     start.elapsed().as_millis(),

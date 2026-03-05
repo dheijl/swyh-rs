@@ -405,20 +405,15 @@ impl Renderer {
                 },
             }
         };
-        let _t = match CbTemplate::compile(htmlescape::encode_minimal(didl_prot)) {
-            Ok(s) => Ok(s),
+        let template = match CbTemplate::compile(htmlescape::encode_minimal(didl_prot)) {
+            Ok(s) => s,
             Err(e) => {
                 ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} parsing DIDL_PROTOCOL template"),
                 );
-                Err(e)
+                return Err(BAD_TEMPL);
             }
-        };
-        let template = if let Ok(t) = _t {
-            t
-        } else {
-            return Err(BAD_TEMPL);
         };
         let didl_prot = match template.format(&fmt_vars) {
             Ok(s) => s,
@@ -432,20 +427,15 @@ impl Renderer {
         };
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
         let didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
-        let _t = match CbTemplate::compile(&didl_data) {
-            Ok(s) => Ok(s),
+        let template = match CbTemplate::compile(&didl_data) {
+            Ok(s) => s,
             Err(e) => {
                 ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} parsing DIDL_DATA template"),
                 );
-                Err(e)
+                return Err(BAD_TEMPL);
             }
-        };
-        let template = if let Ok(t) = _t {
-            t
-        } else {
-            return Err(BAD_TEMPL);
         };
         let formatted_didl = match template.format(&fmt_vars) {
             Ok(s) => s,
@@ -507,20 +497,15 @@ impl Renderer {
                 self.dev_name, self.host, self.port
             ),
         );
-        let _t = match CbTemplate::compile(OH_INSERT_PL_TEMPLATE) {
-            Ok(s) => Ok(s),
+        let template = match CbTemplate::compile(OH_INSERT_PL_TEMPLATE) {
+            Ok(s) => s,
             Err(e) => {
                 ui_log(
                     LogCategory::Info,
                     &format!("oh_play: error {e} parsing OH_INSERT_PL_TEMPLATE"),
                 );
-                Err(e)
+                return Err(BAD_TEMPL);
             }
-        };
-        let template = if let Ok(t) = _t {
-            t
-        } else {
-            return Err(BAD_TEMPL);
         };
         let xmlbody = match template.format(fmt_vars) {
             Ok(s) => s,
@@ -567,20 +552,15 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let _t = match CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE) {
-            Ok(s) => Ok(s),
+        let template = match CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE) {
+            Ok(s) => s,
             Err(e) => {
                 ui_log(
                     LogCategory::Info,
                     &format!("av_play: error {e} parsing AV_SET_TRANSPORT_URI_TEMPLATE"),
                 );
-                Err(e)
+                return Err(BAD_TEMPL);
             }
-        };
-        let template = if let Ok(t) = _t {
-            t
-        } else {
-            return Err(BAD_TEMPL);
         };
         let xmlbody = match template.format(fmt_vars) {
             Ok(s) => s,
@@ -685,7 +665,7 @@ impl Renderer {
                 "urn:av-openhome-org:service:Volume:1#Volume",
                 OH_GET_VOL_TEMPLATE,
             )
-            .unwrap_or("<Error/>".to_string());
+            .unwrap_or_else(|| "<Error/>".to_string());
         // parse response to extract volume
         debug!("oh_get_volume response: {vol_xml}");
         let parser = EventReader::new(vol_xml.as_bytes());
@@ -740,7 +720,7 @@ impl Renderer {
                 "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
                 AV_GET_VOL_TEMPLATE,
             )
-            .unwrap_or("<Error/>".to_string());
+            .unwrap_or_else(|| "<Error/>".to_string());
         debug!("av_get_volume response: {vol_xml}");
         let parser = EventReader::new(vol_xml.as_bytes());
         let mut cur_elem = String::new();

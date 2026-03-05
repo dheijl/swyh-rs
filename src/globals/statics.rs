@@ -1,4 +1,4 @@
-use std::sync::{LazyLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
+use std::sync::{LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
 
 use crate::{
     enums::messages::MessageType,
@@ -9,7 +9,6 @@ use crate::{
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use ecow::EcoString;
 use hashbrown::HashMap;
-use std::sync::RwLock;
 
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -42,14 +41,13 @@ pub fn get_clients_mut() -> RwLockWriteGuard<'static, HashMap<EcoString, Channel
     CLIENTS.write().expect("CLIENTS write lock poisoned")
 }
 
-/// all currentlyknown renderers as discovered by SSDP
-static RENDERERS: LazyLock<RwLock<Vec<Renderer>>> =
-    LazyLock::new(|| RwLock::new(Vec::<Renderer>::new()));
+/// all currently known renderers as discovered by SSDP
+static RENDERERS: LazyLock<RwLock<Vec<Renderer>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 pub fn get_renderers() -> RwLockReadGuard<'static, Vec<Renderer>> {
-    RENDERERS.read().expect("RENDERERS read lock poisened")
+    RENDERERS.read().expect("RENDERERS read lock poisoned")
 }
 pub fn get_renderers_mut() -> RwLockWriteGuard<'static, Vec<Renderer>> {
-    RENDERERS.write().expect("RENDERERS write lock poisened")
+    RENDERERS.write().expect("RENDERERS write lock poisoned")
 }
 
 /// the global GUI logger textbox channel used by all threads

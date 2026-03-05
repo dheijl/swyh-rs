@@ -400,7 +400,7 @@ fn main() -> Result<(), i32> {
                 }
                 MessageType::PlayerMessage(_) => (),
                 MessageType::LogMessage(_) => (),
-                MessageType::CaptureAborted() => (),
+                MessageType::CaptureAborted => (),
             }
         }
         // now check for player names(s) instead of ip addresses
@@ -558,7 +558,7 @@ fn main() -> Result<(), i32> {
                     }
                 }
                 MessageType::LogMessage(msg) => ui_log(LogCategory::Info, &msg),
-                MessageType::CaptureAborted() => {
+                MessageType::CaptureAborted => {
                     // retry count when audio capture is broken
                     let mut capture_retry_count = 0i32;
                     while capture_retry_count < 5 {
@@ -651,7 +651,7 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
                 );
                 ssdp_tx
                     .send(MessageType::SsdpMessage(Box::new(r.clone())))
-                    .unwrap();
+                    .expect("Message Channel disconnected.");
                 r.clone()
             });
         }

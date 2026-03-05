@@ -407,7 +407,7 @@ fn main() {
                 MessageType::LogMessage(msg) => {
                     mf.add_log_msg(&msg);
                 }
-                MessageType::CaptureAborted() => {
+                MessageType::CaptureAborted => {
                     // retry count when audio capture is broken
                     let mut capture_retry_count = 0i32;
                     stream = None;

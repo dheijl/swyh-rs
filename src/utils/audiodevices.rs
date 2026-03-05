@@ -310,8 +310,8 @@ fn capture_err_fn(err: cpal::StreamError) {
     if err == cpal::StreamError::DeviceNotAvailable {
         get_msgchannel()
             .0
-            .send(MessageType::CaptureAborted())
-            .unwrap();
+            .send(MessageType::CaptureAborted)
+            .expect("Message Channel disconnected.");
     }
 }
 

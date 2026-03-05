@@ -30,7 +30,7 @@ pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) 
                 );
                 ssdp_tx
                     .send(MessageType::SsdpMessage(Box::new(r.clone())))
-                    .unwrap();
+                    .expect("Message Channel disconnected.");
                 app::awake();
                 r.clone()
             });

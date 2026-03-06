@@ -55,7 +55,8 @@ fn main() -> Result<(), i32> {
     .expect("Error setting Ctrl-C handler");
 
     // collect command line arguments
-    let mut args = Args::new().parse();
+    let mut args = Args::default();
+    let _ = args.parse();
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     // but it's possible that there is no default audio device
     let mut audio_output_device_opt = get_default_audio_output_device();

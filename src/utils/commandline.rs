@@ -9,7 +9,7 @@ use log::LevelFilter;
 
 use crate::{enums::streaming::*, utils::traits::SanitizeArg};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Args {
     pub dry_run: Option<bool>,
     pub config_id: Option<String>,
@@ -32,38 +32,7 @@ pub struct Args {
     pub upfront_buffer: Option<u32>,
 }
 
-impl Default for Args {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Args {
-    #[must_use]
-    pub fn new() -> Args {
-        Args {
-            dry_run: None,
-            config_id: None,
-            server_port: None,
-            auto_resume: None,
-            sound_source_index: None,
-            sound_source_name: None,
-            log_level: None,
-            ssdp_interval_mins: None,
-            use_wave_format: None,
-            bits_per_sample: None,
-            streaming_format: None,
-            stream_size: None,
-            player_ip: None,
-            ip_address: None,
-            active_players: None,
-            inject_silence: None,
-            serve_only: None,
-            volume: None,
-            upfront_buffer: None,
-        }
-    }
-
     // print usage & bail out
     fn usage(&self) {
         println!(
@@ -72,7 +41,6 @@ Recognized options:
     -h (--help) : print usage
     -n (--no_run) : dry-run, don't start streaming
     -c (--config_id) string : config_id [_cli]
-    -C (--configfile) string : alternative full pathname of configfile
     -p (--server_port) u16 : server_port [5901]
     -r (--auto_resume) bool : auto_resume [false]
     -s (--sound_source) u16|string  : sound_source index or name [os default]
@@ -81,7 +49,7 @@ Recognized options:
     -b (--bits) u16 : bits_per_sample (16/24) [16]
     -f (--format) string : streaming_format (lpcm/flac/wav/rf64) [LPCM]
        optionally followed by a plus sign and a streamsize[LPCM+U64maxNotChunked] 
-    -o (--player_ip) string : (comma-seperated) player ip address(es) [last used player]
+    -o (--player_ip) string : (comma-separated) player ip address(es) [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
     -S (--inject_silence) bool : inject silence into stream (bool) [false]
     -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
@@ -95,7 +63,7 @@ Recognized options:
 
     // parse commandline arguments
     #[must_use]
-    pub fn parse(&mut self) -> Args {
+    pub fn parse(&mut self) -> Result<(), String> {
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
             match arg {
@@ -112,7 +80,10 @@ Recognized options:
                 }
                 Short('p') | Long("server_port") => {
                     if let Ok(port) = argparser.value() {
-                        self.server_port = Some(port.parse().unwrap());
+                        self.server_port = Some(port.parse().unwrap_or_else(|_| {
+                            println!("Invalid server port - using 5901 (default).");
+                            5901
+                        }));
                     }
                 }
                 Short('r') | Long("auto_resume") => {
@@ -123,7 +94,10 @@ Recognized options:
                                 .unwrap()
                                 .sanitize_bool()
                                 .parse()
-                                .unwrap(),
+                                .unwrap_or_else(|_| {
+                                    println!("Invalid value for auto_resume, using false.");
+                                    false
+                                }),
                         );
                     } else {
                         self.auto_resume = Some(true);
@@ -161,12 +135,18 @@ Recognized options:
                 }
                 Short('i') | Long("ssdp_interval") => {
                     if let Ok(interval) = argparser.value() {
-                        self.ssdp_interval_mins = Some(interval.parse().unwrap());
+                        self.ssdp_interval_mins = Some(interval.parse().unwrap_or_else(|_| {
+                            println!("Invalid SSDP interval, using 15.0");
+                            15.0
+                        }));
                     }
                 }
                 Short('b') | Long("bits_per_sample") => {
                     if let Ok(bps) = argparser.value() {
-                        let n: u16 = bps.parse().unwrap();
+                        let n: u16 = bps.parse().unwrap_or_else(|_| {
+                            println!("Invalid bps - using 16");
+                            16
+                        });
                         if let 16 | 24 = n {
                             self.bits_per_sample = Some(n);
                         } else {
@@ -247,8 +227,14 @@ Recognized options:
                 }
                 Short('S') | Long("inject_silence") => {
                     if let Ok(inject) = argparser.value() {
-                        self.inject_silence =
-                            Some(inject.string().unwrap().sanitize_bool().parse().unwrap());
+                        self.inject_silence = Some(
+                            inject
+                                .string()
+                                .unwrap()
+                                .sanitize_bool()
+                                .parse()
+                                .unwrap_or(true),
+                        );
                     } else {
                         self.inject_silence = Some(true);
                     }
@@ -258,7 +244,10 @@ Recognized options:
                 }
                 Short('v') | Long("volume") => {
                     if let Ok(vol) = argparser.value() {
-                        let v: u8 = vol.parse().unwrap();
+                        let v: u8 = vol.parse().unwrap_or_else(|_| {
+                            println!("Invalid volume - using 25");
+                            25
+                        });
                         if v <= 100 {
                             self.volume = Some(v);
                         }
@@ -266,7 +255,10 @@ Recognized options:
                 }
                 Short('u') | Long("upfront_buffer") => {
                     if let Ok(buffer) = argparser.value() {
-                        let b: u32 = buffer.parse().unwrap();
+                        let b: u32 = buffer.parse().unwrap_or_else(|_| {
+                            println!("Invalid upfront buffer, using 0");
+                            0
+                        });
                         self.upfront_buffer = Some(b);
                     }
                 }
@@ -274,6 +266,6 @@ Recognized options:
             }
         }
         println!("{self:?}\n");
-        self.clone()
+        Ok(())
     }
 }

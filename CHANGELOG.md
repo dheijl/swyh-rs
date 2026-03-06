@@ -3,6 +3,7 @@
 - 1.12.20 (unreleased)
   - more code cleanup
   - rust 1.94
+  - bump MSRV to rust 1.93 (slice.as_array)
 
 - 1.12.19 (Mar 4 2026, dheijl)
   - some (much needed) code cleanup

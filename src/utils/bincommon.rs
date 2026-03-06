@@ -1,10 +1,12 @@
 //! Tools common to both the swyh-rs GUI and CLI.
 
 use cpal::{
-    Sample, SampleFormat, Stream, StreamConfig,
+    BuildStreamError, Sample, SampleFormat, Stream, StreamConfig,
     traits::{DeviceTrait, StreamTrait},
 };
-use log::{error, warn};
+use log::warn;
+
+use crate::utils::ui_logger::{LogCategory, ui_log};
 
 use super::audiodevices::Device;
 
@@ -36,18 +38,26 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
         SampleFormat::U16 => {
             device.build_output_stream(&config, write_silence::<u16>, err_fn, None)
         }
-        format => panic!("Unsupported sample format: {format:?}"),
+        format => {
+            let msg = format!("Inject silence: Unsupported sample format: {format:?}");
+            ui_log(LogCategory::Error, &msg);
+            Err(BuildStreamError::StreamConfigNotSupported)
+        }
     };
     match try_stream {
         Ok(stream) => {
             if stream.play().is_ok() {
                 Some(stream)
             } else {
+                ui_log(LogCategory::Error, "Unable to play inject silence stream.");
                 None
             }
         }
         Err(e) => {
-            error!("Unable to build inject silence stream: {e:?}");
+            ui_log(
+                LogCategory::Error,
+                &format!("Unable to build inject silence stream: {e:?}"),
+            );
             None
         }
     }

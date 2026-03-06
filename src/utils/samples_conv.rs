@@ -8,23 +8,22 @@ static I32_MAX_XMM: f32x4 = f32x4::splat(I32_MAX);
 /// convert f32 samples to i32 for flac encoding
 /// but scaled to i16 or i24 according to shift (8 or 16)
 /// using SIMD SSE xmm registers (with the wide crate)
-pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8) {
+pub(crate) fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, shift: u8) {
     debug_assert!(
         f32_samples.len() & 1 == 0,
         "Number of FLAC samples should always be even!"
     );
     i32_samples.clear();
-    let mut f32_array = f32x4::default();
     let chunks = f32_samples.chunks_exact(4);
     let remainder = chunks.remainder();
     chunks.for_each(|chunk| {
         // chunks are guaranteed to be 4 elements
-        f32_array = f32x4::new(*chunk.as_array().unwrap());
+        let f32_array = f32x4::new(*chunk.as_array().unwrap());
         let i_array = f32_to_i32(shift, f32_array);
         i32_samples.extend(&i_array);
     });
     if remainder.len() == 2 {
-        f32_array = f32x4::new([remainder[0], remainder[1], 0.0, 0.0]);
+        let f32_array = f32x4::new([remainder[0], remainder[1], 0.0, 0.0]);
         let i_array = f32_to_i32(shift, f32_array);
         i32_samples.extend(&i_array[0..2]);
     }
@@ -80,4 +79,19 @@ pub(crate) fn i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
     buf[3..=5].copy_from_slice(&i32_array[1].to_be_bytes()[1..]);
     buf[6..=8].copy_from_slice(&i32_array[2].to_be_bytes()[1..]);
     buf[9..=11].copy_from_slice(&i32_array[3].to_be_bytes()[1..]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_f32_to_i32_i16_range() {
+        let arr = f32x4::new([1.0, -1.0, 0.5, 0.0]);
+        let result = f32_to_i32(16, arr);
+        assert_eq!(result[0], i16::MAX as i32);
+        assert_eq!(result[1], i16::MIN as i32);
+        //assert_eq!(result[2], i16::MAX as i32 / 2);
+        assert_eq!(result[3], 0i32);
+    }
 }

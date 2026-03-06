@@ -34,7 +34,7 @@ pub struct Args {
 
 impl Args {
     // print usage & bail out
-    fn usage(&self) {
+    fn usage(&self) -> ! {
         println!(
             r#"
 Recognized options:
@@ -62,7 +62,7 @@ Recognized options:
     }
 
     // parse commandline arguments
-    #[must_use]
+
     pub fn parse(&mut self) -> Result<(), String> {
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
@@ -80,9 +80,9 @@ Recognized options:
                 }
                 Short('p') | Long("server_port") => {
                     if let Ok(port) = argparser.value() {
-                        self.server_port = Some(port.parse().unwrap_or_else(|_| {
-                            println!("Invalid server port - using 5901 (default).");
-                            5901
+                        self.server_port = Some(port.parse().unwrap_or_else(|x| {
+                            println!("Invalid server port: {x}.");
+                            self.usage();
                         }));
                     }
                 }
@@ -94,9 +94,9 @@ Recognized options:
                                 .unwrap()
                                 .sanitize_bool()
                                 .parse()
-                                .unwrap_or_else(|_| {
-                                    println!("Invalid value for auto_resume, using false.");
-                                    false
+                                .unwrap_or_else(|x| {
+                                    println!("Invalid value for auto_resume: {x}.");
+                                    self.usage();
                                 }),
                         );
                     } else {
@@ -109,7 +109,8 @@ Recognized options:
                         let ss_idx_or_nm = ssi.to_str();
                         if let Some(si) = ss_idx_or_nm {
                             if si.chars().all(|c| c.is_ascii_digit()) {
-                                self.sound_source_index = Some(si.parse::<i32>().unwrap());
+                                self.sound_source_index =
+                                    Some(si.parse::<i32>().unwrap_or_default());
                                 self.sound_source_name = None;
                             } else {
                                 self.sound_source_name = Some(si.to_string());
@@ -126,26 +127,26 @@ Recognized options:
                             "DEBUG" => {
                                 self.log_level = Some(LevelFilter::Debug);
                             }
-                            _ => {
-                                println!("log_level not info or debug");
-                                self.usage();
+                            x => {
+                                println!("log_level not info or debug ({x}");
+                                self.usage()
                             }
                         }
                     }
                 }
                 Short('i') | Long("ssdp_interval") => {
                     if let Ok(interval) = argparser.value() {
-                        self.ssdp_interval_mins = Some(interval.parse().unwrap_or_else(|_| {
-                            println!("Invalid SSDP interval, using 15.0");
-                            15.0
+                        self.ssdp_interval_mins = Some(interval.parse().unwrap_or_else(|x| {
+                            println!("Invalid SSDP interval: {x}.");
+                            self.usage();
                         }));
                     }
                 }
                 Short('b') | Long("bits_per_sample") => {
                     if let Ok(bps) = argparser.value() {
-                        let n: u16 = bps.parse().unwrap_or_else(|_| {
-                            println!("Invalid bps - using 16");
-                            16
+                        let n: u16 = bps.parse().unwrap_or_else(|x| {
+                            println!("Invalid bps: {x}.");
+                            self.usage();
                         });
                         if let 16 | 24 = n {
                             self.bits_per_sample = Some(n);
@@ -179,8 +180,8 @@ Recognized options:
                             "FLAC" => {
                                 self.streaming_format = Some(StreamingFormat::Flac);
                             }
-                            _ => {
-                                println!("invalid streaming_format {streaming_format}");
+                            x => {
+                                println!("invalid streaming_format {x}");
                                 self.usage();
                             }
                         }
@@ -191,13 +192,12 @@ Recognized options:
                                 "U32MAXNOTCHUNKED" => Some(StreamSize::U32maxNotChunked),
                                 "U64MAXCHUNKED" => Some(StreamSize::U64maxChunked),
                                 "U64MAXNOTCHUNKED" => Some(StreamSize::U64maxNotChunked),
-                                _ => {
-                                    println!("invalid streamsize {streamsize}");
+                                x => {
+                                    println!("invalid streamsize {x}.");
                                     println!(
                                         "valid options: NONECHUNKED,U32MAXCHUNKED,U32MAXNOTCHUNKED,U64MAXCHUNKED,U64MAXNOTCHUNKED"
                                     );
                                     self.usage();
-                                    Some(StreamSize::U64maxNotChunked)
                                 }
                             };
                         }
@@ -220,7 +220,7 @@ Recognized options:
                         if let Ok(_addr) = ip.parse::<IpAddr>() {
                             self.ip_address = Some(ip);
                         } else {
-                            println!("invalid ip address {ip}");
+                            println!("invalid ip address: {ip}.");
                             self.usage();
                         }
                     }
@@ -233,10 +233,14 @@ Recognized options:
                                 .unwrap()
                                 .sanitize_bool()
                                 .parse()
-                                .unwrap_or(true),
+                                .unwrap_or_else(|x| {
+                                    println!("Invalid inject silence flag: {x}.");
+                                    self.usage();
+                                }),
                         );
                     } else {
-                        self.inject_silence = Some(true);
+                        println!("Can not parse Inject Silence");
+                        self.usage();
                     }
                 }
                 Short('x') | Long("serve_only") => {
@@ -244,9 +248,9 @@ Recognized options:
                 }
                 Short('v') | Long("volume") => {
                     if let Ok(vol) = argparser.value() {
-                        let v: u8 = vol.parse().unwrap_or_else(|_| {
-                            println!("Invalid volume - using 25");
-                            25
+                        let v: u8 = vol.parse().unwrap_or_else(|x| {
+                            println!("Invalid volume: {x}.");
+                            self.usage();
                         });
                         if v <= 100 {
                             self.volume = Some(v);
@@ -255,9 +259,9 @@ Recognized options:
                 }
                 Short('u') | Long("upfront_buffer") => {
                     if let Ok(buffer) = argparser.value() {
-                        let b: u32 = buffer.parse().unwrap_or_else(|_| {
-                            println!("Invalid upfront buffer, using 0");
-                            0
+                        let b: u32 = buffer.parse().unwrap_or_else(|x| {
+                            println!("Invalid upfront buffer msec: {x}.");
+                            self.usage();
                         });
                         self.upfront_buffer = Some(b);
                     }

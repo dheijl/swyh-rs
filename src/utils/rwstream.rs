@@ -265,7 +265,7 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let block_align: u16 = channels * bytes_per_sample;
     let byte_rate: u32 = sample_rate * u32::from(block_align);
     hdr[0..4].copy_from_slice(b"RIFF"); //ChunkId, little endian WAV
-    let riffchunksize: u32 = 4_294_967_286; // RIFF chunksize
+    let riffchunksize: u32 = u32::MAX; // RIFF chunksize
     let datachunksize: u32 = riffchunksize - 36; // data chunksize
     hdr[4..8].copy_from_slice(&riffchunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format
@@ -318,9 +318,10 @@ fn create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let rf64chunksize: u32 = 0xffff_ffff; // dummy RIFF chunksize
     let datachunksize: u32 = 0xffff_ffff; // dummy data chunksize
     let ds64chunksize: u32 = 28;
-    let ds64riffsize: u64 = i64::MAX as u64 - 64;
-    let ds64datasize: u64 = ds64riffsize - 8u64;
-    let ds64nsamples: u64 = ds64datasize / (u64::from(bytes_per_sample) * u64::from(channels));
+    let frame_size: u64 = u64::from(bytes_per_sample) * u64::from(channels);
+    let ds64nsamples: u64 = ((i64::MAX / 8) as u64 - 72) / frame_size;
+    let ds64datasize: u64 = ds64nsamples * frame_size; // exact multiple of frame_size
+    let ds64riffsize: u64 = ds64datasize + 72; // header overhead: WAVE(4)+ds64(36)+fmt(24)+data_hdr(8)
     let ds64tablelength = 0u32;
     hdr[4..8].copy_from_slice(&rf64chunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format

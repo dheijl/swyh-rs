@@ -35,11 +35,13 @@ pub struct Args {
 impl Args {
     // print usage & bail out
     fn usage(&self) -> ! {
+        // note: -C is handled in Configuration.read_config(), not here
         println!(
             r#"
 Recognized options:
     -h (--help) : print usage
     -n (--no_run) : dry-run, don't start streaming
+    -C (--configfile) string : alternative full pathname of configfile
     -c (--config_id) string : config_id [_cli]
     -p (--server_port) u16 : server_port [5901]
     -r (--auto_resume) bool : auto_resume [false]
@@ -48,7 +50,7 @@ Recognized options:
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
     -f (--format) string : streaming_format (lpcm/flac/wav/rf64) [LPCM]
-       optionally followed by a plus sign and a streamsize[LPCM+U64maxNotChunked] 
+       optionally followed by a plus sign and a streamsize [LPCM+U64maxNotChunked] 
     -o (--player_ip) string : (comma-separated) player ip address(es) [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
     -S (--inject_silence) bool : inject silence into stream (bool) [false]

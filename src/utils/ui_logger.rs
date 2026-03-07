@@ -10,9 +10,9 @@ pub enum LogCategory {
 impl Display for LogCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LogCategory::Error => write!(f, "*E "),
-            LogCategory::Warning => write!(f, "*W "),
-            LogCategory::Info => write!(f, ""),
+            LogCategory::Error => f.write_str("*E "),
+            LogCategory::Warning => f.write_str("*W "),
+            LogCategory::Info => f.write_str(""),
         }
     }
 }

@@ -26,10 +26,10 @@ pub enum StreamingFormat {
 impl fmt::Display for StreamingFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StreamingFormat::Lpcm => write!(f, "Lpcm"),
-            StreamingFormat::Wav => write!(f, "Wav"),
-            StreamingFormat::Flac => write!(f, "Flac"),
-            StreamingFormat::Rf64 => write!(f, "Rf64"),
+            StreamingFormat::Lpcm => f.write_str("Lpcm"),
+            StreamingFormat::Wav => f.write_str("Wav"),
+            StreamingFormat::Flac => f.write_str("Flac"),
+            StreamingFormat::Rf64 => f.write_str("Rf64"),
         }
     }
 }
@@ -101,11 +101,11 @@ impl StreamSize {
 impl fmt::Display for StreamSize {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StreamSize::NoneChunked => write!(f, "NoneChunked"),
-            StreamSize::U32maxChunked => write!(f, "U32maxChunked"),
-            StreamSize::U32maxNotChunked => write!(f, "U32maxNotChunked"),
-            StreamSize::U64maxChunked => write!(f, "U64maxChunked"),
-            StreamSize::U64maxNotChunked => write!(f, "U64maxNotChunked"),
+            StreamSize::NoneChunked => f.write_str("NoneChunked"),
+            StreamSize::U32maxChunked => f.write_str("U32maxChunked"),
+            StreamSize::U32maxNotChunked => f.write_str("U32maxNotChunked"),
+            StreamSize::U64maxChunked => f.write_str("U64maxChunked"),
+            StreamSize::U64maxNotChunked => f.write_str("U64maxNotChunked"),
         }
     }
 }
@@ -153,8 +153,8 @@ impl From<u16> for BitDepth {
 impl fmt::Display for BitDepth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BitDepth::Bits16 => write!(f, "16"),
-            BitDepth::Bits24 => write!(f, "24"),
+            BitDepth::Bits16 => f.write_str("16"),
+            BitDepth::Bits24 => f.write_str("24"),
         }
     }
 }

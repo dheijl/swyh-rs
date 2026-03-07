@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.12.21 (unreleased)
+
 - 1.12.20 (Mar 7 2026, dheijl)
   - more code cleanup
   - rust 1.94
@@ -16,6 +18,7 @@
   - rust 1.93.1
   - replace the (unsafe) use of libc and Windows with rustix and winapi-easy
   - use VS2026 on Windows with CMake 4.2
+  - CPAL 0.17.3
   - CPAL 0.17.3
   - bugfix: possible off-by-one error in flac streaming
 

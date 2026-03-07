@@ -131,10 +131,13 @@ pub enum BitDepth {
     Bits16 = 16,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Endian {
-    Little,
-    Big,
+impl BitDepth {
+    pub fn shift_value(&self) -> u8 {
+        match self {
+            BitDepth::Bits24 => 8u8,
+            BitDepth::Bits16 => 16u8,
+        }
+    }
 }
 
 impl From<u16> for BitDepth {
@@ -166,6 +169,12 @@ impl FromStr for BitDepth {
             _ => Ok(BitDepth::Bits16),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Endian {
+    Little,
+    Big,
 }
 
 /// helper holding struct to avoid repeatedly reading the config data

@@ -123,14 +123,13 @@ impl ChannelStream {
     }
 
     // fill the samples buffer with samples or with silence if no samples are coming
-    #[inline(never)]
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
             self.fifo.append(&mut VecDeque::from(chunk));
             self.sending_silence = false;
         } else {
-            self.fifo.append(&mut VecDeque::from(self.silence.clone()));
+            self.fifo.extend(self.silence.iter().copied());
             self.sending_silence = true;
         }
     }
@@ -203,21 +202,20 @@ impl Read for ChannelStream {
             let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(&drain_iter);
             // setup sample conversion parameters
             let endianness: Endian = if self.use_wave_format { Little } else { Big };
-            let bitdepth = BitDepth::from(self.bits_per_sample);
-            let shift = if bitdepth == Bits24 { 8u8 } else { 16u8 };
+            let bd = BitDepth::from(self.bits_per_sample);
             // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
-            match (endianness, bitdepth) {
+            match (endianness, bd) {
                 (Little, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    i32_to_i16le(&sample_chunk_to_i32(shift, sample_chunk), chunk);
+                    i32_to_i16le(&sample_chunk_to_i32(bd, sample_chunk), chunk);
                 }),
                 (Little, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    i32_to_i24le(&sample_chunk_to_i32(shift, sample_chunk), chunk);
+                    i32_to_i24le(&sample_chunk_to_i32(bd, sample_chunk), chunk);
                 }),
                 (Big, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    i32_to_i16be(&sample_chunk_to_i32(shift, sample_chunk), chunk);
+                    i32_to_i16be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
                 }),
                 (Big, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    i32_to_i24be(&sample_chunk_to_i32(shift, sample_chunk), chunk);
+                    i32_to_i24be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
                 }),
             }
             /*debug_assert_eq!(buf.len(), chunks_needed * bytes_per_sample * 4);*/
@@ -229,13 +227,13 @@ impl Read for ChannelStream {
 /// convert a 4 f32 samples chunk to an i32 array (scaled to bitdepth)
 #[inline(always)]
 fn sample_chunk_to_i32(
-    shift: u8,
+    bd: BitDepth,
     sample_chunk: itertools::Chunk<'_, std::collections::vec_deque::Drain<'_, f32>>,
 ) -> [i32; 4] {
     let mut temp = [0f32; 4];
     temp.iter_mut().set_from(sample_chunk);
     let f32_array = f32x4::new(temp);
-    f32_to_i32(shift, f32_array)
+    f32_to_i32(bd, f32_array)
 }
 
 // create an "infinite size" wav hdr
@@ -357,7 +355,7 @@ fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
 }
 
 ///
-/// fille the pre-allocated noise buffer with a very faint white noise (-60db)
+/// fill the pre-allocated noise buffer with a very faint white noise (-60db)
 ///
 #[allow(dead_code)]
 fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {

@@ -12,7 +12,9 @@ use std::{
     time::Duration,
 };
 
-use crate::{globals::statics::THREAD_STACK, utils::samples_conv::samples_to_i32};
+use crate::{
+    enums::streaming::BitDepth, globals::statics::THREAD_STACK, utils::samples_conv::samples_to_i32,
+};
 
 const NOISE_PERIOD_MS: u64 = 250; // milliseconds
 
@@ -107,7 +109,7 @@ impl FlacChannel {
                     .init_write(&mut outw)
                     .unwrap();
                 // read captured samples and encode
-                let shift = if bps == 24 { 8u8 } else { 16u8 };
+                let bd = BitDepth::from(bps as u16);
                 // create the random generator for the white noise
                 let mut rng = fastrand::Rng::with_seed(79);
                 // init NOISE feature and preallocate the noise buffer
@@ -121,7 +123,7 @@ impl FlacChannel {
                 while l_active.load(Relaxed) {
                     if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS);
-                        samples_to_i32(&f32_samples, &mut i32_samples, shift);
+                        samples_to_i32(&f32_samples, &mut i32_samples, bd);
                         if enc
                             .process_interleaved(
                                 &i32_samples,
@@ -139,7 +141,7 @@ impl FlacChannel {
                             fill_noise_buffer(&mut rng, &mut noise_buf);
                             let samples = noise_buf
                                 .iter()
-                                .map(|s| (s.to_sample::<i32>() >> shift) & 0x3)
+                                .map(|s| (s.to_sample::<i32>() >> bd.shift_value()) & 0x3)
                                 .collect::<Vec<i32>>();
                             if enc
                                 .process_interleaved(

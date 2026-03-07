@@ -20,12 +20,13 @@ use crate::{
 };
 use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
+#[cfg(debug_assertions)]
 use fastrand::Rng;
 use itertools::Itertools;
 use log::debug;
 use std::{
     collections::VecDeque,
-    io::{Read, Result as IoResult},
+    io::{Error, Read, Result as IoResult},
     time::Duration,
 };
 use wide::f32x4;
@@ -71,7 +72,7 @@ impl ChannelStream {
         } else {
             None
         };
-        let capture_timeout = u64::from(get_config().capture_timeout.unwrap());
+        let capture_timeout = u64::from(get_config().capture_timeout.unwrap_or(5));
         let chs = ChannelStream {
             s: tx,
             r: rx,
@@ -118,7 +119,12 @@ impl ChannelStream {
         // don't blow up memory if streaming stalls for some reason
         // 10_000 messages (capture buffers, not samples) is a quite a lot
         if self.s.len() < 10_000 {
-            self.s.send(samples.to_vec()).unwrap();
+            let _ = self.s.send(samples.to_vec());
+        } else {
+            #[cfg(debug_assertions)]
+            {
+                debug!("Samples buffer overflow, dropping chunks!");
+            }
         }
     }
 
@@ -157,6 +163,8 @@ impl Read for ChannelStream {
             while self.flac_fifo.len() < buf.len() {
                 if let Ok(chunk) = flac_in.recv() {
                     self.flac_fifo.append(&mut VecDeque::from(chunk));
+                } else {
+                    return Err(Error::other("FLAC channel receive error."));
                 }
             }
             // fill the buffer with the number of FLAC bytes needed from the fifo
@@ -181,6 +189,10 @@ impl Read for ChannelStream {
             // LPCM (naked LPCM or WAV/RF64)
             if self.use_wave_format && !self.wav_hdr.is_empty() {
                 let i = self.wav_hdr.len();
+                debug_assert!(
+                    buf.len() >= i,
+                    "HTTP read buffer smaller than WAV/RF64 header!"
+                );
                 buf[..i].copy_from_slice(&self.wav_hdr);
                 self.wav_hdr.clear();
                 return Ok(i);
@@ -218,8 +230,7 @@ impl Read for ChannelStream {
                     i32_to_i24be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
                 }),
             }
-            /*debug_assert_eq!(buf.len(), chunks_needed * bytes_per_sample * 4);*/
-            Ok((buf.len() / bytes_per_sample) * bytes_per_sample)
+            Ok(chunks_needed * buf_chunksize)
         }
     }
 }
@@ -346,10 +357,9 @@ fn create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr.to_vec()
 }
 
-//#[allow(dead_code)]
 fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     // silence_period is in msecs (capture_timeout / 4), sample rate is per second, 2 channels for stereo
-    let size = ((sample_rate * 2 * silence_period as u32) / 1000) as usize;
+    let size = ((sample_rate as u64 * 2 * silence_period) / 1000) as usize;
     let mut silence = Vec::with_capacity(size);
     silence.resize(size, 0f32);
     silence
@@ -358,11 +368,12 @@ fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
 ///
 /// fill the pre-allocated noise buffer with a very faint white noise (-60db)
 ///
+#[cfg(debug_assertions)]
 #[allow(dead_code)]
 fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     // create the random generator for the white noise
     let mut rng = Rng::with_seed(79);
-    let size = ((sample_rate * 2 * silence_period as u32) / 1000) as usize;
+    let size = ((sample_rate as u64 * 2 * silence_period) / 1000) as usize;
     let mut noise = Vec::with_capacity(size);
     noise.resize(size, 0.0);
     let amplitude: f32 = 0.001;
@@ -392,12 +403,13 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
     fn test_noise() {
         // create the random generator for the white noise
         let mut rng = Rng::with_seed(79);
         let sample_rate = 44100;
         let silence_period = 250; //msecs
-        let size = ((sample_rate * 2 * silence_period as u32) / 1000) as usize;
+        let size = ((sample_rate as u64 * 2 * silence_period) / 1000) as usize;
         let mut noise = Vec::with_capacity(size);
         noise.resize(size, 0.0);
         let amplitude: f32 = 0.001;

@@ -16,6 +16,7 @@ use fltk::{button::LightButton, valuator::HorNiceSlider};
 use hashbrown::HashMap;
 use log::{debug, error, info};
 use std::{
+    cell::OnceCell,
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
@@ -175,6 +176,18 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 
 /// Bad XML template error
 static BAD_TEMPL: &str = "Error parsing/formatting XML template.";
+
+// this allows to compile the templates only once per thread (CbTemplate is not Send)
+// they are only called from a single thread anyway
+thread_local! {
+    static FLAC_PROT_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
+    static WAV_PROT_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
+    static L16_PROT_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
+    static L24_PROT_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
+    static DIDL_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
+    static OH_INSERT_PL_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
+    static AV_SET_TRANSPORT_URI_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
+}
 
 /// some captured audio parameters (from CPAL)
 #[derive(Debug, Clone, Copy)]
@@ -396,48 +409,58 @@ impl Renderer {
         fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
         fmt_vars.insert("duration", Value::static_str("00:00:00"));
         let didl_prot = {
-            match streaminfo.streaming_format {
-                StreamingFormat::Flac => FLAC_PROT_INFO,
-                StreamingFormat::Rf64 | StreamingFormat::Wav => WAV_PROT_INFO,
+            let result = match streaminfo.streaming_format {
+                StreamingFormat::Flac => FLAC_PROT_TMPL.with(|cell| {
+                    cell.get_or_init(|| {
+                        CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))
+                            .expect("static FLAC prot info template is valid")
+                    })
+                    .format(&fmt_vars)
+                }),
+                StreamingFormat::Rf64 | StreamingFormat::Wav => WAV_PROT_TMPL.with(|cell| {
+                    cell.get_or_init(|| {
+                        CbTemplate::compile(htmlescape::encode_minimal(WAV_PROT_INFO))
+                            .expect("static WAV prot info template is valid")
+                    })
+                    .format(&fmt_vars)
+                }),
                 StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
-                    BitDepth::Bits16 => L16_PROT_INFO,
-                    BitDepth::Bits24 => L24_PROT_INFO,
+                    BitDepth::Bits16 => L16_PROT_TMPL.with(|cell| {
+                        cell.get_or_init(|| {
+                            CbTemplate::compile(htmlescape::encode_minimal(L16_PROT_INFO))
+                                .expect("static L16 prot info template is valid")
+                        })
+                        .format(&fmt_vars)
+                    }),
+                    BitDepth::Bits24 => L24_PROT_TMPL.with(|cell| {
+                        cell.get_or_init(|| {
+                            CbTemplate::compile(htmlescape::encode_minimal(L24_PROT_INFO))
+                                .expect("static L24 prot info template is valid")
+                        })
+                        .format(&fmt_vars)
+                    }),
                 },
-            }
-        };
-        let template = match CbTemplate::compile(htmlescape::encode_minimal(didl_prot)) {
-            Ok(s) => s,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Info,
-                    &format!("oh_play: error {e} parsing DIDL_PROTOCOL template"),
-                );
-                return Err(BAD_TEMPL);
-            }
-        };
-        let didl_prot = match template.format(&fmt_vars) {
-            Ok(s) => s,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Info,
-                    &format!("oh_play: error {e} formatting didl_protol"),
-                );
-                return Err(BAD_TEMPL);
+            };
+            match result {
+                Ok(s) => s,
+                Err(e) => {
+                    ui_log(
+                        LogCategory::Info,
+                        &format!("oh_play: error {e} formatting didl_protol"),
+                    );
+                    return Err(BAD_TEMPL);
+                }
             }
         };
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
-        let didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
-        let template = match CbTemplate::compile(&didl_data) {
-            Ok(s) => s,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Info,
-                    &format!("oh_play: error {e} parsing DIDL_DATA template"),
-                );
-                return Err(BAD_TEMPL);
-            }
-        };
-        let formatted_didl = match template.format(&fmt_vars) {
+        let formatted_didl = DIDL_TMPL.with(|cell| {
+            cell.get_or_init(|| {
+                CbTemplate::compile(htmlescape::encode_minimal(DIDL_TEMPLATE))
+                    .expect("static DIDL template is valid")
+            })
+            .format(&fmt_vars)
+        });
+        let formatted_didl = match formatted_didl {
             Ok(s) => s,
             Err(e) => {
                 ui_log(
@@ -497,17 +520,14 @@ impl Renderer {
                 self.dev_name, self.host, self.port
             ),
         );
-        let template = match CbTemplate::compile(OH_INSERT_PL_TEMPLATE) {
-            Ok(s) => s,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Info,
-                    &format!("oh_play: error {e} parsing OH_INSERT_PL_TEMPLATE"),
-                );
-                return Err(BAD_TEMPL);
-            }
-        };
-        let xmlbody = match template.format(fmt_vars) {
+        let xmlbody = OH_INSERT_PL_TMPL.with(|cell| {
+            cell.get_or_init(|| {
+                CbTemplate::compile(OH_INSERT_PL_TEMPLATE)
+                    .expect("static OH insert playlist template is valid")
+            })
+            .format(fmt_vars)
+        });
+        let xmlbody = match xmlbody {
             Ok(s) => s,
             Err(e) => {
                 ui_log(
@@ -552,17 +572,14 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let template = match CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE) {
-            Ok(s) => s,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Info,
-                    &format!("av_play: error {e} parsing AV_SET_TRANSPORT_URI_TEMPLATE"),
-                );
-                return Err(BAD_TEMPL);
-            }
-        };
-        let xmlbody = match template.format(fmt_vars) {
+        let xmlbody = AV_SET_TRANSPORT_URI_TMPL.with(|cell| {
+            cell.get_or_init(|| {
+                CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE)
+                    .expect("static AV set transport URI template is valid")
+            })
+            .format(fmt_vars)
+        });
+        let xmlbody = match xmlbody {
             Ok(s) => s,
             Err(e) => {
                 ui_log(

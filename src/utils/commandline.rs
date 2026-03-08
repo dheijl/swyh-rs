@@ -34,7 +34,7 @@ pub struct Args {
 
 impl Args {
     // print usage & bail out
-    fn usage(&self) -> ! {
+    pub fn usage(&self) {
         // note: -C is handled in Configuration.read_config(), not here
         println!(
             r#"
@@ -60,12 +60,12 @@ Recognized options:
 "#
         );
         println!("{self:?}");
-        std::process::exit(0);
     }
 
     // parse commandline arguments
 
-    pub fn parse(&mut self) -> Result<(), String> {
+    pub fn parse(&mut self) -> Result<(), Vec<String>> {
+        let mut errors: Vec<String> = Vec::new();
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
             match arg {
@@ -82,25 +82,23 @@ Recognized options:
                 }
                 Short('p') | Long("server_port") => {
                     if let Ok(port) = argparser.value() {
-                        self.server_port = Some(port.parse().unwrap_or_else(|x| {
-                            println!("Invalid server port: {x}.");
-                            self.usage();
-                        }));
+                        match port.parse() {
+                            Ok(p) => self.server_port = Some(p),
+                            Err(x) => errors.push(format!("Invalid server port: {x}.")),
+                        }
                     }
                 }
                 Short('r') | Long("auto_resume") => {
                     if let Ok(auto_resume) = argparser.value() {
-                        self.auto_resume = Some(
-                            auto_resume
-                                .string()
-                                .unwrap()
-                                .sanitize_bool()
-                                .parse()
-                                .unwrap_or_else(|x| {
-                                    println!("Invalid value for auto_resume: {x}.");
-                                    self.usage();
-                                }),
-                        );
+                        match auto_resume
+                            .string()
+                            .unwrap_or_default()
+                            .sanitize_bool()
+                            .parse()
+                        {
+                            Ok(v) => self.auto_resume = Some(v),
+                            Err(x) => errors.push(format!("Invalid value for auto_resume: {x}.")),
+                        }
                     } else {
                         self.auto_resume = Some(true);
                     }
@@ -126,35 +124,25 @@ Recognized options:
                         let loglevel = level.string().unwrap_or_default();
                         match loglevel.to_ascii_uppercase().as_str() {
                             "INFO" => self.log_level = Some(LevelFilter::Info),
-                            "DEBUG" => {
-                                self.log_level = Some(LevelFilter::Debug);
-                            }
-                            x => {
-                                println!("Invalid log_level (info or debug): {x}.");
-                                self.usage()
-                            }
+                            "DEBUG" => self.log_level = Some(LevelFilter::Debug),
+                            x => errors.push(format!("Invalid log_level (info or debug): {x}.")),
                         }
                     }
                 }
                 Short('i') | Long("ssdp_interval") => {
                     if let Ok(interval) = argparser.value() {
-                        self.ssdp_interval_mins = Some(interval.parse().unwrap_or_else(|x| {
-                            println!("Invalid SSDP interval: {x}.");
-                            self.usage();
-                        }));
+                        match interval.parse() {
+                            Ok(v) => self.ssdp_interval_mins = Some(v),
+                            Err(x) => errors.push(format!("Invalid SSDP interval: {x}.")),
+                        }
                     }
                 }
                 Short('b') | Long("bits_per_sample") => {
                     if let Ok(bps) = argparser.value() {
-                        let n: u16 = bps.parse().unwrap_or_else(|x| {
-                            println!("Invalid bps (16/24): {x}.");
-                            self.usage();
-                        });
-                        if let 16 | 24 = n {
-                            self.bits_per_sample = Some(n);
-                        } else {
-                            println!("Invalid bps (16/24): {n}.");
-                            self.usage();
+                        match bps.parse::<u16>() {
+                            Ok(n @ (16 | 24)) => self.bits_per_sample = Some(n),
+                            Ok(n) => errors.push(format!("Invalid bps (16/24): {n}.")),
+                            Err(x) => errors.push(format!("Invalid bps (16/24): {x}.")),
                         }
                     }
                 }
@@ -182,26 +170,27 @@ Recognized options:
                             "FLAC" => {
                                 self.streaming_format = Some(StreamingFormat::Flac);
                             }
-                            x => {
-                                println!("Invalid streaming_format {x}.");
-                                self.usage();
-                            }
+                            x => errors.push(format!("Invalid streaming_format {x}.")),
                         }
                         if !streamsize.is_empty() {
-                            self.stream_size = match streamsize.to_ascii_uppercase().as_str() {
-                                "NONECHUNKED" => Some(StreamSize::NoneChunked),
-                                "U32MAXCHUNKED" => Some(StreamSize::U32maxChunked),
-                                "U32MAXNOTCHUNKED" => Some(StreamSize::U32maxNotChunked),
-                                "U64MAXCHUNKED" => Some(StreamSize::U64maxChunked),
-                                "U64MAXNOTCHUNKED" => Some(StreamSize::U64maxNotChunked),
-                                x => {
-                                    println!("Invalid streamsize {x}.");
-                                    println!(
-                                        "Valid options: NONECHUNKED,U32MAXCHUNKED,U32MAXNOTCHUNKED,U64MAXCHUNKED,U64MAXNOTCHUNKED."
-                                    );
-                                    self.usage();
+                            match streamsize.to_ascii_uppercase().as_str() {
+                                "NONECHUNKED" => self.stream_size = Some(StreamSize::NoneChunked),
+                                "U32MAXCHUNKED" => {
+                                    self.stream_size = Some(StreamSize::U32maxChunked)
                                 }
-                            };
+                                "U32MAXNOTCHUNKED" => {
+                                    self.stream_size = Some(StreamSize::U32maxNotChunked)
+                                }
+                                "U64MAXCHUNKED" => {
+                                    self.stream_size = Some(StreamSize::U64maxChunked)
+                                }
+                                "U64MAXNOTCHUNKED" => {
+                                    self.stream_size = Some(StreamSize::U64maxNotChunked)
+                                }
+                                x => errors.push(format!(
+                                    "Invalid streamsize {x}. Valid options: NONECHUNKED,U32MAXCHUNKED,U32MAXNOTCHUNKED,U64MAXCHUNKED,U64MAXNOTCHUNKED."
+                                )),
+                            }
                         }
                     }
                 }
@@ -222,27 +211,18 @@ Recognized options:
                         if let Ok(_addr) = ip.parse::<IpAddr>() {
                             self.ip_address = Some(ip);
                         } else {
-                            println!("Invalid ip address: {ip}.");
-                            self.usage();
+                            errors.push(format!("Invalid ip address: {ip}."));
                         }
                     }
                 }
                 Short('S') | Long("inject_silence") => {
                     if let Ok(inject) = argparser.value() {
-                        self.inject_silence = Some(
-                            inject
-                                .string()
-                                .unwrap()
-                                .sanitize_bool()
-                                .parse()
-                                .unwrap_or_else(|x| {
-                                    println!("Invalid inject silence flag: {x}.");
-                                    self.usage();
-                                }),
-                        );
+                        match inject.string().unwrap_or_default().sanitize_bool().parse() {
+                            Ok(v) => self.inject_silence = Some(v),
+                            Err(x) => errors.push(format!("Invalid inject silence flag: {x}.")),
+                        }
                     } else {
-                        println!("Can not parse Inject Silence.");
-                        self.usage();
+                        errors.push("Cannot parse Inject Silence: missing value.".to_string());
                     }
                 }
                 Short('x') | Long("serve_only") => {
@@ -250,28 +230,29 @@ Recognized options:
                 }
                 Short('v') | Long("volume") => {
                     if let Ok(vol) = argparser.value() {
-                        let v: u8 = vol.parse().unwrap_or_else(|x| {
-                            println!("Invalid volume: {x}.");
-                            self.usage();
-                        });
-                        if v <= 100 {
-                            self.volume = Some(v);
+                        match vol.parse::<u8>() {
+                            Ok(v) if v <= 100 => self.volume = Some(v),
+                            Ok(v) => errors.push(format!("Invalid volume (0-100): {v}.")),
+                            Err(x) => errors.push(format!("Invalid volume: {x}.")),
                         }
                     }
                 }
                 Short('u') | Long("upfront_buffer") => {
                     if let Ok(buffer) = argparser.value() {
-                        let b: u32 = buffer.parse().unwrap_or_else(|x| {
-                            println!("Invalid upfront buffer msec: {x}.");
-                            self.usage();
-                        });
-                        self.upfront_buffer = Some(b);
+                        match buffer.parse::<u32>() {
+                            Ok(b) => self.upfront_buffer = Some(b),
+                            Err(x) => errors.push(format!("Invalid upfront buffer msec: {x}.")),
+                        }
                     }
                 }
                 _ => (),
             }
         }
         println!("{self:?}\n");
-        Ok(())
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 }

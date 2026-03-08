@@ -56,7 +56,13 @@ fn main() -> Result<(), i32> {
 
     // collect command line arguments
     let mut args = Args::default();
-    let _ = args.parse();
+    if let Err(errors) = args.parse() {
+        for e in &errors {
+            eprintln!("Argument error: {e}");
+        }
+        args.usage();
+        return Err(1);
+    }
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     // but it's possible that there is no default audio device
     let mut audio_output_device_opt = get_default_audio_output_device();

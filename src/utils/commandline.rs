@@ -130,7 +130,7 @@ Recognized options:
                                 self.log_level = Some(LevelFilter::Debug);
                             }
                             x => {
-                                println!("log_level not info or debug ({x}");
+                                println!("Invalid log_level (info or debug): {x}.");
                                 self.usage()
                             }
                         }
@@ -147,13 +147,13 @@ Recognized options:
                 Short('b') | Long("bits_per_sample") => {
                     if let Ok(bps) = argparser.value() {
                         let n: u16 = bps.parse().unwrap_or_else(|x| {
-                            println!("Invalid bps: {x}.");
+                            println!("Invalid bps (16/24): {x}.");
                             self.usage();
                         });
                         if let 16 | 24 = n {
                             self.bits_per_sample = Some(n);
                         } else {
-                            println!("bits_per_sample not 16 or 24");
+                            println!("Invalid bps (16/24): {n}.");
                             self.usage();
                         }
                     }
@@ -183,7 +183,7 @@ Recognized options:
                                 self.streaming_format = Some(StreamingFormat::Flac);
                             }
                             x => {
-                                println!("invalid streaming_format {x}");
+                                println!("Invalid streaming_format {x}.");
                                 self.usage();
                             }
                         }
@@ -195,9 +195,9 @@ Recognized options:
                                 "U64MAXCHUNKED" => Some(StreamSize::U64maxChunked),
                                 "U64MAXNOTCHUNKED" => Some(StreamSize::U64maxNotChunked),
                                 x => {
-                                    println!("invalid streamsize {x}.");
+                                    println!("Invalid streamsize {x}.");
                                     println!(
-                                        "valid options: NONECHUNKED,U32MAXCHUNKED,U32MAXNOTCHUNKED,U64MAXCHUNKED,U64MAXNOTCHUNKED"
+                                        "Valid options: NONECHUNKED,U32MAXCHUNKED,U32MAXNOTCHUNKED,U64MAXCHUNKED,U64MAXNOTCHUNKED."
                                     );
                                     self.usage();
                                 }
@@ -222,7 +222,7 @@ Recognized options:
                         if let Ok(_addr) = ip.parse::<IpAddr>() {
                             self.ip_address = Some(ip);
                         } else {
-                            println!("invalid ip address: {ip}.");
+                            println!("Invalid ip address: {ip}.");
                             self.usage();
                         }
                     }
@@ -241,7 +241,7 @@ Recognized options:
                                 }),
                         );
                     } else {
-                        println!("Can not parse Inject Silence");
+                        println!("Can not parse Inject Silence.");
                         self.usage();
                     }
                 }

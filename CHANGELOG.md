@@ -1,12 +1,12 @@
 # swyh-rs Changelog
 
-- 1.12.21 (unreleased)
+- 1.20.1 (unreleased)
 
-- 1.12.20 (Mar 7 2026, dheijl)
+- 1.20 (Mar 7 2026, dheijl)
   - more code cleanup
   - rust 1.94
   - bump MSRV to rust 1.93 (for slice.as_array())
-  - improve CLI command line parsing (meaningful error messages)
+  - improve CLI command line parsing (meaningful error messages, parse all arguments even if errors)
   - only compile the figura templates once instead of each time PLAY is started
 
 - 1.12.19 (Mar 4 2026, dheijl)

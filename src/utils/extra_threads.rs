@@ -13,9 +13,9 @@ use crate::{
     openhome::rendercontrol::{Renderer, WavData, discover},
 };
 
-// run the `ssdp_updater` - thread that periodically run ssdp discovery
+/// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
-/// send any new renderers to te main thread on the Crossbeam ssdp channel
+/// send any new renderers to the main thread on the Crossbeam ssdp channel
 pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     let agent = ureq::agent();
     // the hashmap used to detect new renderers
@@ -43,31 +43,30 @@ pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) 
 
 /// compute the left and right channel RMS value for every 100 ms period
 /// and show the values in the UI
-/// sums left and right channel samples, 4 samples at a time
-/// this could use SIMD SSE movps/addps/mulps with 4 f32s at a time
-/// it does so in GodBolt but not here for some reason
-/// so I switched to the wide crate
+/// sums left and right channel samples, 4 samples at a time (SSE SIMD)
 pub fn run_rms_monitor(
     wd: WavData,
     rms_receiver: &Receiver<Vec<f32>>,
     mut rms_frame_l: Progress,
     mut rms_frame_r: Progress,
 ) {
-    const I16_MAX: f32 = (i16::MAX as f32) + 1.0;
+    const F32_TO_I16: f32 = (i16::MAX as f32) + 1.0;
     // compute # of samples needed to get a 10 Hz refresh rate
     let samples_per_update = ((wd.sample_rate * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
     let mut ch_sum = f32x4::splat(0f32);
-    let imax = f32x4::splat(I16_MAX);
+    let imax = f32x4::splat(F32_TO_I16);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
         let chunks = samples.chunks_exact(4);
         let remainder = chunks.remainder();
         ch_sum = chunks.fold(ch_sum, |acc, x| {
+            // chunksize 4 with chunks_exact makes this safe to unwrap
             let f4 = f32x4::new(*x.as_array().unwrap());
             let i4 = f4 * imax;
             i4.mul_add(i4, acc)
         });
+        // only stereo supported !
         if remainder.len() == 2 {
             let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
             let i4 = rem * imax;
@@ -79,8 +78,8 @@ pub fn run_rms_monitor(
             let samples_per_channel = (total_samples / wd.channels as usize) as f32;
             let rms_l = f64::from(((rms[0] + rms[2]) / samples_per_channel).sqrt());
             let rms_r = f64::from(((rms[1] + rms[3]) / samples_per_channel).sqrt());
-            total_samples = 0;
             ch_sum = f32x4::splat(0f32);
+            total_samples = 0;
             rms_frame_l.set_value(rms_l);
             rms_frame_r.set_value(rms_r);
             app::awake();

@@ -8,12 +8,13 @@ pub trait FwSlashPipeUnescape {
 
 impl FwSlashPipeEscape for String {
     fn fw_slash_pipe_escape(&self) -> String {
-        let mut result: String = self.to_string();
-        if result.contains('/') {
-            result = result.replace('/', "\\/");
-        }
-        if result.contains('|') {
-            result = result.replace('|', "``");
+        let mut result = String::with_capacity(self.len());
+        for ch in self.chars() {
+            match ch {
+                '/' => result.push_str("\\/"),
+                '|' => result.push_str("``"),
+                c => result.push(c),
+            }
         }
         result
     }
@@ -21,12 +22,20 @@ impl FwSlashPipeEscape for String {
 
 impl FwSlashPipeUnescape for String {
     fn fw_slash_pipe_unescape(&self) -> String {
-        let mut result: String = self.to_string();
-        if result.contains("\\/") {
-            result = result.replace("\\/", "/");
-        }
-        if result.contains("``") {
-            result = result.replace("``", "|");
+        let mut result = String::with_capacity(self.len());
+        let mut chars = self.chars().peekable();
+        while let Some(ch) = chars.next() {
+            match ch {
+                '\\' if chars.peek() == Some(&'/') => {
+                    chars.next();
+                    result.push('/');
+                }
+                '`' if chars.peek() == Some(&'`') => {
+                    chars.next();
+                    result.push('|');
+                }
+                c => result.push(c),
+            }
         }
         result
     }
@@ -39,8 +48,12 @@ pub trait SanitizeArg {
 impl SanitizeArg for &str {
     fn sanitize_bool(self) -> String {
         match self {
-            "T" | "t" | "True" | "Y" | "Yes" | "y" | "yes" | "1" => "true".to_string(),
-            "F" | "f" | "False" | "N" | "No" | "n" | "no" | "0" => "false".to_string(),
+            "T" | "t" | "True" | "TRUE" | "Y" | "Yes" | "y" | "yes" | "YES" | "1" => {
+                "true".to_string()
+            }
+            "F" | "f" | "False" | "FALSE" | "N" | "No" | "n" | "no" | "NO" | "0" => {
+                "false".to_string()
+            }
             _ => self.to_string(),
         }
     }
@@ -68,11 +81,11 @@ mod tests {
         use crate::utils::traits::*;
         use lexopt::ValueExt;
         use std::ffi::OsString;
-        let args = vec!["T", "t", "True", "Y", "Yes", "y", "yes", "1"];
+        let args = vec!["T", "t", "True", "TRUE", "Y", "Yes", "YES", "y", "yes", "1"];
         for arg in args {
             assert_eq!(arg.sanitize_bool(), "true");
         }
-        let args = vec!["F", "f", "False", "N", "No", "n", "no", "0"];
+        let args = vec!["F", "f", "False", "FALSE", "N", "No", "NO", "n", "no", "0"];
         for arg in args {
             assert_eq!(arg.sanitize_bool(), "false");
         }

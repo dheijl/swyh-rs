@@ -4,7 +4,6 @@ use cpal::{
     BuildStreamError, Sample, SampleFormat, Stream, StreamConfig,
     traits::{DeviceTrait, StreamTrait},
 };
-use log::warn;
 
 use crate::utils::ui_logger::{LogCategory, ui_log};
 
@@ -25,7 +24,12 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
 
     let config = device.default_config();
     let sample_format = config.sample_format();
-    let err_fn = |err| warn!("Inject silence: an error occurred on the output audio stream: {err}");
+    let err_fn = |err| {
+        ui_log(
+            LogCategory::Error,
+            &format!("Inject silence: an error occurred on the output audio stream: {err}"),
+        )
+    };
     let config: StreamConfig = config.clone().into();
     let device = device.as_ref();
     let try_stream = match sample_format {

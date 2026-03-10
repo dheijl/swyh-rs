@@ -194,9 +194,12 @@ fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
         f32_array[3] = (rng.f32() * 2.0) - 1.0;
         let f32_sse = f32x4::new(f32_array);
         let i32_array = f32_to_i32(bd, f32_sse);
-        samples
-            .iter_mut()
-            .zip(i32_array)
-            .for_each(|s| *s.0 = s.1 & 0x03);
+        samples.iter_mut().zip(i32_array).for_each(|s| {
+            if s.1 >= 0 {
+                *s.0 = s.1 & 0x03;
+            } else {
+                *s.0 = s.1 | 0x7ffffffc;
+            }
+        });
     }
 }

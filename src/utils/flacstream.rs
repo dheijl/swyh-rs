@@ -154,15 +154,20 @@ impl FlacChannel {
                             break;
                         }
                     } else {
-                        time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
-                        // if no samples for a certain time: send very faint near silence bursts
-                        fill_noise_buffer(&mut rng, bd, &mut noise_buf);
-                        if enc
-                            .process_interleaved(&noise_buf, (noise_buf.len() / ch as usize) as u32)
-                            .is_err()
-                        {
-                            ui_log(LogCategory::Warning, "Flac inject near silence: stopped.");
-                            break;
+                        if l_active.load(Acquire) {
+                            time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
+                            // if no samples for a certain time: send very faint near silence bursts
+                            fill_noise_buffer(&mut rng, bd, &mut noise_buf);
+                            if enc
+                                .process_interleaved(
+                                    &noise_buf,
+                                    (noise_buf.len() / ch as usize) as u32,
+                                )
+                                .is_err()
+                            {
+                                ui_log(LogCategory::Warning, "Flac inject near silence: stopped.");
+                                break;
+                            }
                         }
                     }
                 }

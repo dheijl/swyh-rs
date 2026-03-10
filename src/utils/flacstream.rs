@@ -1,19 +1,26 @@
 use crossbeam_channel::{Receiver, Sender, unbounded};
-use dasp_sample::Sample;
 use fastrand::Rng;
 use flac_bound::{FlacEncoder, WriteWrapper};
-use log::info;
 use std::{
     io::Write,
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering::Relaxed},
+        atomic::{
+            AtomicBool,
+            Ordering::{Acquire, Release},
+        },
     },
     time::Duration,
 };
+use wide::f32x4;
 
 use crate::{
-    enums::streaming::BitDepth, globals::statics::THREAD_STACK, utils::samples_conv::samples_to_i32,
+    enums::streaming::BitDepth,
+    globals::statics::THREAD_STACK,
+    utils::{
+        samples_conv::{f32_to_i32, samples_to_i32},
+        ui_logger::{LogCategory, ui_log},
+    },
 };
 
 const NOISE_PERIOD_MS: u64 = 250; // milliseconds
@@ -84,6 +91,11 @@ impl FlacChannel {
 
     pub fn run(&self) {
         // copy instance data for thread
+        if self.active.load(Acquire) {
+            let msg = "Flac encoder already running!";
+            ui_log(LogCategory::Error, msg);
+            panic!("{msg}");
+        }
         let samples_rdr = self.samples_rcvr.clone();
         let mut writer = self.writer.clone();
         let ch = self.channels;
@@ -91,7 +103,7 @@ impl FlacChannel {
         let sr = self.sample_rate;
         let l_active = self.active.clone();
         // fire up thread
-        self.active.store(true, Relaxed);
+        self.active.store(true, Release);
         let _thr = std::thread::Builder::new()
             .name("flac_encoder".into())
             .stack_size(THREAD_STACK)
@@ -100,27 +112,34 @@ impl FlacChannel {
                 // setup the encoder
                 let mut outw = WriteWrapper(&mut writer);
                 let mut enc = FlacEncoder::new()
-                    .unwrap()
+                    .unwrap_or_else(|| {
+                        let msg = "Can't start FLAC encoder";
+                        ui_log(LogCategory::Error, msg);
+                        panic!("{msg}");
+                    })
                     .channels(ch)
                     .bits_per_sample(bps)
                     .sample_rate(sr)
                     .compression_level(1)
                     .set_limit_min_bitrate(true)
                     .init_write(&mut outw)
-                    .unwrap();
+                    .unwrap_or_else(|e| {
+                        let msg = format!("Flac encoder start error {e:?}");
+                        ui_log(LogCategory::Error, &msg);
+                        panic!("{msg}");
+                    });
                 // read captured samples and encode
                 let bd = BitDepth::from(bps as u16);
                 // create the random generator for the white noise
                 let mut rng = fastrand::Rng::with_seed(79);
                 // init NOISE feature and preallocate the noise buffer
                 const DIVISOR: u64 = 1000 / NOISE_PERIOD_MS;
-                let noise_bufsize = ((sr * 2) / DIVISOR as u32) as usize;
-                let mut noise_buf: Vec<f32> = Vec::with_capacity(noise_bufsize);
-                noise_buf.resize(noise_bufsize, 0.0);
+                let noise_bufsize = ((sr * ch) / DIVISOR as u32) as usize;
+                let mut noise_buf: Vec<i32> = vec![0; noise_bufsize];
                 // read and FLAC encode samples
                 let mut time_out = Duration::from_millis(NOISE_PERIOD_MS);
                 let mut i32_samples = Vec::<i32>::with_capacity(16384);
-                while l_active.load(Relaxed) {
+                while l_active.load(Acquire) {
                     if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS);
                         samples_to_i32(&f32_samples, &mut i32_samples, bd);
@@ -131,46 +150,53 @@ impl FlacChannel {
                             )
                             .is_err()
                         {
-                            info!("Flac encoding interrupted.");
+                            ui_log(LogCategory::Warning, "Flac encoder: stopped.");
                             break;
                         }
                     } else {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
                         // if no samples for a certain time: send very faint near silence bursts
-                        if l_active.load(Relaxed) {
-                            fill_noise_buffer(&mut rng, &mut noise_buf);
-                            let samples = noise_buf
-                                .iter()
-                                .map(|s| (s.to_sample::<i32>() >> bd.shift_value()) & 0x3)
-                                .collect::<Vec<i32>>();
-                            if enc
-                                .process_interleaved(
-                                    samples.as_slice(),
-                                    (samples.len() / ch as usize) as u32,
-                                )
-                                .is_err()
-                            {
-                                info!("Flac inject near silence interrupted.");
-                                break;
-                            }
+                        fill_noise_buffer(&mut rng, bd, &mut noise_buf);
+                        if enc
+                            .process_interleaved(&noise_buf, (noise_buf.len() / ch as usize) as u32)
+                            .is_err()
+                        {
+                            ui_log(LogCategory::Warning, "Flac inject near silence: stopped.");
+                            break;
                         }
                     }
                 }
-                let _ = enc.finish();
+                ui_log(LogCategory::Info, "Flac encoder thread exit.");
+                let _ = enc.finish(); // for whatever reason
             })
-            .unwrap();
+            .unwrap_or_else(|e| {
+                let msg = format!("Failed to spawn Flac encoder thread: {e:?}.");
+                ui_log(LogCategory::Error, &msg);
+                panic!("{msg}");
+            });
     }
 
     pub fn stop(&self) {
-        self.active.store(false, Relaxed);
+        self.active.store(false, Release);
     }
 }
 
 ///
 /// fill the pre-allocated noise buffer with white noise
 ///
-fn fill_noise_buffer(rng: &mut Rng, noise_buf: &mut [f32]) {
-    for sample in noise_buf.iter_mut() {
-        *sample = (rng.f32() * 2.0) - 1.0;
+fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
+    let mut f32_array = [0f32; 4];
+    for samples in noise_buf.chunks_mut(4) {
+        // prepare 4 samples, possibly wasting 2 if last chunk is only 2 samples
+        f32_array[0] = (rng.f32() * 2.0) - 1.0;
+        f32_array[1] = (rng.f32() * 2.0) - 1.0;
+        f32_array[2] = (rng.f32() * 2.0) - 1.0;
+        f32_array[3] = (rng.f32() * 2.0) - 1.0;
+        let f32_sse = f32x4::new(f32_array);
+        let i32_array = f32_to_i32(bd, f32_sse);
+        samples
+            .iter_mut()
+            .zip(i32_array)
+            .for_each(|s| *s.0 = (s.1 >> bd.shift_value()) & 0x03);
     }
 }

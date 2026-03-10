@@ -3,6 +3,8 @@
 - 1.20.1 (unreleased)
   - adjust WAV/RF64 size so that FFMPEG no longer complains
   - more code cleanup
+  - add I32 as supported format for audio capture
+  - optimize flac noise generation (but you should really use inject silence if you need this).
 
 - 1.20 (Mar 7 2026, dheijl)
   - more code cleanup

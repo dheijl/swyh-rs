@@ -180,13 +180,13 @@ static BAD_TEMPL: &str = "Error parsing/formatting XML template.";
 // this allows to compile the templates only once per thread (CbTemplate is not Send)
 // they are only called from a single thread anyway
 thread_local! {
-    static FLAC_PROT_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
-    static WAV_PROT_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
-    static L16_PROT_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
-    static L24_PROT_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
-    static DIDL_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
-    static OH_INSERT_PL_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
-    static AV_SET_TRANSPORT_URI_TMPL: OnceCell<CbTemplate> = const { const { OnceCell::new() } };
+    static FLAC_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
+    static WAV_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
+    static L16_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
+    static L24_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
+    static DIDL_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
+    static OH_INSERT_PL_TMPL: OnceCell<CbTemplate> = const { OnceCell::new() } ;
+    static AV_SET_TRANSPORT_URI_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
 }
 
 /// some captured audio parameters (from CPAL)

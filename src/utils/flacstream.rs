@@ -153,21 +153,16 @@ impl FlacChannel {
                             ui_log(LogCategory::Warning, "Flac encoder: stopped.");
                             break;
                         }
-                    } else {
-                        if l_active.load(Acquire) {
-                            time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
-                            // if no samples for a certain time: send very faint near silence bursts
-                            fill_noise_buffer(&mut rng, bd, &mut noise_buf);
-                            if enc
-                                .process_interleaved(
-                                    &noise_buf,
-                                    (noise_buf.len() / ch as usize) as u32,
-                                )
-                                .is_err()
-                            {
-                                ui_log(LogCategory::Warning, "Flac inject near silence: stopped.");
-                                break;
-                            }
+                    } else if l_active.load(Acquire) {
+                        time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
+                        // if no samples for a certain time: send very faint near silence bursts
+                        fill_noise_buffer(&mut rng, bd, &mut noise_buf);
+                        if enc
+                            .process_interleaved(&noise_buf, (noise_buf.len() / ch as usize) as u32)
+                            .is_err()
+                        {
+                            ui_log(LogCategory::Warning, "Flac inject near silence: stopped.");
+                            break;
                         }
                     }
                 }
@@ -202,6 +197,6 @@ fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
         samples
             .iter_mut()
             .zip(i32_array)
-            .for_each(|s| *s.0 = (s.1 >> bd.shift_value()) & 0x03);
+            .for_each(|s| *s.0 = s.1 & 0x03);
     }
 }

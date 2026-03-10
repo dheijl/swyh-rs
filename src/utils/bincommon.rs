@@ -42,6 +42,9 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
         SampleFormat::U16 => {
             device.build_output_stream(&config, write_silence::<u16>, err_fn, None)
         }
+        SampleFormat::I32 => {
+            device.build_output_stream(&config, write_silence::<i32>, err_fn, None)
+        }
         format => {
             let msg = format!("Inject silence: Unsupported sample format: {format:?}");
             ui_log(LogCategory::Error, &msg);

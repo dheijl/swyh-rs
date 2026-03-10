@@ -297,6 +297,26 @@ pub fn capture_output_audio(
                 }
             }
         }
+        cpal::SampleFormat::I32 => {
+            match device.build_input_stream(
+                &audio_cfg.config(),
+                move |data, _: &_| wave_reader::<i32>(data, &mut f32_samples, &rms_sender),
+                capture_err_fn,
+                None,
+            ) {
+                Ok(stream) => {
+                    ui_log(LogCategory::Info, "Audio capture sample format = I32");
+                    Some(stream)
+                }
+                Err(e) => {
+                    ui_log(
+                        LogCategory::Error,
+                        &format!("Error capturing i32 audio stream: {e}"),
+                    );
+                    None
+                }
+            }
+        }
         _ => None,
     }
 }

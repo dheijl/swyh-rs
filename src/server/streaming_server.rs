@@ -49,7 +49,13 @@ pub fn run_server(
             wd.sample_rate, stream_config.bits_per_sample, stream_config.streaming_format,
         ),
     );
-    let server = Arc::new(Server::http(addr).unwrap());
+    let server = Arc::new(Server::http(addr).unwrap_or_else(|e| {
+        ui_log(
+            LogCategory::Error,
+            &format!("Error starting server thread: {e}"),
+        );
+        panic!("Can't start server thread: {e}");
+    }));
     let mut handles = Vec::new();
     // always have two threads ready to serve new requests
     for _ in 0..2 {
@@ -102,7 +108,13 @@ pub fn run_server(
     }
 
     for h in handles {
-        h.join().unwrap();
+        h.join().unwrap_or_else(|e| {
+            ui_log(
+                LogCategory::Error,
+                &format!("Server thread ended with error {e:?}"),
+            );
+            panic!("{e:?}");
+        });
     }
 }
 
@@ -166,7 +178,13 @@ fn streaming_request(
             remote_ip: streaming_ctx.remote_ip.clone(),
             streaming_state: StreamingState::Started,
         }))
-        .unwrap();
+        .unwrap_or_else(|e| {
+            ui_log(
+                LogCategory::Error,
+                &format!("HTTP Server: error writing feedback channel {e:?}"),
+            );
+            panic!("Http server feedback error:{e:?}");
+        });
 
     // check for upfront audio buffering needed
     if streaming_ctx.buffering_delay_msec > 0 {
@@ -222,7 +240,13 @@ fn streaming_request(
             remote_ip: streaming_ctx.remote_ip.clone(),
             streaming_state: StreamingState::Ended,
         }))
-        .unwrap();
+        .unwrap_or_else(|e| {
+            ui_log(
+                LogCategory::Error,
+                &format!("HTTP Server: error writing feedback channel {e}"),
+            );
+            panic!("Http server feedback channel error:{e}");
+        });
     ui_log(
         LogCategory::Info,
         &format!("Streaming to {} has ended", streaming_ctx.remote_addr),
@@ -312,19 +336,17 @@ fn bad_request(rq: tiny_http::Request, remote_addr: &str) {
 fn get_dlna_headers(stream_context: &StreamingContext) -> Vec<Header> {
     let mut headers = get_std_headers();
     // get the dlna format string
-    let ct_text = {
-        match stream_context.streaming_format {
-            StreamingFormat::Flac => "audio/flac".to_string(),
-            StreamingFormat::Wav | StreamingFormat::Rf64 => "audio/vnd.wave;codec=1".to_string(),
-            StreamingFormat::Lpcm => match stream_context.bits_per_sample {
-                BitDepth::Bits16 => {
-                    format!("audio/L16;rate={};channels=2", stream_context.sample_rate)
-                }
-                BitDepth::Bits24 => {
-                    format!("audio/L24;rate={};channels=2", stream_context.sample_rate)
-                }
-            },
-        }
+    let ct_text = match stream_context.streaming_format {
+        StreamingFormat::Flac => "audio/flac".to_string(),
+        StreamingFormat::Wav | StreamingFormat::Rf64 => "audio/vnd.wave;codec=1".to_string(),
+        StreamingFormat::Lpcm => match stream_context.bits_per_sample {
+            BitDepth::Bits16 => {
+                format!("audio/L16;rate={};channels=2", stream_context.sample_rate)
+            }
+            BitDepth::Bits24 => {
+                format!("audio/L24;rate={};channels=2", stream_context.sample_rate)
+            }
+        },
     };
     // and add dlna headers
     headers.push(Header::from_bytes(&b"Content-Type"[..], ct_text.as_bytes()).unwrap());
@@ -334,6 +356,7 @@ fn get_dlna_headers(stream_context: &StreamingContext) -> Vec<Header> {
 
 /// get the standard headers
 fn get_std_headers() -> Vec<Header> {
+    // reserve space for dlna headers to be added later
     let mut headers = Vec::with_capacity(8);
     headers.push(Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap());
     headers.push(Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap());

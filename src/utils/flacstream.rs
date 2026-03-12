@@ -150,7 +150,7 @@ impl FlacChannel {
                             )
                             .is_err()
                         {
-                            ui_log(LogCategory::Warning, "Flac encoder: stopped.");
+                            ui_log(LogCategory::Warning, "Flac encoder thread: end.");
                             break;
                         }
                     } else if l_active.load(Acquire) {
@@ -161,13 +161,16 @@ impl FlacChannel {
                             .process_interleaved(&noise_buf, (noise_buf.len() / ch as usize) as u32)
                             .is_err()
                         {
-                            ui_log(LogCategory::Warning, "Flac inject near silence: stopped.");
+                            ui_log(
+                                LogCategory::Warning,
+                                "Flac encoder thread (injecting near silence): end.",
+                            );
                             break;
                         }
                     }
                 }
+                let _ = enc.finish(); // thread stopped, for whatever reason
                 ui_log(LogCategory::Info, "Flac encoder thread exit.");
-                let _ = enc.finish(); // for whatever reason
             })
             .unwrap_or_else(|e| {
                 let msg = format!("Failed to spawn Flac encoder thread: {e:?}.");
@@ -192,8 +195,8 @@ fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
         f32_array[1] = (rng.f32() * 2.0) - 1.0;
         f32_array[2] = (rng.f32() * 2.0) - 1.0;
         f32_array[3] = (rng.f32() * 2.0) - 1.0;
-        let f32_sse = f32x4::new(f32_array);
-        let i32_array = f32_to_i32(bd, f32_sse);
+        let f32_simd = f32x4::new(f32_array);
+        let i32_array = f32_to_i32(bd, f32_simd);
         samples.iter_mut().zip(i32_array).for_each(|s| {
             if s.1 >= 0 {
                 *s.0 = s.1 & 0x03;

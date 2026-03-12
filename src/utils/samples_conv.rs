@@ -5,7 +5,7 @@ use crate::enums::streaming::BitDepth;
 /// conversion constant for f32 sample to i32
 const F32_TO_I32: f32 = (i32::MAX as f32) + 1.0;
 /// XMM register constant
-static F32_TO_I32_XMM: f32x4 = f32x4::splat(F32_TO_I32);
+static F32_TO_I32_SIMD: f32x4 = f32x4::splat(F32_TO_I32);
 
 /// convert f32 samples to i32 for flac encoding
 /// but scaled to i16 or i24 according to shift (8 or 16)
@@ -33,8 +33,8 @@ pub(crate) fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd
 
 /// convert 4 f32 samples to 4 i32 samples using SSE2
 #[inline(always)]
-pub(crate) fn f32_to_i32(bd: BitDepth, f32_array: f32x4) -> [i32; 4] {
-    let fchunk_i32 = f32_array * F32_TO_I32_XMM;
+pub(crate) fn f32_to_i32(bd: BitDepth, f32_simd: f32x4) -> [i32; 4] {
+    let fchunk_i32 = f32_simd * F32_TO_I32_SIMD;
     let s4i = fchunk_i32.trunc_int() >> bd.shift_value();
     s4i.to_array()
 }

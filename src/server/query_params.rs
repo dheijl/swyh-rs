@@ -20,15 +20,15 @@ pub struct StreamingParams {
 impl StreamingParams {
     #[must_use]
     pub fn from_query_string(url: &str) -> StreamingParams {
+        const PATH_PREFIX: &str = "/stream/swyh.";
+        const PATH_PREFIX_LEN: usize = PATH_PREFIX.len();
+
         let mut params = StreamingParams {
             path: None,
             bd: None,
             ss: None,
             fmt: None,
         };
-        if !url.contains('/') {
-            return params;
-        }
         let parts: Vec<&str> = url.split('?').collect();
         let path = parts[0];
         if path.is_empty() {
@@ -37,17 +37,10 @@ impl StreamingParams {
         let lc_path = path.to_lowercase();
         if VALID_URLS.contains(&lc_path.as_str()) {
             params.path = Some(lc_path.clone());
+            params.fmt = lc_path
+                .get(PATH_PREFIX_LEN..)
+                .and_then(|ext| StreamingFormat::from_str(ext).ok());
         }
-        params.fmt = {
-            // we know now path starts with "/stream/swyh.", so query starts at +13
-            if let Some(format) = lc_path.get(13..)
-                && let Ok(fmt) = StreamingFormat::from_str(format)
-            {
-                Some(fmt)
-            } else {
-                None
-            }
-        };
         if params.fmt.is_none() || parts.len() < 2 {
             return params;
         }
@@ -64,13 +57,10 @@ impl StreamingParams {
                         _ => None,
                     }
                 })
-                .for_each(|kv_pair| match kv_pair.0 {
-                    "bd" => {
-                        params.bd = Some(BitDepth::from_str(kv_pair.1).unwrap_or(BitDepth::Bits16))
-                    }
+                .for_each(|(k, v)| match k {
+                    "bd" => params.bd = Some(BitDepth::from_str(v).unwrap_or(BitDepth::Bits16)),
                     "ss" => {
-                        params.ss =
-                            Some(StreamSize::from_str(kv_pair.1).unwrap_or(StreamSize::NoneChunked))
+                        params.ss = Some(StreamSize::from_str(v).unwrap_or(StreamSize::NoneChunked))
                     }
                     _ => (),
                 });

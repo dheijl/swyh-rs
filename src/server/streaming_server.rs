@@ -85,7 +85,7 @@ pub fn run_server(
                     let sp = StreamingParams::from_query_string(rq.url());
                     // - check for valid request uri
                     if sp.path.is_none() {
-                        return bad_request(rq, &streaming_ctx.remote_addr);
+                        return bad_request(&streaming_ctx, rq);
                     }
                     // - update streaming context from querystring (if present), this completes the context
                     streaming_ctx.update_format(&sp);
@@ -306,14 +306,14 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     }
 }
 
-/// this request is not recognized, reject with an error 404
-fn bad_request(rq: tiny_http::Request, remote_addr: &str) {
+/// this request is not recotgnized, reject with an error 404
+fn bad_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     ui_log(
         LogCategory::Warning,
         &format!(
             "Unrecognized request '{}' from '{}'",
             rq.url(),
-            rq.remote_addr().unwrap()
+            streaming_ctx.remote_addr
         ),
     );
     let headers = get_std_headers();
@@ -327,24 +327,27 @@ fn bad_request(rq: tiny_http::Request, remote_addr: &str) {
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
-            &format!("=>Http streaming request with {remote_addr} terminated [{e}]"),
+            &format!(
+                "=>Http streaming request with {} terminated [{e}]",
+                streaming_ctx.remote_addr
+            ),
         );
     }
 }
 
 /// get the dlna headers
-fn get_dlna_headers(stream_context: &StreamingContext) -> Vec<Header> {
+fn get_dlna_headers(streaming_ctx: &StreamingContext) -> Vec<Header> {
     let mut headers = get_std_headers();
     // get the dlna format string
-    let ct_text = match stream_context.streaming_format {
+    let ct_text = match streaming_ctx.streaming_format {
         StreamingFormat::Flac => "audio/flac".to_string(),
         StreamingFormat::Wav | StreamingFormat::Rf64 => "audio/vnd.wave;codec=1".to_string(),
-        StreamingFormat::Lpcm => match stream_context.bits_per_sample {
+        StreamingFormat::Lpcm => match streaming_ctx.bits_per_sample {
             BitDepth::Bits16 => {
-                format!("audio/L16;rate={};channels=2", stream_context.sample_rate)
+                format!("audio/L16;rate={};channels=2", streaming_ctx.sample_rate)
             }
             BitDepth::Bits24 => {
-                format!("audio/L24;rate={};channels=2", stream_context.sample_rate)
+                format!("audio/L24;rate={};channels=2", streaming_ctx.sample_rate)
             }
         },
     };

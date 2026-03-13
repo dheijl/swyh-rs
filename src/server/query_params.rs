@@ -124,5 +124,10 @@ mod tests {
         assert_eq!(sp.bd, None);
         assert_eq!(sp.ss, None);
         assert_eq!(sp.fmt, None);
+        let sp = StreamingParams::from_query_string("stream/swyh.wav");
+        assert_eq!(sp.path, None);
+        assert_eq!(sp.bd, None);
+        assert_eq!(sp.ss, None);
+        assert_eq!(sp.fmt, None);
     }
 }

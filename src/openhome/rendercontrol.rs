@@ -180,13 +180,60 @@ static BAD_TEMPL: &str = "Error parsing/formatting XML template.";
 // this allows to compile the templates only once per thread (CbTemplate is not Send)
 // they are only called from a single thread anyway
 thread_local! {
-    static FLAC_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
-    static WAV_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
-    static L16_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
+    static FLAC_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
+    static WAV_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
+    static L16_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
     static L24_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
-    static DIDL_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
-    static OH_INSERT_PL_TMPL: OnceCell<CbTemplate> = const { OnceCell::new() } ;
-    static AV_SET_TRANSPORT_URI_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() } ;
+    static DIDL_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
+    static OH_INSERT_PL_TMPL: OnceCell<CbTemplate> = const { OnceCell::new() };
+    static AV_SET_TRANSPORT_URI_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
+    static INIT_THREAD_LOCALS: OnceCell<bool> = const {OnceCell::new() };
+}
+
+/// Initialize (compile) all thread-local template cells. Called once per thread before rendering.
+pub fn init_templates() {
+    FLAC_PROT_TMPL.with(|cell| {
+        cell.get_or_init(|| {
+            CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))
+                .expect("static FLAC prot info template is valid")
+        });
+    });
+    WAV_PROT_TMPL.with(|cell| {
+        cell.get_or_init(|| {
+            CbTemplate::compile(htmlescape::encode_minimal(WAV_PROT_INFO))
+                .expect("static WAV prot info template is valid")
+        });
+    });
+    L16_PROT_TMPL.with(|cell| {
+        cell.get_or_init(|| {
+            CbTemplate::compile(htmlescape::encode_minimal(L16_PROT_INFO))
+                .expect("static L16 prot info template is valid")
+        });
+    });
+    L24_PROT_TMPL.with(|cell| {
+        cell.get_or_init(|| {
+            CbTemplate::compile(htmlescape::encode_minimal(L24_PROT_INFO))
+                .expect("static L24 prot info template is valid")
+        });
+    });
+    DIDL_TMPL.with(|cell| {
+        cell.get_or_init(|| {
+            CbTemplate::compile(htmlescape::encode_minimal(DIDL_TEMPLATE))
+                .expect("static DIDL template is valid")
+        });
+    });
+    OH_INSERT_PL_TMPL.with(|cell| {
+        cell.get_or_init(|| {
+            CbTemplate::compile(OH_INSERT_PL_TEMPLATE)
+                .expect("static OH insert playlist template is valid")
+        });
+    });
+    AV_SET_TRANSPORT_URI_TMPL.with(|cell| {
+        cell.get_or_init(|| {
+            CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE)
+                .expect("static AV set transport URI template is valid")
+        });
+    });
 }
 
 /// some captured audio parameters (from CPAL)
@@ -390,6 +437,13 @@ impl Renderer {
 
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
     pub fn play(&mut self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &str> {
+        // initialize (compile) the thread local templates on the first call
+        INIT_THREAD_LOCALS.with(|cell| {
+            *cell.get_or_init(move || {
+                init_templates();
+                true
+            })
+        });
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = Context::new();
         let addr = format!("{local_addr}:{}", streaminfo.server_port);
@@ -409,39 +463,19 @@ impl Renderer {
         fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
         fmt_vars.insert("duration", Value::static_str("00:00:00"));
         let didl_prot = {
-            let result = match streaminfo.streaming_format {
-                StreamingFormat::Flac => FLAC_PROT_TMPL.with(|cell| {
-                    cell.get_or_init(|| {
-                        CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))
-                            .expect("static FLAC prot info template is valid")
-                    })
-                    .format(&fmt_vars)
-                }),
-                StreamingFormat::Rf64 | StreamingFormat::Wav => WAV_PROT_TMPL.with(|cell| {
-                    cell.get_or_init(|| {
-                        CbTemplate::compile(htmlescape::encode_minimal(WAV_PROT_INFO))
-                            .expect("static WAV prot info template is valid")
-                    })
-                    .format(&fmt_vars)
-                }),
+            let didl_tmpl = match streaminfo.streaming_format {
+                StreamingFormat::Flac => FLAC_PROT_TMPL
+                    .with(|cell| cell.get().expect("templates initialized").format(&fmt_vars)),
+                StreamingFormat::Rf64 | StreamingFormat::Wav => WAV_PROT_TMPL
+                    .with(|cell| cell.get().expect("templates initialized").format(&fmt_vars)),
                 StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
-                    BitDepth::Bits16 => L16_PROT_TMPL.with(|cell| {
-                        cell.get_or_init(|| {
-                            CbTemplate::compile(htmlescape::encode_minimal(L16_PROT_INFO))
-                                .expect("static L16 prot info template is valid")
-                        })
-                        .format(&fmt_vars)
-                    }),
-                    BitDepth::Bits24 => L24_PROT_TMPL.with(|cell| {
-                        cell.get_or_init(|| {
-                            CbTemplate::compile(htmlescape::encode_minimal(L24_PROT_INFO))
-                                .expect("static L24 prot info template is valid")
-                        })
-                        .format(&fmt_vars)
-                    }),
+                    BitDepth::Bits16 => L16_PROT_TMPL
+                        .with(|cell| cell.get().expect("templates initialized").format(&fmt_vars)),
+                    BitDepth::Bits24 => L24_PROT_TMPL
+                        .with(|cell| cell.get().expect("templates initialized").format(&fmt_vars)),
                 },
             };
-            match result {
+            match didl_tmpl {
                 Ok(s) => s,
                 Err(e) => {
                     ui_log(
@@ -453,13 +487,8 @@ impl Renderer {
             }
         };
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
-        let formatted_didl = DIDL_TMPL.with(|cell| {
-            cell.get_or_init(|| {
-                CbTemplate::compile(htmlescape::encode_minimal(DIDL_TEMPLATE))
-                    .expect("static DIDL template is valid")
-            })
-            .format(&fmt_vars)
-        });
+        let formatted_didl =
+            DIDL_TMPL.with(|cell| cell.get().expect("templates initialized").format(&fmt_vars));
         let formatted_didl = match formatted_didl {
             Ok(s) => s,
             Err(e) => {
@@ -520,13 +549,8 @@ impl Renderer {
                 self.dev_name, self.host, self.port
             ),
         );
-        let xmlbody = OH_INSERT_PL_TMPL.with(|cell| {
-            cell.get_or_init(|| {
-                CbTemplate::compile(OH_INSERT_PL_TEMPLATE)
-                    .expect("static OH insert playlist template is valid")
-            })
-            .format(fmt_vars)
-        });
+        let xmlbody = OH_INSERT_PL_TMPL
+            .with(|cell| cell.get().expect("templates initialized").format(fmt_vars));
         let xmlbody = match xmlbody {
             Ok(s) => s,
             Err(e) => {
@@ -572,13 +596,8 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let xmlbody = AV_SET_TRANSPORT_URI_TMPL.with(|cell| {
-            cell.get_or_init(|| {
-                CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE)
-                    .expect("static AV set transport URI template is valid")
-            })
-            .format(fmt_vars)
-        });
+        let xmlbody = AV_SET_TRANSPORT_URI_TMPL
+            .with(|cell| cell.get().expect("templates initialized").format(fmt_vars));
         let xmlbody = match xmlbody {
             Ok(s) => s,
             Err(e) => {

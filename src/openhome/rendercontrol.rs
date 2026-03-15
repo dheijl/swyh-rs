@@ -192,6 +192,7 @@ thread_local! {
 
 /// Initialize (compile) all thread-local template cells. Called once per thread before rendering.
 pub fn init_templates() {
+    debug!("Compiling figura HTTP templates");
     FLAC_PROT_TMPL.with(|cell| {
         cell.get_or_init(|| {
             CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))

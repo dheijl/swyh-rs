@@ -16,7 +16,7 @@ use fltk::{button::LightButton, valuator::HorNiceSlider};
 use hashbrown::HashMap;
 use log::{debug, error, info};
 use std::{
-    cell::OnceCell,
+    cell::{Cell, OnceCell},
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
@@ -187,7 +187,7 @@ thread_local! {
     static DIDL_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
     static OH_INSERT_PL_TMPL: OnceCell<CbTemplate> = const { OnceCell::new() };
     static AV_SET_TRANSPORT_URI_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
-    static INIT_THREAD_LOCALS: OnceCell<bool> = const {OnceCell::new() };
+    static COMPILE_TEMPLATES: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Initialize (compile) all thread-local template cells. Called once per thread before rendering.
@@ -439,12 +439,10 @@ impl Renderer {
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
     pub fn play(&mut self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &str> {
         // initialize (compile) the thread local templates on the first call
-        INIT_THREAD_LOCALS.with(|cell| {
-            *cell.get_or_init(move || {
-                init_templates();
-                true
-            })
-        });
+        if !COMPILE_TEMPLATES.get() {
+            COMPILE_TEMPLATES.set(true);
+            init_templates();
+        }
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = Context::new();
         let addr = format!("{local_addr}:{}", streaminfo.server_port);

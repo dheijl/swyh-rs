@@ -76,6 +76,7 @@ pub struct MainForm {
     pub ssdp_interval: Counter,
     pub log_level_choice: MenuButton,
     pub fmt_choice: MenuButton,
+    pub ss_choice: MenuButton,
     pub b24_bit: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
@@ -498,7 +499,7 @@ impl MainForm {
         listen_port.set_callback({
             let config_changed = config_changed.clone();
             move |lp| {
-                let new_value: u32 = lp.value().parse().unwrap();
+                let new_value: u32 = lp.value().parse().unwrap_or(0);
                 if new_value > 65535 {
                     lp.set_value(&get_config().server_port.unwrap_or_default().to_string());
                     return;
@@ -516,7 +517,7 @@ impl MainForm {
         // inject continuous silence into audio stream checkbox
         // to prevent Sonos to disconnect if no audio is being captured
         let mut inj_silence = CheckButton::new(0, 0, 0, 0, "Inject silence");
-        if config.inject_silence.unwrap() {
+        if config.inject_silence.unwrap_or(false) {
             inj_silence.set(true);
         }
         inj_silence.set_callback({
@@ -542,10 +543,10 @@ impl MainForm {
 
         let streamsize = if let Some(fmt) = config.streaming_format {
             match fmt {
-                StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap(),
-                StreamingFormat::Wav => config.wav_stream_size.unwrap(),
-                StreamingFormat::Rf64 => config.rf64_stream_size.unwrap(),
-                StreamingFormat::Flac => config.flac_stream_size.unwrap(),
+                StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked),
+                StreamingFormat::Wav => config.wav_stream_size.unwrap_or(StreamSize::NoneChunked),
+                StreamingFormat::Rf64 => config.rf64_stream_size.unwrap_or(StreamSize::NoneChunked),
+                StreamingFormat::Flac => config.flac_stream_size.unwrap_or(StreamSize::NoneChunked),
             }
         } else {
             StreamSize::U64maxNotChunked
@@ -579,7 +580,7 @@ impl MainForm {
                 let streamsize = StreamSize::from_str(&newsize).unwrap();
                 let streaming_format = {
                     let mut conf = get_config_mut();
-                    match conf.streaming_format.unwrap() {
+                    match conf.streaming_format.unwrap_or(StreamingFormat::Flac) {
                         StreamingFormat::Lpcm => conf.lpcm_stream_size = Some(streamsize),
                         StreamingFormat::Wav => conf.wav_stream_size = Some(streamsize),
                         StreamingFormat::Rf64 => conf.rf64_stream_size = Some(streamsize),
@@ -599,7 +600,7 @@ impl MainForm {
         });
         flx_options3.add(&ss_choice);
 
-        let label_ms = Frame::default().with_label("                       Inital buffer (msec): ");
+        let label_ms = Frame::default().with_label("                      Initial buffer (msec): ");
         flx_options3.add(&label_ms);
         let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
         upfront_buffer_ms.set_maximum_size(5);
@@ -607,7 +608,7 @@ impl MainForm {
         upfront_buffer_ms.set_value(&b_config.to_string());
         upfront_buffer_ms.set_callback({
             move |i| {
-                let mut b: i32 = i.value().parse().unwrap();
+                let mut b: i32 = i.value().parse().unwrap_or(0);
                 if b < 0 {
                     i.set_value(&0i32.to_string());
                     return;
@@ -684,6 +685,7 @@ impl MainForm {
 
         // hidden restart button
         let mut flx_restart = Flex::new(0, 0, GW, 25, "");
+        flx_restart.end();
         let mut restartbutton =
             Button::default().with_label("Press to apply configuration changes");
         restartbutton.set_label_color(Color::Red);
@@ -731,7 +733,8 @@ impl MainForm {
             auto_reconnect,
             ssdp_interval,
             log_level_choice,
-            fmt_choice: ss_choice,
+            fmt_choice,
+            ss_choice,
             b24_bit,
             show_rms,
             rms_mon_l,

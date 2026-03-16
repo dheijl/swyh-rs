@@ -177,70 +177,88 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 /// Bad XML template error
 static BAD_TEMPL: &str = "Error parsing/formatting XML template.";
 
-// this allows to compile the templates only once per thread (CbTemplate is not Send)
-// they are only called from a single thread anyway
+/// Compiled (thread-local) figura templates.
+/// `CbTemplate` is `!Send` so these live per-thread.
+struct CompiledTemplates {
+    flac_prot: OnceCell<CbTemplate>,
+    wav_prot: OnceCell<CbTemplate>,
+    l16_prot: OnceCell<CbTemplate>,
+    l24_prot: OnceCell<CbTemplate>,
+    didl: OnceCell<CbTemplate>,
+    oh_insert_pl: OnceCell<CbTemplate>,
+    av_set_transport_uri: OnceCell<CbTemplate>,
+}
+
+impl CompiledTemplates {
+    const fn new() -> Self {
+        Self {
+            flac_prot: OnceCell::new(),
+            wav_prot: OnceCell::new(),
+            l16_prot: OnceCell::new(),
+            l24_prot: OnceCell::new(),
+            didl: OnceCell::new(),
+            oh_insert_pl: OnceCell::new(),
+            av_set_transport_uri: OnceCell::new(),
+        }
+    }
+}
+
 thread_local! {
-    static FLAC_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
-    static WAV_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
-    static L16_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
-    static L24_PROT_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
-    static DIDL_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
-    static OH_INSERT_PL_TMPL: OnceCell<CbTemplate> = const { OnceCell::new() };
-    static AV_SET_TRANSPORT_URI_TMPL: OnceCell<CbTemplate> =  const { OnceCell::new() };
+    /// The thread locals for the compiled figura templates, as they are `!Send`
+    static TEMPLATES: CompiledTemplates = const { CompiledTemplates::new() };
+    /// Flag for compiling the figura templates only once
     static COMPILE_TEMPLATES: Cell<bool> = const { Cell::new(false) };
 }
 
-/// Initialize (compile) all thread-local template cells. Called once per thread before rendering.
+/// Initialize (compile) all thread-localfigura template cells.
+/// Called once per thread before rendering.
+/// But there is actually only one thread using this (the main thread).
+/// Needed because figura templates are not Send so can't live in shared globals
 pub fn init_templates() {
     debug!("Compiling figura HTTP templates");
-    FLAC_PROT_TMPL.with(|cell| {
-        cell.set(
-            CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))
-                .expect("static FLAC prot info template is invalid"),
-        )
-        .expect("can not set compiled FLAC_PROT_TMPL");
-    });
-    WAV_PROT_TMPL.with(|cell| {
-        cell.set(
-            CbTemplate::compile(htmlescape::encode_minimal(WAV_PROT_INFO))
-                .expect("static WAV prot info template is invalid"),
-        )
-        .expect("can not set compiled WAV_PROT_TMPL");
-    });
-    L16_PROT_TMPL.with(|cell| {
-        cell.set(
-            CbTemplate::compile(htmlescape::encode_minimal(L16_PROT_INFO))
-                .expect("static L16 prot info template is invalid"),
-        )
-        .expect("can not set compiled L16_PROT_TMPL");
-    });
-    L24_PROT_TMPL.with(|cell| {
-        cell.set(
-            CbTemplate::compile(htmlescape::encode_minimal(L24_PROT_INFO))
-                .expect("static L24 prot info template is invalid"),
-        )
-        .expect("can not set compiled L24_PROT_TMPL");
-    });
-    DIDL_TMPL.with(|cell| {
-        cell.set(
-            CbTemplate::compile(htmlescape::encode_minimal(DIDL_TEMPLATE))
-                .expect("static DIDL template is invalid"),
-        )
-        .expect("can not set compiled DIDL_TMPL");
-    });
-    OH_INSERT_PL_TMPL.with(|cell| {
-        cell.set(
-            CbTemplate::compile(OH_INSERT_PL_TEMPLATE)
-                .expect("static OH insert playlist template is invalid"),
-        )
-        .expect("can not set compiled OH_INSERT_PL_TMPL");
-    });
-    AV_SET_TRANSPORT_URI_TMPL.with(|cell| {
-        cell.set(
-            CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE)
-                .expect("static AV set transport URI template is invalid"),
-        )
-        .expect("can not set compiled AV_SET_TRANSPORT_URI_TMPL");
+    TEMPLATES.with(|t| {
+        t.flac_prot
+            .set(
+                CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))
+                    .expect("static FLAC prot info template is invalid"),
+            )
+            .expect("can not set compiled flac_prot");
+        t.wav_prot
+            .set(
+                CbTemplate::compile(htmlescape::encode_minimal(WAV_PROT_INFO))
+                    .expect("static WAV prot info template is invalid"),
+            )
+            .expect("can not set compiled wav_prot");
+        t.l16_prot
+            .set(
+                CbTemplate::compile(htmlescape::encode_minimal(L16_PROT_INFO))
+                    .expect("static L16 prot info template is invalid"),
+            )
+            .expect("can not set compiled l16_prot");
+        t.l24_prot
+            .set(
+                CbTemplate::compile(htmlescape::encode_minimal(L24_PROT_INFO))
+                    .expect("static L24 prot info template is invalid"),
+            )
+            .expect("can not set compiled l24_prot");
+        t.didl
+            .set(
+                CbTemplate::compile(htmlescape::encode_minimal(DIDL_TEMPLATE))
+                    .expect("static DIDL template is invalid"),
+            )
+            .expect("can not set compiled didl");
+        t.oh_insert_pl
+            .set(
+                CbTemplate::compile(OH_INSERT_PL_TEMPLATE)
+                    .expect("static OH insert playlist template is invalid"),
+            )
+            .expect("can not set compiled oh_insert_pl");
+        t.av_set_transport_uri
+            .set(
+                CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE)
+                    .expect("static AV set transport URI template is invalid"),
+            )
+            .expect("can not set compiled av_set_transport_uri");
     });
 }
 
@@ -470,24 +488,28 @@ impl Renderer {
         fmt_vars.insert("duration", Value::static_str("00:00:00"));
         let didl_prot = {
             let didl_tmpl = match streaminfo.streaming_format {
-                StreamingFormat::Flac => FLAC_PROT_TMPL.with(|cell| {
-                    cell.get()
+                StreamingFormat::Flac => TEMPLATES.with(|t| {
+                    t.flac_prot
+                        .get()
                         .expect("templates not initialized")
                         .format(&fmt_vars)
                 }),
-                StreamingFormat::Rf64 | StreamingFormat::Wav => WAV_PROT_TMPL.with(|cell| {
-                    cell.get()
+                StreamingFormat::Rf64 | StreamingFormat::Wav => TEMPLATES.with(|t| {
+                    t.wav_prot
+                        .get()
                         .expect("templates not initialized")
                         .format(&fmt_vars)
                 }),
                 StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
-                    BitDepth::Bits16 => L16_PROT_TMPL.with(|cell| {
-                        cell.get()
+                    BitDepth::Bits16 => TEMPLATES.with(|t| {
+                        t.l16_prot
+                            .get()
                             .expect("templates not initialized")
                             .format(&fmt_vars)
                     }),
-                    BitDepth::Bits24 => L24_PROT_TMPL.with(|cell| {
-                        cell.get()
+                    BitDepth::Bits24 => TEMPLATES.with(|t| {
+                        t.l24_prot
+                            .get()
                             .expect("templates not initialized")
                             .format(&fmt_vars)
                     }),
@@ -505,8 +527,9 @@ impl Renderer {
             }
         };
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
-        let formatted_didl = DIDL_TMPL.with(|cell| {
-            cell.get()
+        let formatted_didl = TEMPLATES.with(|t| {
+            t.didl
+                .get()
                 .expect("templates not initialized")
                 .format(&fmt_vars)
         });
@@ -570,8 +593,9 @@ impl Renderer {
                 self.dev_name, self.host, self.port
             ),
         );
-        let xmlbody = OH_INSERT_PL_TMPL.with(|cell| {
-            cell.get()
+        let xmlbody = TEMPLATES.with(|t| {
+            t.oh_insert_pl
+                .get()
                 .expect("templates not initialized")
                 .format(fmt_vars)
         });
@@ -620,8 +644,9 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let xmlbody = AV_SET_TRANSPORT_URI_TMPL.with(|cell| {
-            cell.get()
+        let xmlbody = TEMPLATES.with(|t| {
+            t.av_set_transport_uri
+                .get()
                 .expect("templates not initialized")
                 .format(fmt_vars)
         });

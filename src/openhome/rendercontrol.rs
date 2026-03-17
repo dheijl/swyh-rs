@@ -486,44 +486,38 @@ impl Renderer {
         );
         fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
         fmt_vars.insert("duration", Value::static_str("00:00:00"));
-        let didl_prot = {
-            let didl_tmpl = match streaminfo.streaming_format {
-                StreamingFormat::Flac => TEMPLATES.with(|t| {
-                    t.flac_prot
-                        .get()
-                        .expect("templates not initialized")
-                        .format(&fmt_vars)
-                }),
-                StreamingFormat::Rf64 | StreamingFormat::Wav => TEMPLATES.with(|t| {
-                    t.wav_prot
-                        .get()
-                        .expect("templates not initialized")
-                        .format(&fmt_vars)
-                }),
-                StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
-                    BitDepth::Bits16 => TEMPLATES.with(|t| {
-                        t.l16_prot
-                            .get()
-                            .expect("templates not initialized")
-                            .format(&fmt_vars)
-                    }),
-                    BitDepth::Bits24 => TEMPLATES.with(|t| {
-                        t.l24_prot
-                            .get()
-                            .expect("templates not initialized")
-                            .format(&fmt_vars)
-                    }),
-                },
-            };
-            match didl_tmpl {
-                Ok(s) => s,
-                Err(e) => {
-                    ui_log(
-                        LogCategory::Info,
-                        &format!("oh_play: error {e} formatting didl_protol"),
-                    );
-                    return Err(BAD_TEMPL);
-                }
+        let didl_tmpl = TEMPLATES.with(|t| match streaminfo.streaming_format {
+            StreamingFormat::Flac => t
+                .flac_prot
+                .get()
+                .expect("templates not initialized")
+                .format(&fmt_vars),
+            StreamingFormat::Rf64 | StreamingFormat::Wav => t
+                .wav_prot
+                .get()
+                .expect("templates not initialized")
+                .format(&fmt_vars),
+            StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
+                BitDepth::Bits16 => t
+                    .l16_prot
+                    .get()
+                    .expect("templates not initialized")
+                    .format(&fmt_vars),
+                BitDepth::Bits24 => t
+                    .l24_prot
+                    .get()
+                    .expect("templates not initialized")
+                    .format(&fmt_vars),
+            },
+        });
+        let didl_prot = match didl_tmpl {
+            Ok(s) => s,
+            Err(e) => {
+                ui_log(
+                    LogCategory::Error,
+                    &format!("Error {e} formatting DIDL template."),
+                );
+                return Err(BAD_TEMPL);
             }
         };
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));

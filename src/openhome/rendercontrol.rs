@@ -1311,6 +1311,15 @@ mod tests {
     }
 
     #[test]
+    fn test_supported_protocols_is_valid() {
+        assert!(!SupportedProtocols::NONE.is_valid());
+        assert!(SupportedProtocols::OPENHOME.is_valid());
+        assert!(SupportedProtocols::AVTRANSPORT.is_valid());
+        assert!((SupportedProtocols::OPENHOME | SupportedProtocols::AVTRANSPORT).is_valid());
+        assert!(SupportedProtocols::ALL.is_valid());
+    }
+
+    #[test]
     fn test_bubble() {
         static BUBBLE_SSDP: &str = "HTTP/1.1 200 OK
 Ext:

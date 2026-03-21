@@ -320,6 +320,12 @@ pub struct SupportedProtocols: u32 {
     }
 }
 
+impl SupportedProtocols {
+    pub fn is_valid(&self) -> bool {
+        (self.bits() & SupportedProtocols::ALL.bits()) != 0
+    }
+}
+
 #[cfg(feature = "gui")]
 #[derive(Debug, Clone, Default)]
 /// The UI elements associated with a renderer
@@ -463,7 +469,15 @@ impl Renderer {
 
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
     pub fn play(&mut self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &str> {
-        // initialize (compile) the thread local templates on the first call
+        // do we support this protocol?
+        if !self.supported_protocols.is_valid() {
+            ui_log(
+                LogCategory::Error,
+                "play: no supported renderer protocol found",
+            );
+            return Err("Invalid UPNP/DLNA protocol");
+        }
+        // initialize (compile) the thread local templates on the first call (per thread)
         if !COMPILE_TEMPLATES.get() {
             COMPILE_TEMPLATES.set(true);
             init_templates();
@@ -472,13 +486,13 @@ impl Renderer {
         let mut fmt_vars = Context::new();
         let addr = format!("{local_addr}:{}", streaminfo.server_port);
 
-        let base_url = ["http://", &addr, "/stream/swyh."].concat();
-        let streaming_url = match streaminfo.streaming_format {
-            StreamingFormat::Wav => [&base_url, "wav"].concat(),
-            StreamingFormat::Lpcm => [&base_url, "raw"].concat(),
-            StreamingFormat::Flac => [&base_url, "flac"].concat(),
-            StreamingFormat::Rf64 => [&base_url, "rf64"].concat(),
+        let ext = match streaminfo.streaming_format {
+            StreamingFormat::Wav => "wav",
+            StreamingFormat::Lpcm => "raw",
+            StreamingFormat::Flac => "flac",
+            StreamingFormat::Rf64 => "rf64",
         };
+        let streaming_url = format!("http://{addr}/stream/swyh.{ext}");
         fmt_vars.insert("server_uri", Value::owned_str(streaming_url));
         fmt_vars.insert(
             "bits_per_sample",
@@ -531,8 +545,8 @@ impl Renderer {
             Ok(s) => s,
             Err(e) => {
                 ui_log(
-                    LogCategory::Info,
-                    &format!("oh_play: error {e} formatting didl_data xml"),
+                    LogCategory::Error,
+                    &format!("Error {e} formatting didl_data xml"),
                 );
                 return Err(BAD_TEMPL);
             }
@@ -550,7 +564,7 @@ impl Renderer {
                     self.dev_name, self.host, self.port
                 ),
             );
-            return self.oh_play(&fmt_vars);
+            self.oh_play(&fmt_vars)
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
@@ -562,13 +576,12 @@ impl Renderer {
                     self.dev_name, self.host, self.port
                 ),
             );
-            return self.av_play(&fmt_vars);
+            self.av_play(&fmt_vars)
+        } else {
+            unreachable!(
+                "SupportedProtocol passed IsValid() but contains neither OPENHOME nor AVTRANSPORT"
+            );
         }
-        ui_log(
-            LogCategory::Error,
-            "ERROR: play: no supported renderer protocol found",
-        );
-        Err("No protocol")
     }
 
     /// `oh_play` - set up a playlist on this `OpenHome` renderer and tell it to play it
@@ -597,7 +610,7 @@ impl Renderer {
             Ok(s) => s,
             Err(e) => {
                 ui_log(
-                    LogCategory::Info,
+                    LogCategory::Error,
                     &format!("oh_play: error {e} formatting oh playlist xml"),
                 );
                 return Err(BAD_TEMPL);
@@ -648,7 +661,7 @@ impl Renderer {
             Ok(s) => s,
             Err(e) => {
                 ui_log(
-                    LogCategory::Info,
+                    LogCategory::Error,
                     &format!("av_play: error {e} formatting set transport uri"),
                 );
                 return Err(BAD_TEMPL);
@@ -751,20 +764,18 @@ impl Renderer {
         // parse response to extract volume
         debug!("oh_get_volume response: {vol_xml}");
         let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = String::new();
+        let mut cur_elem = String::with_capacity(16);
         let mut have_vol_response = false;
         let mut str_volume = "-1".to_string();
         for e in parser {
             match e {
                 Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem = name.local_name;
-                    if cur_elem.contains("VolumeResponse") {
+                    cur_elem.clone_from(&name.local_name);
+                    if cur_elem == "VolumeResponse" {
                         have_vol_response = true;
                     }
                 }
-                Ok(XmlEvent::Characters(value))
-                    if cur_elem.contains("Value") && have_vol_response =>
-                {
+                Ok(XmlEvent::Characters(value)) if cur_elem == "Value" && have_vol_response => {
                     str_volume = value;
                 }
                 Err(e) => {
@@ -805,19 +816,19 @@ impl Renderer {
             .unwrap_or_else(|| "<Error/>".to_string());
         debug!("av_get_volume response: {vol_xml}");
         let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = String::new();
+        let mut cur_elem = String::with_capacity(16);
         let mut have_vol_response = false;
         let mut str_volume = "-1".to_string();
         for e in parser {
             match e {
                 Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem = name.local_name;
-                    if cur_elem.contains("GetVolumeResponse") {
+                    cur_elem.clone_from(&name.local_name);
+                    if cur_elem == "GetVolumeResponse" {
                         have_vol_response = true;
                     }
                 }
                 Ok(XmlEvent::Characters(value))
-                    if cur_elem.contains("CurrentVolume") && have_vol_response =>
+                    if cur_elem == "CurrentVolume" && have_vol_response =>
                 {
                     str_volume = value;
                 }
@@ -1164,13 +1175,13 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
 /// build a renderer struct by (roughly) parsing the GetDescription.xml
 fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
     let parser = EventReader::new(xml.as_bytes());
-    let mut cur_elem = String::new();
+    let mut cur_elem = String::with_capacity(16);
     let mut service = AvService::new();
     let mut renderer = Renderer::new(agent);
     for e in parser {
         match e {
             Ok(XmlEvent::StartElement { name, .. }) => {
-                cur_elem = name.local_name;
+                cur_elem.clone_from(&name.local_name);
             }
             Ok(XmlEvent::EndElement { name }) => {
                 let end_elem = name.local_name;
@@ -1199,23 +1210,24 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
             }
             Ok(XmlEvent::Characters(value)) => {
                 let el = cur_elem.as_str();
-                // these values come from various tags, ignoring xml hierarchy
-                if el.contains("serviceType") {
+                // these are localnames
+                if el == "serviceType" {
                     service.service_type = value;
-                } else if el.contains("serviceId") {
+                } else if el == "serviceId" {
                     service.service_id = value;
-                } else if el.contains("modelName") {
+                } else if el == "modelName" {
                     renderer.dev_model = value;
-                } else if el.contains("friendlyName") {
+                } else if el == "friendlyName" {
                     renderer.dev_name = value;
-                } else if el.contains("deviceType") {
+                } else if el == "deviceType" {
                     renderer.dev_type = value;
-                } else if el.contains("URLBase") {
+                } else if el == "URLBase" {
                     renderer.dev_url = value;
-                } else if el.contains("controlURL") {
+                } else if el == "controlURL" {
                     service.control_url = normalize_url(&value);
                 }
             }
+
             Err(e) => {
                 error!("SSDP Get Renderer Description Error: {e}");
                 return None;

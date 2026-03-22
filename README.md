@@ -136,6 +136,16 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - streaming to Logitech Media Server does not work ([issue # 40]( https://github.com/dheijl/swyh-rs/issues/40))
 - streaming to Linn devices does not work (due to Linn using partial requests with Range headers)
 - if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panic-ing when deserializing.
+- when using WAV/RF64/LPCM with an MPD/FFMPEG based player like MoOde, you get a 5 second delay caused by FFMPEG analyzing the input stream. You can reduce this by specifying acceptable limits for analyzing audio in the MPD config like shown below, or you can use FLAC instead (recommended).
+
+```text
+decoder {
+plugin "ffmpeg"
+enabled "yes"
+analyzeduration "5000"
+probesize "1024"
+}
+```
 
 ### Artwork Credits
 

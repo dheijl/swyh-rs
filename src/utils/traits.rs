@@ -1,14 +1,14 @@
 pub trait FwSlashPipeEscape {
-    fn fw_slash_pipe_escape(&self) -> String;
+    fn fw_slash_pipe_escape(self) -> String;
 }
 
 pub trait FwSlashPipeUnescape {
-    fn fw_slash_pipe_unescape(&self) -> String;
+    fn fw_slash_pipe_unescape(self) -> String;
 }
 
-impl FwSlashPipeEscape for String {
-    fn fw_slash_pipe_escape(&self) -> String {
-        let mut result = String::with_capacity(self.len());
+impl FwSlashPipeEscape for &str {
+    fn fw_slash_pipe_escape(self) -> String {
+        let mut result = String::with_capacity(self.len() + 8);
         for ch in self.chars() {
             match ch {
                 '/' => result.push_str("\\/"),
@@ -20,8 +20,8 @@ impl FwSlashPipeEscape for String {
     }
 }
 
-impl FwSlashPipeUnescape for String {
-    fn fw_slash_pipe_unescape(&self) -> String {
+impl FwSlashPipeUnescape for &str {
+    fn fw_slash_pipe_unescape(self) -> String {
         let mut result = String::with_capacity(self.len());
         let mut chars = self.chars().peekable();
         while let Some(ch) = chars.next() {
@@ -65,14 +65,14 @@ mod tests {
     fn test_escape() {
         use crate::utils::traits::*;
         let a = "a/b/c|d".to_string();
-        let b = a.fw_slash_pipe_escape();
+        let b = a.as_str().fw_slash_pipe_escape();
         assert_eq!(b, "a\\/b\\/c``d".to_string());
-        let c = b.fw_slash_pipe_unescape();
+        let c = b.as_str().fw_slash_pipe_unescape();
         assert_eq!(a, c);
         let a = "a b c".to_string();
-        let b = a.fw_slash_pipe_escape();
+        let b = a.as_str().fw_slash_pipe_escape();
         assert_eq!(b, "a b c".to_string());
-        let c = b.fw_slash_pipe_unescape();
+        let c = b.as_str().fw_slash_pipe_unescape();
         assert_eq!(a, c);
     }
 

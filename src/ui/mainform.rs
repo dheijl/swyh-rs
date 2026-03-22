@@ -280,7 +280,7 @@ impl MainForm {
         let mut choose_audio_source_but =
             MenuButton::new(0, 0, 0, 25, None).with_label(&cur_audio_src);
         for name in audio_sources {
-            choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
+            choose_audio_source_but.add_choice(&name.as_str().fw_slash_pipe_escape());
         }
         let rlock = AtomicBool::new(false);
         choose_audio_source_but.set_callback({

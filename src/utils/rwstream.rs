@@ -128,7 +128,8 @@ impl ChannelStream {
         }
     }
 
-    // fill the samples buffer with samples or with silence if no samples are coming
+    /// fill the f32 samples fifo buffer with f32 samples
+    /// (or with silence if no samples are coming)
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
@@ -139,98 +140,106 @@ impl ChannelStream {
             self.sending_silence = true;
         }
     }
+
+    /// fill the HTTP read buffer with encoded flac data from the FlacChannel
+    /// the f32 samples have already been encoded to FLAC and written to the
+    /// `flac_out` channel of the `FlacChannel` encoder thread.
+    /// the `flac_in` channel of the `FlacChannel` is read here and pushed on the
+    /// `flac_fifo` `VecDeque` for transmission  
+    fn fill_flac_buffer(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+        debug_assert!(self.flac_channel.is_some());
+        let flac_in = self.flac_channel.as_ref().unwrap().flac_in.clone();
+        // make sure we have enough data for this read buffer
+        while self.flac_fifo.len() < buf.len() {
+            if let Ok(chunk) = flac_in.recv() {
+                self.flac_fifo.append(&mut VecDeque::from(chunk));
+            } else {
+                return Err(Error::other("FLAC channel receive error."));
+            }
+        }
+        // fill the buffer with the number of FLAC bytes needed from the fifo
+        let (s1, s2) = self.flac_fifo.as_slices();
+        let (l1, l2) = {
+            if s1.len() >= buf.len() {
+                (buf.len(), 0)
+            } else {
+                (s1.len(), buf.len() - s1.len())
+            }
+        };
+        debug_assert!(l1 + l2 == buf.len());
+        buf[..l1].copy_from_slice(&s1[..l1]);
+        if l2 > 0 {
+            buf[l1..].copy_from_slice(&s2[..l2]);
+        }
+        // remove the copied bytes from the fifo
+        // use drain() hack until truncate_front() is stabilized
+        self.flac_fifo.drain(0..buf.len());
+        Ok(buf.len())
+    }
+
+    /// fill the HTTP read buffer with LPCM/WAV/RF64 data from the f32 samples VecDeque
+    /// the f32 samples are read from the f32 input channel and buffered in the fifo `VecDeque`
+    /// that is then read for conversion to LPCM/WAV/RF64 data and
+    /// stored in the transmission buffer as needed
+    fn fill_lpcm_buffer(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+        /// the f32 samples are converted in chunks of 4 f32 values (SSE2 f32x4)
+        const CHUNK_SIZE: usize = 4;
+        debug_assert!(self.flac_channel.is_none());
+        if self.use_wave_format && !self.wav_hdr.is_empty() {
+            let i = self.wav_hdr.len();
+            debug_assert!(
+                buf.len() >= i,
+                "HTTP read buffer smaller than WAV/RF64 header!"
+            );
+            buf[..i].copy_from_slice(&self.wav_hdr);
+            self.wav_hdr.clear();
+            return Ok(i);
+        }
+        // make sure we have enough samples ready to fill the read buffer
+        let bytes_per_sample = (self.bits_per_sample / 8) as usize;
+        let buf_chunksize = bytes_per_sample * 4;
+        let chunks_needed = buf.len() / buf_chunksize;
+        let samples_needed: usize = chunks_needed * 4;
+        while self.fifo.len() < samples_needed {
+            self.get_samples();
+        }
+        // drain the fifo of the samples needed to fill the buffer in 4 samples chunks
+        // this way we don't need the expensive pop_front()
+        // the drain contains the exact number of samples needed to fill the streaming buffer
+        let drain_iter = self.fifo.drain(0..samples_needed).chunks(CHUNK_SIZE);
+        // fill the buffer with sample chunks (1 chunk = 4 samples)
+        // so we can zip the buf in chunks of 4 samples (chunksize) with the drain
+        let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(&drain_iter);
+        // setup sample conversion parameters
+        let endianness: Endian = if self.use_wave_format { Little } else { Big };
+        let bd = BitDepth::from(self.bits_per_sample);
+        // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
+        match (endianness, bd) {
+            (Little, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
+                i32_to_i16le(&sample_chunk_to_i32(bd, sample_chunk), chunk);
+            }),
+            (Little, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
+                i32_to_i24le(&sample_chunk_to_i32(bd, sample_chunk), chunk);
+            }),
+            (Big, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
+                i32_to_i16be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
+            }),
+            (Big, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
+                i32_to_i24be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
+            }),
+        }
+        Ok(chunks_needed * buf_chunksize)
+    }
 }
 
-/// the f32 samples are converted in chunks of 4 f32 values (SSE2 f32x4)
-const CHUNK_SIZE: usize = 4;
-
 /// implement the Read trait for the HTTP writer
-///
-/// for LPCM/WAV/RF64 the f32 samples are read from the f32 input channel and pushed
-/// on the fifo `VecDeque` that is then read for conversion to LPCM/WAV/RF64 samples and
-/// stored in the transmission buffer as needed
-///
-/// for FLAC the f32 samples have already been encoded to FLAC and written to the
-/// `flac_out` channel of the `FlacChannel` encoder.
-/// the `flac_in` channel of the `FlacChannel` is read here and pushed on the `flac_fifo` `VecDeque`
-/// for transmission  
+/// filling the read buffer with FLAC or LPCM/WAV/RF64 data
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        if let Some(flac) = &self.flac_channel {
-            // FLAC
-            let flac_in = flac.flac_in.clone();
-            // make sure we have enough data for this read buffer
-            while self.flac_fifo.len() < buf.len() {
-                if let Ok(chunk) = flac_in.recv() {
-                    self.flac_fifo.append(&mut VecDeque::from(chunk));
-                } else {
-                    return Err(Error::other("FLAC channel receive error."));
-                }
-            }
-            // fill the buffer with the number of FLAC bytes needed from the fifo
-            let (s1, s2) = self.flac_fifo.as_slices();
-            let (l1, l2) = {
-                if s1.len() >= buf.len() {
-                    (buf.len(), 0)
-                } else {
-                    (s1.len(), buf.len() - s1.len())
-                }
-            };
-            debug_assert!(l1 + l2 == buf.len());
-            buf[..l1].copy_from_slice(&s1[..l1]);
-            if l2 > 0 {
-                buf[l1..].copy_from_slice(&s2[..l2]);
-            }
-            // remove the copied bytes from the fifo
-            // use drain() hack until truncate_front() is stabilized
-            self.flac_fifo.drain(0..buf.len());
-            Ok(buf.len())
+        if self.flac_channel.is_some() {
+            self.fill_flac_buffer(buf)
         } else {
-            // LPCM (naked LPCM or WAV/RF64)
-            if self.use_wave_format && !self.wav_hdr.is_empty() {
-                let i = self.wav_hdr.len();
-                debug_assert!(
-                    buf.len() >= i,
-                    "HTTP read buffer smaller than WAV/RF64 header!"
-                );
-                buf[..i].copy_from_slice(&self.wav_hdr);
-                self.wav_hdr.clear();
-                return Ok(i);
-            }
-            // make sure we have enough samples ready to fill the read buffer
-            let bytes_per_sample = (self.bits_per_sample / 8) as usize;
-            let buf_chunksize = bytes_per_sample * 4;
-            let chunks_needed = buf.len() / buf_chunksize;
-            let samples_needed: usize = chunks_needed * 4;
-            while self.fifo.len() < samples_needed {
-                self.get_samples();
-            }
-            // drain the fifo of the samples needed to fill the buffer in 4 samples chunks
-            // this way we don't need the expensive pop_front()
-            // the drain contains the exact number of samples needed to fill the streaming buffer
-            let drain_iter = self.fifo.drain(0..samples_needed).chunks(CHUNK_SIZE);
-            // fill the buffer with sample chunks (1 chunk = 4 samples)
-            // so we can zip the buf in chunks of 4 samples (chunksize) with the drain
-            let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(&drain_iter);
-            // setup sample conversion parameters
-            let endianness: Endian = if self.use_wave_format { Little } else { Big };
-            let bd = BitDepth::from(self.bits_per_sample);
-            // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
-            match (endianness, bd) {
-                (Little, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    i32_to_i16le(&sample_chunk_to_i32(bd, sample_chunk), chunk);
-                }),
-                (Little, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    i32_to_i24le(&sample_chunk_to_i32(bd, sample_chunk), chunk);
-                }),
-                (Big, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    i32_to_i16be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
-                }),
-                (Big, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                    i32_to_i24be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
-                }),
-            }
-            Ok(chunks_needed * buf_chunksize)
+            self.fill_lpcm_buffer(buf)
         }
     }
 }

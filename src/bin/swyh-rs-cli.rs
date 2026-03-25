@@ -573,14 +573,13 @@ fn main() -> Result<(), i32> {
                         capture_retry_count += 1;
                         debug!("Retrying capturing audio #{capture_retry_count}");
                         let audio_devices = get_output_audio_devices();
-                        let config_name: &String = config.sound_source.as_ref().unwrap();
+                        let config_name: &str = config.sound_source.as_ref().unwrap();
                         // ignore sound index as it may have changed, so duplicate names won't probably work
                         let mut found_audio_device = false;
                         for adev in audio_devices.into_iter() {
-                            let adevname = adev.name().to_string();
-                            if adevname == *config_name {
+                            if adev.name() == config_name {
+                                info!("Audio capture: reselecting audio source: {}", adev.name());
                                 audio_output_device = adev;
-                                info!("Audio capture: reselecting audio source: {adevname}");
                                 found_audio_device = true;
                                 break;
                             }

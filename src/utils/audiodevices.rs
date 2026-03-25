@@ -97,7 +97,7 @@ impl Device {
     /// name can't be retrieved.
     #[must_use]
     pub fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 
     /// Default stream config

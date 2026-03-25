@@ -35,6 +35,7 @@ use super::flacstream::FlacChannel;
 
 /// Channelstream - used to transport the f32 samples from the `wave_reader`
 /// to the http output stream in LPCM/WAV/FLAC format
+/// implements `Read` for the HTTP streaming
 #[derive(Clone)]
 pub struct ChannelStream {
     pub s: Sender<Vec<f32>>,
@@ -100,21 +101,21 @@ impl ChannelStream {
         chs
     }
 
-    // the flac encoder runs in a seperate thread
+    /// start the flac encoder in a seperate thread
     fn start_flac_encoder(&self) {
         if let Some(flac_channel) = &self.flac_channel {
             flac_channel.run();
         }
     }
 
-    // stop the flac encoder thread
+    /// stop the flac encoder thread
     pub fn stop_flac_encoder(&self) {
         if let Some(flac_channel) = &self.flac_channel {
             flac_channel.stop();
         }
     }
 
-    // called by the wave_reader to write the f32 samples to the input channel
+    /// called by the `wave_reader`s to write the f32 samples to our input channel
     pub fn write(&self, samples: &[f32]) {
         // don't blow up memory if streaming stalls for some reason
         // 10_000 messages (capture buffers, not samples) is a quite a lot
@@ -256,11 +257,10 @@ fn sample_chunk_to_i32(
     f32_to_i32(bd, f32_array)
 }
 
-// create an "infinite size" wav hdr
-// note this may not work when streaming to an older "libsndfile" based renderer
-// as it insists on a seekable WAV file depending on the open mode used
+/// create an "infinite size" wav hdr for the PCM Data (s16le or s24le)
+/// note: this may not work when streaming to an older "libsndfile" based renderer
+/// as it insists on a seekable WAV file depending on the open mode used
 /*
-PCM Data (s16le)
 Field	        Length	Contents
 ckID	        4	    Chunk ID: 'RIFF'
 cksize	        4	    Chunk size: 4 + 24 + (8 + M*Nc*Ns + (0 or 1)
@@ -303,7 +303,7 @@ fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr.to_vec()
 }
 
-// create an "infinite size RF64 header
+/// create an "infinite size" RF64 header for the PCM Data (s16le or s24le)
 /*
 Field           Len offset   Meaning
 ckID            4   0        chunk ID 'RF64'

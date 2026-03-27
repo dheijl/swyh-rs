@@ -28,3 +28,5 @@ CLAUDE.md
 # no exe or zip files
 *.exe
 *.zip
+swyh-rs-dataflow.pdf
+swyh_rs_dataflow.py

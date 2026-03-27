@@ -58,7 +58,7 @@ use swyh_rs::{
 };
 
 use cpal::traits::StreamTrait;
-use crossbeam_channel::{Receiver, Sender, unbounded};
+use crossbeam_channel::unbounded;
 use fltk::{app, prelude::ButtonExt};
 use log::{LevelFilter, debug, info};
 #[cfg(any(debug_assertions, target_os = "linux"))]
@@ -227,7 +227,7 @@ fn main() {
     raise_priority();
 
     // the rms monitor channel
-    let rms_channel: (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
+    let rms_channel = unbounded();
 
     // capture system audio
     debug!("Try capturing system audio");

@@ -27,6 +27,7 @@ use log::debug;
 use std::{
     collections::VecDeque,
     io::{Error, Read, Result as IoResult},
+    sync::Arc,
     time::Duration,
 };
 use wide::f32x4;
@@ -38,8 +39,8 @@ use super::flacstream::FlacChannel;
 /// implements `Read` for the HTTP streaming
 #[derive(Clone)]
 pub struct ChannelStream {
-    pub s: Sender<Vec<f32>>,
-    pub r: Receiver<Vec<f32>>,
+    pub s: Sender<Arc<Vec<f32>>>,
+    pub r: Receiver<Arc<Vec<f32>>>,
     pub remote_ip: EcoString,
     pub streaming_format: StreamingFormat,
     fifo: VecDeque<f32>,
@@ -55,8 +56,8 @@ pub struct ChannelStream {
 
 impl ChannelStream {
     pub fn new(
-        tx: Sender<Vec<f32>>,
-        rx: Receiver<Vec<f32>>,
+        tx: Sender<Arc<Vec<f32>>>,
+        rx: Receiver<Arc<Vec<f32>>>,
         remote_ip_addr: EcoString,
         use_wave_format: bool,
         sample_rate: u32,
@@ -116,11 +117,11 @@ impl ChannelStream {
     }
 
     /// called by the `wave_reader`s to write the f32 samples to our input channel
-    pub fn write(&self, samples: &[f32]) {
+    pub fn write(&self, samples: Arc<Vec<f32>>) {
         // don't blow up memory if streaming stalls for some reason
         // 10_000 messages (capture buffers, not samples) is a quite a lot
         if self.s.len() < 10_000 {
-            let _ = self.s.send(samples.to_vec());
+            let _ = self.s.send(samples);
         } else {
             #[cfg(debug_assertions)]
             {
@@ -134,7 +135,8 @@ impl ChannelStream {
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
-            self.fifo.append(&mut VecDeque::from(chunk));
+            self.fifo
+                .append(&mut VecDeque::from(chunk.as_ref().clone()));
             self.sending_silence = false;
         } else {
             self.fifo.extend(self.silence.iter().copied());

@@ -10,7 +10,7 @@ use cpal::{
 use crossbeam_channel::Sender;
 use dasp_sample::ToSample;
 use log::debug;
-use std::sync::{Once, atomic::Ordering};
+use std::sync::{Arc, Once, atomic::Ordering};
 
 /// A [`cpal::Device`] with either a default input or default output config.
 ///
@@ -222,7 +222,7 @@ pub fn get_default_audio_output_device() -> Option<Device> {
 /// sets up an input stream for the `wave_reader` in the appropriate format (f32/i16/u16)
 pub fn capture_output_audio(
     device_wrap: &Device,
-    rms_sender: Sender<Vec<f32>>,
+    rms_sender: Sender<Arc<Vec<f32>>>,
 ) -> Option<cpal::Stream> {
     let device = device_wrap.as_ref();
     ui_log(
@@ -343,12 +343,13 @@ fn capture_started() {
     }
 }
 /// distribute the audio samples to all our HTTP clients, and to the RMS monitor if needed
-fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<Vec<f32>>) {
+fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<Arc<Vec<f32>>>) {
+    let shared = Arc::new(f32_samples.to_vec());
     get_clients()
         .iter()
-        .for_each(|(_, client)| client.write(f32_samples));
+        .for_each(|(_, client)| client.write(Arc::clone(&shared)));
     if RUN_RMS_MONITOR.load(Ordering::Acquire) {
-        rms_sender.send(Vec::from(f32_samples)).unwrap();
+        rms_sender.send(Arc::clone(&shared)).unwrap();
     }
 }
 
@@ -359,7 +360,7 @@ static ONFIRSTCALL: Once = Once::new();
 /// writes the captured samples to all registered clients in the
 /// CLIENTS `ChannelStream` hashmap
 /// also feeds the RMS monitor channel if the RMS option is set
-fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>)
+fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Arc<Vec<f32>>>)
 where
     T: Sample + ToSample<f32>,
 {
@@ -371,7 +372,11 @@ where
 
 /// specialized version of the generic wave_reader() above for the "default" f32 case with Alsa/WasApi/PipeWire/Pulse.
 /// Uses a memcpy to copy the samples instead of the samples conversion iterator.
-fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Vec<f32>>) {
+fn wave_reader_f32(
+    samples: &[f32],
+    f32_samples: &mut Vec<f32>,
+    rms_sender: &Sender<Arc<Vec<f32>>>,
+) {
     ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
     // uses memcpy (specialization)

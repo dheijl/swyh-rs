@@ -9,7 +9,7 @@ use crate::{
     utils::rwstream::ChannelStream,
     utils::ui_logger::{LogCategory, ui_log},
 };
-use crossbeam_channel::{Receiver, Sender, unbounded};
+use crossbeam_channel::{Sender, unbounded};
 use ecow::EcoString;
 use log::debug;
 use std::{io, net::IpAddr, sync::Arc, thread, time::Duration};
@@ -156,7 +156,7 @@ fn streaming_request(
     let headers = get_dlna_headers(streaming_ctx);
 
     // create the channelstream that receives the samples and streams them on demand
-    let (tx, rx): (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
+    let (tx, rx) = unbounded();
     let channel_stream = ChannelStream::new(
         tx,
         rx,

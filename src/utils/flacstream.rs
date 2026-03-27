@@ -60,7 +60,7 @@ impl Write for FlacWriter {
 // to the samples_in channel for encoding
 #[derive(Clone)]
 pub struct FlacChannel {
-    samples_rcvr: Receiver<Vec<f32>>,
+    samples_rcvr: Receiver<Arc<Vec<f32>>>,
     pub flac_in: Receiver<Vec<u8>>,
     active: Arc<AtomicBool>,
     writer: FlacWriter,
@@ -72,7 +72,7 @@ pub struct FlacChannel {
 impl FlacChannel {
     #[must_use]
     pub fn new(
-        samples_chan: Receiver<Vec<f32>>,
+        samples_chan: Receiver<Arc<Vec<f32>>>,
         sample_rate: u32,
         bits_per_sample: u32,
         channels: u32,

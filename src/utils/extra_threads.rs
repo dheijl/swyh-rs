@@ -1,5 +1,5 @@
 #![cfg(feature = "gui")]
-use std::{thread, time::Duration};
+use std::{sync::Arc, thread, time::Duration};
 
 use crossbeam_channel::{Receiver, Sender};
 use fltk::{app, misc::Progress};
@@ -46,7 +46,7 @@ pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) 
 /// sums left and right channel samples, 4 samples at a time (SSE SIMD)
 pub fn run_rms_monitor(
     wd: WavData,
-    rms_receiver: &Receiver<Vec<f32>>,
+    rms_receiver: &Receiver<Arc<Vec<f32>>>,
     mut rms_frame_l: Progress,
     mut rms_frame_r: Progress,
 ) {

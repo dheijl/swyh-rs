@@ -12,7 +12,7 @@ use std::{
 };
 
 use cpal::traits::StreamTrait;
-use crossbeam_channel::{Receiver, Sender, unbounded};
+use crossbeam_channel::{Sender, unbounded};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, error, info};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
@@ -278,7 +278,7 @@ fn main() -> Result<(), i32> {
     raise_priority();
 
     // the rms monitor channel
-    let rms_channel: (Sender<Vec<f32>>, Receiver<Vec<f32>>) = unbounded();
+    let rms_channel = unbounded();
 
     // capture system audio
     debug!("Try capturing system audio");

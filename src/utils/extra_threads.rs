@@ -1,5 +1,5 @@
 #![cfg(feature = "gui")]
-use std::{sync::Arc, thread, time::Duration};
+use std::{thread, time::Duration};
 
 use crossbeam_channel::{Receiver, Sender};
 use fltk::{app, misc::Progress};
@@ -11,6 +11,7 @@ use crate::{
     enums::messages::MessageType,
     globals::statics::ONE_MINUTE,
     openhome::rendercontrol::{Renderer, WavData, discover},
+    utils::rwstream::AudioSamples,
 };
 
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery
@@ -46,7 +47,7 @@ pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) 
 /// sums left and right channel samples, 4 samples at a time (SSE SIMD)
 pub fn run_rms_monitor(
     wd: WavData,
-    rms_receiver: &Receiver<Arc<Vec<f32>>>,
+    rms_receiver: &Receiver<AudioSamples>,
     mut rms_frame_l: Progress,
     mut rms_frame_r: Progress,
 ) {

@@ -34,13 +34,16 @@ use wide::f32x4;
 
 use super::flacstream::FlacChannel;
 
+/// Shared audio sample buffer passed between capture and streaming threads.
+pub type AudioSamples = Arc<Vec<f32>>;
+
 /// Channelstream - used to transport the f32 samples from the `wave_reader`
 /// to the http output stream in LPCM/WAV/FLAC format
 /// implements `Read` for the HTTP streaming
 #[derive(Clone)]
 pub struct ChannelStream {
-    pub s: Sender<Arc<Vec<f32>>>,
-    pub r: Receiver<Arc<Vec<f32>>>,
+    pub s: Sender<AudioSamples>,
+    pub r: Receiver<AudioSamples>,
     pub remote_ip: EcoString,
     pub streaming_format: StreamingFormat,
     fifo: VecDeque<f32>,
@@ -56,8 +59,8 @@ pub struct ChannelStream {
 
 impl ChannelStream {
     pub fn new(
-        tx: Sender<Arc<Vec<f32>>>,
-        rx: Receiver<Arc<Vec<f32>>>,
+        tx: Sender<AudioSamples>,
+        rx: Receiver<AudioSamples>,
         remote_ip_addr: EcoString,
         use_wave_format: bool,
         sample_rate: u32,
@@ -117,7 +120,7 @@ impl ChannelStream {
     }
 
     /// called by the `wave_reader`s to write the f32 samples to our input channel
-    pub fn write(&self, samples: Arc<Vec<f32>>) {
+    pub fn write(&self, samples: AudioSamples) {
         // don't blow up memory if streaming stalls for some reason
         // 10_000 messages (capture buffers, not samples) is a quite a lot
         if self.s.len() < 10_000 {

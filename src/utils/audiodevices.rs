@@ -1,7 +1,10 @@
 use crate::{
     enums::messages::MessageType,
     globals::statics::{RUN_RMS_MONITOR, get_clients, get_config, get_msgchannel},
-    utils::ui_logger::{LogCategory, ui_log},
+    utils::{
+        rwstream::AudioSamples,
+        ui_logger::{LogCategory, ui_log},
+    },
 };
 use cpal::{
     DefaultStreamConfigError, Sample, SupportedStreamConfig,
@@ -222,7 +225,7 @@ pub fn get_default_audio_output_device() -> Option<Device> {
 /// sets up an input stream for the `wave_reader` in the appropriate format (f32/i16/u16)
 pub fn capture_output_audio(
     device_wrap: &Device,
-    rms_sender: Sender<Arc<Vec<f32>>>,
+    rms_sender: Sender<AudioSamples>,
 ) -> Option<cpal::Stream> {
     let device = device_wrap.as_ref();
     ui_log(
@@ -343,7 +346,7 @@ fn capture_started() {
     }
 }
 /// distribute the audio samples to all our HTTP clients, and to the RMS monitor if needed
-fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<Arc<Vec<f32>>>) {
+fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
     let shared = Arc::new(f32_samples.to_vec());
     get_clients()
         .iter()
@@ -360,7 +363,7 @@ static ONFIRSTCALL: Once = Once::new();
 /// writes the captured samples to all registered clients in the
 /// CLIENTS `ChannelStream` hashmap
 /// also feeds the RMS monitor channel if the RMS option is set
-fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender<Arc<Vec<f32>>>)
+fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender<AudioSamples>)
 where
     T: Sample + ToSample<f32>,
 {
@@ -372,11 +375,7 @@ where
 
 /// specialized version of the generic wave_reader() above for the "default" f32 case with Alsa/WasApi/PipeWire/Pulse.
 /// Uses a memcpy to copy the samples instead of the samples conversion iterator.
-fn wave_reader_f32(
-    samples: &[f32],
-    f32_samples: &mut Vec<f32>,
-    rms_sender: &Sender<Arc<Vec<f32>>>,
-) {
+fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<AudioSamples>) {
     ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
     // uses memcpy (specialization)

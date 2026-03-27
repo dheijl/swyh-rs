@@ -5,6 +5,7 @@
   - more code cleanup and small optimizations in many places
   - add I32 as supported format for audio capture
   - optimize flac noise generation with SIMD (but you should really enable `inject silence` if you need this).
+  - no longer copy the samples when distributing them to each client and the rms monitor, but give each one of them a shared copy using an Arc.
 
 - 1.20 (Mar 7 2026, dheijl)
   - more code cleanup

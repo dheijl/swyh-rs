@@ -18,6 +18,7 @@ use crate::{
     enums::streaming::BitDepth,
     globals::statics::THREAD_STACK,
     utils::{
+        rwstream::AudioSamples,
         samples_conv::{f32_to_i32, samples_to_i32},
         ui_logger::{LogCategory, ui_log},
     },
@@ -60,7 +61,7 @@ impl Write for FlacWriter {
 // to the samples_in channel for encoding
 #[derive(Clone)]
 pub struct FlacChannel {
-    samples_rcvr: Receiver<Arc<Vec<f32>>>,
+    samples_rcvr: Receiver<AudioSamples>,
     pub flac_in: Receiver<Vec<u8>>,
     active: Arc<AtomicBool>,
     writer: FlacWriter,
@@ -72,7 +73,7 @@ pub struct FlacChannel {
 impl FlacChannel {
     #[must_use]
     pub fn new(
-        samples_chan: Receiver<Arc<Vec<f32>>>,
+        samples_chan: Receiver<AudioSamples>,
         sample_rate: u32,
         bits_per_sample: u32,
         channels: u32,

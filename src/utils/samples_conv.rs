@@ -22,12 +22,12 @@ pub(crate) fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd
         // chunks are guaranteed to be 4 elements
         let f32_array = f32x4::new(*chunk.as_array().unwrap());
         let i_array = f32_to_i32(bd, f32_array);
-        i32_samples.extend(&i_array);
+        i32_samples.extend_from_slice(&i_array);
     });
     if remainder.len() == 2 {
         let f32_array = f32x4::new([remainder[0], remainder[1], 0.0, 0.0]);
         let i_array = f32_to_i32(bd, f32_array);
-        i32_samples.extend(&i_array[0..2]);
+        i32_samples.extend_from_slice(&i_array[0..2]);
     }
 }
 

@@ -598,8 +598,6 @@ fn main() -> Result<(), i32> {
                 }
             }
         }
-        // check the logchannel for new log messages to show in the logger textbox
-        thread::sleep(Duration::from_millis(100));
         // handle CTL-C interrupt: shutdown the player(s)
         if shutting_down.load(Ordering::Relaxed) {
             println!("Received ^C -> exiting.");
@@ -628,6 +626,7 @@ fn main() -> Result<(), i32> {
             log::logger().flush();
             std::process::exit(0);
         }
+        thread::sleep(Duration::from_millis(100));
     }
 }
 

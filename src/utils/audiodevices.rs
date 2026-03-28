@@ -347,12 +347,12 @@ fn capture_started() {
 }
 /// distribute the audio samples to all our HTTP clients, and to the RMS monitor if needed
 fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
-    let shared = Arc::new(f32_samples.to_vec());
+    let shared_samples = Arc::new(f32_samples.to_vec());
     get_clients()
         .iter()
-        .for_each(|(_, client)| client.write(Arc::clone(&shared)));
-    if RUN_RMS_MONITOR.load(Ordering::Acquire) {
-        rms_sender.send(Arc::clone(&shared)).unwrap();
+        .for_each(|(_, client)| client.write(Arc::clone(&shared_samples)));
+    if RUN_RMS_MONITOR.load(Ordering::Relaxed) {
+        rms_sender.send(Arc::clone(&shared_samples)).unwrap();
     }
 }
 

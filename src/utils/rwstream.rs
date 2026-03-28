@@ -133,8 +133,8 @@ impl ChannelStream {
         }
     }
 
-    /// fill the f32 samples fifo buffer with f32 samples
-    /// (or with silence if no samples are coming)
+    /// fill the LPCM/WAV/RF64 fifo buffer with f32 samples
+    /// (or with f32 silence if no samples are coming)
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
@@ -142,7 +142,7 @@ impl ChannelStream {
                 .append(&mut VecDeque::from(chunk.as_ref().clone()));
             self.sending_silence = false;
         } else {
-            self.fifo.extend(self.silence.iter().copied());
+            self.fifo.append(&mut VecDeque::from(self.silence.clone()));
             self.sending_silence = true;
         }
     }
@@ -183,10 +183,11 @@ impl ChannelStream {
         Ok(buf.len())
     }
 
-    /// fill the HTTP read buffer with LPCM/WAV/RF64 data from the f32 samples VecDeque
-    /// the f32 samples are read from the f32 input channel and buffered in the fifo `VecDeque`
-    /// that is then read for conversion to LPCM/WAV/RF64 data and
-    /// stored in the transmission buffer as needed
+    /// Fill the HTTP read buffer with LPCM/WAV/RF64 data from the f32 samples `VecDeque` fifo.
+    ///
+    /// The f32 samples are read from the f32 input channel and buffered in the`VecDeque` fifo.
+    /// The VecDeque is then read for conversion to LPCM/WAV/RF64 data and
+    /// stored in the HTTP transmission buffer as needed
     fn fill_lpcm_buffer(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         /// the f32 samples are converted in chunks of 4 f32 values (SSE2 f32x4)
         const CHUNK_SIZE: usize = 4;

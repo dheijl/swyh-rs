@@ -2,11 +2,11 @@
 ///
 /// rwstream.rs
 ///
-/// ChannelStream: the write method sends the received samples on the CrossBeam channel
-/// for the Read trait to read them back
+/// ChannelStream: the interface between the audio capture and the HTTP streaming clients
 ///
-/// the Read trait implementation is used by the HTTP response to send the response PCM/L16 stream
-/// to the media Renderer
+/// The write method sends the captured audio samples (f32) on the CrossBeam channel of the Channelstream
+/// and the HTTP Response then uses the Read trait implementation of the Channelstream to read
+/// them back for streaming to the HTTP client
 ///
 */
 use crate::{
@@ -16,7 +16,9 @@ use crate::{
         StreamingFormat,
     },
     globals::statics::get_config,
-    utils::samples_conv::{f32_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le},
+    utils::samples_conv::{
+        f32_chunk_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,
+    },
 };
 use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
@@ -30,7 +32,6 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use wide::f32x4;
 
 use super::flacstream::FlacChannel;
 
@@ -223,16 +224,16 @@ impl ChannelStream {
         // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
         match (endianness, bd) {
             (Little, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                i32_to_i16le(&sample_chunk_to_i32(bd, sample_chunk), chunk);
+                i32_to_i16le(&f32_chunk_to_i32(bd, sample_chunk), chunk);
             }),
             (Little, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                i32_to_i24le(&sample_chunk_to_i32(bd, sample_chunk), chunk);
+                i32_to_i24le(&f32_chunk_to_i32(bd, sample_chunk), chunk);
             }),
             (Big, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                i32_to_i16be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
+                i32_to_i16be(&f32_chunk_to_i32(bd, sample_chunk), chunk);
             }),
             (Big, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                i32_to_i24be(&sample_chunk_to_i32(bd, sample_chunk), chunk);
+                i32_to_i24be(&f32_chunk_to_i32(bd, sample_chunk), chunk);
             }),
         }
         Ok(chunks_needed * buf_chunksize)
@@ -249,18 +250,6 @@ impl Read for ChannelStream {
             self.fill_lpcm_buffer(buf)
         }
     }
-}
-
-/// convert a 4 f32 samples chunk to an i32 array (scaled to bitdepth)
-#[inline(always)]
-fn sample_chunk_to_i32(
-    bd: BitDepth,
-    sample_chunk: itertools::Chunk<'_, std::collections::vec_deque::Drain<'_, f32>>,
-) -> [i32; 4] {
-    let mut temp = [0f32; 4];
-    temp.iter_mut().set_from(sample_chunk);
-    let f32_array = f32x4::new(temp);
-    f32_to_i32(bd, f32_array)
 }
 
 /// create an "infinite size" wav hdr for the PCM Data (s16le or s24le)

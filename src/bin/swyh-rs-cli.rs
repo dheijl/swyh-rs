@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+use mimalloc::MiMalloc;
 use std::{
     fs::File,
     net::IpAddr,
@@ -11,6 +12,8 @@ use std::{
     time::Duration,
 };
 
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 use cpal::traits::StreamTrait;
 use crossbeam_channel::{Sender, unbounded};
 use hashbrown::HashMap;

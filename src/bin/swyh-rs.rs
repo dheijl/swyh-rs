@@ -1,5 +1,6 @@
 #![cfg(feature = "gui")]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // to suppress console with debug output for release builds
+use mimalloc::MiMalloc;
 ///
 /// swyh-rs
 ///
@@ -56,6 +57,9 @@ use swyh_rs::{
         ui_logger::*,
     },
 };
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 use cpal::traits::StreamTrait;
 use crossbeam_channel::unbounded;

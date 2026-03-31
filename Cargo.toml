@@ -62,7 +62,7 @@ htmlescape = "0.3.1"
 if-addrs = "0.15.0"
 itertools = "0.14.0"
 lexopt = "0.3.2"
-local-ip-address = { version = "0.6.10", optional = true }
+local-ip-address = { version = "0.6.11", optional = true }
 log = { version = "0.4.29", features = [
     "max_level_trace",
     "release_max_level_debug",
@@ -72,7 +72,7 @@ mimalloc = { version = "0.1.48", features = ["v3"] }
 serde = { version = "1.0.228", features = ["derive"] }
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 tiny_http = "0.12.0"
-toml = "1.1.0"
+toml = "1.1.1"
 ureq = { version = "3.3.0", default-features = false, features = [
     "charset",
     "gzip",

@@ -27,6 +27,13 @@ pub struct Device {
     stream_config: SupportedStreamConfig,
 }
 
+/// Type indicating whether a stream config is for input or output.
+#[derive(Debug)]
+enum ConfigType {
+    Input,
+    Output,
+}
+
 /// Type indicating whether a device is being treated as input or output.
 pub enum DeviceKind {
     /// An input device such as S/PDIF in or a microphone.
@@ -139,8 +146,7 @@ fn log_stream_configs(
         impl Iterator<Item = cpal::SupportedStreamConfigRange>,
         cpal::SupportedStreamConfigsError,
     >,
-    // "output" or "input"
-    cfg_type: &str,
+    cfg_type: ConfigType,
     // Device index in relation to the iterator returned by [cpal::Host::devices]
     device_index: usize,
 ) {
@@ -148,7 +154,7 @@ fn log_stream_configs(
         Ok(configs) => {
             let mut configs = configs.peekable();
             if configs.peek().is_some() {
-                debug!("    All supported {cfg_type} stream configs:");
+                debug!("    All supported {cfg_type:?} stream configs:");
                 for (config_index, config) in configs.enumerate() {
                     debug!(
                         "      {}.{}. {:?}",
@@ -160,7 +166,7 @@ fn log_stream_configs(
             }
         }
         Err(e) => {
-            debug!("Error retrieving {cfg_type} stream configs: {e:?}");
+            debug!("Error retrieving {cfg_type:?} stream configs: {e:?}");
         }
     }
 }
@@ -195,8 +201,16 @@ pub fn get_output_audio_devices() -> Vec<Device> {
                 get_device_name(&device).unwrap_or_default()
             );
             // List all of the supported stream configs per device.
-            log_stream_configs(device.supported_output_configs(), "output", device_index);
-            log_stream_configs(device.supported_input_configs(), "input", device_index);
+            log_stream_configs(
+                device.supported_output_configs(),
+                ConfigType::Output,
+                device_index,
+            );
+            log_stream_configs(
+                device.supported_input_configs(),
+                ConfigType::Input,
+                device_index,
+            );
             match Device::from_device(device) {
                 Ok(device) => {
                     result.push(device);
@@ -345,7 +359,9 @@ fn capture_started() {
         RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
     }
 }
-/// distribute the audio samples to all our HTTP clients, and to the RMS monitor if needed
+
+/// distribute the audio samples chunk to all our HTTP clients and to the RMS monitor if needed
+/// all sample processing threads share the sample chunk through an Arc
 fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
     let shared_samples = Arc::new(f32_samples.to_vec());
     get_clients()

@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.20.1 (unreleased)
+- 1.20.1 (Apr 2 2026 dheijl)
   - rust 1.94.1
   - adjust WAV/RF64 size so that FFMPEG no longer complains
   - more code cleanup and small optimizations in many places

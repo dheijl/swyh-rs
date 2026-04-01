@@ -12,7 +12,7 @@ use cpal::{
 };
 use crossbeam_channel::Sender;
 use dasp_sample::ToSample;
-use log::debug;
+use log::{debug, info};
 use std::sync::{Arc, Once, atomic::Ordering};
 
 /// A [`cpal::Device`] with either a default input or default output config.
@@ -166,7 +166,7 @@ fn log_stream_configs(
             }
         }
         Err(e) => {
-            debug!("Error retrieving {cfg_type:?} stream configs: {e:?}");
+            info!("Error retrieving {cfg_type:?} stream configs: {e:?}");
         }
     }
 }

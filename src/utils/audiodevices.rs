@@ -258,7 +258,7 @@ pub fn capture_output_audio(
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             &audio_cfg.config(),
-            move |data, _: &_| wave_reader_f32(data, &mut f32_samples, &rms_sender),
+            move |data, _: &_| wave_reader_f32(data, &rms_sender),
             capture_err_fn,
             None,
         ) {
@@ -391,10 +391,7 @@ where
 
 /// specialized version of the generic wave_reader() above for the "default" f32 case with Alsa/WasApi/PipeWire/Pulse.
 /// Uses a memcpy to copy the samples instead of the samples conversion iterator.
-fn wave_reader_f32(samples: &[f32], f32_samples: &mut Vec<f32>, rms_sender: &Sender<AudioSamples>) {
+fn wave_reader_f32(samples: &[f32], rms_sender: &Sender<AudioSamples>) {
     ONFIRSTCALL.call_once(capture_started);
-    f32_samples.clear();
-    // uses memcpy (specialization)
-    f32_samples.extend_from_slice(samples);
-    distribute_samples(f32_samples, rms_sender);
+    distribute_samples(samples, rms_sender);
 }

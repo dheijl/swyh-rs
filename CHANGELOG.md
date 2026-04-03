@@ -1,7 +1,8 @@
 # swyh-rs Changelog
 
 - 1.20.2 (unreleased)
-  - revert change in logging audio device errors, useless noise on Linux.
+  - revert change in logging audio device errors, causes useless noise in logfile on Linux.
+  - remove an unneeded memcpy in the hot path for f32 samples
 
 - 1.20.1 (Apr 2 2026 dheijl)
   - rust 1.94.1
@@ -28,7 +29,6 @@
   - rust 1.93.1
   - replace the (unsafe) use of libc and Windows with rustix and winapi-easy
   - use VS2026 on Windows with CMake 4.2
-  - CPAL 0.17.3
   - CPAL 0.17.3
   - bugfix: possible off-by-one error in flac streaming
 

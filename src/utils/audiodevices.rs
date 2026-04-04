@@ -390,7 +390,8 @@ where
 }
 
 /// specialized version of the generic wave_reader() above for the "default" f32 case with Alsa/WasApi/PipeWire/Pulse.
-/// Uses a memcpy to copy the samples instead of the samples conversion iterator.
+/// bypasses the samples conversion iterator.
+#[inline(always)]
 fn wave_reader_f32(samples: &[f32], rms_sender: &Sender<AudioSamples>) {
     ONFIRSTCALL.call_once(capture_started);
     distribute_samples(samples, rms_sender);

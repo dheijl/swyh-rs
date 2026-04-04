@@ -485,14 +485,7 @@ impl Renderer {
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = Context::new();
         let addr = format!("{local_addr}:{}", streaminfo.server_port);
-
-        let ext = match streaminfo.streaming_format {
-            StreamingFormat::Wav => "wav",
-            StreamingFormat::Lpcm => "raw",
-            StreamingFormat::Flac => "flac",
-            StreamingFormat::Rf64 => "rf64",
-        };
-        let streaming_url = format!("http://{addr}/stream/swyh.{ext}");
+        let streaming_url = format!("http://{addr}/stream/swyh.{}", streaminfo.streaming_format);
         fmt_vars.insert("server_uri", Value::owned_str(streaming_url));
         fmt_vars.insert(
             "bits_per_sample",

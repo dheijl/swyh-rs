@@ -434,7 +434,7 @@ impl MainForm {
         let fmt = if let Some(format) = config.streaming_format {
             format!("FMT: {format}")
         } else {
-            "FMT: Lpcm".to_string()
+            "FMT: lpcm".to_string()
         };
         let mut fmt_choice = MenuButton::default().with_label(&fmt);
         let formats = vec![

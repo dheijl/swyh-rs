@@ -26,10 +26,10 @@ pub enum StreamingFormat {
 impl fmt::Display for StreamingFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StreamingFormat::Lpcm => f.write_str("Lpcm"),
-            StreamingFormat::Wav => f.write_str("Wav"),
-            StreamingFormat::Flac => f.write_str("Flac"),
-            StreamingFormat::Rf64 => f.write_str("Rf64"),
+            StreamingFormat::Lpcm => f.write_str("lpcm"),
+            StreamingFormat::Wav => f.write_str("wav"),
+            StreamingFormat::Flac => f.write_str("flac"),
+            StreamingFormat::Rf64 => f.write_str("rf64"),
         }
     }
 }

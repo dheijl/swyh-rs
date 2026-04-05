@@ -360,10 +360,11 @@ fn capture_started() {
     }
 }
 
-/// distribute the audio samples chunk to all our HTTP clients and to the RMS monitor if needed
-/// all sample processing threads share the sample chunk through an Arc
+/// Distribute the captured f32 audio samples chunk to all our HTTP client threads
+/// and to the RMS monitor thread if needed.
+/// All sample processing threads share the sample chunk through an Arc
 fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
-    let shared_samples = Arc::new(f32_samples.to_vec());
+    let shared_samples = AudioSamples::new(f32_samples.to_vec());
     get_clients()
         .iter()
         .for_each(|(_, client)| client.write(Arc::clone(&shared_samples)));
@@ -374,11 +375,8 @@ fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
 
 static ONFIRSTCALL: Once = Once::new();
 
-/// `wave_reader` - the captured audio input stream reader
-///
-/// writes the captured samples to all registered clients in the
-/// CLIENTS `ChannelStream` hashmap
-/// also feeds the RMS monitor channel if the RMS option is set
+/// `wave_reader` - the generic captured audio input stream reader.
+/// Calls `distribute_samples` to feed all the threads needing them.
 fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender<AudioSamples>)
 where
     T: Sample + ToSample<f32>,
@@ -389,9 +387,8 @@ where
     distribute_samples(f32_samples, rms_sender);
 }
 
-/// specialized version of the generic wave_reader() above for the "default" f32 case with Alsa/WasApi/PipeWire/Pulse.
-/// bypasses the samples conversion iterator.
-#[inline(always)]
+/// Specialized version of the generic `wave_reader` above for the "default" f32 case with Alsa/WasApi/PipeWire/Pulse.
+/// It bypasses the samples conversion iterator.
 fn wave_reader_f32(samples: &[f32], rms_sender: &Sender<AudioSamples>) {
     ONFIRSTCALL.call_once(capture_started);
     distribute_samples(samples, rms_sender);

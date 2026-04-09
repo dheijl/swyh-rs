@@ -1,12 +1,12 @@
-pub trait FwSlashPipeEscape {
+pub(crate) trait FwSlashPipeEscape {
+    #[cfg(feature = "gui")]
     fn fw_slash_pipe_escape(self) -> String;
-}
-
-pub trait FwSlashPipeUnescape {
+    #[allow(dead_code)]
     fn fw_slash_pipe_unescape(self) -> String;
 }
 
 impl FwSlashPipeEscape for &str {
+    #[cfg(feature = "gui")]
     fn fw_slash_pipe_escape(self) -> String {
         let mut result = String::with_capacity(self.len() + 8);
         for ch in self.chars() {
@@ -18,9 +18,6 @@ impl FwSlashPipeEscape for &str {
         }
         result
     }
-}
-
-impl FwSlashPipeUnescape for &str {
     fn fw_slash_pipe_unescape(self) -> String {
         let mut result = String::with_capacity(self.len());
         let mut chars = self.chars().peekable();
@@ -41,10 +38,12 @@ impl FwSlashPipeUnescape for &str {
     }
 }
 
-pub trait SanitizeArg {
+#[cfg(feature = "cli")]
+pub(crate) trait SanitizeArg {
     fn sanitize_bool(self) -> String;
 }
 
+#[cfg(feature = "cli")]
 impl SanitizeArg for &str {
     fn sanitize_bool(self) -> String {
         match self {

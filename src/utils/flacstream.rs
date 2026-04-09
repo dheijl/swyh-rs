@@ -29,13 +29,13 @@ const NOISE_PERIOD_MS: u64 = 250; // milliseconds
 // the flacwriter receives the data from the encoder
 // and writes them to the flac output channel
 #[derive(Clone)]
-pub struct FlacWriter {
+pub(crate) struct FlacWriter {
     flac_out: Sender<Vec<u8>>,
 }
 
 impl FlacWriter {
     #[must_use]
-    pub fn new(flac_out: Sender<Vec<u8>>) -> FlacWriter {
+    pub(crate) fn new(flac_out: Sender<Vec<u8>>) -> FlacWriter {
         FlacWriter { flac_out }
     }
 }
@@ -60,9 +60,9 @@ impl Write for FlacWriter {
 // the ChannelStream writes the captured f32 samples
 // to the samples_in channel for encoding
 #[derive(Clone)]
-pub struct FlacChannel {
+pub(crate) struct FlacChannel {
     samples_rcvr: Receiver<AudioSamples>,
-    pub flac_in: Receiver<Vec<u8>>,
+    pub(crate) flac_in: Receiver<Vec<u8>>,
     active: Arc<AtomicBool>,
     writer: FlacWriter,
     sample_rate: u32,
@@ -72,7 +72,7 @@ pub struct FlacChannel {
 
 impl FlacChannel {
     #[must_use]
-    pub fn new(
+    pub(crate) fn new(
         samples_chan: Receiver<AudioSamples>,
         sample_rate: u32,
         bits_per_sample: u32,
@@ -90,7 +90,7 @@ impl FlacChannel {
         }
     }
 
-    pub fn run(&self) {
+    pub(crate) fn run(&self) {
         // copy instance data for thread
         if self.active.load(Acquire) {
             let msg = "Flac encoder already running!";
@@ -180,7 +180,7 @@ impl FlacChannel {
             });
     }
 
-    pub fn stop(&self) {
+    pub(crate) fn stop(&self) {
         self.active.store(false, Release);
     }
 }

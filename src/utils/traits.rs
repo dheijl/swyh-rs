@@ -1,10 +1,13 @@
+#[cfg(feature = "gui")]
+/// fltk `choice` needs escaping the `pipe` character when showing strings
+/// so add this trait for escaping the `|` in &str
 pub(crate) trait FwSlashPipeEscape {
     #[cfg(feature = "gui")]
     fn fw_slash_pipe_escape(self) -> String;
     #[allow(dead_code)]
     fn fw_slash_pipe_unescape(self) -> String;
 }
-
+#[cfg(feature = "gui")]
 impl FwSlashPipeEscape for &str {
     #[cfg(feature = "gui")]
     fn fw_slash_pipe_escape(self) -> String {
@@ -39,6 +42,7 @@ impl FwSlashPipeEscape for &str {
 }
 
 #[cfg(feature = "cli")]
+/// Be lax when parsing cli `bool` arguments strings
 pub(crate) trait SanitizeArg {
     fn sanitize_bool(self) -> String;
 }
@@ -61,6 +65,7 @@ impl SanitizeArg for &str {
 #[cfg(test)]
 mod tests {
     #[test]
+    #[cfg(feature = "gui")]
     fn test_escape() {
         use crate::utils::traits::*;
         let a = "a/b/c|d".to_string();
@@ -76,6 +81,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "cli")]
     fn test_sanitize_bool() {
         use crate::utils::traits::*;
         use lexopt::ValueExt;

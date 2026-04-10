@@ -109,8 +109,7 @@ impl FlacChannel {
             .name("flac_encoder".into())
             .stack_size(THREAD_STACK)
             .spawn(move || {
-                // we're running
-                // setup the encoder
+                // we're running, setup the encoder
                 let mut outw = WriteWrapper(&mut writer);
                 let mut enc = FlacEncoder::new()
                     .unwrap_or_else(|| {

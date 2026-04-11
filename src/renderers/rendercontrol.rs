@@ -1,9 +1,10 @@
-///
-/// rendercontrol.rs
-///
-/// controller for avmedia renderers (audio only) using `OpenHome` and `AVTransport` protocol
-///
-///
+//! DLNA/OpenHome renderer controller.
+//!
+//! Handles SSDP discovery ([`discover`]), and controls AV renderers using both the
+//! OpenHome Playlist and UPnP AVTransport protocols.  [`Renderer`] drives play/stop
+//! and volume, [`WavData`] carries the audio format metadata, and [`StreamInfo`]
+//! holds the per-stream URL and bit-depth.
+
 use crate::{
     enums::streaming::{BitDepth, StreamingFormat},
     globals::statics::{APP_VERSION, SERVER_PORT, get_config},

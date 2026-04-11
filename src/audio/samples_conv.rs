@@ -1,3 +1,8 @@
+//! SIMD-accelerated sample format conversion utilities.
+//!
+//! Converts captured f32 audio samples to integer PCM formats (i16/i24, little/big endian)
+//! using SSE2 f32x4 SIMD registers via the `wide` crate.
+
 use itertools::Itertools;
 use wide::f32x4;
 

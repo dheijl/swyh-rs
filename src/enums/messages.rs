@@ -1,3 +1,5 @@
+//! Inter-thread message types carried over the application's crossbeam channel.
+
 use crate::{renderers::rendercontrol::Renderer, server::streaming_server::StreamerFeedBack};
 
 #[derive(Debug, Clone)]

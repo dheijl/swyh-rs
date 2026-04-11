@@ -1,3 +1,6 @@
+//! Utility modules: configuration, CLI argument parsing, logging, networking,
+//! process priority, shared traits, and background thread helpers.
+
 pub mod bincommon;
 pub mod commandline;
 pub mod configuration;

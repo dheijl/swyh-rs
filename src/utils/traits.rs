@@ -1,3 +1,8 @@
+//! Utility extension traits.
+//!
+//! [`FwSlashPipeEscape`] (GUI): escapes `/` and `|` for FLTK choice widgets.
+//! [`SanitizeArg`] (CLI): normalises loose boolean strings (`"yes"`, `"T"`, …) for argument parsing.
+
 #[cfg(feature = "gui")]
 /// fltk `choice` needs escaping the `pipe` character when showing strings
 /// so add this trait for escaping the `|` in &str

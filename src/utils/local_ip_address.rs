@@ -1,3 +1,8 @@
+//! Local network interface discovery.
+//!
+//! [`get_local_addr`] returns the preferred outbound IP address;
+//! [`get_interfaces`] enumerates all IPv4 interfaces.
+
 use if_addrs::IfAddr;
 #[cfg(not(feature = "gui"))]
 use local_ip_address::local_ip;

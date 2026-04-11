@@ -1,3 +1,9 @@
+//! `tiny-http`-based streaming server.
+//!
+//! [`run_server`] listens for incoming GET/HEAD requests and serves captured audio
+//! as LPCM, WAV, RF64, or FLAC over HTTP with DLNA-compatible headers.
+//! Each accepted connection gets its own [`ChannelStream`] fed by the audio capture pipeline.
+
 use crate::{
     audio::rwstream::ChannelStream,
     enums::{

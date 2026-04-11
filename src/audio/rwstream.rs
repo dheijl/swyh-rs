@@ -1,14 +1,9 @@
-/*
-///
-/// rwstream.rs
-///
-/// ChannelStream: the interface between the audio capture and the HTTP streaming clients
-///
-/// The write method sends the captured audio samples (f32) on the CrossBeam channel of the Channelstream
-/// and the HTTP Response then uses the Read trait implementation of the Channelstream to read
-/// them back for streaming to the HTTP client
-///
-*/
+//! [`ChannelStream`]: the bridge between audio capture and HTTP streaming clients.
+//!
+//! The [`ChannelStream::write`] method receives captured f32 samples from `wave_reader`
+//! via a crossbeam channel. The [`std::io::Read`] implementation on `ChannelStream` is
+//! called by the HTTP response writer and encodes those samples on-the-fly into
+//! LPCM, WAV, RF64, or FLAC format.
 use crate::{
     audio::samples_conv::{
         f32_chunk_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,

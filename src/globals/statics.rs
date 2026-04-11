@@ -1,3 +1,6 @@
+//! Process-wide static singletons: configuration, active streaming clients,
+//! discovered renderers, the inter-thread message channel, and misc constants.
+
 use std::sync::{LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
 
 use crate::{

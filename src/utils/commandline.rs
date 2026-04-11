@@ -1,3 +1,8 @@
+//! CLI argument parsing for the `swyh-rs-cli` binary.
+//!
+//! Defines [`Args`] and its [`Args::parse`] method which reads flags such as
+//! `--format`, `--bits`, `--player`, `--serve_only`, etc.
+
 #![cfg(feature = "cli")]
 use std::net::IpAddr;
 

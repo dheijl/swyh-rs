@@ -1,3 +1,9 @@
+//! FLAC encoding pipeline.
+//!
+//! [`FlacWriter`] implements [`std::io::Write`] and feeds encoded bytes into a crossbeam channel.
+//! [`FlacChannel`] owns a background encoding thread that reads captured f32 samples,
+//! encodes them with `flac-bound`, and injects near-silence bursts when no samples arrive.
+
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use fastrand::Rng;
 use flac_bound::{FlacEncoder, WriteWrapper};

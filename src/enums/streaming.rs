@@ -1,3 +1,9 @@
+//! Streaming-related enumerations and the [`StreamingContext`] helper struct.
+//!
+//! Covers [`StreamingFormat`] (LPCM/WAV/RF64/FLAC), [`BitDepth`], [`StreamSize`],
+//! [`Endian`], and [`StreamingState`], plus [`StreamingContext`] which aggregates
+//! all per-connection streaming parameters.
+
 use ecow::EcoString;
 use serde::{Deserialize, Serialize};
 use std::{convert::From, fmt, str::FromStr};

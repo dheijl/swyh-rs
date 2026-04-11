@@ -1,3 +1,6 @@
+//! Application configuration: serialization/deserialization to/from a TOML file,
+//! default values, and runtime config updates.
+
 use crate::{
     enums::streaming::{StreamSize, StreamingFormat},
     globals::statics::{SERVER_PORT, THEMES},

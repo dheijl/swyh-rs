@@ -1,19 +1,13 @@
+//! `swyh-rs` — GUI entry point.
+//!
+//! A Rust clone of SWYH (<https://www.streamwhatyouhear.com>): captures the default
+//! audio output device and streams it in LPCM, WAV, RF64, or FLAC format to DLNA/OpenHome
+//! renderers discovered via SSDP.  Tested on Windows 10/11 and Ubuntu/Debian with Volumio, MoOde,
+//! Harman-Kardon AVR, Sonos etc... renderers.
+
 #![cfg(feature = "gui")]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // to suppress console with debug output for release builds
 use mimalloc::MiMalloc;
-///
-/// swyh-rs
-///
-/// Basic SWYH (<https://www.streamwhatyouhear.com>, source repo <https://github.com/StreamWhatYouHear/SWYH)> clone entirely written in rust.
-///
-/// I wrote this because I a) wanted to learn Rust and b) SWYH did not work on Linux and did not work well with Volumio (push streaming does not work).
-///
-/// All music is streamed in LPCM, WAV/RF64 or FLAC format with the sample rate of the music source (the default audio device, I use `HiFi` Cable Input).
-///
-/// Tested on Windows 10 and on Ubuntu 20.04 with Raspberry Pi based Volumio DLNA renderers and with a Harman-Kardon AVR DLNA device.
-/// I don't have access to a Mac, so I don't know if this would also work.
-///
-///
 /*
 MIT License
 

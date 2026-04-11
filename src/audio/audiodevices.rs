@@ -1,3 +1,9 @@
+//! Audio device enumeration and capture.
+//!
+//! Wraps `cpal` devices with [`Device`] and [`DeviceKind`], enumerates available output
+//! devices, and sets up the input stream callbacks that feed captured samples to all
+//! registered HTTP streaming clients.
+
 use crate::{
     audio::rwstream::AudioSamples,
     enums::messages::MessageType,

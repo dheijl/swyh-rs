@@ -1,3 +1,9 @@
+//! Main application window built with FLTK.
+//!
+//! [`MainForm`] assembles the control panel: audio source selector, network picker,
+//! renderer buttons (one per discovered DLNA/OpenHome device), RMS level meters,
+//! configuration inputs, and the scrollable log text display.
+
 #![cfg(feature = "gui")]
 use crate::{
     enums::streaming::{

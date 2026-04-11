@@ -1,3 +1,9 @@
+//! Background helper threads for the GUI build.
+//!
+//! [`run_ssdp_updater`] periodically discovers DLNA/OpenHome renderers via SSDP.
+//! [`run_rms_monitor`] computes per-channel RMS values using SSE SIMD and updates
+//! the GUI level meters at 10 Hz.
+
 #![cfg(feature = "gui")]
 use std::{thread, time::Duration};
 

@@ -1,3 +1,8 @@
+//! HTTP query-string parsing for streaming requests.
+//!
+//! [`StreamingParams`] is populated from the URL path and optional `?bd=&ss=` query
+//! parameters to control bit depth and stream size per connection.
+
 use crate::enums::streaming::{BitDepth, StreamSize, StreamingFormat};
 use std::str::FromStr;
 

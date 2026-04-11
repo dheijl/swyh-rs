@@ -1,3 +1,8 @@
+//! Unified logging facade.
+//!
+//! [`ui_log`] writes a categorised message to the `log` backend and, in GUI builds,
+//! also forwards it to the FLTK text-display via the application's crossbeam channel.
+
 use log::{error, info, warn};
 use std::fmt::Display;
 

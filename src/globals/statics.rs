@@ -2,7 +2,7 @@ use std::sync::{LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::Ato
 
 use crate::{
     enums::messages::MessageType,
-    openhome::rendercontrol::Renderer,
+    renderers::rendercontrol::Renderer,
     utils::{configuration::Configuration, rwstream::ChannelStream},
 };
 

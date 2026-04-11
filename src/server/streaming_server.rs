@@ -4,7 +4,7 @@ use crate::{
         streaming::{BitDepth, StreamingContext, StreamingFormat, StreamingState},
     },
     globals::statics::get_clients_mut,
-    openhome::rendercontrol::WavData,
+    renderers::rendercontrol::WavData,
     server::query_params::StreamingParams,
     utils::rwstream::ChannelStream,
     utils::ui_logger::{LogCategory, ui_log},

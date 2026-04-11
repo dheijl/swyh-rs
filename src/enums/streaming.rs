@@ -4,7 +4,7 @@ use std::{convert::From, fmt, str::FromStr};
 use tiny_http::Request;
 
 use crate::{
-    globals::statics::get_config, openhome::rendercontrol::WavData,
+    globals::statics::get_config, renderers::rendercontrol::WavData,
     server::query_params::StreamingParams,
 };
 

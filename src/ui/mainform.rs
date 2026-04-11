@@ -8,7 +8,7 @@ use crate::{
         NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers,
         get_renderers_mut,
     },
-    openhome::rendercontrol::{Renderer, StreamInfo, WavData},
+    renderers::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::*},
 };
 use fltk::{

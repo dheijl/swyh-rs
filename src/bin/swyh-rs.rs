@@ -43,7 +43,7 @@ use swyh_rs::{
         APP_DATE, APP_VERSION, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
     },
-    openhome::rendercontrol::{Renderer, StreamInfo, WavData},
+    renderers::rendercontrol::{Renderer, StreamInfo, WavData},
     server::streaming_server::run_server,
     ui::mainform::MainForm,
     utils::{

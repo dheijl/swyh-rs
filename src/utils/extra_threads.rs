@@ -10,7 +10,7 @@ use wide::f32x4;
 use crate::{
     enums::messages::MessageType,
     globals::statics::ONE_MINUTE,
-    openhome::rendercontrol::{Renderer, WavData, discover},
+    renderers::rendercontrol::{Renderer, WavData, discover},
     utils::rwstream::AudioSamples,
 };
 

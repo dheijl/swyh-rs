@@ -3,6 +3,9 @@
 - 1.20.2 (unreleased)
   - revert change in logging audio device errors, causes useless noise in logfile on Linux.
   - remove an unneeded memcpy in the hot path for f32 samples
+  - refactoring: rename `openhome` module to `renderers`, move some files from `utils` module to new `audio` module
+  - add source header comments
+  - reduce dependencies by replacing the parse_url crate with faup-rs::Url
 
 - 1.20.1 (Apr 2 2026 dheijl)
   - rust 1.94.1

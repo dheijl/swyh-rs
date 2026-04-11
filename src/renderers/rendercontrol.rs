@@ -11,6 +11,7 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use bitflags::bitflags;
+use faup_rs::{Host, Url};
 use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::{button::LightButton, valuator::HorNiceSlider};
@@ -21,7 +22,6 @@ use std::{
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
-use url::Url;
 use xml::reader::{EventReader, XmlEvent};
 
 /// a Figura Template with Curly Braces as delimiter
@@ -394,8 +394,16 @@ impl Renderer {
         let port: u16;
         match Url::parse(&self.dev_url) {
             Ok(url) => {
-                host = url.host_str().unwrap_or("0.0.0.0").to_string();
-                port = url.port_or_known_default().unwrap_or(0);
+                host = match url.host() {
+                    Some(Host::Hostname(name)) => name.full_name().to_string(),
+                    Some(Host::IpV4(ip)) => ip.to_string(),
+                    Some(Host::IpV6(ip, ozid)) => match ozid {
+                        Some(zid) => format!("{ip}%{zid}"),
+                        None => ip.to_string(),
+                    },
+                    _ => "0.0.0.0".to_string(),
+                };
+                port = url.port().unwrap_or(0);
             }
             Err(e) => {
                 ui_log(

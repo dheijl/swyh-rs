@@ -20,6 +20,9 @@ use hashbrown::HashMap;
 use log::{LevelFilter, debug, error, info};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
 use swyh_rs::{
+    audio::audiodevices::{
+        capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+    },
     enums::{
         messages::MessageType,
         streaming::{
@@ -34,9 +37,6 @@ use swyh_rs::{
     renderers::rendercontrol::{Renderer, StreamInfo, WavData, discover},
     server::streaming_server::run_server,
     utils::{
-        audiodevices::{
-            capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
-        },
         bincommon::run_silence_injector,
         commandline::Args,
         configuration::Configuration,

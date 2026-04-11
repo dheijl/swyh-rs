@@ -1,4 +1,5 @@
 use crate::{
+    audio::rwstream::ChannelStream,
     enums::{
         messages::MessageType,
         streaming::{BitDepth, StreamingContext, StreamingFormat, StreamingState},
@@ -6,7 +7,6 @@ use crate::{
     globals::statics::get_clients_mut,
     renderers::rendercontrol::WavData,
     server::query_params::StreamingParams,
-    utils::rwstream::ChannelStream,
     utils::ui_logger::{LogCategory, ui_log},
 };
 use crossbeam_channel::{Sender, unbounded};

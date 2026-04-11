@@ -7,7 +7,7 @@ use cpal::{
 
 use crate::utils::ui_logger::{LogCategory, ui_log};
 
-use super::audiodevices::Device;
+use crate::audio::audiodevices::Device;
 
 /// Inject silence into the audio stream to solve problems with Sonos when pausing audio.
 /// contributed by @genekellyjr, see issue #71

@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod enums;
 pub mod globals;
 pub mod renderers;

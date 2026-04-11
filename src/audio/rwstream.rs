@@ -10,15 +10,15 @@
 ///
 */
 use crate::{
+    audio::samples_conv::{
+        f32_chunk_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,
+    },
     enums::streaming::{
         BitDepth::{self, *},
         Endian::{self, *},
         StreamingFormat,
     },
     globals::statics::get_config,
-    utils::samples_conv::{
-        f32_chunk_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,
-    },
 };
 use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
@@ -152,7 +152,7 @@ impl ChannelStream {
     /// the f32 samples have already been encoded to FLAC and written to the
     /// `flac_out` channel of the `FlacChannel` encoder thread.
     /// the `flac_in` channel of the `FlacChannel` is read here and pushed on the
-    /// `flac_fifo` `VecDeque` for transmission  
+    /// `flac_fifo` `VecDeque` for transmission
     fn fill_flac_buffer(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         debug_assert!(self.flac_channel.is_some());
         let flac_in = self.flac_channel.as_ref().unwrap().flac_in.clone();
@@ -389,7 +389,7 @@ fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::rwstream::*;
+    use crate::audio::rwstream::*;
     #[test]
 
     fn test_wav_hdr() {

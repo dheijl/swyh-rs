@@ -1,9 +1,8 @@
 use std::sync::{LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
 
 use crate::{
-    enums::messages::MessageType,
-    renderers::rendercontrol::Renderer,
-    utils::{configuration::Configuration, rwstream::ChannelStream},
+    audio::rwstream::ChannelStream, enums::messages::MessageType,
+    renderers::rendercontrol::Renderer, utils::configuration::Configuration,
 };
 
 use crossbeam_channel::{Receiver, Sender, unbounded};

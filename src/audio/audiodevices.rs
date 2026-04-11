@@ -1,10 +1,8 @@
 use crate::{
+    audio::rwstream::AudioSamples,
     enums::messages::MessageType,
     globals::statics::{RUN_RMS_MONITOR, get_clients, get_config, get_msgchannel},
-    utils::{
-        rwstream::AudioSamples,
-        ui_logger::{LogCategory, ui_log},
-    },
+    utils::ui_logger::{LogCategory, ui_log},
 };
 use cpal::{
     DefaultStreamConfigError, Sample, SupportedStreamConfig,

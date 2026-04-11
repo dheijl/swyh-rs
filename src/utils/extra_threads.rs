@@ -8,10 +8,10 @@ use log::info;
 use wide::f32x4;
 
 use crate::{
+    audio::rwstream::AudioSamples,
     enums::messages::MessageType,
     globals::statics::ONE_MINUTE,
     renderers::rendercontrol::{Renderer, WavData, discover},
-    utils::rwstream::AudioSamples,
 };
 
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery

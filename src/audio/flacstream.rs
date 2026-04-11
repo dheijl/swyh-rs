@@ -15,13 +15,13 @@ use std::{
 use wide::f32x4;
 
 use crate::{
-    enums::streaming::BitDepth,
-    globals::statics::THREAD_STACK,
-    utils::{
+    audio::{
         rwstream::AudioSamples,
         samples_conv::{f32_to_i32, samples_to_i32},
-        ui_logger::{LogCategory, ui_log},
     },
+    enums::streaming::BitDepth,
+    globals::statics::THREAD_STACK,
+    utils::ui_logger::{LogCategory, ui_log},
 };
 
 const NOISE_PERIOD_MS: u64 = 250; // milliseconds

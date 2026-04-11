@@ -38,6 +38,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 use swyh_rs::{
+    audio::audiodevices::{
+        capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+    },
     enums::{messages::MessageType, streaming::StreamingState},
     globals::statics::{
         APP_DATE, APP_VERSION, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
@@ -47,9 +50,6 @@ use swyh_rs::{
     server::streaming_server::run_server,
     ui::mainform::MainForm,
     utils::{
-        audiodevices::{
-            capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
-        },
         bincommon::run_silence_injector,
         extra_threads::{run_rms_monitor, run_ssdp_updater},
         local_ip_address::{get_interfaces, get_local_addr},

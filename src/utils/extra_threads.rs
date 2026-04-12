@@ -27,6 +27,7 @@ pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) 
     let agent = ureq::agent();
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
+    let mut first_time = true;
     loop {
         let renderers = discover(&agent, &rmap).unwrap_or_default();
         for r in &renderers {
@@ -42,9 +43,15 @@ pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) 
                 r.clone()
             });
         }
-        thread::sleep(Duration::from_millis(
-            (ssdp_interval_mins * ONE_MINUTE) as u64,
-        ));
+        // the first ssdp discovery sometimes fails on Linux, so run it twice in a row
+        if first_time {
+            thread::sleep(Duration::from_millis(1000_u64));
+            first_time = false;
+        } else {
+            thread::sleep(Duration::from_millis(
+                (ssdp_interval_mins * ONE_MINUTE) as u64,
+            ));
+        }
     }
 }
 

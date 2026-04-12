@@ -15,6 +15,7 @@ const VALID_URLS: [&str; 5] = [
     "/stream/swyh.rf64",
 ];
 
+/// streaming parameters extracted from the streaming url
 #[derive(Debug, Clone)]
 pub struct StreamingParams {
     pub path: Option<String>,
@@ -25,6 +26,7 @@ pub struct StreamingParams {
 
 impl StreamingParams {
     #[must_use]
+    /// build streaming parameters from the url
     pub fn from_url(url: &str) -> StreamingParams {
         const PATH_PREFIX: &str = "/stream/swyh.";
         const PATH_PREFIX_LEN: usize = PATH_PREFIX.len();
@@ -35,18 +37,20 @@ impl StreamingParams {
             ss: None,
             fmt: None,
         };
-        if let Ok(parsed_url) = Url::parse(url) {
-            if let Some(path) = parsed_url.path() {
-                let lc_path = path.to_lowercase();
-                if VALID_URLS.contains(&lc_path.as_str()) {
-                    params.path = Some(lc_path.clone());
-                    params.fmt = lc_path
-                        .get(PATH_PREFIX_LEN..)
-                        .and_then(|ext| StreamingFormat::from_str(ext).ok());
-                }
-                if params.fmt.is_none() || parsed_url.query().is_none() {
-                    return params;
-                }
+        // parse url, check path and querystring
+        if let Ok(parsed_url) = Url::parse(url)
+            && let Some(path) = parsed_url.path()
+        {
+            // validate path
+            let lc_path = path.to_lowercase();
+            if VALID_URLS.contains(&lc_path.as_str()) {
+                params.path = Some(lc_path.clone());
+                params.fmt = lc_path
+                    .get(PATH_PREFIX_LEN..)
+                    .and_then(|ext| StreamingFormat::from_str(ext).ok());
+            }
+            // validate query string if present
+            if params.fmt.is_some() && parsed_url.query().is_some() {
                 // parse key=value pairs from the querystring
                 // extract bd (bit depth) and ss (streamsize) if found
                 let query_string = parsed_url
@@ -73,13 +77,10 @@ impl StreamingParams {
                             _ => (),
                         });
                 }
-                params
-            } else {
-                params
             }
-        } else {
-            params
         }
+        // return params
+        params
     }
 }
 

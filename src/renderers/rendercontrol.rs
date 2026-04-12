@@ -11,7 +11,7 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use bitflags::bitflags;
-use faup_rs::{Host, Url};
+use faup_rs::Url;
 use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::{button::LightButton, valuator::HorNiceSlider};
@@ -394,15 +394,11 @@ impl Renderer {
         let port: u16;
         match Url::parse(&self.dev_url) {
             Ok(url) => {
-                host = match url.host() {
-                    Some(Host::Hostname(name)) => name.full_name().to_string(),
-                    Some(Host::IpV4(ip)) => ip.to_string(),
-                    Some(Host::IpV6(ip, ozid)) => match ozid {
-                        Some(zid) => format!("{ip}%{zid}"),
-                        None => ip.to_string(),
-                    },
-                    _ => "0.0.0.0".to_string(),
-                };
+                if let Some(h) = url.host() {
+                    host = h.to_string();
+                } else {
+                    host = "0.0.0.0".to_string();
+                }
                 port = url.port().unwrap_or(0);
             }
             Err(e) => {

@@ -87,8 +87,9 @@ pub fn run_server(
                     streaming_ctx.set_remote_addr(&rq);
                     // update context from WavData
                     streaming_ctx.set_sample_data(wd);
-                    //  - decode streaming query params if present
-                    let sp = StreamingParams::from_query_string(rq.url());
+                    //  - decode streaming query params from url if present
+                    let url = "http://swyh.local".to_string() + rq.url();
+                    let sp = StreamingParams::from_url(&url);
                     // - check for valid request uri
                     if sp.path.is_none() {
                         return bad_request(&streaming_ctx, rq);

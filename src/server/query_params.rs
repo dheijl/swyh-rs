@@ -4,7 +4,7 @@
 //! parameters to control bit depth and stream size per connection.
 
 use crate::enums::streaming::{BitDepth, StreamSize, StreamingFormat};
-use faup_rs::Url;
+use fluent_uri::Uri;
 use std::str::FromStr;
 
 const VALID_URLS: [&str; 5] = [
@@ -38,13 +38,11 @@ impl StreamingParams {
             fmt: None,
         };
         // parse url, check path and querystring
-        // `Url::parse()` needs a SCHEME and a HOST, let's add dummy ones
+        // `Uri::parse()` needs a SCHEME and a HOST, let's add dummy ones
         let uri = "http://swyh.local".to_string() + url;
-        if let Ok(parsed_url) = Url::parse(&uri)
-            && let Some(path) = parsed_url.path()
-        {
+        if let Ok(parsed_url) = Uri::parse(uri.as_str()) {
             // validate path and extract streaming format
-            let lc_path = path.to_lowercase();
+            let lc_path = parsed_url.path().as_str().to_lowercase();
             if VALID_URLS.contains(&lc_path.as_str()) {
                 params.path = Some(lc_path.clone());
                 params.fmt = lc_path
@@ -52,12 +50,12 @@ impl StreamingParams {
                     .and_then(|ext| StreamingFormat::from_str(ext).ok());
             }
             // get query string if present and extract parameters
-            if params.fmt.is_some() && parsed_url.query().is_some() {
+            if params.fmt.is_some()
+                && let Some(query) = parsed_url.query()
+            {
                 // parse key=value pairs from the querystring
                 // extract bd (bit depth) and ss (streamsize) if found
-                let query_string = parsed_url
-                    .query()
-                    .expect("querystring detected but not found.");
+                let query_string = query.as_str();
                 if !query_string.is_empty() {
                     query_string
                         .split('&')

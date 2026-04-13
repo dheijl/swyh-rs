@@ -11,10 +11,10 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use bitflags::bitflags;
-use faup_rs::Url;
 use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::{button::LightButton, valuator::HorNiceSlider};
+use fluent_uri::Uri;
 use hashbrown::HashMap;
 use log::{debug, error, info};
 use std::{
@@ -392,14 +392,19 @@ impl Renderer {
     fn parse_url(&mut self) {
         let host: String;
         let port: u16;
-        match Url::parse(&self.dev_url) {
+        let dev_url = self.dev_url.clone();
+        match Uri::parse(dev_url.as_str()) {
             Ok(url) => {
-                if let Some(h) = url.host() {
-                    host = h.to_string();
+                if let Some(auth) = url.authority() {
+                    host = auth.host().to_string();
+                    port = auth
+                        .port()
+                        .and_then(|p| p.as_str().parse::<u16>().ok())
+                        .unwrap_or(0);
                 } else {
                     host = "0.0.0.0".to_string();
+                    port = 0;
                 }
-                port = url.port().unwrap_or(0);
             }
             Err(e) => {
                 ui_log(

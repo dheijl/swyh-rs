@@ -1,12 +1,11 @@
 # swyh-rs Changelog
 
 - 1.20.2 (unreleased)
-  - revert change in logging audio device errors, causes useless noise in logfile on Linux.
+  - revert change in logging audio device errors, it caused useless noise in logfile on Linux.
   - remove an unneeded memcpy in the hot path for f32 samples
-  - refactoring: rename `openhome` module to `renderers`, move some files from `utils` module to new `audio` module
-  - add source header comments
-  - reduce dependencies by replacing the parse_url crate with faup-rs::Url
-  - also use faup-rs:Url when parsing streaming requests
+  - refactoring: rename `openhome` module to `renderers`, move some files from the `utils` module to new `audio` module
+  - add proper source header comments
+  - reduce dependencies and compile times by using fluent_uri for al URI parsing
   - run the first SSDP discovery twice in a row as the first run sometimes fails on Linux
 
 - 1.20.1 (Apr 2 2026 dheijl)

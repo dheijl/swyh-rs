@@ -195,7 +195,7 @@ fn streaming_request(
         &format!(
             "Streaming {}, input sample format {:?}, \
                             channels=2, rate={}, bps = {}, to {}",
-            streaming_ctx.dlna_string(),
+            streaming_ctx.dlna_audio_string(),
             streaming_ctx.sample_format,
             streaming_ctx.sample_rate,
             streaming_ctx.bits_per_sample,

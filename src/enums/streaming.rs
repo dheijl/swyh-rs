@@ -58,7 +58,8 @@ impl StreamingFormat {
     pub fn needs_wav_hdr(self) -> bool {
         self == StreamingFormat::Wav || self == StreamingFormat::Rf64
     }
-    pub fn dlna_string(self, bps: BitDepth) -> String {
+
+    pub fn dlna_audio_string(self, bps: BitDepth) -> String {
         match self {
             StreamingFormat::Flac => "audio/FLAC".to_string(),
             StreamingFormat::Wav | StreamingFormat::Rf64 => "audio/wave;codec=1 (WAV)".to_string(),
@@ -267,14 +268,13 @@ impl StreamingContext {
         self.chunksize = chunksize;
     }
     /// do we need a WAV/RF64 header for this streaming format ?
-    /// don't call before all fields are properly initialized
     #[inline]
     pub fn needs_wav_hdr(&self) -> bool {
         self.streaming_format.needs_wav_hdr()
     }
-    /// return the dlna string for this stream
-    /// don't call before all fields are properly initialized
-    pub fn dlna_string(&self) -> String {
-        self.streaming_format.dlna_string(self.bits_per_sample)
+    /// return the dlna audio format string for this stream
+    pub fn dlna_audio_string(&self) -> String {
+        self.streaming_format
+            .dlna_audio_string(self.bits_per_sample)
     }
 }

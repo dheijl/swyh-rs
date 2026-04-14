@@ -79,10 +79,6 @@ impl ChannelStream {
             }
             _ => Vec::new(),
         };
-        let use_wave_format = matches!(
-            context.streaming_format,
-            StreamingFormat::Wav | StreamingFormat::Rf64
-        );
         let chs = ChannelStream {
             s: tx,
             r: rx,
@@ -93,7 +89,7 @@ impl ChannelStream {
             sending_silence: false,
             remote_ip: context.remote_ip.clone(),
             wav_hdr,
-            use_wave_format,
+            use_wave_format: context.needs_wav_hdr(),
             bits_per_sample: context.bits_per_sample as u16,
             streaming_format: context.streaming_format,
             flac_channel,

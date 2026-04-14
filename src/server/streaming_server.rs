@@ -163,15 +163,7 @@ fn streaming_request(
 
     // create the channelstream that receives the samples and streams them on demand
     let (tx, rx) = unbounded();
-    let channel_stream = ChannelStream::new(
-        tx,
-        rx,
-        streaming_ctx.remote_ip.clone(),
-        streaming_ctx.needs_wav_hdr(),
-        streaming_ctx.sample_rate,
-        streaming_ctx.bits_per_sample as u16,
-        streaming_ctx.streaming_format,
-    );
+    let channel_stream = ChannelStream::new(tx, rx, streaming_ctx);
     let nclients = {
         let mut clients = get_clients_mut();
         clients.insert(streaming_ctx.remote_addr.clone(), channel_stream.clone());

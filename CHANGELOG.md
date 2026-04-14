@@ -7,6 +7,7 @@
   - add proper source header comments
   - reduce dependencies and compile times by using fluent_uri for al URI parsing
   - run the first SSDP discovery twice in a row as the first run sometimes fails on Linux
+  - more refactoring (ChannelStream)
 
 - 1.20.1 (Apr 2 2026 dheijl)
   - rust 1.94.1

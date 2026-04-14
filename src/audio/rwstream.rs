@@ -11,7 +11,7 @@ use crate::{
     enums::streaming::{
         BitDepth::{self, *},
         Endian::{self, *},
-        StreamingFormat,
+        StreamingContext, StreamingFormat,
     },
     globals::statics::get_config,
 };
@@ -57,45 +57,48 @@ impl ChannelStream {
     pub fn new(
         tx: Sender<AudioSamples>,
         rx: Receiver<AudioSamples>,
-        remote_ip_addr: EcoString,
-        use_wave_format: bool,
-        sample_rate: u32,
-        bits_per_sample: u16,
-        streaming_format: StreamingFormat,
+        context: &StreamingContext,
     ) -> ChannelStream {
-        let flac_channel = if streaming_format == StreamingFormat::Flac {
+        let flac_channel = if context.streaming_format == StreamingFormat::Flac {
             Some(FlacChannel::new(
                 rx.clone(),
-                sample_rate,
-                u32::from(bits_per_sample),
+                context.sample_rate,
+                context.bits_per_sample as u32,
                 2,
             ))
         } else {
             None
         };
         let capture_timeout = u64::from(get_config().capture_timeout.unwrap_or(5));
+        let wav_hdr = match context.streaming_format {
+            StreamingFormat::Wav => {
+                create_wav_hdr(context.sample_rate, context.bits_per_sample as u16)
+            }
+            StreamingFormat::Rf64 => {
+                create_rf64_hdr(context.sample_rate, context.bits_per_sample as u16)
+            }
+            _ => Vec::new(),
+        };
+        let use_wave_format = matches!(
+            context.streaming_format,
+            StreamingFormat::Wav | StreamingFormat::Rf64
+        );
         let chs = ChannelStream {
             s: tx,
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             flac_fifo: VecDeque::with_capacity(16384),
-            silence: get_silence_buffer(sample_rate, capture_timeout / 4),
+            silence: get_silence_buffer(context.sample_rate, capture_timeout / 4),
             capture_timeout: Duration::from_millis(capture_timeout), // silence kicks in after CAPTURE_TIMEOUT seconds
             sending_silence: false,
-            remote_ip: remote_ip_addr,
-            wav_hdr: if streaming_format == StreamingFormat::Wav {
-                create_wav_hdr(sample_rate, bits_per_sample)
-            } else if streaming_format == StreamingFormat::Rf64 {
-                create_rf64_hdr(sample_rate, bits_per_sample)
-            } else {
-                Vec::new()
-            },
+            remote_ip: context.remote_ip.clone(),
+            wav_hdr,
             use_wave_format,
-            bits_per_sample,
-            streaming_format,
+            bits_per_sample: context.bits_per_sample as u16,
+            streaming_format: context.streaming_format,
             flac_channel,
         };
-        if chs.streaming_format == StreamingFormat::Flac {
+        if context.streaming_format == StreamingFormat::Flac {
             chs.start_flac_encoder();
         }
         chs

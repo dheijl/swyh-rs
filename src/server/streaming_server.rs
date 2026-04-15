@@ -94,7 +94,7 @@ pub fn run_server(
                         return bad_request(&streaming_ctx, rq);
                     }
                     // - update streaming context from querystring (if present), this completes the context
-                    streaming_ctx.update_format(&sp);
+                    streaming_ctx.set_streaming_params(&sp);
                     debug!("{streaming_ctx:?}");
                     // handle response, streaming if GET, headers only otherwise
                     match *rq.method() {

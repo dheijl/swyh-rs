@@ -242,8 +242,8 @@ impl StreamingContext {
         self.sample_rate = wd.sample_rate;
         self.sample_format = wd.sample_format;
     }
-    /// update values from query parameters if present
-    pub fn update_format(&mut self, query_params: &StreamingParams) {
+    /// update with values from url, and query parameters if present
+    pub fn set_streaming_params(&mut self, query_params: &StreamingParams) {
         // streaming format
         if let Some(fmt) = query_params.fmt {
             self.streaming_format = fmt;

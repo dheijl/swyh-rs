@@ -208,6 +208,7 @@ impl ChannelStream {
         let endianness: Endian = if self.use_wave_format { Little } else { Big };
         let bd = BitDepth::from(self.bits_per_sample);
         // make the fifo contiguous so we can slice it directly (avoiding iterator overhead per chunk)
+        // for 16 bit it seems always contiguous, for 24 bit it is not, but never needs rotating either
         {
             let samples = self.fifo.make_contiguous();
             let sample_chunks = samples[..samples_needed].chunks_exact(CHUNK_SIZE);

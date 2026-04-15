@@ -3,7 +3,6 @@
 //! Converts captured f32 audio samples to integer PCM formats (i16/i24, little/big endian)
 //! using SSE2 f32x4 SIMD registers via the `wide` crate.
 
-use itertools::Itertools;
 use wide::f32x4;
 
 use crate::enums::streaming::BitDepth;
@@ -37,16 +36,10 @@ pub(crate) fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd
     }
 }
 
-/// convert a 4 f32 samples itertools chunk to an i32 array (scaled to bitdepth)
+/// convert 4 contiguous f32 samples to an i32 array (scaled to bitdepth)
 #[inline(always)]
-pub(crate) fn f32_chunk_to_i32(
-    bd: BitDepth,
-    sample_chunk: itertools::Chunk<'_, std::collections::vec_deque::Drain<'_, f32>>,
-) -> [i32; 4] {
-    let mut temp = [0f32; 4];
-    temp.iter_mut().set_from(sample_chunk);
-    let f32_array = f32x4::new(temp);
-    f32_to_i32(bd, f32_array)
+pub(crate) fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4]) -> [i32; 4] {
+    f32_to_i32(bd, f32x4::new(*samples))
 }
 
 /// convert 4 f32 samples in an f32x4 to 4 i32 samples (using SIMD)

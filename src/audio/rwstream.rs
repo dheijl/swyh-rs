@@ -19,7 +19,6 @@ use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
 #[cfg(debug_assertions)]
 use fastrand::Rng;
-use itertools::Itertools;
 use log::debug;
 use std::{
     collections::VecDeque,
@@ -205,31 +204,33 @@ impl ChannelStream {
         while self.fifo.len() < samples_needed {
             self.get_samples();
         }
-        // drain the fifo of the samples needed to fill the buffer in 4 samples chunks
-        // this way we don't need the expensive pop_front()
-        // the drain contains the exact number of samples needed to fill the streaming buffer
-        let drain_iter = self.fifo.drain(0..samples_needed).chunks(CHUNK_SIZE);
-        // fill the buffer with sample chunks (1 chunk = 4 samples)
-        // so we can zip the buf in chunks of 4 samples (chunksize) with the drain
-        let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(&drain_iter);
         // setup sample conversion parameters
         let endianness: Endian = if self.use_wave_format { Little } else { Big };
         let bd = BitDepth::from(self.bits_per_sample);
-        // convert the f32 samples to i16 or i24 little/big endian to fille the buffer
-        match (endianness, bd) {
-            (Little, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                i32_to_i16le(&f32_chunk_to_i32(bd, sample_chunk), chunk);
-            }),
-            (Little, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                i32_to_i24le(&f32_chunk_to_i32(bd, sample_chunk), chunk);
-            }),
-            (Big, Bits16) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                i32_to_i16be(&f32_chunk_to_i32(bd, sample_chunk), chunk);
-            }),
-            (Big, Bits24) => chunks_iter.for_each(|(chunk, sample_chunk)| {
-                i32_to_i24be(&f32_chunk_to_i32(bd, sample_chunk), chunk);
-            }),
-        }
+        // make the fifo contiguous so we can slice it directly (avoiding iterator overhead per chunk)
+        {
+            let samples = self.fifo.make_contiguous();
+            let sample_chunks = samples[..samples_needed].chunks_exact(CHUNK_SIZE);
+            // zip the buf in chunks of buf_chunksize with the sample chunks of 4 f32 values
+            let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(sample_chunks);
+            // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
+            // the unwrap on sch.as_array() is safe as all chunks are guaranteed 4 elements (CHUNKSIZE)
+            match (endianness, bd) {
+                (Little, Bits16) => chunks_iter.for_each(|(bch, sch)| {
+                    i32_to_i16le(&f32_chunk_to_i32(bd, sch.as_array().unwrap()), bch);
+                }),
+                (Little, Bits24) => chunks_iter.for_each(|(bch, sch)| {
+                    i32_to_i24le(&f32_chunk_to_i32(bd, sch.as_array().unwrap()), bch);
+                }),
+                (Big, Bits16) => chunks_iter.for_each(|(bch, sch)| {
+                    i32_to_i16be(&f32_chunk_to_i32(bd, sch.as_array().unwrap()), bch);
+                }),
+                (Big, Bits24) => chunks_iter.for_each(|(bch, sch)| {
+                    i32_to_i24be(&f32_chunk_to_i32(bd, sch.as_array().unwrap()), bch);
+                }),
+            }
+        } // make_contiguous borrow ends here
+        self.fifo.drain(0..samples_needed);
         Ok(chunks_needed * buf_chunksize)
     }
 }

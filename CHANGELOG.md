@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.20.3 (unreleased)
+
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.
   - remove an unneeded memcpy in the hot path for f32 samples

@@ -33,18 +33,10 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
     let config: StreamConfig = config.clone().into();
     let device = device.as_ref();
     let try_stream = match sample_format {
-        SampleFormat::F32 => {
-            device.build_output_stream(&config, write_silence::<f32>, err_fn, None)
-        }
-        SampleFormat::I16 => {
-            device.build_output_stream(&config, write_silence::<i16>, err_fn, None)
-        }
-        SampleFormat::U16 => {
-            device.build_output_stream(&config, write_silence::<u16>, err_fn, None)
-        }
-        SampleFormat::I32 => {
-            device.build_output_stream(&config, write_silence::<i32>, err_fn, None)
-        }
+        SampleFormat::F32 => device.build_output_stream(config, write_silence::<f32>, err_fn, None),
+        SampleFormat::I16 => device.build_output_stream(config, write_silence::<i16>, err_fn, None),
+        SampleFormat::U16 => device.build_output_stream(config, write_silence::<u16>, err_fn, None),
+        SampleFormat::I32 => device.build_output_stream(config, write_silence::<i32>, err_fn, None),
         format => {
             let msg = format!("Inject silence: Unsupported sample format: {format:?}");
             ui_log(LogCategory::Error, &msg);

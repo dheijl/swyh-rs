@@ -261,7 +261,7 @@ pub fn capture_output_audio(
     let mut f32_samples: Vec<f32> = Vec::with_capacity(16384);
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
-            &audio_cfg.config(),
+            audio_cfg.config(),
             move |data, _: &_| wave_reader_f32(data, &rms_sender),
             capture_err_fn,
             None,
@@ -280,7 +280,7 @@ pub fn capture_output_audio(
         },
         cpal::SampleFormat::I16 => {
             match device.build_input_stream(
-                &audio_cfg.config(),
+                audio_cfg.config(),
                 move |data, _: &_| wave_reader::<i16>(data, &mut f32_samples, &rms_sender),
                 capture_err_fn,
                 None,
@@ -300,7 +300,7 @@ pub fn capture_output_audio(
         }
         cpal::SampleFormat::U16 => {
             match device.build_input_stream(
-                &audio_cfg.config(),
+                audio_cfg.config(),
                 move |data, _: &_| wave_reader::<u16>(data, &mut f32_samples, &rms_sender),
                 capture_err_fn,
                 None,
@@ -320,7 +320,7 @@ pub fn capture_output_audio(
         }
         cpal::SampleFormat::I32 => {
             match device.build_input_stream(
-                &audio_cfg.config(),
+                audio_cfg.config(),
                 move |data, _: &_| wave_reader::<i32>(data, &mut f32_samples, &rms_sender),
                 capture_err_fn,
                 None,

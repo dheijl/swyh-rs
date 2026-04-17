@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.20.3 (unreleased)
+  - rust 1.95.0
 
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.

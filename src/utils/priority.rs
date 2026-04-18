@@ -1,43 +1,39 @@
-//! Process priority adjustment.
-//!
-//! [`raise_priority`] bumps the process scheduling priority on Windows (ABOVE_NORMAL)
-//! and Linux (nice -10) to reduce audio capture stuttering under CPU load.
-
-use crate::utils::ui_logger::{LogCategory, ui_log};
+use crate::utils::ui_logger::ui_log;
+use rust_i18n::t;
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
-    use winapi_easy::process::{Process, ProcessPriority};
-    let rc = Process::current().set_priority(ProcessPriority::AboveNormal);
-    if rc.is_err() {
-        ui_log(
-            LogCategory::Error,
-            &format!("Failed to set process priority to ABOVE_NORMAL, error={rc:?}"),
-        );
-        return;
+    use windows::Win32::{
+        Foundation::GetLastError,
+        System::Threading::{
+            GetCurrentProcess, GetCurrentProcessId, SetPriorityClass, ABOVE_NORMAL_PRIORITY_CLASS,
+        },
+    };
+    unsafe {
+        let id = GetCurrentProcess();
+        if SetPriorityClass(id, ABOVE_NORMAL_PRIORITY_CLASS).is_err() {
+            let e = GetLastError();
+            let p = GetCurrentProcessId();
+            ui_log(&format!(
+                "*E*E*>{} id={p}, error={e:?}",
+                t!("failed_set_process_priority")
+            ));
+        }
     }
-    ui_log(
-        LogCategory::Info,
-        "Now running at ABOVE_NORMAL_PRIORITY_CLASS",
-    );
+    ui_log(&*t!("running_high_priority"));
 }
 
 #[cfg(target_os = "linux")]
 pub fn raise_priority() {
-    // the following only works when you're root on Linux
-    // or if you give the program CAP_SYS_NICE (cf. setcap)
-    // or are a user of the pipewire group
-    use rustix::process::{getpriority_process, setpriority_process};
-    if let Ok(pri) = getpriority_process(None)
-        && pri >= 0
-    {
-        if setpriority_process(None, -10).is_err() {
-            ui_log(
-                LogCategory::Warning,
-                "Sorry, but you don't have permissions to raise priority...",
-            );
+    use libc::{getpriority, setpriority, PRIO_PROCESS};
+    unsafe {
+        let pri = getpriority(PRIO_PROCESS, 0);
+        let newpri = pri - 5;
+        let rc = setpriority(PRIO_PROCESS, 0, newpri);
+        if rc != 0 {
+            ui_log(&*t!("no_permission_raise_priority"));
         } else {
-            ui_log(LogCategory::Info, "Now running at nice value -10");
+            ui_log(&format!("{} {newpri}", t!("now_running_nice_value")));
         }
     }
 }

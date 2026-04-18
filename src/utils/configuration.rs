@@ -1,17 +1,11 @@
-//! Application configuration: serialization/deserialization to/from a TOML file,
-//! default values, and runtime config updates.
-
-use crate::{
-    enums::streaming::{StreamSize, StreamingFormat},
-    globals::statics::{SERVER_PORT, THEMES},
-};
-use lexopt::{Parser, prelude::*};
+use crate::{enums::streaming::StreamingFormat, globals::statics::SERVER_PORT};
+use lexopt::{prelude::*, Parser};
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use std::{
     f64, fs,
     fs::File,
-    io::{BufWriter, Write},
+    io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
 };
 use toml::from_str;
@@ -19,102 +13,55 @@ use toml::from_str;
 const CONFIGFILE: &str = "config{}.toml";
 const PKGNAME: &str = env!("CARGO_PKG_NAME");
 
-// default values for Serde
-struct CfgDefaults {}
-
-impl CfgDefaults {
-    fn autoreconnect() -> bool {
-        false
-    }
-    fn log_level() -> LevelFilter {
-        LevelFilter::Info
-    }
-    fn ssdp_interval_mins() -> f64 {
-        10.0
-    }
-    fn stream_size() -> Option<StreamSize> {
-        Some(StreamSize::U64maxNotChunked)
-    }
-    fn wav_stream_size() -> Option<StreamSize> {
-        Some(StreamSize::U32maxNotChunked)
-    }
-    fn flac_stream_size() -> Option<StreamSize> {
-        Some(StreamSize::NoneChunked)
-    }
-    fn bits_per_sample() -> Option<u16> {
-        Some(16)
-    }
-}
-
-// the configuration struct, read from and saved in config.ini
 #[derive(Deserialize, Serialize, Clone, Debug)]
 struct Config {
     #[serde(alias = "Configuration")]
     pub configuration: Configuration,
 }
 
+fn disable_chunked() -> bool {
+    true
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Configuration {
-    #[serde(alias = "ServerPort", default)]
+    #[serde(alias = "ServerPort")]
     pub server_port: Option<u16>,
-    #[serde(alias = "AutoResume", default)]
+    #[serde(alias = "AutoResume")]
     pub auto_resume: bool,
-    #[serde(alias = "SoundCard", default)]
-    pub sound_source: Option<String>,
-    #[serde(alias = "SoundCardIndex", default)]
+    #[serde(alias = "SoundCard")]
+    pub sound_source: String,
+    #[serde(alias = "SoundCardIndex")]
     pub sound_source_index: Option<i32>,
-    #[serde(alias = "LogLevel", default = "CfgDefaults::log_level")]
+    #[serde(alias = "LogLevel")]
     pub log_level: LevelFilter,
-    #[serde(
-        alias = "SSDPIntervalMins",
-        default = "CfgDefaults::ssdp_interval_mins"
-    )]
+    #[serde(alias = "SSDPIntervalMins")]
     pub ssdp_interval_mins: f64,
-    #[serde(alias = "AutoReconnect", default = "CfgDefaults::autoreconnect")]
+    #[serde(alias = "AutoReconnect")]
     pub auto_reconnect: bool,
-    // removed in 1.8.5 (obsolete)
-    #[serde(alias = "DisableChunked", skip, default)]
+    #[serde(alias = "DisableChunked", skip, default = "disable_chunked")]
     _disable_chunked: bool,
-    // added in 1.9.9
-    #[serde(alias = "LPCMStreamSize", default = "CfgDefaults::stream_size")]
-    pub lpcm_stream_size: Option<StreamSize>,
-    #[serde(alias = "WAVStreamSize", default = "CfgDefaults::wav_stream_size")]
-    pub wav_stream_size: Option<StreamSize>,
-    #[serde(alias = "RF64StreamSize", default = "CfgDefaults::stream_size")]
-    pub rf64_stream_size: Option<StreamSize>,
-    #[serde(alias = "FLACStreamSize", default = "CfgDefaults::flac_stream_size")]
-    pub flac_stream_size: Option<StreamSize>,
-    // removed in 1.10.8 (obsolete)
-    #[serde(alias = "UseWaveFormat", skip, default)]
-    _use_wave_format: bool,
-    #[serde(alias = "BitsPerSample", default = "CfgDefaults::bits_per_sample")]
+    #[serde(alias = "UseWaveFormat")]
+    pub use_wave_format: bool,
+    #[serde(alias = "BitsPerSample")]
     pub bits_per_sample: Option<u16>,
-    #[serde(alias = "StreamingFormat", default)]
+    #[serde(alias = "StreamingFormat")]
     pub streaming_format: Option<StreamingFormat>,
-    #[serde(alias = "MonitorRms", default)]
+    #[serde(alias = "MonitorRms")]
     pub monitor_rms: bool,
-    #[serde(alias = "CaptureTimeout", default)]
+    #[serde(alias = "CaptureTimeout")]
     pub capture_timeout: Option<u32>,
-    #[serde(alias = "InjectSilence", default)]
+    #[serde(alias = "InjectSilence")]
     pub inject_silence: Option<bool>,
-    #[serde(alias = "BufferingDelayMSec", default)]
-    pub buffering_delay_msec: Option<u32>,
-    #[serde(alias = "LastRenderer", default)]
-    pub last_renderer: Option<String>,
-    #[serde(alias = "ActiveRenderers", default)]
-    pub active_renderers: Vec<String>,
-    #[serde(alias = "HiddenRenderers", default)]
-    pub hidden_renderers: Vec<String>,
-    #[serde(alias = "LastNetwork", default)]
-    pub last_network: Option<String>,
-    #[serde(alias = "ConfigDir", default)]
+    #[serde(alias = "LastRenderer")]
+    pub last_renderer: String,
+    #[serde(alias = "LastNetwork")]
+    pub last_network: String,
+    #[serde(alias = "ConfigDir")]
     config_dir: PathBuf,
-    #[serde(alias = "ConfigId", default)]
+    #[serde(alias = "ConfigId")]
     pub config_id: Option<String>,
-    #[serde(alias = "ReadOnly", default)]
-    pub read_only: bool,
-    #[serde(alias = "ColorTheme", default)]
-    pub color_theme: Option<u8>,
+    pub language: String,
 }
 
 impl Default for Configuration {
@@ -129,31 +76,23 @@ impl Configuration {
         Configuration {
             server_port: Some(SERVER_PORT),
             auto_resume: false,
-            sound_source: None,
+            sound_source: "None".to_string(),
             sound_source_index: Some(0),
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 10.0,
             auto_reconnect: false,
             _disable_chunked: true,
-            lpcm_stream_size: Some(StreamSize::U64maxNotChunked),
-            wav_stream_size: Some(StreamSize::U32maxNotChunked),
-            rf64_stream_size: Some(StreamSize::U64maxNotChunked),
-            flac_stream_size: Some(StreamSize::NoneChunked),
-            _use_wave_format: false,
+            use_wave_format: false,
             bits_per_sample: Some(16),
             streaming_format: Some(StreamingFormat::Lpcm),
             monitor_rms: false,
             capture_timeout: Some(2000),
             inject_silence: Some(false),
-            buffering_delay_msec: Some(0),
-            last_renderer: None,
-            active_renderers: Vec::new(),
-            hidden_renderers: Vec::new(),
-            last_network: None,
+            last_renderer: "None".to_string(),
+            last_network: "None".to_string(),
             config_dir: Self::get_config_dir(),
             config_id: Some(Self::get_config_id()),
-            read_only: false,
-            color_theme: None,
+            language: "zh-CN".to_string(),
         }
     }
 
@@ -172,19 +111,24 @@ impl Configuration {
     #[must_use]
     pub fn read_config() -> Configuration {
         let mut force_update = false;
-        let configfile = Self::choose_config_path();
+        let configfile = Self::get_config_path(CONFIGFILE);
+        let old_configfile = Self::get_config_path("config.ini");
         if !Path::new(&configfile).exists() {
-            println!("Creating a new default config {}", configfile.display());
-            let config = Configuration::new();
-            let configuration = Config {
-                configuration: config,
-            };
-            let f = File::create(&configfile).unwrap();
-            let s = toml::to_string(&configuration).unwrap();
-            let mut w = BufWriter::new(f);
-            println!("New default CONFIG: {s}");
-            w.write_all(s.as_bytes()).unwrap();
-            w.flush().unwrap();
+            if Path::new(&old_configfile).exists() {
+                Self::migrate_config_to_toml(&old_configfile, &configfile);
+            } else {
+                println!("Creating a new default config {}", configfile.display());
+                let config = Configuration::new();
+                let configuration = Config {
+                    configuration: config,
+                };
+                let f = File::create(&configfile).unwrap();
+                let s = toml::to_string(&configuration).unwrap();
+                let mut w = BufWriter::new(f);
+                println!("New default CONFIG: {s}");
+                w.write_all(s.as_bytes()).unwrap();
+                w.flush().unwrap();
+            }
         }
         println!("Loading config from {}", configfile.display());
         let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
@@ -198,13 +142,10 @@ impl Configuration {
                 configuration: config,
             }
         });
-        if config.configuration.ssdp_interval_mins > 0.0
-            && config.configuration.ssdp_interval_mins < 0.5
-        {
+        if config.configuration.ssdp_interval_mins < 0.5 {
             config.configuration.ssdp_interval_mins = 0.5;
             force_update = true;
         }
-        // replace missing values from old configs with reasonable defaults
         if let Some(_u16) = config.configuration.server_port {
         } else {
             config.configuration.server_port = Some(SERVER_PORT);
@@ -223,10 +164,6 @@ impl Configuration {
             config.configuration.inject_silence = Some(false);
             force_update = true;
         }
-        if config.configuration.buffering_delay_msec.is_none() {
-            config.configuration.buffering_delay_msec = Some(0);
-            force_update = true;
-        }
         if config.configuration.config_id.is_none() {
             config.configuration.config_id = Some(String::new());
             force_update = true;
@@ -235,28 +172,17 @@ impl Configuration {
             config.configuration.sound_source_index = Some(0);
             force_update = true;
         }
-        if !config.configuration.read_only {
-            let meta = fs::metadata(configfile);
-            if let Ok(meta) = meta {
-                config.configuration.read_only = meta.permissions().readonly();
-            }
-        }
-        if let Some(theme) = config.configuration.color_theme
-            && theme >= THEMES.len() as u8
-        {
-            config.configuration.color_theme = None;
+        if config.configuration.language.is_empty() {
+            config.configuration.language = "zh-CN".to_string();
             force_update = true;
         }
-        if force_update && !config.configuration.read_only {
+        if force_update {
             config.configuration.update_config().unwrap();
         }
         config.configuration
     }
 
     pub fn update_config(&self) -> std::io::Result<()> {
-        if self.read_only {
-            return Ok(());
-        }
         let configfile = Self::get_config_path(CONFIGFILE);
         let f = File::create(configfile).unwrap();
         let conf = Config {
@@ -269,31 +195,22 @@ impl Configuration {
         Ok(())
     }
 
-    fn choose_config_path() -> PathBuf {
-        if let Some(path) = Self::get_arg_config_path() {
-            path
-        } else {
-            let configfile = Self::get_config_path(CONFIGFILE);
-            if !Path::new(&configfile).exists() {
-                println!("Creating a new default config {}", configfile.display());
-                let config = Configuration::new();
-                let configuration = Config {
-                    configuration: config,
-                };
-                let f = File::create(&configfile).unwrap();
-                let s = toml::to_string(&configuration).unwrap();
-                let mut w = BufWriter::new(f);
-                println!("New default CONFIG: {s}");
-                w.write_all(s.as_bytes()).unwrap();
-                w.flush().unwrap();
-            }
-            configfile
-        }
-    }
-
     fn get_config_dir() -> PathBuf {
         let hd = dirs::home_dir().unwrap_or_default();
+        let old_config_dir = Path::new(&hd).join(PKGNAME);
         let config_dir = Path::new(&hd).join(".".to_string() + PKGNAME);
+        if Path::new(&old_config_dir).exists() && !Path::new(&config_dir).exists() {
+            fs::create_dir_all(&config_dir).unwrap();
+            let old_config_file = Path::new(&old_config_dir).join("config.ini");
+            if Path::new(&old_config_file).exists() {
+                let config_file = Path::new(&config_dir).join("config.ini");
+                fs::copy(old_config_file, config_file).unwrap();
+                fs::remove_dir_all(&old_config_dir).unwrap();
+                let conf = Configuration::read_config();
+                conf.update_config().unwrap();
+            }
+            return config_dir;
+        }
         if !Path::new(&config_dir).exists() {
             fs::create_dir_all(&config_dir).unwrap();
         }
@@ -311,32 +228,43 @@ impl Configuration {
         let mut config_id = String::new();
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
-            if let Short('c') | Long("configuration") = arg
-                && let Ok(id) = argparser.value()
-            {
-                config_id = id.string().unwrap_or_default();
-                break;
-            }
+            if let Short('c') | Long("configuration") = arg {
+                if let Ok(id) = argparser.value() {
+                    config_id = id.string().unwrap_or_default();
+                };
+            };
         }
-        #[cfg(feature = "cli")]
-        if config_id.is_empty() {
+        if cfg!(feature = "cli") && config_id.is_empty() {
             config_id = "_cli".to_string();
         }
         config_id
     }
 
-    fn get_arg_config_path() -> Option<PathBuf> {
-        let mut argparser = Parser::from_env();
-        let mut path = None;
-        while let Some(arg) = argparser.next().unwrap() {
-            if let Short('C') | Long("configfile") = arg
-                && let Ok(opt) = argparser.value()
-            {
-                path = opt.string().ok().map(|s| PathBuf::from(&s));
-                break;
+    fn migrate_config_to_toml(old_config: &Path, new_config: &Path) {
+        println!(
+            "Migrating {} to {}",
+            old_config.display(),
+            new_config.display()
+        );
+        let oldf = File::open(old_config).unwrap();
+        let r = BufReader::new(&oldf);
+        let newf = File::create(new_config).unwrap();
+        let mut w = BufWriter::new(&newf);
+        for line in r.lines() {
+            let mut s = line.unwrap();
+            if let Some(n) = s.find('=') {
+                const NEEDS_QUOTE: &str = "|SoundCard|LogLevel|LastRenderer|LastNetwork|ConfigDir|";
+                let key = s.get(0..n).unwrap();
+                if NEEDS_QUOTE.contains(key) {
+                    s.insert(n + 1, '"');
+                    s.insert(s.len(), '"');
+                }
             }
+            w.write_all(s.as_bytes()).unwrap();
+            writeln!(w).unwrap();
         }
-        println!("ARG override configfile (-C): {path:?}");
-        path
+        w.flush().unwrap();
+        drop(oldf);
+        fs::remove_file(old_config).unwrap();
     }
 }

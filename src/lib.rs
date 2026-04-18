@@ -3,10 +3,14 @@
 //! Root crate that re-exports the audio capture, HTTP streaming server,
 //! DLNA/OpenHome renderer control, FLTK GUI, and shared utility modules.
 
-pub mod audio;
+#[macro_use]
+extern crate rust_i18n;
+
+i18n!("locales", fallback = "en");
+
 pub mod enums;
 pub mod globals;
-pub mod renderers;
+pub mod openhome;
 pub mod server;
 pub mod ui;
 pub mod utils;

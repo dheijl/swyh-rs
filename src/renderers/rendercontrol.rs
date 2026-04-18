@@ -1,31 +1,22 @@
-//! DLNA/OpenHome renderer controller.
-//!
-//! Handles SSDP discovery ([`discover`]), and controls AV renderers using both the
-//! OpenHome Playlist and UPnP AVTransport protocols.  [`Renderer`] drives play/stop
-//! and volume, [`WavData`] carries the audio format metadata, and [`StreamInfo`]
-//! holds the per-stream URL and bit-depth.
-
-use crate::{
-    enums::streaming::{BitDepth, StreamingFormat},
-    globals::statics::{APP_VERSION, SERVER_PORT, get_config},
-    utils::ui_logger::{LogCategory, ui_log},
-};
+///
+/// rendercontrol.rs
+///
+/// controller for avmedia renderers (audio only) using `OpenHome` and `AVTransport`` protocol
+///
+///
+use crate::{enums::streaming::StreamingFormat, globals::statics::CONFIG};
 use bitflags::bitflags;
-use figura::{Context, Template, Value};
-#[cfg(feature = "gui")]
-use fltk::{button::LightButton, valuator::HorNiceSlider};
-use fluent_uri::Uri;
-use hashbrown::HashMap;
 use log::{debug, error, info};
+use rust_i18n::t;
 use std::{
-    cell::{Cell, OnceCell},
+    collections::HashMap,
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
+use strfmt::strfmt;
+use stringreader::StringReader;
+use url::Url;
 use xml::reader::{EventReader, XmlEvent};
-
-/// a Figura Template with Curly Braces as delimiter
-type CbTemplate = Template<'{', '}'>;
 
 /// OH insert playlist template
 static OH_INSERT_PL_TEMPLATE: &str = "\
@@ -61,7 +52,8 @@ static L16_PROT_INFO: &str = "http-get:*:audio/L16;rate={sample_rate};channels=2
 static L24_PROT_INFO: &str = "http-get:*:audio/L24;rate={sample_rate};channels=2:DLNA.ORG_PN=LPCM";
 static WAV_PROT_INFO: &str = "http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01;DLNA.ORG_CI=0;\
     DLNA.ORG_FLAGS=03700000000000000000000000000000";
-static FLAC_PROT_INFO: &str = "http-get:*:audio/flac:DLNA.ORG_PN=FLAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0;\
+static FLAC_PROT_INFO: &str =
+    "http-get:*:audio/flac:DLNA.ORG_PN=FLAC;DLNA.ORG_OP=01;DLNA.ORG_CI=0;\
     DLNA.ORG_FLAGS=01700000000000000000000000000000";
 
 /// didl metadata template
@@ -148,7 +140,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
-/// AV get Volume template, uses `RenderingControl` service
+/// AV get Volume template, uses RenderingControl service
 static AV_GET_VOL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
@@ -161,7 +153,7 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Body>\
 </s:Envelope>";
 
-/// AV set Volume template, uses `RenderingControl` service
+/// AV set Volume template, uses RenderingControl service
 static AV_SET_VOL_TEMPLATE: &str = "\
 <?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 <s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" \
@@ -176,94 +168,9 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 </s:Envelope>";
 
 /// Bad XML template error
-static BAD_TEMPL: &str = "Error parsing/formatting XML template.";
+static BAD_TEMPL: &str = "Bad xml template (strfmt)";
 
-/// Compiled (thread-local) figura templates.
-/// `CbTemplate` is `!Send` so these live per-thread.
-struct CompiledTemplates {
-    flac_prot: OnceCell<CbTemplate>,
-    wav_prot: OnceCell<CbTemplate>,
-    l16_prot: OnceCell<CbTemplate>,
-    l24_prot: OnceCell<CbTemplate>,
-    didl: OnceCell<CbTemplate>,
-    oh_insert_pl: OnceCell<CbTemplate>,
-    av_set_transport_uri: OnceCell<CbTemplate>,
-}
-
-impl CompiledTemplates {
-    const fn new() -> Self {
-        Self {
-            flac_prot: OnceCell::new(),
-            wav_prot: OnceCell::new(),
-            l16_prot: OnceCell::new(),
-            l24_prot: OnceCell::new(),
-            didl: OnceCell::new(),
-            oh_insert_pl: OnceCell::new(),
-            av_set_transport_uri: OnceCell::new(),
-        }
-    }
-}
-
-thread_local! {
-    /// The thread locals for the compiled figura templates, as they are `!Send`
-    static TEMPLATES: CompiledTemplates = const { CompiledTemplates::new() };
-    /// Flag for compiling the figura templates only once
-    static COMPILE_TEMPLATES: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Initialize (compile) all thread-localfigura template cells.
-/// Called once per thread before rendering.
-/// But there is actually only one thread using this (the main thread).
-/// Needed because figura templates are not Send so can't live in shared globals
-pub fn init_templates() {
-    debug!("Compiling figura HTTP templates");
-    TEMPLATES.with(|t| {
-        t.flac_prot
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))
-                    .expect("static FLAC prot info template is invalid"),
-            )
-            .expect("can not set compiled flac_prot");
-        t.wav_prot
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(WAV_PROT_INFO))
-                    .expect("static WAV prot info template is invalid"),
-            )
-            .expect("can not set compiled wav_prot");
-        t.l16_prot
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(L16_PROT_INFO))
-                    .expect("static L16 prot info template is invalid"),
-            )
-            .expect("can not set compiled l16_prot");
-        t.l24_prot
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(L24_PROT_INFO))
-                    .expect("static L24 prot info template is invalid"),
-            )
-            .expect("can not set compiled l24_prot");
-        t.didl
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(DIDL_TEMPLATE))
-                    .expect("static DIDL template is invalid"),
-            )
-            .expect("can not set compiled didl");
-        t.oh_insert_pl
-            .set(
-                CbTemplate::compile(OH_INSERT_PL_TEMPLATE)
-                    .expect("static OH insert playlist template is invalid"),
-            )
-            .expect("can not set compiled oh_insert_pl");
-        t.av_set_transport_uri
-            .set(
-                CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE)
-                    .expect("static AV set transport URI template is invalid"),
-            )
-            .expect("can not set compiled av_set_transport_uri");
-    });
-}
-
-/// some captured audio parameters (from CPAL)
+// some audio config info
 #[derive(Debug, Clone, Copy)]
 pub struct WavData {
     pub sample_format: cpal::SampleFormat,
@@ -271,25 +178,11 @@ pub struct WavData {
     pub channels: u16,
 }
 
-/// the parameters needed for streaming
 #[derive(Debug, Clone, Copy)]
 pub struct StreamInfo {
     pub sample_rate: u32,
-    pub bits_per_sample: BitDepth,
+    pub bits_per_sample: u16,
     pub streaming_format: StreamingFormat,
-    pub server_port: u16,
-}
-
-impl StreamInfo {
-    pub fn new(sample_rate: u32) -> StreamInfo {
-        let config = get_config();
-        StreamInfo {
-            sample_rate,
-            bits_per_sample: BitDepth::from(config.bits_per_sample.unwrap_or(16)),
-            streaming_format: config.streaming_format.unwrap_or(StreamingFormat::Flac),
-            server_port: config.server_port.unwrap_or(SERVER_PORT),
-        }
-    }
 }
 
 /// An UPNP/DLNA service desciption
@@ -312,7 +205,7 @@ impl AvService {
 
 bitflags! {
 /// supported UPNP/DLNA protocols
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SupportedProtocols: u32 {
         const NONE        = 0b0000;
         const OPENHOME    = 0b0001;
@@ -321,26 +214,10 @@ pub struct SupportedProtocols: u32 {
     }
 }
 
-impl SupportedProtocols {
-    pub fn is_valid(&self) -> bool {
-        (self.bits() & SupportedProtocols::ALL.bits()) != 0
-    }
-}
-
-#[cfg(feature = "gui")]
-#[derive(Debug, Clone, Default)]
-/// The UI elements associated with a renderer
-pub struct RendUI {
-    pub slider: Option<HorNiceSlider>,
-    pub button: Option<LightButton>,
-}
-
 /// Renderer struct describers a media renderer,
-/// info is collected from the GetDescription.xml
-/// if GUI is enabled, the renderer tracks it associated UI (a slider and a button)
+/// info is collected from GetDescription.xml
 #[derive(Debug, Clone)]
 pub struct Renderer {
-    pub player_index: usize,
     pub dev_name: String,
     pub dev_model: String,
     pub dev_type: String,
@@ -352,20 +229,12 @@ pub struct Renderer {
     pub volume: i32,
     pub supported_protocols: SupportedProtocols,
     pub remote_addr: String,
-    pub location: String,
     pub services: Vec<AvService>,
-    pub playing: bool,
-    #[cfg(feature = "gui")]
-    pub rend_ui: RendUI,
-    host: String,
-    port: u16,
-    agent: ureq::Agent,
 }
 
 impl Renderer {
-    fn new(agent: &ureq::Agent) -> Renderer {
+    fn new() -> Renderer {
         Renderer {
-            player_index: 0,
             dev_name: String::new(),
             dev_model: String::new(),
             dev_url: String::new(),
@@ -377,270 +246,238 @@ impl Renderer {
             volume: -1,
             supported_protocols: SupportedProtocols::NONE,
             remote_addr: String::new(),
-            location: String::new(),
-            services: Vec::with_capacity(8),
-            playing: false,
-            #[cfg(feature = "gui")]
-            rend_ui: RendUI::default(),
-            host: String::new(),
-            port: 0,
-            agent: agent.clone(),
+            services: Vec::new(),
         }
     }
 
-    /// extract host and port from device url
-    fn parse_url(&mut self) {
+    fn parse_url(dev_url: &str, log: &dyn Fn(&str)) -> (String, u16) {
         let host: String;
         let port: u16;
-        let dev_url = self.dev_url.clone();
-        match Uri::parse(dev_url.as_str()) {
+        match Url::parse(dev_url) {
             Ok(url) => {
-                if let Some(auth) = url.authority() {
-                    host = auth.host().to_string();
-                    port = auth
-                        .port()
-                        .and_then(|p| p.as_str().parse::<u16>().ok())
-                        .unwrap_or(0);
-                } else {
-                    host = "0.0.0.0".to_string();
-                    port = 0;
-                }
+                host = url.host_str().unwrap().to_string();
+                port = url.port_or_known_default().unwrap();
             }
             Err(e) => {
-                ui_log(
-                    LogCategory::Info,
-                    &format!(
-                        "parse_url(): Error '{e}' while parsing base url '{}'",
-                        self.dev_url
-                    ),
-                );
+                log(&format!(
+                    "{} '{e}' {} '{dev_url}'",
+                    t!("parse_url_error"),
+                    t!("while_parsing_base_url")
+                ));
                 host = "0.0.0.0".to_string();
                 port = 0;
             }
         }
-        self.host = host;
-        self.port = port;
+        (host, port)
     }
 
     /// `oh_soap_request` - send an `OpenHome` SOAP message to a renderer
-    fn soap_request(&mut self, url: &str, soap_action: &str, body: &str) -> Option<String> {
-        debug!("url: {url},\r\n=>SOAP Action: {soap_action},\r\n=>SOAP xml: \r\n{body}");
-        match self
-            .agent
-            .post(url)
-            .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
-            .header("Accept", "*/*")
-            .header("SOAPAction", format!("\"{soap_action}\""))
-            .header("Content-Type", "text/xml; charset=\"utf-8\"")
-            .send(body)
+    fn soap_request(url: &str, soap_action: &str, body: &str) -> Option<String> {
+        debug!(
+            "url: {},\r\n=>SOAP Action: {},\r\n=>SOAP xml: \r\n{}",
+            url.to_string(),
+            soap_action,
+            body
+        );
+        match ureq::post(url)
+            .set("Connection", "close")
+            .set("User-Agent", "swyh-rs-Rust/0.x")
+            .set("Accept", "*/*")
+            .set("SOAPAction", &format!("\"{soap_action}\""))
+            .set("Content-Type", "text/xml; charset=\"utf-8\"")
+            .send_string(body)
         {
-            Ok(mut resp) => {
-                let xml = resp.body_mut().read_to_string().unwrap_or_default();
-                debug!("<=SOAP response: {xml}\r\n");
+            Ok(resp) => {
+                let xml = resp.into_string().unwrap_or_default();
+                debug!("<=SOAP response: {}\r\n", xml);
                 Some(xml)
             }
             Err(e) => {
-                error!("<= SOAP POST error: {e}\r\n");
+                error!("<= SOAP POST error: {}\r\n", e);
                 None
             }
         }
     }
 
     /// get volume
-    pub fn get_volume(&mut self) -> i32 {
+    pub fn get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            return self.oh_get_volume();
+            return self.oh_get_volume(log);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            return self.av_get_volume();
+            return self.av_get_volume(log);
         }
         -1
     }
 
-    pub fn set_volume(&mut self, vol: i32) {
+    pub fn set_volume(&mut self, log: &dyn Fn(&str), vol: i32) {
         self.volume = vol;
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            self.oh_set_volume();
+            self.oh_set_volume(log);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            self.av_set_volume();
+            self.av_set_volume(log);
         }
     }
 
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
-    pub fn play(&mut self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &str> {
-        // do we support this protocol?
-        if !self.supported_protocols.is_valid() {
-            ui_log(
-                LogCategory::Error,
-                "play: no supported renderer protocol found",
-            );
-            return Err("Invalid UPNP/DLNA protocol");
-        }
-        // initialize (compile) the thread local templates on the first call (per thread)
-        if !COMPILE_TEMPLATES.get() {
-            COMPILE_TEMPLATES.set(true);
-            init_templates();
-        }
+    pub fn play(
+        &self,
+        local_addr: &IpAddr,
+        server_port: u16,
+        log: &dyn Fn(&str),
+        streaminfo: StreamInfo,
+    ) -> Result<(), &str> {
         // build the hashmap with the formatting vars for the OH and AV play templates
-        let mut fmt_vars = Context::new();
-        let addr = format!("{local_addr}:{}", streaminfo.server_port);
-        let streaming_url = format!("http://{addr}/stream/swyh.{}", streaminfo.streaming_format);
-        fmt_vars.insert("server_uri", Value::owned_str(streaming_url));
+        let mut fmt_vars = HashMap::new();
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let addr = format!("{local_addr}:{server_port}");
+
+        let local_url = match streaminfo.streaming_format {
+            StreamingFormat::Wav => format!("http://{addr}/stream/swyh.wav"),
+            StreamingFormat::Lpcm => format!("http://{addr}/stream/swyh.raw"),
+            StreamingFormat::Flac => format!("http://{addr}/stream/swyh.flac"),
+            StreamingFormat::Rf64 => format!("http://{addr}/stream/swyh.rf64"),
+        };
+        fmt_vars.insert("server_uri".to_string(), local_url);
         fmt_vars.insert(
-            "bits_per_sample",
-            Value::Int(streaminfo.bits_per_sample as i64),
+            "bits_per_sample".to_string(),
+            streaminfo.bits_per_sample.to_string(),
         );
-        fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
-        fmt_vars.insert("duration", Value::static_str("00:00:00"));
-        let didl_tmpl = TEMPLATES.with(|t| match streaminfo.streaming_format {
-            StreamingFormat::Flac => t
-                .flac_prot
-                .get()
-                .expect("templates not initialized")
-                .format(&fmt_vars),
-            StreamingFormat::Rf64 | StreamingFormat::Wav => t
-                .wav_prot
-                .get()
-                .expect("templates not initialized")
-                .format(&fmt_vars),
-            StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
-                BitDepth::Bits16 => t
-                    .l16_prot
-                    .get()
-                    .expect("templates not initialized")
-                    .format(&fmt_vars),
-                BitDepth::Bits24 => t
-                    .l24_prot
-                    .get()
-                    .expect("templates not initialized")
-                    .format(&fmt_vars),
-            },
-        });
-        let didl_prot = match didl_tmpl {
-            Ok(s) => s,
+        fmt_vars.insert(
+            "sample_rate".to_string(),
+            streaminfo.sample_rate.to_string(),
+        );
+        fmt_vars.insert("duration".to_string(), "00:00:00".to_string());
+        let mut didl_prot: String;
+        if streaminfo.streaming_format == StreamingFormat::Flac {
+            didl_prot = htmlescape::encode_minimal(FLAC_PROT_INFO);
+        } else if streaminfo.streaming_format == StreamingFormat::Wav
+            || streaminfo.streaming_format == StreamingFormat::Rf64
+        {
+            didl_prot = htmlescape::encode_minimal(WAV_PROT_INFO);
+        } else if streaminfo.bits_per_sample == 16 {
+            didl_prot = htmlescape::encode_minimal(L16_PROT_INFO);
+        } else {
+            didl_prot = htmlescape::encode_minimal(L24_PROT_INFO);
+        }
+        match strfmt(&didl_prot, &fmt_vars) {
+            Ok(s) => didl_prot = s,
             Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("Error {e} formatting DIDL template."),
-                );
+                didl_prot = format!("{} {e} {}", t!("oh_play_error_formatting"), t!("didl_prot"));
+                log(&didl_prot);
                 return Err(BAD_TEMPL);
             }
-        };
-        fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
-        let formatted_didl = TEMPLATES.with(|t| {
-            t.didl
-                .get()
-                .expect("templates not initialized")
-                .format(&fmt_vars)
-        });
-        let formatted_didl = match formatted_didl {
-            Ok(s) => s,
+        }
+        fmt_vars.insert("didl_prot_info".to_string(), didl_prot);
+        let mut didl_data = htmlescape::encode_minimal(DIDL_TEMPLATE);
+        match strfmt(&didl_data, &fmt_vars) {
+            Ok(s) => didl_data = s,
             Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("Error {e} formatting didl_data xml"),
-                );
+                didl_data = format!("{} {e} {}", t!("oh_play_error_formatting"), t!("didl_data_xml"));
+                log(&didl_data);
                 return Err(BAD_TEMPL);
             }
-        };
-        fmt_vars.insert("didl_data", Value::owned_str(formatted_didl));
+        }
+        fmt_vars.insert("didl_data".to_string(), didl_data);
         // now send the start playing commands
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            ui_log(
-                LogCategory::Info,
-                &format!(
-                    "OH Start playing on {} host={} port={} from {local_addr} using OH Playlist",
-                    self.dev_name, self.host, self.port
-                ),
-            );
-            self.oh_play(&fmt_vars)
+            log(&format!(
+                "{} {} {}={} {}={} {} {} {}",
+                t!("oh_start_playing_on"),
+                self.dev_name,
+                t!("host"),
+                host,
+                t!("port"),
+                port,
+                t!("from"),
+                local_addr,
+                t!("using_oh_playlist")
+            ));
+            return self.oh_play(log, &fmt_vars);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            ui_log(
-                LogCategory::Info,
-                &format!(
-                    "AV Start playing on {} host={} port={} from {local_addr} using AV Play",
-                    self.dev_name, self.host, self.port
-                ),
-            );
-            self.av_play(&fmt_vars)
-        } else {
-            unreachable!(
-                "SupportedProtocol passed IsValid() but contains neither OPENHOME nor AVTRANSPORT"
-            );
+            log(&format!(
+                "{} {} {}={} {}={} {} {} {}",
+                t!("av_start_playing_on"),
+                self.dev_name,
+                t!("host"),
+                host,
+                t!("port"),
+                port,
+                t!("from"),
+                local_addr,
+                t!("using_av_play")
+            ));
+            return self.av_play(log, &fmt_vars);
         }
+        log(&*t!("play_no_supported_protocol"));
+        Ok(())
     }
 
     /// `oh_play` - set up a playlist on this `OpenHome` renderer and tell it to play it
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn oh_play(&mut self, fmt_vars: &Context) -> Result<(), &str> {
+    fn oh_play(&self, log: &dyn Fn(&str), fmt_vars: &HashMap<String, String>) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
-        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
-        self.oh_stop_play(&url);
+        self.oh_stop_play(log);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
-        ui_log(
-            LogCategory::Info,
-            &format!(
-                "OH Inserting new playlist on {} host={} port={}",
-                self.dev_name, self.host, self.port
-            ),
-        );
-        let xmlbody = TEMPLATES.with(|t| {
-            t.oh_insert_pl
-                .get()
-                .expect("templates not initialized")
-                .format(fmt_vars)
-        });
-        let xmlbody = match xmlbody {
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        log(&format!(
+            "{} {} {}={} {}={}",
+            t!("oh_inserting_playlist_on"),
+            self.dev_name,
+            t!("host"),
+            host,
+            t!("port"),
+            port
+        ));
+        let xmlbody = match strfmt(OH_INSERT_PL_TEMPLATE, fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("oh_play: error {e} formatting oh playlist xml"),
-                );
+                log(&format!("{} {e} {}", t!("oh_play_error_formatting"), t!("oh_playlist_xml")));
                 return Err(BAD_TEMPL);
             }
         };
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Playlist:1#Insert",
-                &xmlbody,
-            )
-            .unwrap_or_default();
+        let url = format!("http://{host}:{port}{}", self.oh_control_url);
+        let _resp = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Playlist:1#Insert",
+            &xmlbody,
+        )
+        .unwrap_or_default();
         // send the Play command
-        ui_log(
-            LogCategory::Info,
-            &format!(
-                "OH Play on {} host={} port={}",
-                self.dev_name, self.host, self.port
-            ),
-        );
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Playlist:1#Play",
-                OH_PLAY_PL_TEMPLATE,
-            )
-            .unwrap_or_default();
+        log(&format!(
+            "{} {} {}={} {}={}",
+            t!("oh_play_on"),
+            self.dev_name,
+            t!("host"),
+            host,
+            t!("port"),
+            port
+        ));
+        let _resp = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Playlist:1#Play",
+            OH_PLAY_PL_TEMPLATE,
+        )
+        .unwrap_or_default();
         Ok(())
     }
 
@@ -648,138 +485,131 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn av_play(&mut self, fmt_vars: &Context) -> Result<(), &str> {
-        let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
+    fn av_play(&self, log: &dyn Fn(&str), fmt_vars: &HashMap<String, String>) -> Result<(), &str> {
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
-        self.av_stop_play(&url);
+        self.av_stop_play(log);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let xmlbody = TEMPLATES.with(|t| {
-            t.av_set_transport_uri
-                .get()
-                .expect("templates not initialized")
-                .format(fmt_vars)
-        });
-        let xmlbody = match xmlbody {
+        let xmlbody = match strfmt(AV_SET_TRANSPORT_URI_TEMPLATE, fmt_vars) {
             Ok(s) => s,
             Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("av_play: error {e} formatting set transport uri"),
-                );
+                log(&format!("{} {e} {}", t!("av_play_error_formatting"), t!("set_transport_uri")));
                 return Err(BAD_TEMPL);
             }
         };
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
-                &xmlbody,
-            )
-            .unwrap_or_default();
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_control_url);
+        let _resp = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
+            &xmlbody,
+        )
+        .unwrap_or_default();
         // the renderer will now send a head request first, so wait a bit
         std::thread::sleep(Duration::from_millis(100));
         // send play command
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:AVTransport:1#Play",
-                AV_PLAY_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:AVTransport:1#Play",
+            AV_PLAY_TEMPLATE,
+        )
+        .unwrap_or_default();
         Ok(())
     }
 
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
-    pub fn stop_play(&mut self) {
+    pub fn stop_play(&self, log: &dyn Fn(&str)) {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
-            self.oh_stop_play(&url);
+            self.oh_stop_play(log);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
-            self.av_stop_play(&url);
+            self.av_stop_play(log);
         } else {
-            ui_log(
-                LogCategory::Error,
-                "ERROR: stop_play: no supported renderer protocol found",
-            );
+            log(&*t!("stop_play_no_supported_protocol"));
         }
     }
 
     /// `oh_stop_play` - delete the playlist on the `OpenHome` renderer, so that it stops playing
-    fn oh_stop_play(&mut self, url: &str) {
-        ui_log(
-            LogCategory::Info,
-            &format!(
-                "OH Delete playlist on {} => {}",
-                self.dev_name, self.remote_addr
-            ),
-        );
+    fn oh_stop_play(&self, log: &dyn Fn(&str)) {
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_control_url);
+        log(&format!(
+            "{} {} {}={} {}={}",
+            t!("oh_deleting_playlist_on"),
+            self.dev_name,
+            t!("host"),
+            host,
+            t!("port"),
+            port
+        ));
 
         // delete current playlist
-        let _resp = self
-            .soap_request(
-                url,
-                "urn:av-openhome-org:service:Playlist:1#DeleteAll",
-                OH_DELETE_PL_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Playlist:1#DeleteAll",
+            OH_DELETE_PL_TEMPLATE,
+        )
+        .unwrap_or_default();
     }
 
     /// `av_stop_play` - stop playing on the AV renderer
-    fn av_stop_play(&mut self, url: &str) {
-        ui_log(
-            LogCategory::Info,
-            &format!(
-                "AV Stop playing on {} => {}",
-                self.dev_name, self.remote_addr
-            ),
-        );
+    fn av_stop_play(&self, log: &dyn Fn(&str)) {
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_control_url);
+        log(&format!(
+            "{} {} {}={} {}={}",
+            t!("av_stop_playing_on"),
+            self.dev_name,
+            t!("host"),
+            host,
+            t!("port"),
+            port
+        ));
 
-        // Stop play
-        let _resp = self
-            .soap_request(
-                url,
-                "urn:schemas-upnp-org:service:AVTransport:1#Stop",
-                AV_STOP_PLAY_TEMPLATE,
-            )
-            .unwrap_or_default();
+        // delete current playlist
+        let _resp = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:AVTransport:1#Stop",
+            AV_STOP_PLAY_TEMPLATE,
+        )
+        .unwrap_or_default();
     }
 
-    /// get OpenHome Volume
-    fn oh_get_volume(&mut self) -> i32 {
-        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
+    fn oh_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_volume_url);
 
         // get current volume
-        let vol_xml = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Volume:1#Volume",
-                OH_GET_VOL_TEMPLATE,
-            )
-            .unwrap_or_else(|| "<Error/>".to_string());
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Volume:1#Volume",
+            OH_GET_VOL_TEMPLATE,
+        )
+        .unwrap_or("<Error/>".to_string());
         // parse response to extract volume
         debug!("oh_get_volume response: {vol_xml}");
-        let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = String::with_capacity(16);
+        let xmlstream = StringReader::new(&vol_xml);
+        let parser = EventReader::new(xmlstream);
+        let mut cur_elem = String::new();
         let mut have_vol_response = false;
         let mut str_volume = "-1".to_string();
         for e in parser {
             match e {
                 Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem.clone_from(&name.local_name);
-                    if cur_elem == "VolumeResponse" {
+                    cur_elem = name.local_name;
+                    if cur_elem.contains("VolumeResponse") {
                         have_vol_response = true;
                     }
                 }
-                Ok(XmlEvent::Characters(value)) if cur_elem == "Value" && have_vol_response => {
-                    str_volume = value;
+                Ok(XmlEvent::Characters(value)) => {
+                    if cur_elem.contains("Value") && have_vol_response {
+                        str_volume = value;
+                    }
                 }
                 Err(e) => {
                     error!("OH Volume XML parse error: {e}");
@@ -788,52 +618,48 @@ impl Renderer {
             }
         }
         self.volume = str_volume.parse::<i32>().unwrap_or(-1);
-        if self.volume >= 0 {
-            ui_log(
-                LogCategory::Info,
-                &format!(
-                    "OH Get Volume on {} host={} port={} = {}%",
-                    self.dev_name, self.host, self.port, self.volume,
-                ),
-            );
-        } else {
-            ui_log(
-                LogCategory::Info,
-                &format!("OH Get Volume not available for {}.", self.dev_name),
-            );
-        }
+        log(&format!(
+            "{} {} {}={} {}={} = {}%",
+            t!("oh_get_volume_on"),
+            self.dev_name,
+            t!("host"),
+            host,
+            t!("port"),
+            port,
+            self.volume,
+        ));
         self.volume
     }
 
-    /// get AV Volume
-    fn av_get_volume(&mut self) -> i32 {
-        let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
+    fn av_get_volume(&mut self, log: &dyn Fn(&str)) -> i32 {
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_volume_url);
 
         // get current volume
-        let vol_xml = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
-                AV_GET_VOL_TEMPLATE,
-            )
-            .unwrap_or_else(|| "<Error/>".to_string());
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
+            AV_GET_VOL_TEMPLATE,
+        )
+        .unwrap_or("<Error/>".to_string());
         debug!("av_get_volume response: {vol_xml}");
-        let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = String::with_capacity(16);
+        let xmlstream = StringReader::new(&vol_xml);
+        let parser = EventReader::new(xmlstream);
+        let mut cur_elem = String::new();
         let mut have_vol_response = false;
         let mut str_volume = "-1".to_string();
         for e in parser {
             match e {
                 Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem.clone_from(&name.local_name);
-                    if cur_elem == "GetVolumeResponse" {
+                    cur_elem = name.local_name;
+                    if cur_elem.contains("GetVolumeResponse") {
                         have_vol_response = true;
                     }
                 }
-                Ok(XmlEvent::Characters(value))
-                    if cur_elem == "CurrentVolume" && have_vol_response =>
-                {
-                    str_volume = value;
+                Ok(XmlEvent::Characters(value)) => {
+                    if cur_elem.contains("CurrentVolume") && have_vol_response {
+                        str_volume = value;
+                    }
                 }
                 Err(e) => {
                     error!("AV Volume XML parse error: {e}");
@@ -842,66 +668,66 @@ impl Renderer {
             }
         }
         self.volume = str_volume.parse::<i32>().unwrap_or(-1);
-        if self.volume >= 0 {
-            ui_log(
-                LogCategory::Info,
-                &format!(
-                    "AV Get Volume on {} host={} port={} = {}%",
-                    self.dev_name, self.host, self.port, self.volume,
-                ),
-            );
-        } else {
-            ui_log(
-                LogCategory::Info,
-                &format!("AV Get Volume not available for {}.", self.dev_name),
-            );
-        }
+        log(&format!(
+            "{} {} {}={} {}={} = {}%",
+            t!("av_get_volume_on"),
+            self.dev_name,
+            t!("host"),
+            host,
+            t!("port"),
+            port,
+            self.volume,
+        ));
         self.volume
     }
 
-    /// set Openhome Volume
-    fn oh_set_volume(&mut self) {
+    fn oh_set_volume(&mut self, log: &dyn Fn(&str)) {
         let vol = self.volume;
         let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
-        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
-        ui_log(
-            LogCategory::Info,
-            &format!(
-                "OH Set New Volume on {} host={} port={} to {vol}%",
-                self.dev_name, self.host, self.port
-            ),
-        );
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.oh_volume_url);
+        log(&format!(
+            "{} {} {}={} {}={}: {}%",
+            t!("oh_set_new_volume_on"),
+            self.dev_name,
+            t!("host"),
+            host,
+            t!("port"),
+            port,
+            vol
+        ));
         // set new volume
-        let vol_xml = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Volume:1#SetVolume",
-                &tmpl,
-            )
-            .unwrap_or("<Error/>".to_string());
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:av-openhome-org:service:Volume:1#SetVolume",
+            &tmpl,
+        )
+        .unwrap_or("<Error/>".to_string());
         debug!("oh_set_volume response: {vol_xml}");
     }
 
-    /// set AV Volume
-    fn av_set_volume(&mut self) {
+    fn av_set_volume(&mut self, log: &dyn Fn(&str)) {
         let vol = self.volume;
         let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
-        let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
-        ui_log(
-            LogCategory::Info,
-            &format!(
-                "AV Set New Volume on {} host={} port={} to {vol}%",
-                self.dev_name, self.host, self.port
-            ),
-        );
+        let (host, port) = Self::parse_url(&self.dev_url, log);
+        let url = format!("http://{host}:{port}{}", self.av_volume_url);
+        log(&format!(
+            "{} {} {}={} {}={}: {}%",
+            t!("av_set_new_volume_on"),
+            self.dev_name,
+            t!("host"),
+            host,
+            t!("port"),
+            port,
+            vol
+        ));
         // set new volume
-        let vol_xml = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:RenderingControl:1#SetVolume",
-                &tmpl,
-            )
-            .unwrap_or("<Error/>".to_string());
+        let vol_xml = Self::soap_request(
+            &url,
+            "urn:schemas-upnp-org:service:RenderingControl:1#SetVolume",
+            &tmpl,
+        )
+        .unwrap_or("<Error/>".to_string());
         debug!("av_set_volume response: {vol_xml}");
     }
 }
@@ -918,51 +744,22 @@ MX: 3\r\n\r\n";
 //
 // returns a list of all AVTransport DLNA and Openhome rendering devices
 //
-pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
-    static AV_SCHEMA: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
-    static AV_DEVICE: &str = AV_SCHEMA;
-    static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";
-    static OH_DEVICE: &str = OH_SCHEMA;
+pub fn discover(rmap: &HashMap<String, Renderer>, logger: &dyn Fn(&str)) -> Option<Vec<Renderer>> {
+    const OH_DEVICE: &str = "urn:av-openhome-org:service:Product:1";
+    const AV_DEVICE: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
     const DEFAULT_SEARCH_TTL: u32 = 2;
 
     debug!("SSDP discovery started");
 
     // get the address of the selected interface
-    let ip = if let Some(s) = get_config().last_network.clone() {
-        s
-    } else {
-        ui_log(LogCategory::Error, "SSDP: no active network in config.");
-        return None;
-    };
+    let ip = CONFIG.read().last_network.clone();
     info!("running SSDP on {ip}");
-    let local_addr: IpAddr = if let Ok(addr) = ip.parse() {
-        addr
-    } else {
-        ui_log(
-            LogCategory::Error,
-            "SSDP: Unable to parse local ip address.",
-        );
-        return None;
-    };
+    let local_addr: IpAddr = ip.parse().unwrap();
     let bind_addr = SocketAddr::new(local_addr, 0);
-    let socket = if let Ok(s) = UdpSocket::bind(bind_addr) {
-        s
-    } else {
-        ui_log(LogCategory::Error, "SSDP: Unable to bind to socket.");
-        return None;
-    };
-    if socket.set_broadcast(true).is_err() {
-        ui_log(
-            LogCategory::Error,
-            "SSDP:  Unable to set socket to broadcast.",
-        )
-    }
-    if socket.set_multicast_ttl_v4(DEFAULT_SEARCH_TTL).is_err() {
-        ui_log(
-            LogCategory::Error,
-            "SSDP: Unable to set DEFAULT_SEARCH_TTL on socket.",
-        );
-    }
+    let socket = UdpSocket::bind(bind_addr).unwrap();
+    socket.set_broadcast(true).unwrap();
+    socket.set_multicast_ttl_v4(DEFAULT_SEARCH_TTL).unwrap();
+
     // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
     let mut oh_devices: Vec<(String, SocketAddr)> = Vec::new();
     let mut av_devices: Vec<(String, SocketAddr)> = Vec::new();
@@ -970,19 +767,9 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
     //  SSDP UDP broadcast address
     let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", OH_DEVICE);
-    if socket.send_to(msg.as_bytes(), broadcast_address).is_err() {
-        ui_log(
-            LogCategory::Error,
-            "SSDP: unable to send OpenHome discover message",
-        );
-    }
+    socket.send_to(msg.as_bytes(), broadcast_address).unwrap();
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", AV_DEVICE);
-    if socket.send_to(msg.as_bytes(), broadcast_address).is_err() {
-        ui_log(
-            LogCategory::Error,
-            "SSDP: unable to send AV Transport discover message",
-        );
-    }
+    socket.send_to(msg.as_bytes(), broadcast_address).unwrap();
     // collect the responses and remeber all new renderers
     let start = Instant::now();
     loop {
@@ -994,14 +781,14 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
         let max_wait_time = 3100 - duration;
         socket
             .set_read_timeout(Some(Duration::from_millis(max_wait_time)))
-            .ok();
+            .unwrap();
         let mut buf: [u8; 2048] = [0; 2048];
         let resp: String;
         match socket.recv_from(&mut buf) {
             Ok((received, from)) => {
-                resp = String::from_utf8_lossy(&buf[0..received]).to_string();
+                resp = std::str::from_utf8(&buf[0..received]).unwrap().to_string();
                 debug!(
-                    "SSDP: HTTP response at {} from {}: \r\n{}",
+                    "UDP response at {} from {}: \r\n{}",
                     start.elapsed().as_millis(),
                     from,
                     resp
@@ -1011,49 +798,43 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
                     let status_code = response[0]
                         .trim_start_matches("HTTP/1.1 ")
                         .chars()
-                        .take_while(char::is_ascii_digit)
+                        .take_while(|x| x.is_numeric())
                         .collect::<String>()
                         .parse::<u32>()
                         .unwrap_or(0);
 
                     if status_code != 200 {
-                        error!("SSDP: UHTTP error response status={status_code}");
                         continue; // ignore
                     }
-                    // parse the SSDP UHTTP response headers
-                    let mut dev_location = String::new();
+
+                    let iter = response.iter().filter_map(|l| {
+                        let mut split = l.splitn(2, ':');
+                        match (split.next(), split.next()) {
+                            (Some(header), Some(value)) => Some((header, value.trim())),
+                            _ => None,
+                        }
+                    });
+                    let mut dev_url = String::new();
                     let mut oh_device = false;
                     let mut av_device = false;
-                    response
-                        .iter()
-                        .filter_map(|l| {
-                            let mut split = l.splitn(2, ':');
-                            match (split.next(), split.next()) {
-                                (Some(header), Some(value)) => Some((header, value.trim())),
-                                _ => None,
+                    for (header, value) in iter {
+                        if header.to_ascii_uppercase() == "LOCATION" {
+                            dev_url = value.to_string();
+                        } else if header.to_ascii_uppercase() == "ST" {
+                            if value.contains("urn:schemas-upnp-org:service:RenderingControl:1") {
+                                av_device = true;
+                            } else if value.contains("urn:av-openhome-org:service:Product:1") {
+                                oh_device = true;
                             }
-                        })
-                        .for_each(
-                            |(header, value)| match header.to_ascii_uppercase().as_str() {
-                                "LOCATION" => dev_location = value.to_string(),
-                                "ST" => {
-                                    if value.contains(AV_SCHEMA) {
-                                        av_device = true;
-                                    } else if value.contains(OH_SCHEMA) {
-                                        oh_device = true;
-                                    }
-                                }
-                                _ => (),
-                            },
-                        );
-                    if !dev_location.is_empty() {
-                        if av_device {
-                            av_devices.push((dev_location.clone(), from));
-                            debug!("SSDP Discovery: AV renderer: {dev_location}");
-                        } else if oh_device {
-                            oh_devices.push((dev_location.clone(), from));
-                            debug!("SSDP Discovery: OH renderer: {dev_location}");
                         }
+                    }
+                    if oh_device {
+                        oh_devices.push((dev_url.clone(), from));
+                        debug!("SSDP Discovery: OH renderer: {dev_url}");
+                    }
+                    if av_device {
+                        av_devices.push((dev_url.clone(), from));
+                        debug!("SSDP Discovery: AV renderer: {dev_url}");
                     }
                 }
             }
@@ -1064,77 +845,71 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
                     .iter()
                     .any(|s| error_text.contains(*s));
                 if !to_ignore {
-                    ui_log(
-                        LogCategory::Error,
-                        &format!("Error reading SSDP M-SEARCH response: {e}"),
-                    );
+                    logger(&format!("*E*E>{} {e}", t!("error_reading_ssdp_response")));
                 }
             }
         }
     }
 
     // only keep OH devices and AV devices that are not OH capable
-    let mut usable_devices: Vec<(String, SocketAddr)> =
-        Vec::with_capacity(oh_devices.len() + av_devices.len());
-    for (oh_location, sa) in &oh_devices {
-        usable_devices.push((oh_location.to_string(), *sa));
+    let mut usable_devices: Vec<(String, SocketAddr)> = Vec::new();
+    for (oh_url, sa) in &oh_devices {
+        usable_devices.push((oh_url.to_string(), *sa));
     }
-    for (av_location, sa) in &av_devices {
-        if usable_devices.iter().any(|d| d.0 == *av_location) {
-            debug!("SSDP Discovery: skipping AV renderer {av_location} as it is also OH");
+    for (av_url, sa) in &av_devices {
+        if usable_devices.iter().any(|d| d.0 == *av_url) {
+            debug!("SSDP Discovery: skipping AV renderer {av_url} as it is also OH");
         } else {
-            usable_devices.push((av_location.to_string(), *sa));
+            usable_devices.push((av_url.to_string(), *sa));
         }
     }
     // now filter out devices we already know about
-    for (location, sa) in &usable_devices {
-        if rmap.iter().any(|m| *location == m.1.location) {
-            info!("SSDP discovery: Skipping known Renderer at {location}");
+    for (url, sa) in &usable_devices {
+        if rmap.iter().any(|m| url.contains(&m.1.dev_url)) {
+            info!("SSDP discovery: Skipping known Renderer at {url}");
         } else {
-            info!("SSDP discovery: new Renderer found at : {location}");
-            devices.push((location.to_string(), *sa));
+            info!("SSDP discovery: new Renderer found at : {}", url);
+            devices.push((url.to_string(), *sa));
         }
     }
 
     // now get the new renderers description xml
     debug!("Getting new renderer descriptions");
-    let mut renderers: Vec<Renderer> = Vec::with_capacity(devices.len());
+    let mut renderers: Vec<Renderer> = Vec::new();
 
-    for (location, from) in devices {
-        if let Some(xml) = get_service_description(agent, &location)
-            && let Some(mut rend) = get_renderer(agent, &xml)
-        {
-            rend.location.clone_from(&location);
-            let mut s = from.to_string();
-            if let Some(i) = s.find(':') {
-                s.truncate(i);
-            }
-            rend.remote_addr = s;
-            // check for an absent URLBase in the description
-            // or devices like Yamaha WXAD-10 with bad URLBase port number
-            if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {
-                let mut url_base = location;
-                if url_base.contains("http://") {
-                    url_base = url_base["http://".to_string().len()..].to_string();
-                    let pos = url_base.find('/').unwrap_or_default();
-                    if pos > 0 {
-                        url_base = url_base[0..pos].to_string();
-                    }
+    for (dev, from) in devices {
+        if let Some(xml) = get_service_description(&dev) {
+            if let Some(mut rend) = get_renderer(&xml) {
+                let mut s = from.to_string();
+                if let Some(i) = s.find(':') {
+                    s.truncate(i);
                 }
-                rend.dev_url = format!("http://{url_base}/");
+                rend.remote_addr = s;
+                // check for an absent URLBase in the description
+                // or devices like Yamaha WXAD-10 with bad URLBase port number
+                if rend.dev_url.is_empty() || !dev.contains(&rend.dev_url) {
+                    let mut url_base = dev;
+                    if url_base.contains("http://") {
+                        url_base = url_base["http://".to_string().len()..].to_string();
+                        let pos = url_base.find('/').unwrap_or_default();
+                        if pos > 0 {
+                            url_base = url_base[0..pos].to_string();
+                        }
+                    }
+                    rend.dev_url = format!("http://{url_base}/");
+                }
+                renderers.push(rend);
             }
-            rend.parse_url();
-            renderers.push(rend);
         }
     }
 
     for r in &renderers {
         debug!(
-            "Renderer {} {} ip {} at location {} has {} services",
+            "Renderer {} {} ip {} at urlbase {} has {} services",
             r.dev_name,
             r.dev_model,
             r.remote_addr,
-            r.location,
+            r.dev_url,
             r.services.len()
         );
         debug!(
@@ -1150,18 +925,18 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
 }
 
 /// `get_service_description` - get the upnp service description xml for a media renderer
-fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String> {
-    debug!("Get service description for {location}");
-    match agent
-        .get(location)
-        .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
-        .header("Content-Type", "text/xml")
-        .call()
+fn get_service_description(dev_url: &str) -> Option<String> {
+    debug!("Get service description for {}", dev_url.to_string());
+    let url = dev_url.to_string();
+    match ureq::get(url.as_str())
+        .set("User-Agent", "swyh-rs-Rust")
+        .set("Content-Type", "text/xml")
+        .send_string("")
     {
-        Ok(mut resp) => {
-            let descr_xml = resp.body_mut().read_to_string().unwrap_or_default();
+        Ok(resp) => {
+            let descr_xml = resp.into_string().unwrap_or_default();
             debug!("Service description:");
-            debug!("{descr_xml}");
+            debug!("{}", descr_xml);
             if descr_xml.is_empty() {
                 None
             } else {
@@ -1169,68 +944,67 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
             }
         }
         Err(e) => {
-            error!("Error {e} getting service description for {location}");
+            error!("Error {e} getting service description for {url}");
             None
         }
     }
 }
 
-/// build a renderer struct by (roughly) parsing the GetDescription.xml
-fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
-    let parser = EventReader::new(xml.as_bytes());
-    let mut cur_elem = String::with_capacity(16);
+/// build a renderer struct by parsing the GetDescription.xml
+fn get_renderer(xml: &str) -> Option<Renderer> {
+    let xmlstream = StringReader::new(xml);
+    let parser = EventReader::new(xmlstream);
+    let mut cur_elem = String::new();
     let mut service = AvService::new();
-    let mut renderer = Renderer::new(agent);
+    let mut renderer = Renderer::new();
     for e in parser {
         match e {
             Ok(XmlEvent::StartElement { name, .. }) => {
-                cur_elem.clone_from(&name.local_name);
+                cur_elem = name.local_name;
             }
             Ok(XmlEvent::EndElement { name }) => {
                 let end_elem = name.local_name;
                 if end_elem == "service" {
-                    let id = service.service_id.as_str();
-                    if ["Playlist", "urn:av-openhome-org:service"]
-                        .iter()
-                        .all(|&p| id.contains(p))
+                    if service.service_id.contains("Playlist")
+                        && service.service_id.contains("urn:av-openhome-org:service")
                     {
-                        renderer.oh_control_url.clone_from(&service.control_url);
+                        renderer.oh_control_url = service.control_url.clone();
                         renderer.supported_protocols |= SupportedProtocols::OPENHOME;
-                    } else if ["Volume", "urn:av-openhome-org:service"]
-                        .iter()
-                        .all(|&p| id.contains(p))
-                    {
-                        renderer.oh_volume_url.clone_from(&service.control_url);
-                    } else if id.contains(":AVTransport") {
-                        renderer.av_control_url.clone_from(&service.control_url);
+                    } else if service.service_id.contains(":AVTransport") {
+                        renderer.av_control_url = service.control_url.clone();
                         renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
-                    } else if id.contains(":RenderingControl") {
-                        renderer.av_volume_url.clone_from(&service.control_url);
+                    } else if service.service_id.contains(":Volume")
+                        && service.service_id.contains("urn:av-openhome-org:service")
+                    {
+                        renderer.oh_volume_url = service.control_url.clone();
+                    } else if service.service_id.contains(":RenderingControl") {
+                        renderer.av_volume_url = service.control_url.clone();
                     }
                     renderer.services.push(service);
                     service = AvService::new();
                 }
             }
             Ok(XmlEvent::Characters(value)) => {
-                let el = cur_elem.as_str();
-                // these are localnames
-                if el == "serviceType" {
+                if cur_elem.contains("serviceType") {
                     service.service_type = value;
-                } else if el == "serviceId" {
+                } else if cur_elem.contains("serviceId") {
                     service.service_id = value;
-                } else if el == "modelName" {
+                } else if cur_elem.contains("controlURL") {
+                    service.control_url = value;
+                    // sometimes the control url is not prefixed with a '/'
+                    if !service.control_url.is_empty() && !service.control_url.starts_with('/') {
+                        service.control_url.insert(0, '/');
+                    }
+                } else if cur_elem.contains("modelName") {
                     renderer.dev_model = value;
-                } else if el == "friendlyName" {
+                } else if cur_elem.contains("friendlyName") {
                     renderer.dev_name = value;
-                } else if el == "deviceType" {
+                } else if cur_elem.contains("deviceType") {
                     renderer.dev_type = value;
-                } else if el == "URLBase" {
+                } else if cur_elem.contains("URLBase") {
                     renderer.dev_url = value;
-                } else if el == "controlURL" {
-                    service.control_url = normalize_url(&value);
                 }
             }
-
             Err(e) => {
                 error!("SSDP Get Renderer Description Error: {e}");
                 return None;
@@ -1238,34 +1012,24 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
             _ => {}
         }
     }
-    //debug!("{:?}", renderer);
-    Some(renderer)
-}
 
-/// sometimes the control url is not prefixed with a '/'
-fn normalize_url(value: &str) -> String {
-    if value.is_empty() || value.starts_with('/') {
-        value.to_owned()
-    } else {
-        '/'.to_string() + value
-    }
+    Some(renderer)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn log(_s: &str) {}
+
     #[test]
     fn renderer() {
-        let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "http://192.168.1.26:80/".to_string();
-        rend.parse_url();
-        assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 80); // default port
-        rend.dev_url = "http://192.168.1.26:12345/".to_string();
-        rend.parse_url();
-        assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 12345); // other port
+        let (host, port) = Renderer::parse_url("http://192.168.1.26:80/", &log);
+        assert_eq!(host, "192.168.1.26");
+        assert_eq!(port, 80);
+        let (host, port) = Renderer::parse_url("http://192.168.1.26:12345/", &log);
+        assert_eq!(host, "192.168.1.26");
+        assert_eq!(port, 12345);
     }
 
     #[test]
@@ -1297,87 +1061,31 @@ mod tests {
         let ok_errors = ["10060", "os error 11", "os error 35"];
         let mut e = "bla bla os error 11 bla bla";
         let to_ignore = ok_errors.iter().any(|s| e.contains(*s));
-        assert!(to_ignore);
+        assert!(to_ignore == true);
         e = "bla bla os error 12 bla bla";
         let to_ignore = ok_errors.iter().any(|s| e.contains(*s));
-        assert!(!to_ignore);
+        assert!(to_ignore == false);
     }
 
     #[test]
-    fn test_normalize() {
-        let mut url = "/ctl".to_string();
-        assert!(normalize_url(&url) == *"/ctl");
-        url = "ctl".to_string();
-        assert!(normalize_url(&url) == *"/ctl");
-        url = String::new();
-        assert!(normalize_url(&url) == url);
-    }
-
-    #[test]
-    fn test_supported_protocols_is_valid() {
-        assert!(!SupportedProtocols::NONE.is_valid());
-        assert!(SupportedProtocols::OPENHOME.is_valid());
-        assert!(SupportedProtocols::AVTRANSPORT.is_valid());
-        assert!((SupportedProtocols::OPENHOME | SupportedProtocols::AVTRANSPORT).is_valid());
-        assert!(SupportedProtocols::ALL.is_valid());
-    }
-
-    #[test]
-    fn test_bubble() {
-        static BUBBLE_SSDP: &str = "HTTP/1.1 200 OK
-Ext:
-St: urn:schemas-upnp-org:service:RenderingControl:1
-Server: Linux/6.8.4-3-pve UPnP/1.0 BubbleUPnPServer/0.9-update49
-Usn: uuid:e8dbf26b-de8f-4c96-0000-0000002ea642::urn:schemas-upnp-org:service:RenderingControl:1
-Cache-control: max-age=1800\r\n
-Location: http://192.168.1.181:33065/dev/e8dbf26b-de8f-4c96-0000-0000002ea642/desc.xml
-";
-        let response: Vec<&str> = BUBBLE_SSDP.split("\n").collect();
-        if !response.is_empty() {
-            let status_code = response[0]
-                .trim_start_matches("HTTP/1.1 ")
-                .chars()
-                .take_while(|x| x.is_ascii_digit())
-                .collect::<String>()
-                .parse::<u32>()
-                .unwrap_or(0);
-
-            assert!(status_code == 200);
-
-            let mut dev_url = String::new();
-            let mut oh_device = false;
-            let mut av_device = false;
-            response
-                .iter()
-                .filter_map(|l| {
-                    let mut split = l.splitn(2, ':');
-                    match (split.next(), split.next()) {
-                        (Some(header), Some(value)) => Some((header, value.trim())),
-                        _ => None,
-                    }
-                })
-                .for_each(|hv_pair| match hv_pair.0.to_ascii_uppercase().as_str() {
-                    "LOCATION" => dev_url = hv_pair.1.to_string(),
-                    "ST" => match hv_pair.1 {
-                        schema
-                            if schema
-                                .contains("urn:schemas-upnp-org:service:RenderingControl:1") =>
-                        {
-                            av_device = true;
-                        }
-                        schema if schema.contains("urn:av-openhome-org:service:Product:1") => {
-                            oh_device = true;
-                        }
-                        _ => (),
-                    },
-                    _ => eprintln!("{} = {}", hv_pair.0, hv_pair.1),
-                });
-            eprintln!("{dev_url}");
-            eprintln!("{oh_device}");
-            eprintln!("{av_device}");
-            assert!(!dev_url.is_empty());
-            assert!(av_device);
-            assert!(!oh_device);
-        }
+    fn test_format() {
+        let bps = 24;
+        let format = StreamingFormat::Flac;
+        let url = "http://192.168.0.135:5901/Stream/Swyh.raw".to_lowercase();
+        let (req_bps, req_format) = {
+            if let Some(format_start) = url.find("/stream/swyh.") {
+                match url.get(format_start + 13..) {
+                    Some("flac") => (24, StreamingFormat::Flac),
+                    Some("wav") => (16, StreamingFormat::Wav),
+                    Some("rf64") => (16, StreamingFormat::Rf64),
+                    Some("raw") => (16, StreamingFormat::Lpcm),
+                    None | Some(&_) => (bps, format),
+                }
+            } else {
+                (bps, format)
+            }
+        };
+        assert!(req_format == StreamingFormat::Lpcm);
+        assert!(req_bps == 16);
     }
 }

@@ -1,80 +1,30 @@
-//! Main application window built with FLTK.
-//!
-//! [`MainForm`] assembles the control panel: audio source selector, network picker,
-//! renderer buttons (one per discovered DLNA/OpenHome device), RMS level meters,
-//! configuration inputs, and the scrollable log text display.
-
 #![cfg(feature = "gui")]
+use rust_i18n::t;
 use crate::{
-    enums::streaming::{
-        StreamSize,
-        StreamingFormat::{self},
-    },
-    globals::statics::{
-        NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers,
-        get_renderers_mut,
-    },
-    renderers::rendercontrol::{Renderer, StreamInfo, WavData},
-    utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::*},
+    enums::streaming::{StreamingFormat, StreamingFormat::Flac},
+    globals::statics::CONFIG,
+    openhome::rendercontrol::{Renderer, StreamInfo, WavData},
+    utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::ui_log},
 };
 use fltk::{
     app,
-    button::{Button, CheckButton, LightButton},
-    enums::{self, Align, Color, Event, FrameType},
+    button::{CheckButton, LightButton},
+    enums::{Align, Color, Event, FrameType, Shortcut},
     frame::Frame,
-    group::{Flex, FlexType, Pack, PackType},
+    group::{Pack, PackType},
     image::SvgImage,
     input::IntInput,
-    menu::MenuButton,
+    menu::{MenuBar, MenuButton, MenuFlag},
     misc::Progress,
     prelude::*,
     text::{TextBuffer, TextDisplay},
     valuator::{Counter, HorNiceSlider},
     window::DoubleWindow,
 };
-//use fltk_flow::Flow;
-use log::{LevelFilter, debug, info};
+use log::{debug, LevelFilter};
+use parking_lot::Mutex;
+use std::{cell::Cell, collections::HashMap, net::IpAddr, rc::Rc};
 
-use fltk_theme::{ColorMap, ColorTheme, color_themes};
-
-use std::{
-    cell::Cell,
-    net::IpAddr,
-    rc::Rc,
-    str::FromStr,
-    sync::atomic::{AtomicBool, Ordering},
-};
-
-/// fltk themes
-struct ThemeDesc {
-    colormap: &'static [ColorMap],
-    name: &'static str,
-}
-// keep in sync with global::statics::THEMES array
-const THEMES_ARRAY: &[ThemeDesc] = &[
-    ThemeDesc {
-        colormap: color_themes::SHAKE_THEME,
-        name: THEMES[0],
-    },
-    ThemeDesc {
-        colormap: color_themes::GRAY_THEME,
-        name: THEMES[1],
-    },
-    ThemeDesc {
-        colormap: color_themes::TAN_THEME,
-        name: THEMES[2],
-    },
-    ThemeDesc {
-        colormap: color_themes::DARK_THEME,
-        name: THEMES[3],
-    },
-    ThemeDesc {
-        colormap: color_themes::BLACK_THEME,
-        name: THEMES[4],
-    },
-];
-
-/// the main (and only) form
 pub struct MainForm {
     pub wind: DoubleWindow,
     pub auto_resume: CheckButton,
@@ -82,21 +32,19 @@ pub struct MainForm {
     pub ssdp_interval: Counter,
     pub log_level_choice: MenuButton,
     pub fmt_choice: MenuButton,
-    pub ss_choice: MenuButton,
     pub b24_bit: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
     pub choose_audio_source_but: MenuButton,
     pub tb: TextDisplay,
+    pub buttons: HashMap<String, LightButton>,
     vpack: Pack,
-    restartbutton: Flex,
     bwidth: i32,
     bheight: i32,
     btn_index: i32,
     wd: WavData,
     local_addr: IpAddr,
-    player_index: usize,
 }
 
 impl MainForm {
@@ -112,271 +60,266 @@ impl MainForm {
         const GW: i32 = 600;
         const FW: i32 = 600;
         const XPOS: i32 = 30;
-        const YPOS: i32 = 5;
-        const WW: i32 = 660;
-        const WH: i32 = 660;
+        const YPOS: i32 = 30;
+        const MENU_HEIGHT: i32 = 25;
 
         let title_color: Color = Color::from_u32(0x00e6_fff0);
         let app = app::App::default().with_scheme(app::Scheme::Gtk);
         app::background(247, 247, 247);
+        const WW: i32 = 660;
+        const WH: i32 = 685;
         let mut wind = DoubleWindow::default()
             .with_size(WW, WH)
-            .with_label(&format!("swyh-rs UPNP/DLNA streaming V{app_version}"));
+            .with_label(&format!("swyh-rs UPNP/DLNA Media Renderers V{app_version}"));
 
         wind.make_resizable(true);
         wind.size_range(WW, WH * 2 / 3, 0, 0);
 
-        // set window icon
         let icon_bytes = include_str!("../../assets/swyh-rs logo note-only 16x16.svg");
         if let Ok(icon) = SvgImage::from_data(icon_bytes) {
             wind.set_icon(Some(icon));
         }
 
+        // 创建菜单栏
+        let mut menu_bar = MenuBar::new(0, 0, WW, MENU_HEIGHT, "");
+        menu_bar.add(
+            &format!("{}/{}/{}", &*t!("file"), &*t!("settings"), &*t!("language")),
+            Shortcut::None,
+            MenuFlag::Submenu,
+            |_| {},
+        );
+        menu_bar.add(
+            &format!("{}/{}/{}/{}", &*t!("file"), &*t!("settings"), &*t!("language"), "中文"),
+            Shortcut::None,
+            MenuFlag::Normal,
+            {
+                move |_| {
+                    {
+                        let mut conf = CONFIG.write();
+                        conf.language = "zh-CN".to_string();
+                        let _ = conf.update_config();
+                    }
+                    rust_i18n::set_locale("zh-CN");
+                    let choice = fltk::dialog::choice2_default(
+                        &*t!("restart_now_title"),
+                        &*t!("restart_now_yes"),
+                        &*t!("restart_now_no"),
+                        "",
+                    );
+                    if choice == Some(0) {
+                        std::process::Command::new(std::env::current_exe().unwrap())
+                            .spawn()
+                            .expect("无法重启程序");
+                        std::process::exit(0);
+                    }
+                }
+            },
+        );
+        menu_bar.add(
+            &format!("{}/{}/{}/{}", &*t!("file"), &*t!("settings"), &*t!("language"), "English"),
+            Shortcut::None,
+            MenuFlag::Normal,
+            {
+                move |_| {
+                    {
+                        let mut conf = CONFIG.write();
+                        conf.language = "en".to_string();
+                        let _ = conf.update_config();
+                    }
+                    rust_i18n::set_locale("en");
+                    let choice = fltk::dialog::choice2_default(
+                        &*t!("restart_now_title"),
+                        &*t!("restart_now_yes"),
+                        &*t!("restart_now_no"),
+                        "",
+                    );
+                    if choice == Some(0) {
+                        std::process::Command::new(std::env::current_exe().unwrap())
+                            .spawn()
+                            .expect("Failed to restart");
+                        std::process::exit(0);
+                    }
+                }
+            },
+        );
+        menu_bar.add(
+            &format!("{}/{}", &*t!("help"), &*t!("about")),
+            Shortcut::None,
+            MenuFlag::Normal,
+            |_| {
+                fltk::dialog::message_default("swyh-rs\nStream What You Hear written in Rust\n\nhttps://github.com/dheijl/swyh-rs");
+            },
+        );
+        wind.add(&menu_bar);
+
         wind.end();
         wind.show();
 
-        wind.handle({
-            let config_changed = config_changed.clone();
-            move |_, _ev| {
-                // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called
-                // debug!("_ev = {:?}, app_event = {:?}", _ev, app::event());
-                let ev = app::event();
-                match ev {
-                    Event::Close => {
-                        app.quit();
-                        //std::process::exit(0);
-                        true
-                    }
-                    Event::Push => {
-                        if app::event_mouse_button() == app::MouseButton::Right {
-                            if let Some(lightbtn) = app::belowmouse::<LightButton>() {
-                                let players = get_renderers().clone();
-                                for player in players {
-                                    if let Some(mut button) = player.rend_ui.button
-                                        && button == lightbtn
-                                    {
-                                        button.hide();
-                                        if let Some(mut slider) = player.rend_ui.slider {
-                                            slider.hide();
-                                        }
-                                        let mut config = get_config_mut();
-                                        config.hidden_renderers.push(player.remote_addr.clone());
-                                        let _ = config.update_config();
-                                        config_changed.set(true);
-                                        return true;
-                                    }
-                                }
-                            } else if let Some(frame) = app::belowmouse::<Frame>()
-                                && frame.label().contains("UPNP rendering devices on network")
-                            {
-                                let mut config = get_config_mut();
-                                config.hidden_renderers.clear();
-                                let _ = config.update_config();
-                                config_changed.set(true);
-                                return true;
-                            }
-                        }
-                        false
-                    }
-                    _ => false,
+        wind.handle(move |_, _ev| {
+            let ev = app::event();
+            match ev {
+                Event::Close => {
+                    app.quit();
+                    std::process::exit(0);
                 }
+                _ => false,
             }
         });
 
-        let mut vpack: Pack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
-        vpack.make_resizable(true);
-        vpack.set_type(PackType::Vertical);
+        let mut vpack = Pack::new(XPOS, YPOS + MENU_HEIGHT, GW, WH - 10 - MENU_HEIGHT, "");
+        vpack.make_resizable(false);
         vpack.set_spacing(15);
         vpack.end();
         wind.add(&vpack);
 
         // title frame
-        let mut flx_title = Flex::new(0, 0, GW, 25, "");
-        flx_title.end();
+        let mut p1 = Pack::new(0, 0, GW, 25, "");
+        p1.end();
         let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
         opt_frame.set_frame(FrameType::BorderBox);
-        opt_frame.set_label("Configuration Options");
+        opt_frame.set_label(&*t!("configuration_options"));
         opt_frame.set_color(title_color);
-        flx_title.add(&opt_frame);
-        vpack.add(&flx_title);
-
-        // show config option widgets
-
-        // Theme
-        let cur_theme = if let Some(theme) = config.color_theme {
-            let name = Self::apply_theme(theme.into());
-            &("Color Theme: ".to_string() + name)
-        } else {
-            "Choose Color Theme"
-        };
-        let mut ptheme = Pack::new(0, 0, GW, 25, "");
-        ptheme.end();
-        let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(cur_theme);
-        theme_button.add_choice(&THEMES.join("|"));
-        let rlock = AtomicBool::new(false);
-        theme_button.set_callback(move |b| {
-            if rlock.swap(true, Ordering::Acquire) {
-                return;
-            }
-            if b.value() < 0 {
-                return;
-            }
-            let name = Self::apply_theme(b.value() as usize);
-            debug!("New theme = {name}");
-            let cur_theme = "Color theme: ".to_string() + name;
-            b.set_label(&cur_theme);
-            {
-                let mut conf = get_config_mut();
-                conf.color_theme = Some(b.value() as u8);
-                let _ = conf.update_config();
-            }
-            rlock.store(false, Ordering::Release);
-        });
-        ptheme.add(&theme_button);
-        vpack.add(&ptheme);
+        p1.add(&opt_frame);
+        vpack.add(&p1);
 
         // network selection
-        let mut flx_netwrk = Flex::new(0, 0, GW, 25, "");
-        flx_netwrk.end();
+        let mut pnw = Pack::new(0, 0, GW, 25, "");
+        pnw.end();
         let cur_nw = {
-            if let Some(nw) = &config.last_network {
-                format!("Active network: {nw}")
+            if config.last_network == "None" {
+                format!("{} {local_addr}", &*t!("active_network"))
             } else {
-                format!("Active network: {local_addr}")
+                format!("{}: {}", &*t!("active_network"), &config.last_network)
             }
         };
         let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);
         for name in networks {
             choose_network_but.add_choice(name);
         }
-        let rlock = AtomicBool::new(false);
-        choose_network_but.set_callback({
-            let networks = networks.to_vec();
-            let config_changed = config_changed.clone();
-            move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
-                if b.value() < 0 {
-                    return;
-                }
-                let name = &networks[(b.value() as usize).clamp(0, networks.len() - 1)];
-                ui_log(
-                    LogCategory::Info,
-                    &format!("Network changed to {name}, restart required!!"),
-                );
-                {
-                    let mut conf = get_config_mut();
-                    conf.last_network = Some(name.to_string());
-                    let _ = conf.update_config();
-                }
-                b.set_label(&format!("New Network: {name}"));
-                config_changed.set(true);
-                rlock.store(false, Ordering::Release);
+        let rlock = Mutex::new(0);
+        let config_ch_flag = config_changed.clone();
+        let networks_c = networks.to_vec();
+        choose_network_but.set_callback(move |b| {
+            let mut recursion = rlock.lock();
+            if *recursion > 0 {
+                return;
             }
+            *recursion += 1;
+            let mut conf = CONFIG.write();
+            let mut i = b.value();
+            if i < 0 {
+                return;
+            }
+            if i as usize >= networks_c.len() {
+                i = (networks_c.len() - 1) as i32;
+            }
+            let name = &networks_c[i as usize];
+            ui_log(&format!(
+                "*W*W*> {} {name} !!",
+                &*t!("network_changed_restart")
+            ));
+            conf.last_network = name.to_string();
+            let _ = conf.update_config();
+            b.set_label(&format!("{}: {}", &*t!("new_network"), conf.last_network));
+            config_ch_flag.set(true);
+            app::awake();
+            *recursion -= 1;
         });
-        flx_netwrk.add(&choose_network_but);
-        vpack.add(&flx_netwrk);
+        pnw.add(&choose_network_but);
+        vpack.add(&pnw);
 
         // setup audio source choice
-        let mut flx_ausrc = Flex::new(0, 0, GW, 25, "");
-        flx_ausrc.end();
-        let cur_audio_src = format!("Audio Source: {}", config.sound_source.as_ref().unwrap());
-        ui_log(LogCategory::Info, "Setup audio sources");
+        let mut pas = Pack::new(0, 0, GW, 25, "");
+        pas.end();
+        let cur_audio_src = format!("{}: {}", &*t!("audio_source"), config.sound_source);
+        ui_log(&*t!("setup_audio_sources"));
         let mut choose_audio_source_but =
             MenuButton::new(0, 0, 0, 25, None).with_label(&cur_audio_src);
         for name in audio_sources {
-            choose_audio_source_but.add_choice(&name.as_str().fw_slash_pipe_escape());
+            choose_audio_source_but.add_choice(&name.fw_slash_pipe_escape());
         }
-        let rlock = AtomicBool::new(false);
-        choose_audio_source_but.set_callback({
-            let audio_sources = audio_sources.to_vec();
-            let config_changed = config_changed.clone();
-            move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
-                if b.value() < 0 {
-                    return;
-                }
-                let name = &audio_sources[(b.value() as usize).clamp(0, audio_sources.len() - 1)];
-                ui_log(
-                    LogCategory::Info,
-                    &format!("Audio source changed to {name}, restart required!!"),
-                );
-                b.set_label(&format!("New Audio Source: {name}",));
-                {
-                    let mut conf = get_config_mut();
-                    conf.sound_source = Some(name.to_string());
-                    conf.sound_source_index = Some(b.value());
-                    let _ = conf.update_config();
-                }
-                config_changed.set(true);
-                rlock.store(false, Ordering::Release);
+        let rlock = Mutex::new(0);
+        let config_ch_flag = config_changed.clone();
+        let audio_sources_c = audio_sources.to_vec();
+        choose_audio_source_but.set_callback(move |b| {
+            let mut recursion = rlock.lock();
+            if *recursion > 0 {
+                return;
             }
+            *recursion += 1;
+            let mut conf = CONFIG.write();
+            let mut i = b.value();
+            if i < 0 {
+                return;
+            }
+            if i as usize >= audio_sources_c.len() {
+                i = (audio_sources_c.len() - 1) as i32;
+            }
+            let name = &audio_sources_c[i as usize];
+            ui_log(&format!(
+                "*W*W*> {} {name} !!",
+                &*t!("audio_source_changed_restart")
+            ));
+            conf.sound_source = name.to_string();
+            conf.sound_source_index = Some(i);
+            let _ = conf.update_config();
+            b.set_label(&format!("{}: {}", &*t!("new_audio_source"), conf.sound_source));
+            config_ch_flag.set(true);
+            app::awake();
+            *recursion -= 1;
         });
-        flx_ausrc.add(&choose_audio_source_but);
-        vpack.add(&flx_ausrc);
+        pas.add(&choose_audio_source_but);
+        vpack.add(&pas);
 
         // all other options
-        let mut flx_options = Flex::new(0, 0, GW, 20, "");
-        flx_options.set_spacing(10);
-        flx_options.set_type(FlexType::Row);
-        flx_options.end();
+        let mut pconfig1 = Pack::new(0, 0, GW, 20, "");
+        pconfig1.set_spacing(10);
+        pconfig1.set_type(PackType::Horizontal);
+        pconfig1.end();
 
-        // auto_resume button for AVTransport autoresume play
-        let mut auto_resume = CheckButton::new(0, 0, 0, 0, "Autoresume play");
+        let mut auto_resume = CheckButton::new(0, 0, 0, 0, &*t!("autoresume_play"));
         if config.auto_resume {
             auto_resume.set(true);
         }
         auto_resume.set_callback(move |b| {
-            let mut conf = get_config_mut();
+            let mut conf = CONFIG.write();
             conf.auto_resume = b.is_set();
             let _ = conf.update_config();
         });
-        flx_options.add(&auto_resume);
+        pconfig1.add(&auto_resume);
 
-        // AutoReconnect to last renderer on startup button
-        let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, "Autoreconnect");
+        let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, &*t!("auto_reconnect"));
         if config.auto_reconnect {
             auto_reconnect.set(true);
         }
         auto_reconnect.set_callback(move |b| {
-            let mut conf = get_config_mut();
+            let mut conf = CONFIG.write();
             conf.auto_reconnect = b.is_set();
             let _ = conf.update_config();
         });
-        flx_options.add(&auto_reconnect);
+        pconfig1.add(&auto_reconnect);
 
-        // SSDP interval counter
-        let mut ssdp_interval = Counter::new(0, 0, 0, 0, "SSDP Interval (in minutes)");
+        let mut ssdp_interval = Counter::new(0, 0, 0, 0, &*t!("ssdp_interval"));
         ssdp_interval.set_value(config.ssdp_interval_mins);
         ssdp_interval.handle({
             let config_changed = config_changed.clone();
             move |b, ev| {
-                // zero = no ssdp, else minimum ssdp discovery interval is 0,5 minutes
+                if b.value() < 0.5 {
+                    b.set_value(0.5);
+                }
                 match ev {
                     Event::Leave | Event::Enter | Event::Unfocus => {
-                        let v = match b.value() {
-                            ..=0.0 => 0.0,
-                            0.01..=1.0 => 1.0,
-                            _ => b.value(),
-                        };
-                        b.set_value(v);
-                        let mut ssdp_interval_mins: f64 = -1.0;
-                        {
-                            let mut conf = get_config_mut();
-                            if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
-                                conf.ssdp_interval_mins = b.value();
-                                ssdp_interval_mins = conf.ssdp_interval_mins;
-                                let _ = conf.update_config();
-                            }
-                        }
-                        if ssdp_interval_mins >= 0.0 {
-                            ui_log(LogCategory::Warning,&format!(
-                                "SSDP interval changed to {ssdp_interval_mins} minutes, restart required!!"
+                        let mut conf = CONFIG.write();
+                        if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
+                            conf.ssdp_interval_mins = b.value();
+                            ui_log(&format!(
+                                "*W*W*> {} {} !!",
+                                &*t!("ssdp_interval_changed_restart"),
+                                conf.ssdp_interval_mins
                             ));
+                            let _ = conf.update_config();
                             config_changed.set(true);
+                            app::awake();
                         }
                         true
                     }
@@ -384,63 +327,60 @@ impl MainForm {
                 }
             }
         });
-        flx_options.add(&ssdp_interval);
+        pconfig1.add(&ssdp_interval);
 
-        // show log level choice
-        let ll = format!("Log Level: {}", config.log_level);
+        let ll = format!("{}: {}", &*t!("log_level"), config.log_level);
         let mut log_level_choice = MenuButton::default().with_label(&ll);
         let log_levels = ["Info", "Debug"];
         for ll in &log_levels {
             log_level_choice.add_choice(ll);
         }
-        // apparently this event can recurse on very fast machines
-        // probably because it takes some time doing the file I/O, hence recursion lock
-        let rlock = AtomicBool::new(false);
+        let rlock = Mutex::new(0);
         log_level_choice.set_callback({
             let config_changed = config_changed.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
+                let mut recursion = rlock.lock();
+                if *recursion > 0 {
                     return;
                 }
-                if b.value() < 0 {
+                *recursion += 1;
+                let mut conf = CONFIG.write();
+                let i = b.value();
+                if i < 0 {
                     return;
                 }
-                let level = log_levels[b.value() as usize];
-                ui_log(
-                    LogCategory::Warning,
-                    &format!("Log level changed to {level}, restart required!!"),
-                );
-                let loglevel = level.parse().unwrap_or(LevelFilter::Info);
-                {
-                    let mut conf = get_config_mut();
-                    conf.log_level = loglevel;
-                    let _ = conf.update_config();
-                }
+                let level = log_levels[i as usize];
+                ui_log(&format!(
+                    "*W*W*> {} {level} !!",
+                    &*t!("log_level_changed_restart")
+                ));
+                conf.log_level = level.parse().unwrap_or(LevelFilter::Info);
+                let _ = conf.update_config();
                 config_changed.set(true);
-                let ll = format!("Log Level: {loglevel}");
+                let ll = format!("{}: {}", &*t!("log_level"), conf.log_level);
                 b.set_label(&ll);
-                rlock.store(false, Ordering::Release);
+                app::awake();
+                *recursion -= 1;
             }
         });
-        flx_options.add(&log_level_choice);
-        //pconfig1.auto_layout();
-        flx_options.make_resizable(true);
-        vpack.add(&flx_options);
+        pconfig1.add(&log_level_choice);
+        pconfig1.auto_layout();
+        pconfig1.make_resizable(false);
+        vpack.add(&pconfig1);
         // spacer
-        let mut flx_spacer = Flex::new(0, 0, GW, 10, "");
-        flx_spacer.make_resizable(true);
-        vpack.add(&flx_spacer);
+        let mut pspacer = Pack::new(0, 0, GW, 10, "");
+        pspacer.make_resizable(false);
+        vpack.add(&pspacer);
 
-        let mut flx_options2 = Flex::new(0, 0, GW, 20, "");
-        flx_options2.set_spacing(10);
-        flx_options2.set_type(FlexType::Row);
-        flx_options2.end();
+        let mut pconfig2 = Pack::new(0, 0, GW, 20, "");
+        pconfig2.set_spacing(10);
+        pconfig2.set_type(PackType::Horizontal);
+        pconfig2.end();
 
-        // streaming format
         let fmt = if let Some(format) = config.streaming_format {
-            format!("FMT: {format}")
+            format!("{}: {format}", &*t!("fmt"))
         } else {
-            "FMT: lpcm".to_string()
+            format!("{}: LPCM", &*t!("fmt"))
         };
         let mut fmt_choice = MenuButton::default().with_label(&fmt);
         let formats = vec![
@@ -452,66 +392,75 @@ impl MainForm {
         for fmt in &formats {
             fmt_choice.add_choice(fmt.as_str());
         }
-        // apparently this event can recurse on very fast machines
-        // probably because it takes some time doing the file I/O, hence recursion lock
-        let rlock = AtomicBool::new(false);
+        let rlock = Mutex::new(0);
         fmt_choice.set_callback({
+            let config_changed = config_changed.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
+                let mut recursion = rlock.lock();
+                if *recursion > 0 {
                     return;
                 }
-                if b.value() < 0 {
+                *recursion += 1;
+                let mut conf = CONFIG.write();
+                let i = b.value();
+                if i < 0 {
                     return;
                 }
-                let format = formats[b.value() as usize].clone();
-                ui_log(
-                    LogCategory::Info,
-                    &format!("Current streaming Format changed to {format}"),
-                );
-                let newformat = StreamingFormat::from_str(&format).unwrap();
-                {
-                    let mut conf = get_config_mut();
-                    conf.streaming_format = Some(newformat);
-                    let _ = conf.update_config();
-                }
-                let fmt = format!("FMT: {format}");
+                let format = formats[i as usize].clone();
+                ui_log(&format!(
+                    "*W*W*> {} {format} !!",
+                    &*t!("streaming_format_changed_restart")
+                ));
+                let newformat = match format.as_str() {
+                    "WAV" => StreamingFormat::Wav,
+                    "FLAC" => StreamingFormat::Flac,
+                    "RF64" => StreamingFormat::Rf64,
+                    _ => StreamingFormat::Lpcm,
+                };
+                conf.use_wave_format =
+                    [StreamingFormat::Wav, StreamingFormat::Rf64].contains(&newformat);
+                conf.streaming_format = Some(newformat);
+                let _ = conf.update_config();
+                config_changed.set(true);
+                let fmt = format!("{}: {format}", &*t!("fmt"));
                 b.set_label(&fmt);
-                rlock.store(false, Ordering::Release);
+                app::awake();
+                *recursion -= 1;
             }
         });
-        flx_options2.add(&fmt_choice);
+        pconfig2.add(&fmt_choice);
 
-        // checkbutton to select 24 bit samples instead of the 16 bit default
-        let mut b24_bit = CheckButton::new(0, 0, 0, 0, "24 bit");
+        let mut b24_bit = CheckButton::new(0, 0, 0, 0, &*t!("24_bit"));
         if config.bits_per_sample.unwrap_or(16) == 24 {
             b24_bit.set(true);
         }
         b24_bit.set_callback({
+            let config_changed = config_changed.clone();
             move |b| {
-                let mut conf = get_config_mut();
+                let mut conf = CONFIG.write();
                 if b.is_set() {
                     conf.bits_per_sample = Some(24);
                 } else {
                     conf.bits_per_sample = Some(16);
                 }
                 let _ = conf.update_config();
+                config_changed.set(true);
             }
         });
-        flx_options2.add(&b24_bit);
-        // HTTP server listen port
-        let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
-        listen_port.set_value(&get_config().server_port.unwrap_or_default().to_string());
+        pconfig2.add(&b24_bit);
+        let mut listen_port = IntInput::new(0, 0, 0, 0, &*t!("http_port"));
+        listen_port.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
         listen_port.set_maximum_size(5);
         listen_port.set_callback({
             let config_changed = config_changed.clone();
             move |lp| {
-                let new_value: u32 = lp.value().parse().unwrap_or(0);
+                let new_value: u32 = lp.value().parse().unwrap();
                 if new_value > 65535 {
-                    lp.set_value(&get_config().server_port.unwrap_or_default().to_string());
+                    lp.set_value(&CONFIG.read().server_port.unwrap_or_default().to_string());
                     return;
                 }
-                if new_value as u16 != get_config().server_port.unwrap_or_default() {
-                    let mut conf = get_config_mut();
+                if new_value as u16 != CONFIG.read().server_port.unwrap_or_default() {
+                    let mut conf = CONFIG.write();
                     conf.server_port = Some(new_value as u16);
                     let _ = conf.update_config();
                     config_changed.set(true);
@@ -519,134 +468,35 @@ impl MainForm {
             }
         });
 
-        flx_options2.add(&listen_port);
-        // inject continuous silence into audio stream checkbox
-        // to prevent Sonos to disconnect if no audio is being captured
-        let mut inj_silence = CheckButton::new(0, 0, 0, 0, "Inject silence");
-        if config.inject_silence.unwrap_or(false) {
+        pconfig2.add(&listen_port);
+        let mut inj_silence = CheckButton::new(0, 0, 0, 0, &*t!("inject_silence"));
+        if config.inject_silence.unwrap() {
             inj_silence.set(true);
         }
         inj_silence.set_callback({
             let config_changed = config_changed.clone();
             move |b| {
-                let mut conf = get_config_mut();
+                let mut conf = CONFIG.write();
                 conf.inject_silence = Some(b.is_set());
                 let _ = conf.update_config();
                 config_changed.set(true);
             }
         });
-        flx_options2.add(&inj_silence);
+        pconfig2.add(&inj_silence);
 
-        //pconfig2.auto_layout();
-        flx_options2.make_resizable(true);
-        vpack.add(&flx_options2);
-
-        // streaming content length and chunking
-        let mut flx_options3 = Flex::new(0, 0, GW, 20, "");
-        flx_options3.set_spacing(10);
-        flx_options3.set_type(FlexType::Row);
-        flx_options3.end();
-
-        let streamsize = if let Some(fmt) = config.streaming_format {
-            match fmt {
-                StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Wav => config.wav_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Rf64 => config.rf64_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Flac => config.flac_stream_size.unwrap_or(StreamSize::NoneChunked),
-            }
-        } else {
-            StreamSize::U64maxNotChunked
-        };
-        let fmt = format!("StrmSize: {streamsize}");
-        let mut ss_choice = MenuButton::default()
-            .with_label(&fmt)
-            .with_align(Align::Center | Align::Clip);
-        let streamsizes = vec![
-            StreamSize::U64maxNotChunked.to_string(),
-            StreamSize::NoneChunked.to_string(),
-            StreamSize::U64maxChunked.to_string(),
-            StreamSize::U32maxNotChunked.to_string(),
-            StreamSize::U32maxChunked.to_string(),
-        ];
-        for fmt in &streamsizes {
-            ss_choice.add_choice(fmt.as_str());
-        }
-        // apparently this event can recurse on very fast machines
-        // probably because it takes some time doing the file I/O, hence recursion lock
-        let rlock = AtomicBool::new(false);
-        ss_choice.set_callback({
-            move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
-                if b.value() < 0 {
-                    return;
-                }
-                let newsize = streamsizes[b.value() as usize].clone();
-                let streamsize = StreamSize::from_str(&newsize).unwrap();
-                let streaming_format = {
-                    let mut conf = get_config_mut();
-                    match conf.streaming_format.unwrap_or(StreamingFormat::Flac) {
-                        StreamingFormat::Lpcm => conf.lpcm_stream_size = Some(streamsize),
-                        StreamingFormat::Wav => conf.wav_stream_size = Some(streamsize),
-                        StreamingFormat::Rf64 => conf.rf64_stream_size = Some(streamsize),
-                        StreamingFormat::Flac => conf.flac_stream_size = Some(streamsize),
-                    }
-                    let _ = conf.update_config();
-                    conf.streaming_format.unwrap()
-                };
-                ui_log(
-                    LogCategory::Info,
-                    &format!("StreamSize for {streaming_format} changed to {newsize}"),
-                );
-                let fmt = format!("StrmSize: {newsize}");
-                b.set_label(&fmt);
-                rlock.store(false, Ordering::Release);
-            }
-        });
-        flx_options3.add(&ss_choice);
-
-        let label_ms = Frame::default().with_label("                      Initial buffer (msec): ");
-        flx_options3.add(&label_ms);
-        let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
-        upfront_buffer_ms.set_maximum_size(5);
-        let b_config = config.buffering_delay_msec.unwrap_or_default();
-        upfront_buffer_ms.set_value(&b_config.to_string());
-        upfront_buffer_ms.set_callback({
-            move |i| {
-                let mut b: i32 = i.value().parse().unwrap_or(0);
-                if b < 0 {
-                    i.set_value(&0i32.to_string());
-                    return;
-                }
-                if b > 5_000 {
-                    i.set_value(&5_000i32.to_string());
-                    b = 5_000;
-                }
-                if b as u32 != b_config {
-                    let mut conf = get_config_mut();
-                    conf.buffering_delay_msec = Some(b as u32);
-                    let _ = conf.update_config();
-                }
-            }
-        });
-        flx_options3.add(&upfront_buffer_ms);
-
-        //pconfig3.auto_layout();
-        flx_options3.make_resizable(true);
-        vpack.add(&flx_options3);
+        pconfig2.auto_layout();
+        pconfig2.make_resizable(false);
+        vpack.add(&pconfig2);
 
         // RMS animation
-        let mut flx_options4 = Flex::new(0, 0, GW, 20, "");
-        flx_options4.set_spacing(10);
-        flx_options4.set_type(FlexType::Row);
-        flx_options4.end();
-        // RMS animation enable checkbox
-        let mut show_rms = CheckButton::new(0, 0, 0, 0, "RMS Monitor");
+        let mut pconfig3 = Pack::new(0, 0, GW, 20, "");
+        pconfig3.set_spacing(10);
+        pconfig3.set_type(PackType::Horizontal);
+        pconfig3.end();
+        let mut show_rms = CheckButton::new(0, 0, 0, 0, &*t!("rms_monitor"));
         if config.monitor_rms {
             show_rms.set(true);
         }
-        // rms monitor meters widgets
         let mut rms_mon_l = Progress::new(0, 0, 0, 0, "");
         let mut rms_mon_r = Progress::new(0, 0, 0, 0, "");
         rms_mon_l.set_minimum(0.0);
@@ -659,95 +509,71 @@ impl MainForm {
         rms_mon_r.set_value(0.0);
         rms_mon_r.set_color(Color::White);
         rms_mon_r.set_selection_color(Color::Green);
-        // rms checkbox callback
         show_rms.set_callback({
             let mut rms_mon_l = rms_mon_l.clone();
             let mut rms_mon_r = rms_mon_r.clone();
             move |b| {
+                let mut conf = CONFIG.write();
+                conf.monitor_rms = b.is_set();
+                let _ = conf.update_config();
                 rms_mon_l.set_value(0.0);
                 rms_mon_r.set_value(0.0);
-                let run_rms = b.is_set();
-                RUN_RMS_MONITOR.store(run_rms, Ordering::Release);
-                let mut conf = get_config_mut();
-                conf.monitor_rms = run_rms;
-                let _ = conf.update_config();
             }
         });
-        flx_options4.add(&show_rms);
-        // vertical flex for the RMS meters
-        let mut flx_options4_v = Flex::new(0, 0, GW, 16, "");
-        flx_options4_v.set_spacing(4);
-        flx_options4_v.set_type(FlexType::Column);
-        flx_options4_v.end();
-        flx_options4_v.add(&rms_mon_l);
-        flx_options4_v.add(&rms_mon_r);
-        //pconfig3_v.auto_layout();
-        flx_options4_v.make_resizable(true);
-        flx_options4.add(&flx_options4_v);
+        pconfig3.add(&show_rms);
+        let mut pconfig3_v = Pack::new(0, 0, GW, 16, "");
+        pconfig3_v.set_spacing(4);
+        pconfig3_v.set_type(PackType::Vertical);
+        pconfig3_v.end();
+        pconfig3_v.add(&rms_mon_l);
+        pconfig3_v.add(&rms_mon_r);
+        pconfig3_v.auto_layout();
+        pconfig3_v.make_resizable(false);
+        pconfig3.add(&pconfig3_v);
 
-        //pconfig4.auto_layout();
-        flx_options4.make_resizable(true);
-        vpack.add(&flx_options4);
+        pconfig3.auto_layout();
+        pconfig3.make_resizable(false);
+        vpack.add(&pconfig3);
 
-        // hidden restart button
-        let mut flx_restart = Flex::new(0, 0, GW, 25, "");
-        flx_restart.end();
-        let mut restartbutton =
-            Button::default().with_label("Press to apply configuration changes");
-        restartbutton.set_label_color(Color::Red);
-        restartbutton.set_callback(|_| {
-            std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
-                .spawn()
-                .expect("Unable to spawn myself!");
-            std::process::exit(0)
-        });
-        flx_restart.add(&restartbutton);
-        flx_restart.hide();
-        vpack.add(&flx_restart);
-
-        // show renderer buttons title with our local ip address
-        let mut flx_buttons = Flex::new(0, 0, GW, 25, "");
-        flx_buttons.end();
+        // show renderer buttons title
+        let mut pbuttons = Pack::new(0, 0, GW, 25, "");
+        pbuttons.end();
         let mut frame = Frame::new(0, 0, FW, 25, "").with_align(Align::Center);
         frame.set_frame(FrameType::BorderBox);
-        frame.set_label(&format!("UPNP rendering devices on network {local_addr}"));
+        frame.set_label(&format!("{} {local_addr}", &*t!("upnp_devices_on_network")));
         frame.set_color(title_color);
-        flx_buttons.add(&frame);
-        vpack.add(&flx_buttons);
+        pbuttons.add(&frame);
+        vpack.add(&pbuttons);
 
-        // ssdp discovered renderer buttons go here
-        let btn_insert_index = vpack.children();
-
-        // setup feedback textbox at the bottom
-        let mut flx_feedback = Flex::new(0, 0, GW, 156, "");
-        flx_feedback.end();
+        // feedback textbox
+        let mut pfeedback = Pack::new(0, 0, GW, 156, "");
+        pfeedback.end();
         let buf = TextBuffer::default();
         let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
-        tb.set_selection_color(enums::Color::DarkYellow);
         tb.set_buffer(Some(buf));
-        flx_feedback.add(&tb);
-        flx_feedback.resizable(&tb);
-        vpack.add(&flx_feedback);
-        vpack.resizable(&flx_feedback);
+        pfeedback.add(&tb);
+        pfeedback.resizable(&tb);
+        vpack.add(&pfeedback);
+        vpack.resizable(&pfeedback);
+
+        let buttons: HashMap<String, LightButton> = HashMap::new();
 
         MainForm {
-            player_index: 0,
             wind,
             vpack,
-            restartbutton: flx_restart,
             auto_resume,
             auto_reconnect,
             ssdp_interval,
             log_level_choice,
             fmt_choice,
-            ss_choice,
             b24_bit,
             show_rms,
             rms_mon_l,
             rms_mon_r,
             choose_audio_source_but,
             tb,
-            btn_index: btn_insert_index,
+            buttons,
+            btn_index: 8,
             bwidth: frame.width(),
             bheight: frame.height(),
             wd: *wd,
@@ -755,91 +581,70 @@ impl MainForm {
         }
     }
 
-    /// show a log message in the text box
     pub fn add_log_msg(&mut self, msg: &str) {
-        if let Some(mut textbuffer) = self.tb.buffer() {
-            let start = textbuffer.length() as usize;
-            let end = start + msg.len();
-            textbuffer.append(msg);
-            textbuffer.append("\n");
-            if let Some(b'*') = msg.as_bytes().first() {
-                textbuffer.highlight(start as i32, end as i32);
-            }
-            let buflen = textbuffer.length();
-            self.tb.set_insert_position(buflen);
-            let buflines = self.tb.count_lines(0, buflen, true);
-            self.tb.scroll(buflines, 0);
-        }
+        self.tb.buffer().unwrap().append(msg);
+        self.tb.buffer().unwrap().append("\n");
+        let buflen = self.tb.buffer().unwrap().length();
+        self.tb.set_insert_position(buflen);
+        let buflines = self.tb.count_lines(0, buflen, true);
+        self.tb.scroll(buflines, 0);
     }
 
-    /// show the restart button after a config change that needs a restart
-    /// to take effect
-    pub fn show_restart_button(&mut self) {
-        self.restartbutton.show();
-        app::redraw();
-    }
-
-    /// show a new renderer button for a new enderer discovered by ssdp
-    /// add the associated UI button and slider to the renderer
-    /// add the new renderer to the global renderer list
-    pub fn add_renderer_button(&mut self, new_renderer: &mut Renderer) {
-        if get_config()
-            .hidden_renderers
-            .contains(&new_renderer.remote_addr)
-        {
-            return;
-        }
-        // initialize renderers player_index
-        new_renderer.player_index = self.player_index;
-        // check if the renderer responded to GetVolume and make room for the slider if yes
+    pub fn add_renderer_button(&mut self, new_renderer: &Renderer) {
         let (show_vol_slider, pbwidth, slwidth) = if new_renderer.volume >= 0 {
             (true, (self.bwidth / 3) * 2, self.bwidth / 3)
         } else {
             (false, self.bwidth, 0)
         };
-        let mut pbut = LightButton::default() // create the button
+        let mut pbut = LightButton::default()
             .with_size(pbwidth, self.bheight)
             .with_pos(0, 0)
-            .with_align(Align::Center | Align::Clip)
+            .with_align(Align::Center)
             .with_label(&format!(
                 "{} {}",
                 new_renderer.dev_model, new_renderer.dev_name
             ));
         pbut.set_callback({
-            let player_index = self.player_index;
-            let mut newr_c = new_renderer.clone();
+            let newr_c = new_renderer.clone();
+            let bi = self.buttons.len();
             let local_addr = self.local_addr;
             let wd = self.wd;
             move |b| {
-                info!(
+                debug!(
                     "Pushed renderer #{} {} {}, state = {}",
-                    player_index,
+                    bi,
                     newr_c.dev_model,
                     newr_c.dev_name,
-                    if b.is_on() { "ON" } else { "OFF" },
+                    if b.is_set() { "ON" } else { "OFF" }
                 );
-                if b.is_on() {
+                if b.is_set() {
                     {
-                        let mut conf = get_config_mut();
-                        conf.last_renderer = Some(b.label());
+                        let mut conf = CONFIG.write();
+                        conf.last_renderer = b.label();
                         let _ = conf.update_config();
                     }
-                    let streaminfo = StreamInfo::new(wd.sample_rate);
-                    let _ = newr_c.play(&local_addr, streaminfo);
+                    let config = CONFIG.read().clone();
+                    let streaminfo = StreamInfo {
+                        sample_rate: wd.sample_rate.0,
+                        bits_per_sample: config.bits_per_sample.unwrap_or(16),
+                        streaming_format: config.streaming_format.unwrap_or(Flac),
+                    };
+                    let _ = newr_c.play(
+                        &local_addr,
+                        config.server_port.unwrap_or_default(),
+                        &ui_log,
+                        streaminfo,
+                    );
                 } else {
-                    newr_c.stop_play();
+                    newr_c.stop_play(&ui_log);
                 }
-                get_renderers_mut()[player_index].playing = b.is_on();
             }
         });
-        // the flex for the new button
-        let mut flx_button = Flex::new(0, 0, self.bwidth, self.bheight, "");
-        flx_button.set_spacing(5);
-        flx_button.set_type(FlexType::Row);
-        flx_button.end();
-        // add the renderer button to the window
-        flx_button.add(&pbut);
-        // Only if GetVolume worked: add the volume slider
+        let mut pbutton = Pack::new(0, 0, self.bwidth, self.bheight, "");
+        pbutton.set_spacing(5);
+        pbutton.set_type(PackType::Horizontal);
+        pbutton.end();
+        pbutton.add(&pbut);
         if show_vol_slider {
             let mut sl = HorNiceSlider::default()
                 .with_size(slwidth, self.bheight)
@@ -850,69 +655,24 @@ impl MainForm {
             sl.set_selection_color(Color::XtermGreen);
             sl.set_color(Color::XtermWhite);
             sl.set_value(new_renderer.volume.into());
-            sl.set_trigger(enums::CallbackTrigger::Release);
-            // slider callback
+            sl.set_trigger(fltk::enums::CallbackTrigger::Release);
             sl.set_callback({
-                let player_index = self.player_index;
-                let mut this_renderer = new_renderer.clone();
+                let mut newr_c = new_renderer.clone();
                 move |s| {
-                    let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
-                    debug!("Setting new volume for {} to {vol}", this_renderer.dev_name);
-                    this_renderer.set_volume(vol);
-                    get_renderers_mut()[player_index].volume = vol;
-                    if app::is_event_shift() {
-                        debug!("Syncing volume for other active renderers");
-                        // get a copy of the renderers to use for network IO
-                        let renderers = get_renderers().clone().into_iter().enumerate();
-                        for (index, mut rend) in renderers {
-                            // if this renderer is playing but not the active slider renderer
-                            if rend.playing && (this_renderer.player_index != rend.player_index) {
-                                // and it supports setting the volume: sync volume
-                                if let Some(mut slider) = rend.rend_ui.slider.clone() {
-                                    debug!("Setting new volume for {} to {vol}", rend.dev_name);
-                                    rend.set_volume(vol);
-                                    // update the original renderer volume value
-                                    get_renderers_mut()[index].volume = vol;
-                                    // and update the slider too
-                                    slider.set_value(s.value());
-                                }
-                            }
-                        }
-                    }
+                    let vol: i32 = s.value() as i32;
+                    debug!("Setting new volume for {}: {vol}", newr_c.dev_name);
+                    newr_c.set_volume(&ui_log, vol);
                 }
             });
-            flx_button.add(&sl);
-            new_renderer.rend_ui.slider = Some(sl.clone());
-        } else {
-            new_renderer.rend_ui.slider = None;
+            pbutton.add(&sl);
         }
-        new_renderer.rend_ui.button = Some(pbut.clone());
-        // add the new renderer to the global list of renderers
-        get_renderers_mut().push(new_renderer.clone());
-        self.vpack.insert(&flx_button, self.btn_index);
+        self.vpack.insert(&pbutton, self.btn_index);
+        self.buttons
+            .insert(new_renderer.remote_addr.clone(), pbut.clone());
         app::redraw();
-        // now add the new player to the global list of renderers
-        // check if autoreconnect is set for this renderer
-        if self.auto_reconnect.is_set() {
-            let active_players = get_config().active_renderers.clone();
-            info!("AutoReconnect: Active Renderers = {active_players:?}");
-            if active_players.contains(&new_renderer.remote_addr) {
-                pbut.turn_on(true);
-                pbut.do_callback();
-            }
-        }
-        // bump player_index
-        self.player_index += 1;
-    }
-
-    /// change the theme
-    fn apply_theme(theme_index: usize) -> &'static str {
-        if let 0..NTHEMES = theme_index {
-            ColorTheme::new(THEMES_ARRAY[theme_index].colormap).apply();
-            THEMES_ARRAY[theme_index].name
-        } else {
-            fltk_theme::reset_color_map();
-            THEMES[NTHEMES]
+        if self.auto_reconnect.is_set() && pbut.label() == CONFIG.read().last_renderer {
+            pbut.turn_on(true);
+            pbut.do_callback();
         }
     }
 }

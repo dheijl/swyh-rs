@@ -71,7 +71,7 @@ impl DeviceKind {
 ///
 fn get_device_name(device: &cpal::Device) -> Result<String, cpal::Error> {
     match device.description() {
-        Ok(desc) => Ok(desc.name().to_string()),
+        Ok(desc) => Ok(desc.name().to_string() + "-" + desc.driver().unwrap_or("")),
         Err(e) => Err(e),
     }
 }

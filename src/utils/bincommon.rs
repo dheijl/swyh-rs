@@ -1,7 +1,7 @@
 //! Tools common to both the swyh-rs GUI and CLI.
 
 use cpal::{
-    BuildStreamError, Sample, SampleFormat, Stream, StreamConfig,
+    Error, ErrorKind, Sample, SampleFormat, Stream, StreamConfig,
     traits::{DeviceTrait, StreamTrait},
 };
 
@@ -40,7 +40,7 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
         format => {
             let msg = format!("Inject silence: Unsupported sample format: {format:?}");
             ui_log(LogCategory::Error, &msg);
-            Err(BuildStreamError::StreamConfigNotSupported)
+            Err(Error::new(ErrorKind::UnsupportedConfig))
         }
     };
     match try_stream {

@@ -42,7 +42,10 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
         format => {
             ui_log(
                 LogCategory::Error,
-                &fl!("err-inject-silence-format", "format" = format!("{format:?}")),
+                &fl!(
+                    "err-inject-silence-format",
+                    "format" = format!("{format:?}")
+                ),
             );
             Err(Error::new(ErrorKind::UnsupportedConfig))
         }

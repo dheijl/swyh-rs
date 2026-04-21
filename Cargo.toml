@@ -54,7 +54,7 @@ dirs = "6.0.0"
 ecow = "0.2.6"
 fastrand = "2.4.1"
 fluent-uri = "0.4.1"
-fluent-templates = "0.12"
+fluent-templates = "0.13.3"
 figura = "2.0.3"
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",

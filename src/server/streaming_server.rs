@@ -5,12 +5,12 @@
 //! Each accepted connection gets its own [`ChannelStream`] fed by the audio capture pipeline.
 
 use crate::{
-    fl,
     audio::rwstream::ChannelStream,
     enums::{
         messages::MessageType,
         streaming::{BitDepth, StreamingContext, StreamingFormat, StreamingState},
     },
+    fl,
     globals::statics::get_clients_mut,
     renderers::rendercontrol::WavData,
     server::query_params::StreamingParams,
@@ -153,7 +153,11 @@ fn streaming_request(
 ) {
     ui_log(
         LogCategory::Info,
-        &fl!("srv-streaming-request", "url" = &streaming_ctx.url, "addr" = &streaming_ctx.remote_addr),
+        &fl!(
+            "srv-streaming-request",
+            "url" = &streaming_ctx.url,
+            "addr" = &streaming_ctx.remote_addr
+        ),
     );
     // get the dlna headers
     let headers = get_dlna_headers(streaming_ctx);
@@ -212,7 +216,11 @@ fn streaming_request(
     if e.is_err() {
         ui_log(
             LogCategory::Error,
-            &fl!("srv-http-terminated", "addr" = &streaming_ctx.remote_addr, "error" = format!("{e:?}")),
+            &fl!(
+                "srv-http-terminated",
+                "addr" = &streaming_ctx.remote_addr,
+                "error" = format!("{e:?}")
+            ),
         );
     }
     let nclients = {
@@ -260,7 +268,11 @@ fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
-            &fl!("srv-head-terminated", "addr" = &streaming_ctx.remote_addr, "error" = e.to_string()),
+            &fl!(
+                "srv-head-terminated",
+                "addr" = &streaming_ctx.remote_addr,
+                "error" = e.to_string()
+            ),
         );
     }
 }
@@ -269,7 +281,11 @@ fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
 fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     ui_log(
         LogCategory::Error,
-        &fl!("srv-unsupported-method", "method" = format!("{:?}", *rq.method()), "addr" = &streaming_ctx.remote_addr),
+        &fl!(
+            "srv-unsupported-method",
+            "method" = format!("{:?}", *rq.method()),
+            "addr" = &streaming_ctx.remote_addr
+        ),
     );
     let headers = get_std_headers();
     let response = Response::new(
@@ -282,7 +298,11 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
-            &fl!("srv-http-terminated", "addr" = &streaming_ctx.remote_addr, "error" = e.to_string()),
+            &fl!(
+                "srv-http-terminated",
+                "addr" = &streaming_ctx.remote_addr,
+                "error" = e.to_string()
+            ),
         );
     }
 }
@@ -291,7 +311,11 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
 fn bad_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     ui_log(
         LogCategory::Warning,
-        &fl!("srv-bad-request", "url" = rq.url(), "addr" = &streaming_ctx.remote_addr),
+        &fl!(
+            "srv-bad-request",
+            "url" = rq.url(),
+            "addr" = &streaming_ctx.remote_addr
+        ),
     );
     let headers = get_std_headers();
     let response = Response::new(
@@ -304,7 +328,11 @@ fn bad_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
-            &fl!("srv-stream-terminated", "addr" = &streaming_ctx.remote_addr, "error" = e.to_string()),
+            &fl!(
+                "srv-stream-terminated",
+                "addr" = &streaming_ctx.remote_addr,
+                "error" = e.to_string()
+            ),
         );
     }
 }

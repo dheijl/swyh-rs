@@ -3,7 +3,10 @@
 //! [`raise_priority`] bumps the process scheduling priority on Windows (ABOVE_NORMAL)
 //! and Linux (nice -10) to reduce audio capture stuttering under CPU load.
 
-use crate::{fl, utils::ui_logger::{LogCategory, ui_log}};
+use crate::{
+    fl,
+    utils::ui_logger::{LogCategory, ui_log},
+};
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {

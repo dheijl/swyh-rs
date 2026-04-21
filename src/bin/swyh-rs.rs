@@ -90,11 +90,11 @@ fn main() {
     // initialize config
     let mut config = {
         let mut conf = get_config_mut();
-        if conf.sound_source.is_none() {
-            if let Some(ref dev) = ad {
-                conf.sound_source = Some(dev.name().into());
-                let _ = conf.update_config();
-            }
+        if conf.sound_source.is_none()
+            && let Some(ref dev) = ad
+        {
+            conf.sound_source = Some(dev.name().into());
+            let _ = conf.update_config();
         }
         conf.clone()
     };

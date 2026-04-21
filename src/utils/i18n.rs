@@ -4,8 +4,8 @@
 //! - `fl!("key")` for a plain message
 //! - `fl!("key", "arg" = value)` for a message with substitutions
 
-use fluent_templates::{Loader, LanguageIdentifier, static_loader};
 use fluent_templates::fluent_bundle::FluentValue;
+use fluent_templates::{LanguageIdentifier, Loader, static_loader};
 use std::{borrow::Cow, collections::HashMap, sync::OnceLock};
 
 static_loader! {
@@ -49,17 +49,21 @@ pub fn t(key: &str) -> String {
 pub fn t_args(key: &str, args: &[(&'static str, String)]) -> String {
     let map: HashMap<Cow<str>, FluentValue<'_>> = args
         .iter()
-        .map(|(k, v)| (Cow::Borrowed(*k), FluentValue::String(Cow::Borrowed(v.as_str()))))
+        .map(|(k, v)| {
+            (
+                Cow::Borrowed(*k),
+                FluentValue::String(Cow::Borrowed(v.as_str())),
+            )
+        })
         .collect();
     LOCALES.lookup_complete(lang(), key, Some(&map))
 }
 
 /// Convenience macro for localised strings.
 ///
-/// ```rust
-/// fl!("config-options")
-/// fl!("window-title", "version" = app_version)
-/// fl!("warn-network-changed", "name" = name, ...)
+/// fl!("config-options");
+/// fl!("window-title", "version" = app_version);
+/// fl!("warn-network-changed", "name" = name, ...);
 /// ```
 #[macro_export]
 macro_rules! fl {

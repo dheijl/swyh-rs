@@ -2,6 +2,7 @@
 
 - 1.20.3 (unreleased)
   - rust 1.95.0
+  - localize the project using `fluent-templates`and the assistance of Claude
 
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.

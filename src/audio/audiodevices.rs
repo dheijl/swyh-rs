@@ -275,7 +275,11 @@ pub fn capture_output_audio(
             Err(e) => {
                 ui_log(
                     LogCategory::Error,
-                    &fl!("err-capture-format-stream", "fmt" = "f32", "error" = e.to_string()),
+                    &fl!(
+                        "err-capture-format-stream",
+                        "fmt" = "f32",
+                        "error" = e.to_string()
+                    ),
                 );
                 None
             }
@@ -297,7 +301,11 @@ pub fn capture_output_audio(
                 Err(e) => {
                     ui_log(
                         LogCategory::Error,
-                        &fl!("err-capture-format-stream", "fmt" = "i16", "error" = e.to_string()),
+                        &fl!(
+                            "err-capture-format-stream",
+                            "fmt" = "i16",
+                            "error" = e.to_string()
+                        ),
                     );
                     None
                 }
@@ -320,7 +328,11 @@ pub fn capture_output_audio(
                 Err(e) => {
                     ui_log(
                         LogCategory::Error,
-                        &fl!("err-capture-format-stream", "fmt" = "u16", "error" = e.to_string()),
+                        &fl!(
+                            "err-capture-format-stream",
+                            "fmt" = "u16",
+                            "error" = e.to_string()
+                        ),
                     );
                     None
                 }
@@ -343,7 +355,11 @@ pub fn capture_output_audio(
                 Err(e) => {
                     ui_log(
                         LogCategory::Error,
-                        &fl!("err-capture-format-stream", "fmt" = "i32", "error" = e.to_string()),
+                        &fl!(
+                            "err-capture-format-stream",
+                            "fmt" = "i32",
+                            "error" = e.to_string()
+                        ),
                     );
                     None
                 }

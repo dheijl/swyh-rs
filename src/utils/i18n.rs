@@ -9,9 +9,11 @@ use fluent_templates::{LanguageIdentifier, Loader, static_loader};
 use std::{borrow::Cow, collections::HashMap, sync::OnceLock};
 
 static_loader! {
+    // Note: disable the unicode isolating characters FSI/PDI as FLTK shows them on Windows
     static LOCALES = {
         locales: "./locales",
         fallback_language: "en-US",
+        customise: |bundle| bundle.set_use_isolating(false),
     };
 }
 

@@ -43,7 +43,7 @@ pub fn t(key: &str) -> String {
 
 /// Look up a message and substitute named arguments.
 ///
-/// `lookup_complete` in fluent-templates 0.12 requires a `HashMap<Cow<str>, FluentValue>`.
+/// `lookup_complete` in fluent-templates >= 0.12 requires a `HashMap<Cow<str>, FluentValue>`.
 /// We build it with borrowed keys (`'static`) and borrowed value slices to avoid
 /// unnecessary `String` clones — only the `HashMap` itself is heap-allocated.
 pub fn t_args(key: &str, args: &[(&'static str, String)]) -> String {

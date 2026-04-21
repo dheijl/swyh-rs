@@ -5,6 +5,7 @@
 //! Each accepted connection gets its own [`ChannelStream`] fed by the audio capture pipeline.
 
 use crate::{
+    fl,
     audio::rwstream::ChannelStream,
     enums::{
         messages::MessageType,
@@ -42,23 +43,22 @@ pub fn run_server(
     feedback_tx: &Sender<MessageType>,
 ) {
     let addr = format!("{local_addr}:{server_port}");
-    ui_log(
-        LogCategory::Info,
-        &format!("The streaming server is listening on http://{addr}/stream/swyh.wav"),
-    );
+    ui_log(LogCategory::Info, &fl!("srv-listening", "addr" = addr));
     // get the needed config info upfront
     let stream_config = StreamingContext::from_config();
     ui_log(
         LogCategory::Info,
-        &format!(
-            "Default streaming sample rate: {}, bits per sample: {}, format: {}",
-            wd.sample_rate, stream_config.bits_per_sample, stream_config.streaming_format,
+        &fl!(
+            "srv-default-streaming",
+            "rate" = wd.sample_rate,
+            "bps" = stream_config.bits_per_sample,
+            "format" = stream_config.streaming_format,
         ),
     );
     let server = Arc::new(Server::http(addr).unwrap_or_else(|e| {
         ui_log(
             LogCategory::Error,
-            &format!("Error starting server thread: {e}"),
+            &fl!("srv-start-error", "error" = e.to_string()),
         );
         panic!("Can't start server thread: {e}");
     }));
@@ -117,7 +117,7 @@ pub fn run_server(
         h.join().unwrap_or_else(|e| {
             ui_log(
                 LogCategory::Error,
-                &format!("Server thread ended with error {e:?}"),
+                &fl!("srv-thread-error", "error" = format!("{e:?}")),
             );
             panic!("{e:?}");
         });
@@ -153,10 +153,7 @@ fn streaming_request(
 ) {
     ui_log(
         LogCategory::Info,
-        &format!(
-            "Streaming request {} from {}",
-            streaming_ctx.url, streaming_ctx.remote_addr
-        ),
+        &fl!("srv-streaming-request", "url" = &streaming_ctx.url, "addr" = &streaming_ctx.remote_addr),
     );
     // get the dlna headers
     let headers = get_dlna_headers(streaming_ctx);
@@ -179,7 +176,7 @@ fn streaming_request(
         .unwrap_or_else(|e| {
             ui_log(
                 LogCategory::Error,
-                &format!("HTTP Server: error writing feedback channel {e:?}"),
+                &fl!("srv-feedback-error", "error" = format!("{e:?}")),
             );
             panic!("Http server feedback error:{e:?}");
         });
@@ -192,14 +189,13 @@ fn streaming_request(
     }
     ui_log(
         LogCategory::Info,
-        &format!(
-            "Streaming {}, input sample format {:?}, \
-                            channels=2, rate={}, bps = {}, to {}",
-            streaming_ctx.dlna_audio_string(),
-            streaming_ctx.sample_format,
-            streaming_ctx.sample_rate,
-            streaming_ctx.bits_per_sample,
-            streaming_ctx.remote_addr
+        &fl!(
+            "srv-streaming-info",
+            "audio" = streaming_ctx.dlna_audio_string(),
+            "fmt" = format!("{:?}", streaming_ctx.sample_format),
+            "rate" = streaming_ctx.sample_rate,
+            "bps" = streaming_ctx.bits_per_sample,
+            "addr" = &streaming_ctx.remote_addr,
         ),
     );
     let response = Response::new(
@@ -216,10 +212,7 @@ fn streaming_request(
     if e.is_err() {
         ui_log(
             LogCategory::Error,
-            &format!(
-                "=>Http connection with {} terminated [{e:?}]",
-                streaming_ctx.remote_addr
-            ),
+            &fl!("srv-http-terminated", "addr" = &streaming_ctx.remote_addr, "error" = format!("{e:?}")),
         );
     }
     let nclients = {
@@ -241,13 +234,13 @@ fn streaming_request(
         .unwrap_or_else(|e| {
             ui_log(
                 LogCategory::Error,
-                &format!("HTTP Server: error writing feedback channel {e}"),
+                &fl!("srv-feedback-error", "error" = e.to_string()),
             );
             panic!("Http server feedback channel error:{e}");
         });
     ui_log(
         LogCategory::Info,
-        &format!("Streaming to {} has ended", streaming_ctx.remote_addr),
+        &fl!("srv-streaming-ended", "addr" = &streaming_ctx.remote_addr),
     );
 }
 
@@ -267,10 +260,7 @@ fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
-            &format!(
-                "=>Http HEAD connection with {} terminated [{e}]",
-                streaming_ctx.remote_addr
-            ),
+            &fl!("srv-head-terminated", "addr" = &streaming_ctx.remote_addr, "error" = e.to_string()),
         );
     }
 }
@@ -279,11 +269,7 @@ fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
 fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     ui_log(
         LogCategory::Error,
-        &format!(
-            "Unsupported HTTP method request {:?} from {}",
-            *rq.method(),
-            streaming_ctx.remote_addr
-        ),
+        &fl!("srv-unsupported-method", "method" = format!("{:?}", *rq.method()), "addr" = &streaming_ctx.remote_addr),
     );
     let headers = get_std_headers();
     let response = Response::new(
@@ -296,10 +282,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
-            &format!(
-                "=>Http connection with {} terminated [{e}]",
-                streaming_ctx.remote_addr
-            ),
+            &fl!("srv-http-terminated", "addr" = &streaming_ctx.remote_addr, "error" = e.to_string()),
         );
     }
 }
@@ -308,11 +291,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
 fn bad_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     ui_log(
         LogCategory::Warning,
-        &format!(
-            "Unrecognized request '{}' from '{}'",
-            rq.url(),
-            streaming_ctx.remote_addr
-        ),
+        &fl!("srv-bad-request", "url" = rq.url(), "addr" = &streaming_ctx.remote_addr),
     );
     let headers = get_std_headers();
     let response = Response::new(
@@ -325,10 +304,7 @@ fn bad_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
-            &format!(
-                "=>Http streaming request with {} terminated [{e}]",
-                streaming_ctx.remote_addr
-            ),
+            &fl!("srv-stream-terminated", "addr" = &streaming_ctx.remote_addr, "error" = e.to_string()),
         );
     }
 }

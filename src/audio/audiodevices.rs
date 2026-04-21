@@ -7,6 +7,7 @@
 use crate::{
     audio::rwstream::AudioSamples,
     enums::messages::MessageType,
+    fl,
     globals::statics::{RUN_RMS_MONITOR, get_clients, get_config, get_msgchannel},
     utils::ui_logger::{LogCategory, ui_log},
 };
@@ -243,16 +244,19 @@ pub fn capture_output_audio(
     let device = device_wrap.as_ref();
     ui_log(
         LogCategory::Info,
-        &format!(
-            "Capturing audio from: {}",
-            get_device_name(device).expect("Could not get default audio device name")
+        &fl!(
+            "audio-capturing-from",
+            "name" = get_device_name(device).expect("Could not get default audio device name")
         ),
     );
     let audio_cfg = device_wrap
         .kind
         .default_config_any()
         .expect("No default stream config found");
-    ui_log(LogCategory::Info, &format!("Default audio {audio_cfg:?}"));
+    ui_log(
+        LogCategory::Info,
+        &fl!("audio-default-config", "cfg" = format!("{audio_cfg:?}")),
+    );
     let mut f32_samples: Vec<f32> = Vec::with_capacity(16384);
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
@@ -262,13 +266,16 @@ pub fn capture_output_audio(
             None,
         ) {
             Ok(stream) => {
-                ui_log(LogCategory::Info, "Audio capture sample format = F32");
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("audio-capture-format", "fmt" = "F32"),
+                );
                 Some(stream)
             }
             Err(e) => {
                 ui_log(
                     LogCategory::Error,
-                    &format!("Error capturing f32 audio stream: {e}"),
+                    &fl!("err-capture-format-stream", "fmt" = "f32", "error" = e.to_string()),
                 );
                 None
             }
@@ -281,13 +288,16 @@ pub fn capture_output_audio(
                 None,
             ) {
                 Ok(stream) => {
-                    ui_log(LogCategory::Info, "Audio capture sample format = I16");
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!("audio-capture-format", "fmt" = "I16"),
+                    );
                     Some(stream)
                 }
                 Err(e) => {
                     ui_log(
                         LogCategory::Error,
-                        &format!("Error capturing i16 audio stream: {e}"),
+                        &fl!("err-capture-format-stream", "fmt" = "i16", "error" = e.to_string()),
                     );
                     None
                 }
@@ -301,13 +311,16 @@ pub fn capture_output_audio(
                 None,
             ) {
                 Ok(stream) => {
-                    ui_log(LogCategory::Info, "Audio capture sample format = U16");
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!("audio-capture-format", "fmt" = "U16"),
+                    );
                     Some(stream)
                 }
                 Err(e) => {
                     ui_log(
                         LogCategory::Error,
-                        &format!("Error capturing u16 audio stream: {e}"),
+                        &fl!("err-capture-format-stream", "fmt" = "u16", "error" = e.to_string()),
                     );
                     None
                 }
@@ -321,13 +334,16 @@ pub fn capture_output_audio(
                 None,
             ) {
                 Ok(stream) => {
-                    ui_log(LogCategory::Info, "Audio capture sample format = I32");
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!("audio-capture-format", "fmt" = "I32"),
+                    );
                     Some(stream)
                 }
                 Err(e) => {
                     ui_log(
                         LogCategory::Error,
-                        &format!("Error capturing i32 audio stream: {e}"),
+                        &fl!("err-capture-format-stream", "fmt" = "i32", "error" = e.to_string()),
                     );
                     None
                 }
@@ -341,7 +357,7 @@ pub fn capture_output_audio(
 fn capture_err_fn(err: cpal::Error) {
     ui_log(
         LogCategory::Error,
-        &format!("Error {err} capturing audio input stream"),
+        &fl!("err-capture-stream", "error" = err.to_string()),
     );
     if err.kind() == cpal::ErrorKind::DeviceNotAvailable {
         get_msgchannel()
@@ -353,7 +369,7 @@ fn capture_err_fn(err: cpal::Error) {
 
 /// helper functions for generic and specialized wave reader
 fn capture_started() {
-    ui_log(LogCategory::Info, "Audio capture is now receiving samples.");
+    ui_log(LogCategory::Info, &fl!("audio-capture-receiving"));
     if get_config().monitor_rms {
         RUN_RMS_MONITOR.store(true, Ordering::Relaxed);
     }

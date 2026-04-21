@@ -3,7 +3,7 @@
 //! [`raise_priority`] bumps the process scheduling priority on Windows (ABOVE_NORMAL)
 //! and Linux (nice -10) to reduce audio capture stuttering under CPU load.
 
-use crate::utils::ui_logger::{LogCategory, ui_log};
+use crate::{fl, utils::ui_logger::{LogCategory, ui_log}};
 
 #[cfg(target_os = "windows")]
 pub fn raise_priority() {
@@ -12,14 +12,11 @@ pub fn raise_priority() {
     if rc.is_err() {
         ui_log(
             LogCategory::Error,
-            &format!("Failed to set process priority to ABOVE_NORMAL, error={rc:?}"),
+            &fl!("err-priority-windows", "error" = format!("{rc:?}")),
         );
         return;
     }
-    ui_log(
-        LogCategory::Info,
-        "Now running at ABOVE_NORMAL_PRIORITY_CLASS",
-    );
+    ui_log(LogCategory::Info, &fl!("priority-above-normal"));
 }
 
 #[cfg(target_os = "linux")]
@@ -32,12 +29,9 @@ pub fn raise_priority() {
         && pri >= 0
     {
         if setpriority_process(None, -10).is_err() {
-            ui_log(
-                LogCategory::Warning,
-                "Sorry, but you don't have permissions to raise priority...",
-            );
+            ui_log(LogCategory::Warning, &fl!("err-priority-linux"));
         } else {
-            ui_log(LogCategory::Info, "Now running at nice value -10");
+            ui_log(LogCategory::Info, &fl!("priority-nice"));
         }
     }
 }

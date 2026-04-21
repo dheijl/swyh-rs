@@ -49,6 +49,44 @@ warn-audio-changed = Audio source changed to { $name }, restart required!!
 warn-ssdp-changed = SSDP interval changed to { $interval } minutes, restart required!!
 warn-log-changed = Log level changed to { $level }, restart required!!
 
+# Audio capture
+audio-capturing-from = Capturing audio from: { $name }
+audio-default-config = Default audio { $cfg }
+audio-capture-format = Audio capture sample format = { $fmt }
+err-capture-format-stream = Error capturing { $fmt } audio stream: { $error }
+err-capture-stream = Error { $error } capturing audio input stream
+audio-capture-receiving = Audio capture is now receiving samples.
+
+# FLAC encoder
+err-flac-already-running = Flac encoder already running!
+err-flac-cant-start = Can't start FLAC encoder
+err-flac-start-error = Flac encoder start error { $error }
+flac-encoder-end = Flac encoder thread: end.
+flac-encoder-silence-end = Flac encoder thread (injecting near silence): end.
+flac-encoder-exit = Flac encoder thread exit.
+err-flac-spawn = Failed to spawn Flac encoder thread: { $error }.
+
+# Silence injection
+err-inject-silence-stream = Inject silence: an error occurred on the output audio stream: { $error }
+err-inject-silence-format = Inject silence: Unsupported sample format: { $format }
+err-inject-silence-play = Unable to play inject silence stream.
+err-inject-silence-build = Unable to build inject silence stream: { $error }
+
+# SSDP discovery errors
+err-ssdp-no-network = SSDP: no active network in config.
+err-ssdp-parse-ip = SSDP: Unable to parse local ip address.
+err-ssdp-bind = SSDP: Unable to bind to socket.
+err-ssdp-broadcast = SSDP: Unable to set socket to broadcast.
+err-ssdp-ttl = SSDP: Unable to set DEFAULT_SEARCH_TTL on socket.
+err-ssdp-oh-send = SSDP: unable to send OpenHome discover message
+err-ssdp-av-send = SSDP: unable to send AV Transport discover message
+
+# Process priority
+priority-nice = Now running at nice value -10
+priority-above-normal = Now running at ABOVE_NORMAL_PRIORITY_CLASS
+err-priority-windows = Failed to set process priority to ABOVE_NORMAL, error={ $error }
+err-priority-linux = Sorry, but you don't have permissions to raise priority...
+
 # Error messages
 err-no-audio-device = No default audio device found!
 err-no-sound-source = No sound source in config!
@@ -81,3 +119,18 @@ cli-received-ctrlc = Received ^C -> exiting.
 cli-ctrlc-stopping = ^C: Stopping streaming to { $name }
 cli-ctrlc-no-connections = ^C: No HTTP streaming connections active
 cli-ctrlc-timeout = ^C: Time-out waiting for HTTP streaming shutdown - exiting.
+
+# Streaming server messages
+srv-listening = The streaming server is listening on http://{ $addr }/stream/swyh.wav
+srv-default-streaming = Default streaming sample rate: { $rate }, bits per sample: { $bps }, format: { $format }
+srv-start-error = Error starting server thread: { $error }
+srv-thread-error = Server thread ended with error { $error }
+srv-streaming-request = Streaming request { $url } from { $addr }
+srv-feedback-error = HTTP Server: error writing feedback channel { $error }
+srv-streaming-info = Streaming { $audio }, input sample format { $fmt }, channels=2, rate={ $rate }, bps = { $bps }, to { $addr }
+srv-http-terminated = =>Http connection with { $addr } terminated [{ $error }]
+srv-streaming-ended = Streaming to { $addr } has ended
+srv-head-terminated = =>Http HEAD connection with { $addr } terminated [{ $error }]
+srv-unsupported-method = Unsupported HTTP method request { $method } from { $addr }
+srv-bad-request = Unrecognized request '{ $url }' from '{ $addr }'
+srv-stream-terminated = =>Http streaming request with { $addr } terminated [{ $error }]

@@ -26,6 +26,7 @@ use crate::{
         samples_conv::{f32_to_i32, samples_to_i32},
     },
     enums::streaming::BitDepth,
+    fl,
     globals::statics::THREAD_STACK,
     utils::ui_logger::{LogCategory, ui_log},
 };
@@ -99,8 +100,8 @@ impl FlacChannel {
     pub(crate) fn run(&self) {
         // copy instance data for thread
         if self.active.load(Acquire) {
-            let msg = "Flac encoder already running!";
-            ui_log(LogCategory::Error, msg);
+            let msg = fl!("err-flac-already-running");
+            ui_log(LogCategory::Error, &msg);
             panic!("{msg}");
         }
         let samples_rdr = self.samples_rcvr.clone();
@@ -119,8 +120,8 @@ impl FlacChannel {
                 let mut outw = WriteWrapper(&mut writer);
                 let mut enc = FlacEncoder::new()
                     .unwrap_or_else(|| {
-                        let msg = "Can't start FLAC encoder";
-                        ui_log(LogCategory::Error, msg);
+                        let msg = fl!("err-flac-cant-start");
+                        ui_log(LogCategory::Error, &msg);
                         panic!("{msg}");
                     })
                     .channels(ch)
@@ -130,7 +131,7 @@ impl FlacChannel {
                     .set_limit_min_bitrate(true)
                     .init_write(&mut outw)
                     .unwrap_or_else(|e| {
-                        let msg = format!("Flac encoder start error {e:?}");
+                        let msg = fl!("err-flac-start-error", "error" = format!("{e:?}"));
                         ui_log(LogCategory::Error, &msg);
                         panic!("{msg}");
                     });
@@ -156,7 +157,7 @@ impl FlacChannel {
                             )
                             .is_err()
                         {
-                            ui_log(LogCategory::Warning, "Flac encoder thread: end.");
+                            ui_log(LogCategory::Warning, &fl!("flac-encoder-end"));
                             break;
                         }
                     } else if l_active.load(Acquire) {
@@ -167,19 +168,16 @@ impl FlacChannel {
                             .process_interleaved(&noise_buf, (noise_buf.len() / ch as usize) as u32)
                             .is_err()
                         {
-                            ui_log(
-                                LogCategory::Warning,
-                                "Flac encoder thread (injecting near silence): end.",
-                            );
+                            ui_log(LogCategory::Warning, &fl!("flac-encoder-silence-end"));
                             break;
                         }
                     }
                 }
                 let _ = enc.finish(); // thread stopped, for whatever reason
-                ui_log(LogCategory::Info, "Flac encoder thread exit.");
+                ui_log(LogCategory::Info, &fl!("flac-encoder-exit"));
             })
             .unwrap_or_else(|e| {
-                let msg = format!("Failed to spawn Flac encoder thread: {e:?}.");
+                let msg = fl!("err-flac-spawn", "error" = format!("{e:?}"));
                 ui_log(LogCategory::Error, &msg);
                 panic!("{msg}");
             });

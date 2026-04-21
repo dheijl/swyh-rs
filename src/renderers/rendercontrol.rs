@@ -7,6 +7,7 @@
 
 use crate::{
     enums::streaming::{BitDepth, StreamingFormat},
+    fl,
     globals::statics::{APP_VERSION, SERVER_PORT, get_config},
     utils::ui_logger::{LogCategory, ui_log},
 };
@@ -931,37 +932,28 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
     let ip = if let Some(s) = get_config().last_network.clone() {
         s
     } else {
-        ui_log(LogCategory::Error, "SSDP: no active network in config.");
+        ui_log(LogCategory::Error, &fl!("err-ssdp-no-network"));
         return None;
     };
     info!("running SSDP on {ip}");
     let local_addr: IpAddr = if let Ok(addr) = ip.parse() {
         addr
     } else {
-        ui_log(
-            LogCategory::Error,
-            "SSDP: Unable to parse local ip address.",
-        );
+        ui_log(LogCategory::Error, &fl!("err-ssdp-parse-ip"));
         return None;
     };
     let bind_addr = SocketAddr::new(local_addr, 0);
     let socket = if let Ok(s) = UdpSocket::bind(bind_addr) {
         s
     } else {
-        ui_log(LogCategory::Error, "SSDP: Unable to bind to socket.");
+        ui_log(LogCategory::Error, &fl!("err-ssdp-bind"));
         return None;
     };
     if socket.set_broadcast(true).is_err() {
-        ui_log(
-            LogCategory::Error,
-            "SSDP:  Unable to set socket to broadcast.",
-        )
+        ui_log(LogCategory::Error, &fl!("err-ssdp-broadcast"));
     }
     if socket.set_multicast_ttl_v4(DEFAULT_SEARCH_TTL).is_err() {
-        ui_log(
-            LogCategory::Error,
-            "SSDP: Unable to set DEFAULT_SEARCH_TTL on socket.",
-        );
+        ui_log(LogCategory::Error, &fl!("err-ssdp-ttl"));
     }
     // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
     let mut oh_devices: Vec<(String, SocketAddr)> = Vec::new();
@@ -971,17 +963,11 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
     let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", OH_DEVICE);
     if socket.send_to(msg.as_bytes(), broadcast_address).is_err() {
-        ui_log(
-            LogCategory::Error,
-            "SSDP: unable to send OpenHome discover message",
-        );
+        ui_log(LogCategory::Error, &fl!("err-ssdp-oh-send"));
     }
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", AV_DEVICE);
     if socket.send_to(msg.as_bytes(), broadcast_address).is_err() {
-        ui_log(
-            LogCategory::Error,
-            "SSDP: unable to send AV Transport discover message",
-        );
+        ui_log(LogCategory::Error, &fl!("err-ssdp-av-send"));
     }
     // collect the responses and remeber all new renderers
     let start = Instant::now();

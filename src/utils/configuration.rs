@@ -26,6 +26,9 @@ impl CfgDefaults {
     fn autoreconnect() -> bool {
         false
     }
+    fn language() -> String {
+        "en-US".to_string()
+    }
     fn log_level() -> LevelFilter {
         LevelFilter::Info
     }
@@ -115,6 +118,8 @@ pub struct Configuration {
     pub read_only: bool,
     #[serde(alias = "ColorTheme", default)]
     pub color_theme: Option<u8>,
+    #[serde(alias = "Language", default = "CfgDefaults::language")]
+    pub language: String,
 }
 
 impl Default for Configuration {
@@ -154,6 +159,7 @@ impl Configuration {
             config_id: Some(Self::get_config_id()),
             read_only: false,
             color_theme: None,
+            language: "en-US".to_string(),
         }
     }
 

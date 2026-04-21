@@ -10,6 +10,7 @@ use crate::{
         StreamSize,
         StreamingFormat::{self},
     },
+    fl,
     globals::statics::{
         NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers,
         get_renderers_mut,
@@ -38,7 +39,7 @@ use log::{LevelFilter, debug, info};
 use fltk_theme::{ColorMap, ColorTheme, color_themes};
 
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     net::IpAddr,
     rc::Rc,
     str::FromStr,
@@ -121,7 +122,7 @@ impl MainForm {
         app::background(247, 247, 247);
         let mut wind = DoubleWindow::default()
             .with_size(WW, WH)
-            .with_label(&format!("swyh-rs UPNP/DLNA streaming V{app_version}"));
+            .with_label(&fl!("window-title", "version" = app_version));
 
         wind.make_resizable(true);
         wind.size_range(WW, WH * 2 / 3, 0, 0);
@@ -135,8 +136,13 @@ impl MainForm {
         wind.end();
         wind.show();
 
+        // Shared reference to the renderer-list header frame, used in the right-click handler
+        // below to identify the frame by widget identity rather than by label content.
+        let renderer_header: Rc<RefCell<Option<Frame>>> = Rc::new(RefCell::new(None));
+
         wind.handle({
             let config_changed = config_changed.clone();
+            let renderer_header = renderer_header.clone();
             move |_, _ev| {
                 // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called
                 // debug!("_ev = {:?}, app_event = {:?}", _ev, app::event());
@@ -166,14 +172,19 @@ impl MainForm {
                                         return true;
                                     }
                                 }
-                            } else if let Some(frame) = app::belowmouse::<Frame>()
-                                && frame.label().contains("UPNP rendering devices on network")
-                            {
-                                let mut config = get_config_mut();
-                                config.hidden_renderers.clear();
-                                let _ = config.update_config();
-                                config_changed.set(true);
-                                return true;
+                            } else if let Some(frame) = app::belowmouse::<Frame>() {
+                                let is_renderer_header = renderer_header
+                                    .borrow()
+                                    .as_ref()
+                                    .map(|hf| *hf == frame)
+                                    .unwrap_or(false);
+                                if is_renderer_header {
+                                    let mut config = get_config_mut();
+                                    config.hidden_renderers.clear();
+                                    let _ = config.update_config();
+                                    config_changed.set(true);
+                                    return true;
+                                }
                             }
                         }
                         false
@@ -195,7 +206,7 @@ impl MainForm {
         flx_title.end();
         let mut opt_frame = Frame::new(0, 0, 0, 25, "").with_align(Align::Center);
         opt_frame.set_frame(FrameType::BorderBox);
-        opt_frame.set_label("Configuration Options");
+        opt_frame.set_label(&fl!("config-options"));
         opt_frame.set_color(title_color);
         flx_title.add(&opt_frame);
         vpack.add(&flx_title);
@@ -205,13 +216,13 @@ impl MainForm {
         // Theme
         let cur_theme = if let Some(theme) = config.color_theme {
             let name = Self::apply_theme(theme.into());
-            &("Color Theme: ".to_string() + name)
+            fl!("color-theme-label", "name" = name)
         } else {
-            "Choose Color Theme"
+            fl!("choose-color-theme")
         };
         let mut ptheme = Pack::new(0, 0, GW, 25, "");
         ptheme.end();
-        let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(cur_theme);
+        let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_theme);
         theme_button.add_choice(&THEMES.join("|"));
         let rlock = AtomicBool::new(false);
         theme_button.set_callback(move |b| {
@@ -223,8 +234,7 @@ impl MainForm {
             }
             let name = Self::apply_theme(b.value() as usize);
             debug!("New theme = {name}");
-            let cur_theme = "Color theme: ".to_string() + name;
-            b.set_label(&cur_theme);
+            b.set_label(&fl!("color-theme-label", "name" = name));
             {
                 let mut conf = get_config_mut();
                 conf.color_theme = Some(b.value() as u8);
@@ -240,9 +250,9 @@ impl MainForm {
         flx_netwrk.end();
         let cur_nw = {
             if let Some(nw) = &config.last_network {
-                format!("Active network: {nw}")
+                fl!("active-network", "addr" = nw)
             } else {
-                format!("Active network: {local_addr}")
+                fl!("active-network", "addr" = local_addr)
             }
         };
         let mut choose_network_but = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_nw);
@@ -263,14 +273,14 @@ impl MainForm {
                 let name = &networks[(b.value() as usize).clamp(0, networks.len() - 1)];
                 ui_log(
                     LogCategory::Info,
-                    &format!("Network changed to {name}, restart required!!"),
+                    &fl!("warn-network-changed", "name" = name),
                 );
                 {
                     let mut conf = get_config_mut();
                     conf.last_network = Some(name.to_string());
                     let _ = conf.update_config();
                 }
-                b.set_label(&format!("New Network: {name}"));
+                b.set_label(&fl!("new-network-label", "name" = name));
                 config_changed.set(true);
                 rlock.store(false, Ordering::Release);
             }
@@ -281,8 +291,8 @@ impl MainForm {
         // setup audio source choice
         let mut flx_ausrc = Flex::new(0, 0, GW, 25, "");
         flx_ausrc.end();
-        let cur_audio_src = format!("Audio Source: {}", config.sound_source.as_ref().unwrap());
-        ui_log(LogCategory::Info, "Setup audio sources");
+        let cur_audio_src = fl!("audio-source-label", "name" = config.sound_source.as_ref().unwrap());
+        ui_log(LogCategory::Info, &fl!("status-setup-audio"));
         let mut choose_audio_source_but =
             MenuButton::new(0, 0, 0, 25, None).with_label(&cur_audio_src);
         for name in audio_sources {
@@ -302,9 +312,9 @@ impl MainForm {
                 let name = &audio_sources[(b.value() as usize).clamp(0, audio_sources.len() - 1)];
                 ui_log(
                     LogCategory::Info,
-                    &format!("Audio source changed to {name}, restart required!!"),
+                    &fl!("warn-audio-changed", "name" = name),
                 );
-                b.set_label(&format!("New Audio Source: {name}",));
+                b.set_label(&fl!("new-audio-source-label", "name" = name));
                 {
                     let mut conf = get_config_mut();
                     conf.sound_source = Some(name.to_string());
@@ -325,7 +335,8 @@ impl MainForm {
         flx_options.end();
 
         // auto_resume button for AVTransport autoresume play
-        let mut auto_resume = CheckButton::new(0, 0, 0, 0, "Autoresume play");
+        let auto_resume_lbl = fl!("chk-autoresume");
+        let mut auto_resume = CheckButton::new(0, 0, 0, 0, auto_resume_lbl.as_str());
         if config.auto_resume {
             auto_resume.set(true);
         }
@@ -337,7 +348,8 @@ impl MainForm {
         flx_options.add(&auto_resume);
 
         // AutoReconnect to last renderer on startup button
-        let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, "Autoreconnect");
+        let auto_reconnect_lbl = fl!("chk-autoreconnect");
+        let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, auto_reconnect_lbl.as_str());
         if config.auto_reconnect {
             auto_reconnect.set(true);
         }
@@ -349,7 +361,8 @@ impl MainForm {
         flx_options.add(&auto_reconnect);
 
         // SSDP interval counter
-        let mut ssdp_interval = Counter::new(0, 0, 0, 0, "SSDP Interval (in minutes)");
+        let ssdp_interval_lbl = fl!("ssdp-interval-label");
+        let mut ssdp_interval = Counter::new(0, 0, 0, 0, ssdp_interval_lbl.as_str());
         ssdp_interval.set_value(config.ssdp_interval_mins);
         ssdp_interval.handle({
             let config_changed = config_changed.clone();
@@ -373,9 +386,10 @@ impl MainForm {
                             }
                         }
                         if ssdp_interval_mins >= 0.0 {
-                            ui_log(LogCategory::Warning,&format!(
-                                "SSDP interval changed to {ssdp_interval_mins} minutes, restart required!!"
-                            ));
+                            ui_log(
+                                LogCategory::Warning,
+                                &fl!("warn-ssdp-changed", "interval" = ssdp_interval_mins),
+                            );
                             config_changed.set(true);
                         }
                         true
@@ -387,7 +401,7 @@ impl MainForm {
         flx_options.add(&ssdp_interval);
 
         // show log level choice
-        let ll = format!("Log Level: {}", config.log_level);
+        let ll = fl!("log-level-label", "level" = config.log_level);
         let mut log_level_choice = MenuButton::default().with_label(&ll);
         let log_levels = ["Info", "Debug"];
         for ll in &log_levels {
@@ -408,7 +422,7 @@ impl MainForm {
                 let level = log_levels[b.value() as usize];
                 ui_log(
                     LogCategory::Warning,
-                    &format!("Log level changed to {level}, restart required!!"),
+                    &fl!("warn-log-changed", "level" = level),
                 );
                 let loglevel = level.parse().unwrap_or(LevelFilter::Info);
                 {
@@ -417,8 +431,7 @@ impl MainForm {
                     let _ = conf.update_config();
                 }
                 config_changed.set(true);
-                let ll = format!("Log Level: {loglevel}");
-                b.set_label(&ll);
+                b.set_label(&fl!("log-level-label", "level" = loglevel));
                 rlock.store(false, Ordering::Release);
             }
         });
@@ -438,9 +451,9 @@ impl MainForm {
 
         // streaming format
         let fmt = if let Some(format) = config.streaming_format {
-            format!("FMT: {format}")
+            fl!("fmt-label", "format" = format)
         } else {
-            "FMT: lpcm".to_string()
+            fl!("fmt-label", "format" = "lpcm")
         };
         let mut fmt_choice = MenuButton::default().with_label(&fmt);
         let formats = vec![
@@ -466,7 +479,7 @@ impl MainForm {
                 let format = formats[b.value() as usize].clone();
                 ui_log(
                     LogCategory::Info,
-                    &format!("Current streaming Format changed to {format}"),
+                    &fl!("info-format-changed", "format" = &format),
                 );
                 let newformat = StreamingFormat::from_str(&format).unwrap();
                 {
@@ -474,15 +487,15 @@ impl MainForm {
                     conf.streaming_format = Some(newformat);
                     let _ = conf.update_config();
                 }
-                let fmt = format!("FMT: {format}");
-                b.set_label(&fmt);
+                b.set_label(&fl!("fmt-label", "format" = &format));
                 rlock.store(false, Ordering::Release);
             }
         });
         flx_options2.add(&fmt_choice);
 
         // checkbutton to select 24 bit samples instead of the 16 bit default
-        let mut b24_bit = CheckButton::new(0, 0, 0, 0, "24 bit");
+        let b24_bit_lbl = fl!("chk-24bit");
+        let mut b24_bit = CheckButton::new(0, 0, 0, 0, b24_bit_lbl.as_str());
         if config.bits_per_sample.unwrap_or(16) == 24 {
             b24_bit.set(true);
         }
@@ -499,7 +512,8 @@ impl MainForm {
         });
         flx_options2.add(&b24_bit);
         // HTTP server listen port
-        let mut listen_port = IntInput::new(0, 0, 0, 0, "HTTP Port:");
+        let http_port_lbl = fl!("http-port-label");
+        let mut listen_port = IntInput::new(0, 0, 0, 0, http_port_lbl.as_str());
         listen_port.set_value(&get_config().server_port.unwrap_or_default().to_string());
         listen_port.set_maximum_size(5);
         listen_port.set_callback({
@@ -522,7 +536,8 @@ impl MainForm {
         flx_options2.add(&listen_port);
         // inject continuous silence into audio stream checkbox
         // to prevent Sonos to disconnect if no audio is being captured
-        let mut inj_silence = CheckButton::new(0, 0, 0, 0, "Inject silence");
+        let inj_silence_lbl = fl!("chk-inject-silence");
+        let mut inj_silence = CheckButton::new(0, 0, 0, 0, inj_silence_lbl.as_str());
         if config.inject_silence.unwrap_or(false) {
             inj_silence.set(true);
         }
@@ -557,7 +572,7 @@ impl MainForm {
         } else {
             StreamSize::U64maxNotChunked
         };
-        let fmt = format!("StrmSize: {streamsize}");
+        let fmt = fl!("strmsize-label", "size" = streamsize);
         let mut ss_choice = MenuButton::default()
             .with_label(&fmt)
             .with_align(Align::Center | Align::Clip);
@@ -597,16 +612,15 @@ impl MainForm {
                 };
                 ui_log(
                     LogCategory::Info,
-                    &format!("StreamSize for {streaming_format} changed to {newsize}"),
+                    &fl!("info-streamsize-changed", "format" = streaming_format, "size" = &newsize),
                 );
-                let fmt = format!("StrmSize: {newsize}");
-                b.set_label(&fmt);
+                b.set_label(&fl!("strmsize-label", "size" = &newsize));
                 rlock.store(false, Ordering::Release);
             }
         });
         flx_options3.add(&ss_choice);
 
-        let label_ms = Frame::default().with_label("                      Initial buffer (msec): ");
+        let label_ms = Frame::default().with_label(&fl!("buffer-label"));
         flx_options3.add(&label_ms);
         let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
         upfront_buffer_ms.set_maximum_size(5);
@@ -642,7 +656,8 @@ impl MainForm {
         flx_options4.set_type(FlexType::Row);
         flx_options4.end();
         // RMS animation enable checkbox
-        let mut show_rms = CheckButton::new(0, 0, 0, 0, "RMS Monitor");
+        let show_rms_lbl = fl!("chk-rms-monitor");
+        let mut show_rms = CheckButton::new(0, 0, 0, 0, show_rms_lbl.as_str());
         if config.monitor_rms {
             show_rms.set(true);
         }
@@ -693,7 +708,7 @@ impl MainForm {
         let mut flx_restart = Flex::new(0, 0, GW, 25, "");
         flx_restart.end();
         let mut restartbutton =
-            Button::default().with_label("Press to apply configuration changes");
+            Button::default().with_label(&fl!("btn-apply-config"));
         restartbutton.set_label_color(Color::Red);
         restartbutton.set_callback(|_| {
             std::process::Command::new(std::env::current_exe().unwrap().into_os_string())
@@ -710,10 +725,12 @@ impl MainForm {
         flx_buttons.end();
         let mut frame = Frame::new(0, 0, FW, 25, "").with_align(Align::Center);
         frame.set_frame(FrameType::BorderBox);
-        frame.set_label(&format!("UPNP rendering devices on network {local_addr}"));
+        frame.set_label(&fl!("upnp-devices", "addr" = local_addr));
         frame.set_color(title_color);
         flx_buttons.add(&frame);
         vpack.add(&flx_buttons);
+        // Store the frame reference so the right-click handler can identify it by identity
+        *renderer_header.borrow_mut() = Some(frame.clone());
 
         // ssdp discovered renderer buttons go here
         let btn_insert_index = vpack.children();

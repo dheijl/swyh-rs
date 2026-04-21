@@ -92,7 +92,7 @@ fn main() -> Result<(), i32> {
         conf.clone()
     };
     // initialize i18n before any user-facing string is produced
-    i18n::init(&config.language);
+    i18n::init(&config.language.clone().unwrap_or("en-US".to_string()));
     if let Some(config_id) = &config.config_id
         && !config_id.is_empty()
     {
@@ -170,16 +170,29 @@ fn main() -> Result<(), i32> {
         config.sound_source_index = Some(ss_index);
         for (index, adev) in audio_devices.into_iter().enumerate() {
             let devname = adev.name().to_owned();
-            ui_log(LogCategory::Info, &fl!("cli-found-audio-source", "index" = index, "name" = &devname));
+            ui_log(
+                LogCategory::Info,
+                &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
+            );
             if index == ss_index as usize {
                 audio_output_device_opt = Some(adev);
                 config.sound_source = Some(devname.clone());
-                ui_log(LogCategory::Info, &fl!("cli-selected-audio-source-idx", "name" = &devname, "index" = index));
+                ui_log(
+                    LogCategory::Info,
+                    &fl!(
+                        "cli-selected-audio-source-idx",
+                        "name" = &devname,
+                        "index" = index
+                    ),
+                );
             } else {
                 let config_sound_source = config.sound_source.clone().unwrap_or_default();
                 if devname == config_sound_source {
                     audio_output_device_opt = Some(adev);
-                    ui_log(LogCategory::Info, &fl!("cli-selected-audio-source", "name" = &devname));
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!("cli-selected-audio-source", "name" = &devname),
+                    );
                 }
             }
         }
@@ -194,15 +207,28 @@ fn main() -> Result<(), i32> {
         if duppos.is_empty() {
             for (index, adev) in audio_devices.into_iter().enumerate() {
                 let devname = adev.name().to_owned();
-                ui_log(LogCategory::Info, &fl!("cli-found-audio-source", "index" = index, "name" = &devname));
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
+                );
                 if devname.to_uppercase().contains(&ss_name.to_uppercase()) {
                     audio_output_device_opt = Some(adev);
                     config.sound_source = Some(devname.clone());
                     config.sound_source_index = Some(index as i32);
-                    ui_log(LogCategory::Info, &fl!("cli-selected-audio-source-idx", "name" = &devname, "index" = index));
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!(
+                            "cli-selected-audio-source-idx",
+                            "name" = &devname,
+                            "index" = index
+                        ),
+                    );
                 } else if devname == *config.sound_source.as_ref().unwrap() {
                     audio_output_device_opt = Some(adev);
-                    ui_log(LogCategory::Info, &fl!("cli-selected-audio-source", "name" = &devname));
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!("cli-selected-audio-source", "name" = &devname),
+                    );
                 }
             }
         } else if let Ok(pos) = duppos.parse::<usize>() {
@@ -217,7 +243,14 @@ fn main() -> Result<(), i32> {
                     audio_output_device_opt = Some(dev.1);
                     config.sound_source = Some(devname.clone());
                     config.sound_source_index = Some(dev.0 as i32);
-                    ui_log(LogCategory::Info, &fl!("cli-selected-audio-source-pos", "name" = &devname, "pos" = pos));
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!(
+                            "cli-selected-audio-source-pos",
+                            "name" = &devname,
+                            "pos" = pos
+                        ),
+                    );
                 }
             }
         }
@@ -379,7 +412,15 @@ fn main() -> Result<(), i32> {
             match msg {
                 MessageType::SsdpMessage(newr) => {
                     get_renderers_mut().push(*newr.clone());
-                    ui_log(LogCategory::Info, &fl!("cli-available-renderer", "n" = n, "name" = &newr.dev_name, "addr" = &newr.remote_addr));
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!(
+                            "cli-available-renderer",
+                            "n" = n,
+                            "name" = &newr.dev_name,
+                            "addr" = &newr.remote_addr
+                        ),
+                    );
                     n += 1;
                 }
                 MessageType::PlayerMessage(_) => (),
@@ -391,7 +432,14 @@ fn main() -> Result<(), i32> {
         if let Some(ref pl_ip) = args.player_ip
             && let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(pl_ip))
         {
-            ui_log(LogCategory::Info, &fl!("cli-default-renderer-ip", "ip" = pl_ip, "addr" = &r.remote_addr));
+            ui_log(
+                LogCategory::Info,
+                &fl!(
+                    "cli-default-renderer-ip",
+                    "ip" = pl_ip,
+                    "addr" = &r.remote_addr
+                ),
+            );
             args.player_ip = Some(r.remote_addr.clone());
         }
         if let Some(active_players) = &args.active_players {
@@ -399,7 +447,10 @@ fn main() -> Result<(), i32> {
             active_players.iter().for_each(|ap| {
                 if let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(ap)) {
                     ip_players.push(r.remote_addr.clone());
-                    ui_log(LogCategory::Info, &fl!("cli-active-renderer", "name" = ap, "addr" = &r.remote_addr));
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!("cli-active-renderer", "name" = ap, "addr" = &r.remote_addr),
+                    );
                 }
             });
             if !ip_players.is_empty() {
@@ -453,7 +504,10 @@ fn main() -> Result<(), i32> {
         if *last_renderer != def_player.remote_addr {
             config.last_renderer = Some(def_player.remote_addr.clone());
         }
-        ui_log(LogCategory::Info, &fl!("cli-default-player-ip", "ip" = &def_player.remote_addr));
+        ui_log(
+            LogCategory::Info,
+            &fl!("cli-default-player-ip", "ip" = &def_player.remote_addr),
+        );
     }
 
     // update config with new args
@@ -473,7 +527,10 @@ fn main() -> Result<(), i32> {
     let mut playing = Vec::new();
     if serve_only {
         let port = config.server_port.unwrap_or(SERVER_PORT);
-        ui_log(LogCategory::Info, &fl!("status-serving-started", "port" = port));
+        ui_log(
+            LogCategory::Info,
+            &fl!("status-serving-started", "port" = port),
+        );
     } else {
         for ip in config.active_renderers {
             if let Some(pl) = get_renderers()
@@ -488,7 +545,10 @@ fn main() -> Result<(), i32> {
                 }
                 let _ = player.play(&local_addr, streaminfo);
                 let pl_name = &player.dev_url;
-                ui_log(LogCategory::Info, &fl!("status-playing-to", "name" = pl_name));
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("status-playing-to", "name" = pl_name),
+                );
                 playing.push(player);
             }
         }
@@ -500,7 +560,14 @@ fn main() -> Result<(), i32> {
             match msg {
                 MessageType::SsdpMessage(newr) => {
                     if !serve_only {
-                        ui_log(LogCategory::Info, &fl!("status-new-renderer", "name" = &newr.dev_name, "addr" = &newr.remote_addr));
+                        ui_log(
+                            LogCategory::Info,
+                            &fl!(
+                                "status-new-renderer",
+                                "name" = &newr.dev_name,
+                                "addr" = &newr.remote_addr
+                            ),
+                        );
                         get_renderers_mut().push(*newr);
                     }
                 }

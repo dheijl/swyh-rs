@@ -17,6 +17,13 @@ static_loader! {
 
 static CURRENT_LANG: OnceLock<LanguageIdentifier> = OnceLock::new();
 
+/// Return all locale tags embedded at compile time (e.g. `["en-US", "nl-NL"]`).
+pub fn available_languages() -> Vec<String> {
+    let mut langs: Vec<String> = LOCALES.locales().map(|l| l.to_string()).collect();
+    langs.sort();
+    langs
+}
+
 /// Call once at startup (before any [`fl!`] invocations) to set the active locale.
 pub fn init(lang_tag: &str) {
     let lang: LanguageIdentifier = lang_tag

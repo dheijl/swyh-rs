@@ -99,9 +99,8 @@ fn main() {
         conf.clone()
     };
     // initialize i18n before any user-facing string is produced
-    i18n::init(&config.language);
-    let mut audio_output_device =
-        ad.unwrap_or_else(|| fatal_error(fl!("err-no-audio-device")));
+    i18n::init(&config.language.clone().unwrap_or("en-US".to_string()));
+    let mut audio_output_device = ad.unwrap_or_else(|| fatal_error(fl!("err-no-audio-device")));
 
     let config_changed: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
@@ -150,7 +149,10 @@ fn main() {
     if let Some(config_id) = &config.config_id
         && !config_id.is_empty()
     {
-        ui_log(LogCategory::Info, &fl!("status-loaded-config", "id" = config_id));
+        ui_log(
+            LogCategory::Info,
+            &fl!("status-loaded-config", "id" = config_id),
+        );
     }
     ui_log(LogCategory::Info, &format!("{config:?}"));
 
@@ -274,7 +276,10 @@ fn main() {
             .stack_size(THREAD_STACK)
             .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int));
         if let Err(e) = _jh {
-            ui_log(LogCategory::Error, &fl!("err-ssdp-spawn", "error" = format!("{e:?}")));
+            ui_log(
+                LogCategory::Error,
+                &fl!("err-ssdp-spawn", "error" = format!("{e:?}")),
+            );
         }
     } else {
         ui_log(LogCategory::Info, &fl!("status-ssdp-interval-zero"));
@@ -291,7 +296,10 @@ fn main() {
             run_rms_monitor(wd, &rms_receiver, mon_l, mon_r);
         });
     if let Err(e) = _jh {
-        ui_log(LogCategory::Error, &fl!("err-rms-spawn", "error" = format!("{e:?}")));
+        ui_log(
+            LogCategory::Error,
+            &fl!("err-rms-spawn", "error" = format!("{e:?}")),
+        );
     }
 
     // finally start a webserver on the local address,
@@ -304,7 +312,10 @@ fn main() {
             run_server(&local_addr, server_port, wd, &feedback_tx);
         });
     if let Err(e) = _jh {
-        ui_log(LogCategory::Error, &fl!("err-server-spawn", "error" = format!("{e:?}")));
+        ui_log(
+            LogCategory::Error,
+            &fl!("err-server-spawn", "error" = format!("{e:?}")),
+        );
     }
     // give the webserver a chance to start
     thread::yield_now();
@@ -434,7 +445,10 @@ fn main() {
         if let Some(button) = renderer.rend_ui.button.as_ref()
             && button.is_set()
         {
-            ui_log(LogCategory::Info, &fl!("status-shutting-down", "name" = &renderer.dev_name));
+            ui_log(
+                LogCategory::Info,
+                &fl!("status-shutting-down", "name" = &renderer.dev_name),
+            );
             app::redraw();
             active_players.push(renderer.remote_addr.clone());
             renderer.stop_play();

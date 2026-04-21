@@ -16,7 +16,7 @@ use crate::{
         get_renderers_mut,
     },
     renderers::rendercontrol::{Renderer, StreamInfo, WavData},
-    utils::{configuration::Configuration, traits::FwSlashPipeEscape, ui_logger::*},
+    utils::{configuration::Configuration, i18n, traits::FwSlashPipeEscape, ui_logger::*},
 };
 use fltk::{
     app,
@@ -213,15 +213,56 @@ impl MainForm {
 
         // show config option widgets
 
-        // Theme
+        // Language + Theme row
+        let mut fl_lng_thm = Flex::new(0, 0, GW, 25, "");
+        fl_lng_thm.set_spacing(10);
+        fl_lng_thm.set_type(FlexType::Row);
+        fl_lng_thm.end();
+
+        // Language chooser
+        let available_langs = i18n::available_languages();
+        let cur_lang = config
+            .language
+            .clone()
+            .unwrap_or_else(|| "en-US".to_string());
+        let mut lang_button = MenuButton::new(0, 0, 0, 25, None)
+            .with_label(&fl!("language-label", "lang" = &cur_lang));
+        lang_button.add_choice(&available_langs.join("|"));
+        let rlock = AtomicBool::new(false);
+        lang_button.set_callback({
+            let available_langs = available_langs.clone();
+            let config_changed = config_changed.clone();
+            move |b| {
+                if rlock.swap(true, Ordering::Acquire) {
+                    return;
+                }
+                if b.value() < 0 {
+                    return;
+                }
+                let lang = &available_langs[b.value() as usize];
+                b.set_label(&fl!("language-label", "lang" = lang));
+                ui_log(
+                    LogCategory::Warning,
+                    &fl!("warn-language-changed", "lang" = lang),
+                );
+                {
+                    let mut conf = get_config_mut();
+                    conf.language = Some(lang.to_string());
+                    let _ = conf.update_config();
+                }
+                config_changed.set(true);
+                rlock.store(false, Ordering::Release);
+            }
+        });
+        fl_lng_thm.add(&lang_button);
+
+        // Theme chooser
         let cur_theme = if let Some(theme) = config.color_theme {
             let name = Self::apply_theme(theme.into());
             fl!("color-theme-label", "name" = name)
         } else {
             fl!("choose-color-theme")
         };
-        let mut ptheme = Pack::new(0, 0, GW, 25, "");
-        ptheme.end();
         let mut theme_button = MenuButton::new(0, 0, 0, 25, None).with_label(&cur_theme);
         theme_button.add_choice(&THEMES.join("|"));
         let rlock = AtomicBool::new(false);
@@ -242,8 +283,8 @@ impl MainForm {
             }
             rlock.store(false, Ordering::Release);
         });
-        ptheme.add(&theme_button);
-        vpack.add(&ptheme);
+        fl_lng_thm.add(&theme_button);
+        vpack.add(&fl_lng_thm);
 
         // network selection
         let mut flx_netwrk = Flex::new(0, 0, GW, 25, "");
@@ -291,7 +332,10 @@ impl MainForm {
         // setup audio source choice
         let mut flx_ausrc = Flex::new(0, 0, GW, 25, "");
         flx_ausrc.end();
-        let cur_audio_src = fl!("audio-source-label", "name" = config.sound_source.as_ref().unwrap());
+        let cur_audio_src = fl!(
+            "audio-source-label",
+            "name" = config.sound_source.as_ref().unwrap()
+        );
         ui_log(LogCategory::Info, &fl!("status-setup-audio"));
         let mut choose_audio_source_but =
             MenuButton::new(0, 0, 0, 25, None).with_label(&cur_audio_src);
@@ -310,10 +354,7 @@ impl MainForm {
                     return;
                 }
                 let name = &audio_sources[(b.value() as usize).clamp(0, audio_sources.len() - 1)];
-                ui_log(
-                    LogCategory::Info,
-                    &fl!("warn-audio-changed", "name" = name),
-                );
+                ui_log(LogCategory::Info, &fl!("warn-audio-changed", "name" = name));
                 b.set_label(&fl!("new-audio-source-label", "name" = name));
                 {
                     let mut conf = get_config_mut();
@@ -612,7 +653,11 @@ impl MainForm {
                 };
                 ui_log(
                     LogCategory::Info,
-                    &fl!("info-streamsize-changed", "format" = streaming_format, "size" = &newsize),
+                    &fl!(
+                        "info-streamsize-changed",
+                        "format" = streaming_format,
+                        "size" = &newsize
+                    ),
                 );
                 b.set_label(&fl!("strmsize-label", "size" = &newsize));
                 rlock.store(false, Ordering::Release);
@@ -707,8 +752,7 @@ impl MainForm {
         // hidden restart button
         let mut flx_restart = Flex::new(0, 0, GW, 25, "");
         flx_restart.end();
-        let mut restartbutton =
-            Button::default().with_label(&fl!("btn-apply-config"));
+        let mut restartbutton = Button::default().with_label(&fl!("btn-apply-config"));
         restartbutton.set_label_color(Color::Red);
         restartbutton.set_callback(|_| {
             std::process::Command::new(std::env::current_exe().unwrap().into_os_string())

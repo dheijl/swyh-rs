@@ -56,7 +56,11 @@ pub fn t_args(key: &str, args: &[(&'static str, String)]) -> String {
             )
         })
         .collect();
-    LOCALES.lookup_complete(lang(), key, Some(&map))
+    let mut res = LOCALES.lookup_complete(lang(), key, Some(&map));
+    // \xe2\xe1\xa8  ... \xe2\x81\xa9
+    res = res.replace("\u{2068}", "");
+    res = res.replace("\u{2069}", "");
+    res
 }
 
 /// Convenience macro for localised strings.

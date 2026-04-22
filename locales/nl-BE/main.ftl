@@ -13,8 +13,8 @@ audio-source-label = Audio Bron: { $name }
 new-audio-source-label = Nieuwe Audio Bron: { $name }
 
 # Checkboxes and controls
-chk-autoresume = Autoresume play
-chk-autoreconnect = Autoreconnect
+chk-autoresume = Autom. hervatten
+chk-autoreconnect = Auto-connecteren
 ssdp-interval-label = SSDP Interval (in minuten)
 log-level-label = Log Level: { $level }
 fmt-label = FMT: { $format }

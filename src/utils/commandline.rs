@@ -35,6 +35,7 @@ pub struct Args {
     pub serve_only: Option<bool>,
     pub volume: Option<u8>,
     pub upfront_buffer: Option<u32>,
+    pub language: Option<String>,
 }
 
 impl Args {
@@ -62,6 +63,7 @@ Recognized options:
     -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
     -v (--volume) u8 : desired player volume between 0 and 100 [unchanged]
     -u (--upfront_buffer) u32 : initial buffering in milliseconds [0]
+    -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
 "#
         );
         println!("{self:?}");
@@ -248,6 +250,11 @@ Recognized options:
                             Ok(b) => self.upfront_buffer = Some(b),
                             Err(x) => errors.push(format!("Invalid upfront buffer msec: {x}.")),
                         }
+                    }
+                }
+                Short('L') | Long("language") => {
+                    if let Ok(lang) = argparser.value() {
+                        self.language = Some(lang.string().unwrap_or_default());
                     }
                 }
                 _ => (),

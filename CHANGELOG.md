@@ -4,7 +4,7 @@
   - rust 1.95.0
   - start a CPAL 0.18.0 experimental branch for development
   - localize the project using `fluent-templates`and the assistance of Claude
-  - add nl-BE, fr-FR and de-DE translations
+  - add nl-BE, fr-FR, it-IT and de-DE translations
 
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.

@@ -1,13 +1,15 @@
 //! Tools common to both the swyh-rs GUI and CLI.
 
 use cpal::{
-    BuildStreamError, Sample, SampleFormat, Stream, StreamConfig,
+    Error, ErrorKind, Sample, SampleFormat, Stream, StreamConfig,
     traits::{DeviceTrait, StreamTrait},
 };
 
-use crate::utils::ui_logger::{LogCategory, ui_log};
-
-use crate::audio::audiodevices::Device;
+use crate::{
+    audio::audiodevices::Device,
+    fl,
+    utils::ui_logger::{LogCategory, ui_log},
+};
 
 /// Inject silence into the audio stream to solve problems with Sonos when pausing audio.
 /// contributed by @genekellyjr, see issue #71
@@ -24,31 +26,28 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
 
     let config = device.default_config();
     let sample_format = config.sample_format();
-    let err_fn = |err| {
+    let err_fn = |err: cpal::Error| {
         ui_log(
             LogCategory::Error,
-            &format!("Inject silence: an error occurred on the output audio stream: {err}"),
+            &fl!("err-inject-silence-stream", "error" = err.to_string()),
         )
     };
     let config: StreamConfig = config.clone().into();
     let device = device.as_ref();
     let try_stream = match sample_format {
-        SampleFormat::F32 => {
-            device.build_output_stream(&config, write_silence::<f32>, err_fn, None)
-        }
-        SampleFormat::I16 => {
-            device.build_output_stream(&config, write_silence::<i16>, err_fn, None)
-        }
-        SampleFormat::U16 => {
-            device.build_output_stream(&config, write_silence::<u16>, err_fn, None)
-        }
-        SampleFormat::I32 => {
-            device.build_output_stream(&config, write_silence::<i32>, err_fn, None)
-        }
+        SampleFormat::F32 => device.build_output_stream(config, write_silence::<f32>, err_fn, None),
+        SampleFormat::I16 => device.build_output_stream(config, write_silence::<i16>, err_fn, None),
+        SampleFormat::U16 => device.build_output_stream(config, write_silence::<u16>, err_fn, None),
+        SampleFormat::I32 => device.build_output_stream(config, write_silence::<i32>, err_fn, None),
         format => {
-            let msg = format!("Inject silence: Unsupported sample format: {format:?}");
-            ui_log(LogCategory::Error, &msg);
-            Err(BuildStreamError::StreamConfigNotSupported)
+            ui_log(
+                LogCategory::Error,
+                &fl!(
+                    "err-inject-silence-format",
+                    "format" = format!("{format:?}")
+                ),
+            );
+            Err(Error::new(ErrorKind::UnsupportedConfig))
         }
     };
     match try_stream {
@@ -56,14 +55,14 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
             if stream.play().is_ok() {
                 Some(stream)
             } else {
-                ui_log(LogCategory::Error, "Unable to play inject silence stream.");
+                ui_log(LogCategory::Error, &fl!("err-inject-silence-play"));
                 None
             }
         }
         Err(e) => {
             ui_log(
                 LogCategory::Error,
-                &format!("Unable to build inject silence stream: {e:?}"),
+                &fl!("err-inject-silence-build", "error" = format!("{e:?}")),
             );
             None
         }

@@ -36,6 +36,7 @@ use swyh_rs::{
         capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
     },
     enums::{messages::MessageType, streaming::StreamingState},
+    fl,
     globals::statics::{
         APP_DATE, APP_VERSION, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
@@ -46,6 +47,7 @@ use swyh_rs::{
     utils::{
         bincommon::run_silence_injector,
         extra_threads::{run_rms_monitor, run_ssdp_updater},
+        i18n,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::*,
@@ -85,17 +87,20 @@ pub const APP_NAME: &str = "SWYH-RS";
 fn main() {
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     let ad = get_default_audio_output_device();
-    let mut audio_output_device =
-        ad.unwrap_or_else(|| fatal_error("No default audio device found!"));
     // initialize config
     let mut config = {
         let mut conf = get_config_mut();
-        if conf.sound_source.is_none() {
-            conf.sound_source = Some(audio_output_device.name().into());
+        if conf.sound_source.is_none()
+            && let Some(ref dev) = ad
+        {
+            conf.sound_source = Some(dev.name().into());
             let _ = conf.update_config();
         }
         conf.clone()
     };
+    // initialize i18n before any user-facing string is produced
+    i18n::init(&config.language.clone().unwrap_or("en-US".to_string()));
+    let mut audio_output_device = ad.unwrap_or_else(|| fatal_error(fl!("err-no-audio-device")));
 
     let config_changed: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
@@ -139,17 +144,14 @@ fn main() {
         std::env::consts::OS
     );
     #[cfg(debug_assertions)]
-    ui_log(
-        LogCategory::Warning,
-        "Running DEBUG build => log level set to DEBUG!",
-    );
+    ui_log(LogCategory::Warning, &fl!("debug-build-warning"));
 
     if let Some(config_id) = &config.config_id
         && !config_id.is_empty()
     {
         ui_log(
             LogCategory::Info,
-            &format!("Loaded configuration -c {config_id}"),
+            &fl!("status-loaded-config", "id" = config_id),
         );
     }
     ui_log(LogCategory::Info, &format!("{config:?}"));
@@ -160,7 +162,7 @@ fn main() {
     let audio_devices = get_output_audio_devices();
     let mut source_names: Vec<String> = Vec::with_capacity(audio_devices.len());
     if config.sound_source.is_none() {
-        fatal_error("No sound source in config!");
+        fatal_error(fl!("err-no-sound-source"));
     }
     let config_name = config.sound_source.as_ref().unwrap();
     for (index, adev) in audio_devices.into_iter().enumerate() {
@@ -236,29 +238,23 @@ fn main() {
             stream = Some(s);
         }
         _ => {
-            ui_log(
-                LogCategory::Error,
-                "Could not capture audio ...Please check configuration.",
-            );
+            ui_log(LogCategory::Error, &fl!("err-capture-audio"));
         }
     }
     if let Some(ref s) = stream
         && s.play().is_err()
     {
-        ui_log(LogCategory::Error, "Unable to play audio stream.");
+        ui_log(LogCategory::Error, &fl!("err-play-stream"));
     }
 
     // If silence injector is on, create a silence injector stream and keep it alive
     let _silence_stream = {
         if let Some(true) = config.inject_silence {
             if let Some(stream) = run_silence_injector(&audio_output_device) {
-                ui_log(
-                    LogCategory::Info,
-                    "Injecting silence into the output stream",
-                );
+                ui_log(LogCategory::Info, &fl!("status-injecting-silence"));
                 Some(stream)
             } else {
-                ui_log(LogCategory::Error, "Unable to inject silence !!");
+                ui_log(LogCategory::Error, &fl!("err-inject-silence"));
                 None
             }
         } else {
@@ -272,7 +268,7 @@ fn main() {
 
     // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
     if config.ssdp_interval_mins > 0.0 {
-        ui_log(LogCategory::Info, "Starting SSDP discovery");
+        ui_log(LogCategory::Info, &fl!("status-starting-ssdp"));
         let ssdp_int = config.ssdp_interval_mins;
         let ssdp_tx = msg_tx.clone();
         let _jh = thread::Builder::new()
@@ -282,14 +278,11 @@ fn main() {
         if let Err(e) = _jh {
             ui_log(
                 LogCategory::Error,
-                &format!("Unable to spawn SSDP discovery thread: {e:?}"),
+                &fl!("err-ssdp-spawn", "error" = format!("{e:?}")),
             );
         }
     } else {
-        ui_log(
-            LogCategory::Info,
-            "SSDP interval 0 => Skipping SSDP discovery",
-        );
+        ui_log(LogCategory::Info, &fl!("status-ssdp-interval-zero"));
     }
     // also start the "monitor_rms" thread
     let rms_chan2 = rms_channel.clone();
@@ -305,7 +298,7 @@ fn main() {
     if let Err(e) = _jh {
         ui_log(
             LogCategory::Error,
-            &format!("Unable to spawn RMS monitor thread: {e:?}"),
+            &fl!("err-rms-spawn", "error" = format!("{e:?}")),
         );
     }
 
@@ -321,7 +314,7 @@ fn main() {
     if let Err(e) = _jh {
         ui_log(
             LogCategory::Error,
-            &format!("Unable to spawn HTTP Streaming Server thread: {e:?}"),
+            &fl!("err-server-spawn", "error" = format!("{e:?}")),
         );
     }
     // give the webserver a chance to start
@@ -438,7 +431,7 @@ fn main() {
                     if let Some(ref s) = stream
                         && s.play().is_err()
                     {
-                        ui_log(LogCategory::Error, "Unable to play the audio stream");
+                        ui_log(LogCategory::Error, &fl!("err-play-stream"));
                     }
                 }
             }
@@ -454,7 +447,7 @@ fn main() {
         {
             ui_log(
                 LogCategory::Info,
-                &format!("Shutting down {}", &renderer.dev_name),
+                &fl!("status-shutting-down", "name" = &renderer.dev_name),
             );
             app::redraw();
             active_players.push(renderer.remote_addr.clone());
@@ -483,8 +476,8 @@ fn main() {
 }
 
 /// show a fatal error message
-fn fatal_error(msg: &str) -> ! {
-    fltk::dialog::message_default(msg);
+fn fatal_error(msg: String) -> ! {
+    fltk::dialog::message_default(&msg);
     while app::wait() {
         thread::sleep(Duration::from_millis(250));
         if app::should_program_quit() {

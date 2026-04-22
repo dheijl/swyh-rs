@@ -36,6 +36,7 @@ use swyh_rs::{
             StreamingState,
         },
     },
+    fl,
     globals::statics::{
         APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
@@ -46,6 +47,7 @@ use swyh_rs::{
         bincommon::run_silence_injector,
         commandline::Args,
         configuration::Configuration,
+        i18n,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::*,
@@ -89,10 +91,12 @@ fn main() -> Result<(), i32> {
 
         conf.clone()
     };
+    // initialize i18n before any user-facing string is produced
+    i18n::init(&config.language.clone().unwrap_or("en-US".to_string()));
     if let Some(config_id) = &config.config_id
         && !config_id.is_empty()
     {
-        println!("Loaded configuration -c {config_id}");
+        println!("{}", fl!("status-loaded-config", "id" = config_id));
     }
     config.monitor_rms = false;
     // set args loglevel
@@ -132,10 +136,7 @@ fn main() -> Result<(), i32> {
         std::env::consts::OS
     );
     #[cfg(debug_assertions)]
-    ui_log(
-        LogCategory::Warning,
-        "Running DEBUG build => log level set to DEBUG!",
-    );
+    ui_log(LogCategory::Warning, &fl!("debug-build-warning"));
 
     info!("Commandline args: {args:?}");
     info!("Current config: {config:?}");
@@ -171,14 +172,18 @@ fn main() -> Result<(), i32> {
             let devname = adev.name().to_owned();
             ui_log(
                 LogCategory::Info,
-                &format!("Found Audio Source: index = {index}, name = {devname}"),
+                &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
             );
             if index == ss_index as usize {
                 audio_output_device_opt = Some(adev);
                 config.sound_source = Some(devname.clone());
                 ui_log(
                     LogCategory::Info,
-                    &format!("Selected audio source: {devname}[#{index}]"),
+                    &fl!(
+                        "cli-selected-audio-source-idx",
+                        "name" = &devname,
+                        "index" = index
+                    ),
                 );
             } else {
                 let config_sound_source = config.sound_source.clone().unwrap_or_default();
@@ -186,7 +191,7 @@ fn main() -> Result<(), i32> {
                     audio_output_device_opt = Some(adev);
                     ui_log(
                         LogCategory::Info,
-                        &format!("Selected audio source: {devname}"),
+                        &fl!("cli-selected-audio-source", "name" = &devname),
                     );
                 }
             }
@@ -204,7 +209,7 @@ fn main() -> Result<(), i32> {
                 let devname = adev.name().to_owned();
                 ui_log(
                     LogCategory::Info,
-                    &format!("Found Audio Source: index = {index}, name = {devname}"),
+                    &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
                 );
                 if devname.to_uppercase().contains(&ss_name.to_uppercase()) {
                     audio_output_device_opt = Some(adev);
@@ -212,13 +217,17 @@ fn main() -> Result<(), i32> {
                     config.sound_source_index = Some(index as i32);
                     ui_log(
                         LogCategory::Info,
-                        &format!("Selected audio source: {devname}[#{index}]"),
+                        &fl!(
+                            "cli-selected-audio-source-idx",
+                            "name" = &devname,
+                            "index" = index
+                        ),
                     );
                 } else if devname == *config.sound_source.as_ref().unwrap() {
                     audio_output_device_opt = Some(adev);
                     ui_log(
                         LogCategory::Info,
-                        &format!("Selected audio source: {devname}"),
+                        &fl!("cli-selected-audio-source", "name" = &devname),
                     );
                 }
             }
@@ -236,7 +245,11 @@ fn main() -> Result<(), i32> {
                     config.sound_source_index = Some(dev.0 as i32);
                     ui_log(
                         LogCategory::Info,
-                        &format!("Selected audio source: {devname}:{pos}"),
+                        &fl!(
+                            "cli-selected-audio-source-pos",
+                            "name" = &devname,
+                            "pos" = pos
+                        ),
                     );
                 }
             }
@@ -248,7 +261,7 @@ fn main() -> Result<(), i32> {
     // get the list of available networks
     let networks = get_interfaces();
     for ip in &networks {
-        ui_log(LogCategory::Info, &format!("Found network: {ip}"));
+        ui_log(LogCategory::Info, &fl!("cli-found-network", "ip" = ip));
     }
     // args: ip_address
     if let Some(ip) = args.ip_address
@@ -295,10 +308,7 @@ fn main() -> Result<(), i32> {
     let mut stream: cpal::Stream = match capture_output_audio(&audio_output_device, rms_chan1.0) {
         Some(s) => s,
         _ => {
-            ui_log(
-                LogCategory::Error,
-                "Could not capture audio ...Please check configuration.",
-            );
+            ui_log(LogCategory::Error, &fl!("err-capture-audio"));
             return Err(-2);
         }
     };
@@ -309,13 +319,10 @@ fn main() -> Result<(), i32> {
     let _silence_stream = {
         if let Some(true) = config.inject_silence {
             if let Some(stream) = run_silence_injector(&audio_output_device) {
-                ui_log(
-                    LogCategory::Info,
-                    "Injecting silence into the output stream",
-                );
+                ui_log(LogCategory::Info, &fl!("status-injecting-silence"));
                 Some(stream)
             } else {
-                ui_log(LogCategory::Error, "E Unable to inject silence !!");
+                ui_log(LogCategory::Error, &fl!("err-inject-silence"));
                 None
             }
         } else {
@@ -341,7 +348,7 @@ fn main() -> Result<(), i32> {
     if !serve_only || args.dry_run.is_some() {
         // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
         // the discovered renderers will be kept in this list
-        ui_log(LogCategory::Info, "Starting SSDP discovery");
+        ui_log(LogCategory::Info, &fl!("status-starting-ssdp"));
         let ssdp_int = config.ssdp_interval_mins;
         let ssdp_tx = msg_tx.clone();
         let _ = thread::Builder::new()
@@ -407,9 +414,11 @@ fn main() -> Result<(), i32> {
                     get_renderers_mut().push(*newr.clone());
                     ui_log(
                         LogCategory::Info,
-                        &format!(
-                            "Available renderer #{n}: {} at {}",
-                            newr.dev_name, newr.remote_addr
+                        &fl!(
+                            "cli-available-renderer",
+                            "n" = n,
+                            "name" = &newr.dev_name,
+                            "addr" = &newr.remote_addr
                         ),
                     );
                     n += 1;
@@ -425,7 +434,11 @@ fn main() -> Result<(), i32> {
         {
             ui_log(
                 LogCategory::Info,
-                &format!("Default renderer ip: {pl_ip} => {}", r.remote_addr),
+                &fl!(
+                    "cli-default-renderer-ip",
+                    "ip" = pl_ip,
+                    "addr" = &r.remote_addr
+                ),
             );
             args.player_ip = Some(r.remote_addr.clone());
         }
@@ -436,7 +449,7 @@ fn main() -> Result<(), i32> {
                     ip_players.push(r.remote_addr.clone());
                     ui_log(
                         LogCategory::Info,
-                        &format!("Active renderer: {ap} => {} ", r.remote_addr),
+                        &fl!("cli-active-renderer", "name" = ap, "addr" = &r.remote_addr),
                     );
                 }
             });
@@ -474,7 +487,7 @@ fn main() -> Result<(), i32> {
     if !serve_only {
         let last_renderer = config.last_renderer.as_ref().unwrap();
         if get_renderers().is_empty() {
-            error!("No renderers found!!!");
+            error!("{}", fl!("cli-no-renderers"));
             return Err(-1);
         }
         // default = first player
@@ -493,7 +506,7 @@ fn main() -> Result<(), i32> {
         }
         ui_log(
             LogCategory::Info,
-            &format!("Default player ip = {}", def_player.remote_addr),
+            &fl!("cli-default-player-ip", "ip" = &def_player.remote_addr),
         );
     }
 
@@ -503,7 +516,7 @@ fn main() -> Result<(), i32> {
 
     // exit here if dry-run
     if args.dry_run.is_some() {
-        ui_log(LogCategory::Info, "dry-run - exiting...");
+        ui_log(LogCategory::Info, &fl!("status-dry-run-exit"));
         return Ok(());
     }
 
@@ -516,7 +529,7 @@ fn main() -> Result<(), i32> {
         let port = config.server_port.unwrap_or(SERVER_PORT);
         ui_log(
             LogCategory::Info,
-            &format!("Serving started on port {port}..."),
+            &fl!("status-serving-started", "port" = port),
         );
     } else {
         for ip in config.active_renderers {
@@ -532,7 +545,10 @@ fn main() -> Result<(), i32> {
                 }
                 let _ = player.play(&local_addr, streaminfo);
                 let pl_name = &player.dev_url;
-                ui_log(LogCategory::Info, &format!("Playing to {pl_name}"));
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("status-playing-to", "name" = pl_name),
+                );
                 playing.push(player);
             }
         }
@@ -546,7 +562,11 @@ fn main() -> Result<(), i32> {
                     if !serve_only {
                         ui_log(
                             LogCategory::Info,
-                            &format!("New renderer {} at {}", newr.dev_name, newr.remote_addr),
+                            &fl!(
+                                "status-new-renderer",
+                                "name" = &newr.dev_name,
+                                "addr" = &newr.remote_addr
+                            ),
                         );
                         get_renderers_mut().push(*newr);
                     }
@@ -609,27 +629,27 @@ fn main() -> Result<(), i32> {
         }
         // handle CTL-C interrupt: shutdown the player(s)
         if shutting_down.load(Ordering::Relaxed) {
-            println!("Received ^C -> exiting.");
+            println!("{}", fl!("cli-received-ctrlc"));
             if !serve_only && player.is_some() && !get_clients().is_empty() {
                 for mut pl in playing {
                     if get_clients()
                         .values()
                         .any(|cs| cs.remote_ip == pl.remote_addr)
                     {
-                        println!("^C: Stopping streaming to {}", pl.dev_name);
+                        println!("{}", fl!("cli-ctrlc-stopping", "name" = &pl.dev_name));
                         pl.stop_play();
                     }
                 }
                 // also wait some time for the player(s) to drop the HTTP streaming connection
                 for _ in 0..100 {
                     if get_clients().is_empty() {
-                        println!("^C: No HTTP streaming connections active");
+                        println!("{}", fl!("cli-ctrlc-no-connections"));
                         break;
                     }
                     thread::sleep(Duration::from_millis(100));
                 }
                 if !get_clients().is_empty() {
-                    println!("^C: Time-out waiting for HTTP streaming shutdown - exiting.");
+                    println!("{}", fl!("cli-ctrlc-timeout"));
                 }
             }
             log::logger().flush();

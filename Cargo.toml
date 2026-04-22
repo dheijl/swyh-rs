@@ -46,7 +46,7 @@ winres = "0.1.12"
 
 [dependencies]
 bitflags = "2.11.1"
-cpal = "0.17.3"
+cpal = "0.18.0"
 crossbeam-channel = "0.5.15"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
@@ -54,6 +54,7 @@ dirs = "6.0.0"
 ecow = "0.2.6"
 fastrand = "2.4.1"
 fluent-uri = "0.4.1"
+fluent-templates = "0.13.3"
 figura = "2.0.3"
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",
@@ -62,13 +63,13 @@ hashbrown = "0.17.0"
 htmlescape = "0.3.1"
 if-addrs = "0.15.0"
 lexopt = "0.3.2"
-local-ip-address = { version = "0.6.11", optional = true }
+local-ip-address = { version = "0.6.12", optional = true }
 log = { version = "0.4.29", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",
 ] }
-mimalloc = { version = "0.1.48", features = ["v3"] }
+mimalloc = { version = "0.1.50" }
 serde = { version = "1.0.228", features = ["derive"] }
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 tiny_http = "0.12.0"
@@ -95,7 +96,7 @@ rustix = { version = "1.1.4", default-features = false, features = ["process"] }
 #figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
-#cpal = { git = "https://github.com/RustAudio/cpal.git" }
+cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
 zmij = { git = "https://github.com/dtolnay/zmij" }

@@ -18,6 +18,7 @@ use fltk::{button::LightButton, valuator::HorNiceSlider};
 use fluent_uri::Uri;
 use hashbrown::HashMap;
 use log::{debug, error, info};
+use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     cell::{Cell, OnceCell},
     net::{IpAddr, SocketAddr, UdpSocket},
@@ -943,18 +944,30 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
         return None;
     };
     let bind_addr = SocketAddr::new(local_addr, 0);
-    let socket = if let Ok(s) = UdpSocket::bind(bind_addr) {
+    let sock2 = if let Ok(s) = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP)) {
         s
     } else {
         ui_log(LogCategory::Error, &fl!("err-ssdp-bind"));
         return None;
     };
-    if socket.set_broadcast(true).is_err() {
+    if sock2.bind(&bind_addr.into()).is_err() {
+        ui_log(LogCategory::Error, &fl!("err-ssdp-bind"));
+        return None;
+    }
+    if sock2.set_broadcast(true).is_err() {
         ui_log(LogCategory::Error, &fl!("err-ssdp-broadcast"));
     }
-    if socket.set_multicast_ttl_v4(DEFAULT_SEARCH_TTL).is_err() {
+    if sock2.set_multicast_ttl_v4(DEFAULT_SEARCH_TTL).is_err() {
         ui_log(LogCategory::Error, &fl!("err-ssdp-ttl"));
     }
+    // On macOS, binding to a specific IP does not automatically route outgoing
+    // multicast through the correct interface; IP_MULTICAST_IF must be set explicitly.
+    if let IpAddr::V4(local_v4) = local_addr
+        && sock2.set_multicast_if_v4(&local_v4).is_err()
+    {
+        ui_log(LogCategory::Error, &fl!("err-ssdp-ttl"));
+    }
+    let socket: UdpSocket = sock2.into();
     // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
     let mut oh_devices: Vec<(String, SocketAddr)> = Vec::new();
     let mut av_devices: Vec<(String, SocketAddr)> = Vec::new();

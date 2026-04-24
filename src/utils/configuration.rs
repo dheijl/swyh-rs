@@ -4,6 +4,7 @@
 use crate::{
     enums::streaming::{StreamSize, StreamingFormat},
     globals::statics::{SERVER_PORT, THEMES},
+    utils::i18n::available_languages,
 };
 use lexopt::{Parser, prelude::*};
 use log::LevelFilter;
@@ -19,6 +20,13 @@ use toml::from_str;
 const CONFIGFILE: &str = "config{}.toml";
 const PKGNAME: &str = env!("CARGO_PKG_NAME");
 
+fn detect_default_language() -> String {
+    let supported = available_languages();
+    sys_locale::get_locale()
+        .filter(|l| supported.contains(l))
+        .unwrap_or_else(|| "en-US".to_string())
+}
+
 // default values for Serde
 struct CfgDefaults {}
 
@@ -27,7 +35,7 @@ impl CfgDefaults {
         false
     }
     fn language() -> Option<String> {
-        Some("en-US".to_string())
+        Some(detect_default_language())
     }
     fn log_level() -> LevelFilter {
         LevelFilter::Info
@@ -159,7 +167,7 @@ impl Configuration {
             config_id: Some(Self::get_config_id()),
             read_only: false,
             color_theme: None,
-            language: Some("en-US".to_string()),
+            language: Some(detect_default_language()),
         }
     }
 

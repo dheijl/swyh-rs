@@ -73,6 +73,7 @@ mimalloc = { version = "0.1.50" }
 serde = { version = "1.0.228", features = ["derive"] }
 socket2 = "0.6.3"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
+sys-locale = "0.3"
 tiny_http = "0.12.0"
 toml = "1.1.2"
 ureq = { version = "3.3.0", default-features = false, features = [

@@ -1,5 +1,9 @@
 # swyh-rs Changelog
 
+- 1.20.3-RC2(unreleased)
+  - add zh-CN translation (with Claude), this should be looked at by a native speaker
+  - attempt to fix the SSP UDP problem on MacOS (but I can't test this myself)
+
 - 1.20.3-RC1 (Apr 22 2026, dheijl)
   - rust 1.95.0
   - start a CPAL 0.18.0 experimental branch for development

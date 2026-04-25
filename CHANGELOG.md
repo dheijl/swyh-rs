@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.20.3-RC2(unreleased)
+- 1.20.3-RC2(Apr 25 2026, dheijl)
   - add zh-CN translation (with Claude), this should be looked at by a native speaker
   - replace nl-BE with nl-NL
   - pick up the system locale if a supported language on a new installation. If the current system locale has no language file: try to find one matching the base locale (e.g. nl-BE => nl-NL, fr-CH => fr-FR, ...). Otherwise use en-US.

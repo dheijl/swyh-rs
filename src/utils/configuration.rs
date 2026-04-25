@@ -20,11 +20,26 @@ use toml::from_str;
 const CONFIGFILE: &str = "config{}.toml";
 const PKGNAME: &str = env!("CARGO_PKG_NAME");
 
+/// get the default language for a new installation
 fn detect_default_language() -> String {
+    let mut used_locale = "en-US".to_string();
     let supported = available_languages();
-    sys_locale::get_locale()
-        .filter(|l| supported.contains(l))
-        .unwrap_or_else(|| "en-US".to_string())
+    let locale = sys_locale::get_locale();
+    println!("Deteced locale: {locale:?}");
+    if let Some(l) = locale {
+        if supported.contains(&l) {
+            println!("Used locale: {l}");
+            used_locale = l;
+        } else {
+            let short_locale = &l[..2].to_string();
+            let mut fallbacks = supported.into_iter().filter(|s| s.contains(short_locale));
+            if let Some(locale) = fallbacks.next() {
+                println!("Used fallback locale: {locale}");
+                used_locale = locale;
+            }
+        }
+    }
+    used_locale
 }
 
 // default values for Serde

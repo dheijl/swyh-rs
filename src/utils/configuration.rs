@@ -21,25 +21,23 @@ const CONFIGFILE: &str = "config{}.toml";
 const PKGNAME: &str = env!("CARGO_PKG_NAME");
 
 /// get the default language for a new installation
+/// use the base language if region language not present (nl-NL for nl-BE etc...)
 fn detect_default_language() -> String {
-    let mut used_locale = "en-US".to_string();
     let supported = available_languages();
     let locale = sys_locale::get_locale();
-    println!("Deteced locale: {locale:?}");
+    println!("Detected locale: {locale:?}");
     if let Some(l) = locale {
         if supported.contains(&l) {
             println!("Used locale: {l}");
-            used_locale = l;
-        } else {
-            let short_locale = &l[..2].to_string();
-            let mut fallbacks = supported.into_iter().filter(|s| s.contains(short_locale));
-            if let Some(locale) = fallbacks.next() {
-                println!("Used fallback locale: {locale}");
-                used_locale = locale;
-            }
+            return l;
+        }
+        let short_locale = &l[..2];
+        if let Some(locale) = supported.into_iter().find(|s| s.contains(short_locale)) {
+            println!("Used fallback locale: {locale}");
+            return locale;
         }
     }
-    used_locale
+    "en-US".to_string()
 }
 
 // default values for Serde

@@ -31,8 +31,8 @@ fn detect_default_language() -> String {
             println!("Used locale: {l}");
             return l;
         }
-        let short_locale = &l[..2];
-        if let Some(locale) = supported.into_iter().find(|s| s.contains(short_locale)) {
+        let base_locale = &l[..2];
+        if let Some(locale) = supported.into_iter().find(|s| s.contains(base_locale)) {
             println!("Used fallback locale: {locale}");
             return locale;
         }

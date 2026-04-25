@@ -2,9 +2,9 @@
 
 - 1.20.3-RC2(unreleased)
   - add zh-CN translation (with Claude), this should be looked at by a native speaker
-  - add nl-NL
+  - replace nl-BE with nl-NL
+  - pick up the system locale if a supported language on a new installation. If the current system locale has no language file: try to find one matching the base locale (e.g. nl-BE => nl-NL, fr-CH => fr-FR, ...). Otherwise use en-US.
   - attempt to fix the SSP UDP problem on MacOS (but I can't test this myself)
-  - pick up the system locale, if supported, on a new installation
 
 - 1.20.3-RC1 (Apr 22 2026, dheijl)
   - rust 1.95.0

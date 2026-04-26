@@ -1,16 +1,17 @@
 # swyh-rs Changelog
 
+- 1.20.3 (unreleased, waiting for cpal 0.18.0)
+
 - 1.20.3-RC2(Apr 25 2026, dheijl)
+  - rust 1.95.0
+  - use CPAL 0.18.0 development branch
+  - localize the project using `fluent-templates`and the assistance of Claude
+  - add nl-BE, fr-FR, it-IT and de-DE translations
   - add zh-CN translation (with Claude), this should be looked at by a native speaker
   - replace nl-BE with nl-NL
   - pick up the system locale if a supported language on a new installation. If the current system locale has no language file: try to find one matching the base locale (e.g. nl-BE => nl-NL, fr-CH => fr-FR, ...). Otherwise use en-US.
   - attempt to fix the SSP UDP problem on MacOS (but I can't test this myself)
-
-- 1.20.3-RC1 (Apr 22 2026, dheijl)
-  - rust 1.95.0
-  - start a CPAL 0.18.0 experimental branch for development
-  - localize the project using `fluent-templates`and the assistance of Claude
-  - add nl-BE, fr-FR, it-IT and de-DE translations
+  - don't compute RMS for silence
 
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.

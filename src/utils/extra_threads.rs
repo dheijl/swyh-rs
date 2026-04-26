@@ -72,19 +72,21 @@ pub fn run_rms_monitor(
     let imax = f32x4::splat(F32_TO_I16);
     while let Ok(samples) = rms_receiver.recv() {
         total_samples += samples.len();
-        let chunks = samples.chunks_exact(4);
-        let remainder = chunks.remainder();
-        ch_sum = chunks.fold(ch_sum, |acc, x| {
-            // chunksize 4 with chunks_exact makes this safe to unwrap
-            let f4 = f32x4::new(*x.as_array().unwrap());
-            let i4 = f4 * imax;
-            i4.mul_add(i4, acc)
-        });
-        // only stereo supported !
-        if remainder.len() == 2 {
-            let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
-            let i4 = rem * imax;
-            ch_sum = i4.mul_add(i4, ch_sum);
+        if samples.iter().any(|s| *s != 0.0) {
+            let chunks = samples.chunks_exact(4);
+            let remainder = chunks.remainder();
+            ch_sum = chunks.fold(ch_sum, |acc, x| {
+                // chunksize 4 with chunks_exact makes this safe to unwrap
+                let f4 = f32x4::new(*x.as_array().unwrap());
+                let i4 = f4 * imax;
+                i4.mul_add(i4, acc)
+            });
+            // only stereo supported !
+            if remainder.len() == 2 {
+                let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
+                let i4 = rem * imax;
+                ch_sum = i4.mul_add(i4, ch_sum);
+            }
         }
         // compute and show current RMS values if enough samples collected
         if total_samples >= samples_per_update {

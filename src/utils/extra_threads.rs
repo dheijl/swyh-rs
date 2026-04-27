@@ -7,7 +7,7 @@
 #![cfg(feature = "gui")]
 use std::{thread, time::Duration};
 
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use fltk::{app, misc::Progress};
 use hashbrown::HashMap;
 use log::info;
@@ -70,22 +70,35 @@ pub fn run_rms_monitor(
     let mut total_samples = 0usize;
     let mut ch_sum = f32x4::splat(0f32);
     let imax = f32x4::splat(F32_TO_I16);
-    while let Ok(samples) = rms_receiver.recv() {
-        total_samples += samples.len();
-        if samples.iter().any(|s| *s != 0.0) {
-            let chunks = samples.chunks_exact(4);
-            let remainder = chunks.remainder();
-            ch_sum = chunks.fold(ch_sum, |acc, x| {
-                // chunksize 4 with chunks_exact makes this safe to unwrap
-                let f4 = f32x4::new(*x.as_array().unwrap());
-                let i4 = f4 * imax;
-                i4.mul_add(i4, acc)
-            });
-            // only stereo supported !
-            if remainder.len() == 2 {
-                let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
-                let i4 = rem * imax;
-                ch_sum = i4.mul_add(i4, ch_sum);
+    loop {
+        match rms_receiver.recv_timeout(Duration::from_millis(500)) {
+            // update RMS value with new samples
+            Ok(samples) => {
+                total_samples += samples.len();
+                let chunks = samples.chunks_exact(4);
+                let remainder = chunks.remainder();
+                ch_sum = chunks.fold(ch_sum, |acc, x| {
+                    // chunksize 4 with chunks_exact makes this safe to unwrap
+                    let f4 = f32x4::new(*x.as_array().unwrap());
+                    let i4 = f4 * imax;
+                    i4.mul_add(i4, acc)
+                });
+                // only stereo supported !
+                if remainder.len() == 2 {
+                    let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
+                    let i4 = rem * imax;
+                    ch_sum = i4.mul_add(i4, ch_sum);
+                }
+            }
+            // no samples: clear RMS widgets
+            Err(RecvTimeoutError::Timeout) => {
+                rms_frame_l.set_value(0f64);
+                rms_frame_r.set_value(0f64);
+                app::awake();
+            }
+            // channel gone: exit
+            Err(RecvTimeoutError::Disconnected) => {
+                return;
             }
         }
         // compute and show current RMS values if enough samples collected

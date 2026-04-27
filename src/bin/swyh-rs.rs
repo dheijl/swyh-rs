@@ -100,8 +100,9 @@ fn main() {
     };
     // initialize i18n before any user-facing string is produced
     i18n::init(&config.language.clone().unwrap_or("en-US".to_string()));
+    // check for the default audio device
     let mut audio_output_device = ad.unwrap_or_else(|| fatal_error(fl!("err-no-audio-device")));
-
+    // if set: an app restart is required to apply the changes
     let config_changed: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
     // configure simplelogger

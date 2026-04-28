@@ -92,13 +92,15 @@ pub fn run_rms_monitor(
             }
             // no samples: clear RMS widgets
             Err(RecvTimeoutError::Timeout) => {
-                rms_frame_l.set_value(0f64);
-                rms_frame_r.set_value(0f64);
-                app::awake();
+                if !(rms_frame_l.value() == 0f64 && rms_frame_r.value() == 0f64) {
+                    rms_frame_l.set_value(0f64);
+                    rms_frame_r.set_value(0f64);
+                    app::awake();
+                }
             }
             // channel gone: exit
             Err(RecvTimeoutError::Disconnected) => {
-                return;
+                break;
             }
         }
         // compute and show current RMS values if enough samples collected

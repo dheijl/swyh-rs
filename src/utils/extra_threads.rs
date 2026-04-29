@@ -5,7 +5,7 @@
 //! the GUI level meters at 10 Hz.
 
 #![cfg(feature = "gui")]
-use std::{thread, time::Duration};
+use std::{sync::atomic::Ordering, thread, time::Duration};
 
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use fltk::{app, misc::Progress};
@@ -16,7 +16,7 @@ use wide::f32x4;
 use crate::{
     audio::rwstream::AudioSamples,
     enums::messages::MessageType,
-    globals::statics::ONE_MINUTE,
+    globals::statics::{ONE_MINUTE, RUN_RMS_MONITOR},
     renderers::rendercontrol::{Renderer, WavData, discover},
 };
 
@@ -71,9 +71,15 @@ pub fn run_rms_monitor(
     let mut ch_sum = f32x4::splat(0f32);
     let imax = f32x4::splat(F32_TO_I16);
     loop {
+        // avoid the Crossbeam spin loops in Backoff
+        if !RUN_RMS_MONITOR.load(Ordering::Relaxed) {
+            thread::sleep(Duration::from_millis(500));
+            continue;
+        }
         match rms_receiver.recv_timeout(Duration::from_millis(500)) {
             // update RMS value with new samples
             Ok(samples) => {
+                // chunk samples, scale to i16, and multiply-accumulate with SIMD f32x4
                 total_samples += samples.len();
                 let chunks = samples.chunks_exact(4);
                 let remainder = chunks.remainder();

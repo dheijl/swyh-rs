@@ -328,13 +328,15 @@ impl MainForm {
         b24_bit.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
-                let mut conf = get_config_mut();
-                if b.is_set() {
-                    conf.bits_per_sample = Some(24);
-                } else {
-                    conf.bits_per_sample = Some(16);
+                {
+                    let mut conf = get_config_mut();
+                    if b.is_set() {
+                        conf.bits_per_sample = Some(24);
+                    } else {
+                        conf.bits_per_sample = Some(16);
+                    }
+                    let _ = conf.update_config();
                 }
-                let _ = conf.update_config();
                 sb.set_text(&MainForm::format_config_status());
             }
         });
@@ -426,9 +428,11 @@ impl MainForm {
                     b = 5_000;
                 }
                 if b as u32 != b_config {
-                    let mut conf = get_config_mut();
-                    conf.buffering_delay_msec = Some(b as u32);
-                    let _ = conf.update_config();
+                    {
+                        let mut conf = get_config_mut();
+                        conf.buffering_delay_msec = Some(b as u32);
+                        let _ = conf.update_config();
+                    }
                     sb.set_text(&MainForm::format_config_status());
                 }
             }
@@ -542,9 +546,11 @@ impl MainForm {
                     return;
                 }
                 if new_value as u16 != get_config().server_port.unwrap_or_default() {
-                    let mut conf = get_config_mut();
-                    conf.server_port = Some(new_value as u16);
-                    let _ = conf.update_config();
+                    {
+                        let mut conf = get_config_mut();
+                        conf.server_port = Some(new_value as u16);
+                        let _ = conf.update_config();
+                    }
                     sb.set_text(&MainForm::format_config_status());
                     config_changed.set(true);
                 }
@@ -740,9 +746,11 @@ impl MainForm {
         auto_resume.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
-                let mut conf = get_config_mut();
-                conf.auto_resume = b.is_set();
-                let _ = conf.update_config();
+                {
+                    let mut conf = get_config_mut();
+                    conf.auto_resume = b.is_set();
+                    let _ = conf.update_config();
+                }
                 sb.set_text(&MainForm::format_config_status());
             }
         });
@@ -754,9 +762,11 @@ impl MainForm {
         auto_reconnect.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
-                let mut conf = get_config_mut();
-                conf.auto_reconnect = b.is_set();
-                let _ = conf.update_config();
+                {
+                    let mut conf = get_config_mut();
+                    conf.auto_reconnect = b.is_set();
+                    let _ = conf.update_config();
+                }
                 sb.set_text(&MainForm::format_config_status());
             }
         });
@@ -796,9 +806,11 @@ impl MainForm {
                 rms_mon_r.set_value(0.0);
                 let run_rms = b.is_set();
                 RUN_RMS_MONITOR.store(run_rms, Ordering::Release);
-                let mut conf = get_config_mut();
-                conf.monitor_rms = run_rms;
-                let _ = conf.update_config();
+                {
+                    let mut conf = get_config_mut();
+                    conf.monitor_rms = run_rms;
+                    let _ = conf.update_config();
+                }
                 sb.set_text(&MainForm::format_config_status());
             }
         });
@@ -949,16 +961,10 @@ impl MainForm {
         let bits = config.bits_per_sample.unwrap_or(16);
         let streamsize = if let Some(fmt) = config.streaming_format {
             match fmt {
-                StreamingFormat::Lpcm => {
-                    config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked)
-                }
+                StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked),
                 StreamingFormat::Wav => config.wav_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Rf64 => {
-                    config.rf64_stream_size.unwrap_or(StreamSize::NoneChunked)
-                }
-                StreamingFormat::Flac => {
-                    config.flac_stream_size.unwrap_or(StreamSize::NoneChunked)
-                }
+                StreamingFormat::Rf64 => config.rf64_stream_size.unwrap_or(StreamSize::NoneChunked),
+                StreamingFormat::Flac => config.flac_stream_size.unwrap_or(StreamSize::NoneChunked),
             }
         } else {
             StreamSize::U64maxNotChunked
@@ -977,11 +983,7 @@ impl MainForm {
         let mut s = String::new();
         s += &fl!("audio-source-label", "name" = audio);
         s += "\n";
-        s += &format!(
-            "{}  {} bit\n",
-            fl!("fmt-label", "format" = &format),
-            bits
-        );
+        s += &format!("{}  {} bit\n", fl!("fmt-label", "format" = &format), bits);
         s += &fl!("strmsize-label", "size" = streamsize);
         s += &format!("   buffer: {} ms\n", buf_ms);
         s += &format!(

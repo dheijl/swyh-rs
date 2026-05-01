@@ -26,7 +26,7 @@ use fltk::{
     group::{Flex, FlexType, Group, Pack, PackType, Tabs},
     image::SvgImage,
     input::IntInput,
-    menu::MenuButton,
+    menu::Choice,
     misc::Progress,
     prelude::*,
     text::{TextBuffer, TextDisplay},
@@ -43,7 +43,7 @@ use std::{
     net::IpAddr,
     rc::Rc,
     str::FromStr,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::Ordering,
 };
 
 /// fltk themes
@@ -81,14 +81,14 @@ pub struct MainForm {
     pub auto_resume: CheckButton,
     pub auto_reconnect: CheckButton,
     pub ssdp_interval: Counter,
-    pub log_level_choice: MenuButton,
-    pub fmt_choice: MenuButton,
-    pub ss_choice: MenuButton,
+    pub log_level_choice: Choice,
+    pub fmt_choice: Choice,
+    pub ss_choice: Choice,
     pub b24_bit: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
-    pub choose_audio_source_but: MenuButton,
+    pub choose_audio_source_but: Choice,
     pub tb: TextDisplay,
     status_buf: TextBuffer,
     vpack: Pack,
@@ -213,12 +213,14 @@ impl MainForm {
         vpack.add(&flx_title);
 
         // show config option widgets in tabs
-        const TAB_H: i32 = 240;
+        const TAB_H: i32 = 250;
         const TAB_BAR_H: i32 = 30;
         const INNER_H: i32 = TAB_H - TAB_BAR_H;
         const ROW_H: i32 = 25;
         const ROW_SPACING: i32 = 5;
         const MARGIN: i32 = 5;
+        const LABEL_W: i32 = 130;
+        const LABEL_W_NET: i32 = 179;
 
         let mut status_buf = TextBuffer::default();
 
@@ -236,31 +238,22 @@ impl MainForm {
         audio_col.end();
 
         // setup audio source choice
-        let cur_audio_src = fl!(
-            "audio-source-label",
-            "name" = config.sound_source.as_ref().unwrap()
-        );
         ui_log(LogCategory::Info, &fl!("status-setup-audio"));
-        let mut choose_audio_source_but =
-            MenuButton::new(0, 0, 0, ROW_H, None).with_label(&cur_audio_src);
+        let mut choose_audio_source_but = Choice::new(0, 0, 0, ROW_H, "");
         for name in audio_sources {
             choose_audio_source_but.add_choice(&name.as_str().fw_slash_pipe_escape());
         }
-        let rlock = AtomicBool::new(false);
+        choose_audio_source_but.set_value(config.sound_source_index.unwrap_or(0));
         choose_audio_source_but.set_callback({
             let audio_sources = audio_sources.to_vec();
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
                 if b.value() < 0 {
                     return;
                 }
                 let name = &audio_sources[(b.value() as usize).clamp(0, audio_sources.len() - 1)];
                 ui_log(LogCategory::Info, &fl!("warn-audio-changed", "name" = name));
-                b.set_label(&fl!("new-audio-source-label", "name" = name));
                 {
                     let mut conf = get_config_mut();
                     conf.sound_source = Some(name.to_string());
@@ -269,38 +262,36 @@ impl MainForm {
                 }
                 sb.set_text(&MainForm::format_config_status());
                 config_changed.set(true);
-                rlock.store(false, Ordering::Release);
             }
         });
+        let lbl_ausrc = Frame::default().with_label(&fl!("audio-source-label", "name" = ""));
         let mut flx_ausrc = Flex::new(0, 0, GW, ROW_H, "");
+        flx_ausrc.set_spacing(5);
+        flx_ausrc.set_type(FlexType::Row);
         flx_ausrc.end();
+        flx_ausrc.add(&lbl_ausrc);
+        flx_ausrc.fixed(&lbl_ausrc, LABEL_W);
         flx_ausrc.add(&choose_audio_source_but);
         audio_col.add(&flx_ausrc);
         audio_col.fixed(&flx_ausrc, ROW_H);
 
-        // streaming format + 24-bit
-        let fmt = if let Some(format) = config.streaming_format {
-            fl!("fmt-label", "format" = format)
-        } else {
-            fl!("fmt-label", "format" = "lpcm")
-        };
-        let mut fmt_choice = MenuButton::default().with_label(&fmt);
+        // streaming format
         let formats = vec![
             StreamingFormat::Lpcm.to_string(),
             StreamingFormat::Wav.to_string(),
             StreamingFormat::Flac.to_string(),
             StreamingFormat::Rf64.to_string(),
         ];
+        let initial_fmt = config.streaming_format.unwrap_or(StreamingFormat::Lpcm).to_string();
+        let initial_fmt_idx = formats.iter().position(|f| f == &initial_fmt).unwrap_or(0) as i32;
+        let mut fmt_choice = Choice::new(0, 0, 0, ROW_H, "");
         for fmt in &formats {
             fmt_choice.add_choice(fmt.as_str());
         }
-        let rlock = AtomicBool::new(false);
+        fmt_choice.set_value(initial_fmt_idx);
         fmt_choice.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
                 if b.value() < 0 {
                     return;
                 }
@@ -315,41 +306,21 @@ impl MainForm {
                     conf.streaming_format = Some(newformat);
                     let _ = conf.update_config();
                 }
-                b.set_label(&fl!("fmt-label", "format" = &format));
-                sb.set_text(&MainForm::format_config_status());
-                rlock.store(false, Ordering::Release);
-            }
-        });
-        let b24_bit_lbl = fl!("chk-24bit");
-        let mut b24_bit = CheckButton::new(0, 0, 0, 0, b24_bit_lbl.as_str());
-        if config.bits_per_sample.unwrap_or(16) == 24 {
-            b24_bit.set(true);
-        }
-        b24_bit.set_callback({
-            let mut sb = status_buf.clone();
-            move |b| {
-                {
-                    let mut conf = get_config_mut();
-                    if b.is_set() {
-                        conf.bits_per_sample = Some(24);
-                    } else {
-                        conf.bits_per_sample = Some(16);
-                    }
-                    let _ = conf.update_config();
-                }
                 sb.set_text(&MainForm::format_config_status());
             }
         });
-        let mut flx_fmt_bit = Flex::new(0, 0, GW, ROW_H, "");
-        flx_fmt_bit.set_spacing(10);
-        flx_fmt_bit.set_type(FlexType::Row);
-        flx_fmt_bit.end();
-        flx_fmt_bit.add(&fmt_choice);
-        flx_fmt_bit.add(&b24_bit);
-        audio_col.add(&flx_fmt_bit);
-        audio_col.fixed(&flx_fmt_bit, ROW_H);
+        let lbl_fmt = Frame::default().with_label(&fl!("fmt-label", "format" = ""));
+        let mut flx_fmt = Flex::new(0, 0, GW, ROW_H, "");
+        flx_fmt.set_spacing(5);
+        flx_fmt.set_type(FlexType::Row);
+        flx_fmt.end();
+        flx_fmt.add(&lbl_fmt);
+        flx_fmt.fixed(&lbl_fmt, LABEL_W);
+        flx_fmt.add(&fmt_choice);
+        audio_col.add(&flx_fmt);
+        audio_col.fixed(&flx_fmt, ROW_H);
 
-        // streaming content length / chunking + initial buffer
+        // streaming content length / chunking
         let streamsize = if let Some(fmt) = config.streaming_format {
             match fmt {
                 StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked),
@@ -360,10 +331,6 @@ impl MainForm {
         } else {
             StreamSize::U64maxNotChunked
         };
-        let fmt = fl!("strmsize-label", "size" = streamsize);
-        let mut ss_choice = MenuButton::default()
-            .with_label(&fmt)
-            .with_align(Align::Center | Align::Clip);
         let streamsizes = vec![
             StreamSize::U64maxNotChunked.to_string(),
             StreamSize::NoneChunked.to_string(),
@@ -371,16 +338,15 @@ impl MainForm {
             StreamSize::U32maxNotChunked.to_string(),
             StreamSize::U32maxChunked.to_string(),
         ];
-        for fmt in &streamsizes {
-            ss_choice.add_choice(fmt.as_str());
+        let initial_ss_idx = streamsizes.iter().position(|s| s == &streamsize.to_string()).unwrap_or(0) as i32;
+        let mut ss_choice = Choice::new(0, 0, 0, ROW_H, "");
+        for s in &streamsizes {
+            ss_choice.add_choice(s.as_str());
         }
-        let rlock = AtomicBool::new(false);
+        ss_choice.set_value(initial_ss_idx);
         ss_choice.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
                 if b.value() < 0 {
                     return;
                 }
@@ -405,48 +371,47 @@ impl MainForm {
                         "size" = &newsize
                     ),
                 );
-                b.set_label(&fl!("strmsize-label", "size" = &newsize));
                 sb.set_text(&MainForm::format_config_status());
-                rlock.store(false, Ordering::Release);
             }
         });
-        let label_ms = Frame::default().with_label(&fl!("buffer-label"));
-        let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
-        upfront_buffer_ms.set_maximum_size(5);
-        let b_config = config.buffering_delay_msec.unwrap_or_default();
-        upfront_buffer_ms.set_value(&b_config.to_string());
-        upfront_buffer_ms.set_callback({
+        let lbl_ss = Frame::default().with_label(&fl!("strmsize-label", "size" = ""));
+        let mut flx_ss = Flex::new(0, 0, GW, ROW_H, "");
+        flx_ss.set_spacing(5);
+        flx_ss.set_type(FlexType::Row);
+        flx_ss.end();
+        flx_ss.add(&lbl_ss);
+        flx_ss.fixed(&lbl_ss, LABEL_W);
+        flx_ss.add(&ss_choice);
+        audio_col.add(&flx_ss);
+        audio_col.fixed(&flx_ss, ROW_H);
+
+        // 24-bit checkbox
+        let b24_bit_lbl = fl!("chk-24bit");
+        let mut b24_bit = CheckButton::new(0, 0, 0, 0, b24_bit_lbl.as_str());
+        if config.bits_per_sample.unwrap_or(16) == 24 {
+            b24_bit.set(true);
+        }
+        b24_bit.set_callback({
             let mut sb = status_buf.clone();
-            move |i| {
-                let mut b: i32 = i.value().parse().unwrap_or(0);
-                if b < 0 {
-                    i.set_value(&0i32.to_string());
-                    return;
-                }
-                if b > 5_000 {
-                    i.set_value(&5_000i32.to_string());
-                    b = 5_000;
-                }
-                if b as u32 != b_config {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.buffering_delay_msec = Some(b as u32);
-                        let _ = conf.update_config();
+            move |b| {
+                {
+                    let mut conf = get_config_mut();
+                    if b.is_set() {
+                        conf.bits_per_sample = Some(24);
+                    } else {
+                        conf.bits_per_sample = Some(16);
                     }
-                    sb.set_text(&MainForm::format_config_status());
+                    let _ = conf.update_config();
                 }
+                sb.set_text(&MainForm::format_config_status());
             }
         });
-        let mut flx_ss_buf = Flex::new(0, 0, GW, ROW_H, "");
-        flx_ss_buf.set_spacing(10);
-        flx_ss_buf.set_type(FlexType::Row);
-        flx_ss_buf.end();
-        flx_ss_buf.add(&ss_choice);
-        flx_ss_buf.add(&label_ms);
-        flx_ss_buf.add(&upfront_buffer_ms);
-        flx_ss_buf.fixed(&upfront_buffer_ms, 50);
-        audio_col.add(&flx_ss_buf);
-        audio_col.fixed(&flx_ss_buf, ROW_H);
+        let mut flx_b24 = Flex::new(0, 0, GW, ROW_H, "");
+        flx_b24.set_type(FlexType::Row);
+        flx_b24.end();
+        flx_b24.add(&b24_bit);
+        audio_col.add(&flx_b24);
+        audio_col.fixed(&flx_b24, ROW_H);
 
         // inject silence checkbox
         let inj_silence_lbl = fl!("chk-inject-silence");
@@ -474,6 +439,46 @@ impl MainForm {
         audio_col.add(&flx_inj);
         audio_col.fixed(&flx_inj, ROW_H);
 
+        // initial buffer
+        let label_ms = Frame::default()
+            .with_label(&fl!("buffer-label"))
+            .with_align(Align::Left | Align::Inside);
+        let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
+        upfront_buffer_ms.set_maximum_size(5);
+        let b_config = config.buffering_delay_msec.unwrap_or_default();
+        upfront_buffer_ms.set_value(&b_config.to_string());
+        upfront_buffer_ms.set_callback({
+            let mut sb = status_buf.clone();
+            move |i| {
+                let mut b: i32 = i.value().parse().unwrap_or(0);
+                if b < 0 {
+                    i.set_value(&0i32.to_string());
+                    return;
+                }
+                if b > 5_000 {
+                    i.set_value(&5_000i32.to_string());
+                    b = 5_000;
+                }
+                if b as u32 != b_config {
+                    {
+                        let mut conf = get_config_mut();
+                        conf.buffering_delay_msec = Some(b as u32);
+                        let _ = conf.update_config();
+                    }
+                    sb.set_text(&MainForm::format_config_status());
+                }
+            }
+        });
+        let mut flx_buf = Flex::new(0, 0, GW, ROW_H, "");
+        flx_buf.set_spacing(10);
+        flx_buf.set_type(FlexType::Row);
+        flx_buf.end();
+        flx_buf.add(&label_ms);
+        flx_buf.add(&upfront_buffer_ms);
+        flx_buf.fixed(&upfront_buffer_ms, 50);
+        audio_col.add(&flx_buf);
+        audio_col.fixed(&flx_buf, ROW_H);
+
         g_audio.add(&audio_col);
         tabs.add(&g_audio);
 
@@ -488,26 +493,19 @@ impl MainForm {
         network_col.end();
 
         // network selection
-        let cur_nw = {
-            if let Some(nw) = &config.last_network {
-                fl!("active-network", "addr" = nw)
-            } else {
-                fl!("active-network", "addr" = local_addr)
-            }
-        };
-        let mut choose_network_but = MenuButton::new(0, 0, 0, ROW_H, None).with_label(&cur_nw);
+        let initial_nw_idx = config.last_network.as_ref()
+            .and_then(|nw| networks.iter().position(|n| n == nw))
+            .unwrap_or(0) as i32;
+        let mut choose_network_but = Choice::new(0, 0, 0, ROW_H, "");
         for name in networks {
             choose_network_but.add_choice(name);
         }
-        let rlock = AtomicBool::new(false);
+        choose_network_but.set_value(initial_nw_idx);
         choose_network_but.set_callback({
             let networks = networks.to_vec();
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
                 if b.value() < 0 {
                     return;
                 }
@@ -521,21 +519,23 @@ impl MainForm {
                     conf.last_network = Some(name.to_string());
                     let _ = conf.update_config();
                 }
-                b.set_label(&fl!("new-network-label", "name" = name));
                 sb.set_text(&MainForm::format_config_status());
                 config_changed.set(true);
-                rlock.store(false, Ordering::Release);
             }
         });
+        let lbl_nw = Frame::default().with_label(&fl!("active-network", "addr" = ""));
         let mut flx_netwrk = Flex::new(0, 0, GW, ROW_H, "");
+        flx_netwrk.set_spacing(5);
+        flx_netwrk.set_type(FlexType::Row);
         flx_netwrk.end();
+        flx_netwrk.add(&lbl_nw);
+        flx_netwrk.fixed(&lbl_nw, LABEL_W_NET);
         flx_netwrk.add(&choose_network_but);
         network_col.add(&flx_netwrk);
         network_col.fixed(&flx_netwrk, ROW_H);
 
-        // HTTP server listen port + SSDP interval
-        let http_port_lbl = fl!("http-port-label");
-        let mut listen_port = IntInput::new(0, 0, 0, 0, http_port_lbl.as_str());
+        // HTTP server listen port
+        let mut listen_port = IntInput::new(0, 0, 0, 0, "");
         listen_port.set_value(&get_config().server_port.unwrap_or_default().to_string());
         listen_port.set_maximum_size(5);
         listen_port.set_callback({
@@ -558,8 +558,19 @@ impl MainForm {
                 }
             }
         });
-        let ssdp_interval_lbl = fl!("ssdp-interval-label");
-        let mut ssdp_interval = Counter::new(0, 0, 0, 0, ssdp_interval_lbl.as_str());
+        let lbl_port = Frame::default().with_label(&fl!("http-port-label"));
+        let mut flx_port = Flex::new(0, 0, GW, ROW_H, "");
+        flx_port.set_spacing(5);
+        flx_port.set_type(FlexType::Row);
+        flx_port.end();
+        flx_port.add(&lbl_port);
+        flx_port.fixed(&lbl_port, LABEL_W_NET);
+        flx_port.add(&listen_port);
+        network_col.add(&flx_port);
+        network_col.fixed(&flx_port, ROW_H);
+
+        // SSDP interval
+        let mut ssdp_interval = Counter::new(0, 0, 0, 0, "");
         ssdp_interval.set_value(config.ssdp_interval_mins);
         ssdp_interval.handle({
             let config_changed = config_changed.clone();
@@ -597,14 +608,16 @@ impl MainForm {
                 }
             }
         });
-        let mut flx_port_ssdp = Flex::new(0, 0, GW, ROW_H, "");
-        flx_port_ssdp.set_spacing(10);
-        flx_port_ssdp.set_type(FlexType::Row);
-        flx_port_ssdp.end();
-        flx_port_ssdp.add(&listen_port);
-        flx_port_ssdp.add(&ssdp_interval);
-        network_col.add(&flx_port_ssdp);
-        network_col.fixed(&flx_port_ssdp, ROW_H);
+        let lbl_ssdp = Frame::default().with_label(&fl!("ssdp-interval-label"));
+        let mut flx_ssdp = Flex::new(0, 0, GW, ROW_H, "");
+        flx_ssdp.set_spacing(5);
+        flx_ssdp.set_type(FlexType::Row);
+        flx_ssdp.end();
+        flx_ssdp.add(&lbl_ssdp);
+        flx_ssdp.fixed(&lbl_ssdp, LABEL_W_NET);
+        flx_ssdp.add(&ssdp_interval);
+        network_col.add(&flx_ssdp);
+        network_col.fixed(&flx_ssdp, ROW_H);
 
         g_network.add(&network_col);
         tabs.add(&g_network);
@@ -619,29 +632,24 @@ impl MainForm {
         app_col.set_margin(MARGIN);
         app_col.end();
 
-        // Language + Theme row
+        // Language choice
         let available_langs = i18n::available_languages();
-        let cur_lang = config
-            .language
-            .clone()
-            .unwrap_or_else(|| "en-US".to_string());
-        let mut lang_button = MenuButton::new(0, 0, 0, ROW_H, None)
-            .with_label(&fl!("language-label", "lang" = &cur_lang));
-        lang_button.add_choice(&available_langs.join("|"));
-        let rlock = AtomicBool::new(false);
+        let cur_lang = config.language.clone().unwrap_or_else(|| "en-US".to_string());
+        let initial_lang_idx = available_langs.iter().position(|l| l == &cur_lang).unwrap_or(0) as i32;
+        let mut lang_button = Choice::new(0, 0, 0, ROW_H, "");
+        for lang in &available_langs {
+            lang_button.add_choice(lang);
+        }
+        lang_button.set_value(initial_lang_idx);
         lang_button.set_callback({
             let available_langs = available_langs.clone();
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
                 if b.value() < 0 {
                     return;
                 }
                 let lang = &available_langs[b.value() as usize];
-                b.set_label(&fl!("language-label", "lang" = lang));
                 ui_log(
                     LogCategory::Warning,
                     &fl!("warn-language-changed", "lang" = lang),
@@ -653,65 +661,68 @@ impl MainForm {
                 }
                 sb.set_text(&MainForm::format_config_status());
                 config_changed.set(true);
-                rlock.store(false, Ordering::Release);
             }
         });
-        let cur_theme = if let Some(theme) = config.color_theme {
-            let name = Self::apply_theme(theme.into());
-            fl!("color-theme-label", "name" = name)
-        } else {
-            fl!("choose-color-theme")
-        };
-        let mut theme_button = MenuButton::new(0, 0, 0, ROW_H, None).with_label(&cur_theme);
-        theme_button.add_choice(&THEMES.join("|"));
-        let rlock = AtomicBool::new(false);
+        let lbl_lang = Frame::default().with_label(&fl!("language-label", "lang" = ""));
+        let mut flx_lang = Flex::new(0, 0, GW, ROW_H, "");
+        flx_lang.set_spacing(5);
+        flx_lang.set_type(FlexType::Row);
+        flx_lang.end();
+        flx_lang.add(&lbl_lang);
+        flx_lang.fixed(&lbl_lang, LABEL_W);
+        flx_lang.add(&lang_button);
+        app_col.add(&flx_lang);
+        app_col.fixed(&flx_lang, ROW_H);
+
+        // Theme choice
+        if let Some(theme) = config.color_theme {
+            Self::apply_theme(theme.into());
+        }
+        let initial_theme_idx = config.color_theme.unwrap_or(0) as i32;
+        let mut theme_button = Choice::new(0, 0, 0, ROW_H, "");
+        for theme in THEMES.iter() {
+            theme_button.add_choice(theme);
+        }
+        theme_button.set_value(initial_theme_idx);
         theme_button.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
                 if b.value() < 0 {
                     return;
                 }
                 let name = Self::apply_theme(b.value() as usize);
                 debug!("New theme = {name}");
-                b.set_label(&fl!("color-theme-label", "name" = name));
                 {
                     let mut conf = get_config_mut();
                     conf.color_theme = Some(b.value() as u8);
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status());
-                rlock.store(false, Ordering::Release);
             }
         });
-        let mut fl_lng_thm = Flex::new(0, 0, GW, ROW_H, "");
-        fl_lng_thm.set_spacing(10);
-        fl_lng_thm.set_type(FlexType::Row);
-        fl_lng_thm.end();
-        fl_lng_thm.add(&lang_button);
-        fl_lng_thm.add(&theme_button);
-        app_col.add(&fl_lng_thm);
-        app_col.fixed(&fl_lng_thm, ROW_H);
+        let lbl_theme = Frame::default().with_label(&fl!("color-theme-label", "name" = ""));
+        let mut flx_theme = Flex::new(0, 0, GW, ROW_H, "");
+        flx_theme.set_spacing(5);
+        flx_theme.set_type(FlexType::Row);
+        flx_theme.end();
+        flx_theme.add(&lbl_theme);
+        flx_theme.fixed(&lbl_theme, LABEL_W);
+        flx_theme.add(&theme_button);
+        app_col.add(&flx_theme);
+        app_col.fixed(&flx_theme, ROW_H);
 
         // log level choice
-        let ll = fl!("log-level-label", "level" = config.log_level);
-        let mut log_level_choice = MenuButton::default().with_label(&ll);
         let log_levels = ["Info", "Debug"];
+        let initial_ll_idx = if config.log_level == LevelFilter::Debug { 1i32 } else { 0i32 };
+        let mut log_level_choice = Choice::new(0, 0, 0, ROW_H, "");
         for ll in &log_levels {
             log_level_choice.add_choice(ll);
         }
-        // apparently this event can recurse on very fast machines
-        // probably because it takes some time doing the file I/O, hence recursion lock
-        let rlock = AtomicBool::new(false);
+        log_level_choice.set_value(initial_ll_idx);
         log_level_choice.set_callback({
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
-                if rlock.swap(true, Ordering::Acquire) {
-                    return;
-                }
                 if b.value() < 0 {
                     return;
                 }
@@ -728,13 +739,15 @@ impl MainForm {
                 }
                 sb.set_text(&MainForm::format_config_status());
                 config_changed.set(true);
-                b.set_label(&fl!("log-level-label", "level" = loglevel));
-                rlock.store(false, Ordering::Release);
             }
         });
+        let lbl_ll = Frame::default().with_label(&fl!("log-level-label", "level" = ""));
         let mut flx_loglvl = Flex::new(0, 0, GW, ROW_H, "");
+        flx_loglvl.set_spacing(5);
         flx_loglvl.set_type(FlexType::Row);
         flx_loglvl.end();
+        flx_loglvl.add(&lbl_ll);
+        flx_loglvl.fixed(&lbl_ll, LABEL_W);
         flx_loglvl.add(&log_level_choice);
         app_col.add(&flx_loglvl);
         app_col.fixed(&flx_loglvl, ROW_H);
@@ -772,14 +785,19 @@ impl MainForm {
                 sb.set_text(&MainForm::format_config_status());
             }
         });
-        let mut flx_autoplay = Flex::new(0, 0, GW, ROW_H, "");
-        flx_autoplay.set_spacing(10);
-        flx_autoplay.set_type(FlexType::Row);
-        flx_autoplay.end();
-        flx_autoplay.add(&auto_resume);
-        flx_autoplay.add(&auto_reconnect);
-        app_col.add(&flx_autoplay);
-        app_col.fixed(&flx_autoplay, ROW_H);
+        let mut flx_autoresume = Flex::new(0, 0, GW, ROW_H, "");
+        flx_autoresume.set_type(FlexType::Row);
+        flx_autoresume.end();
+        flx_autoresume.add(&auto_resume);
+        app_col.add(&flx_autoresume);
+        app_col.fixed(&flx_autoresume, ROW_H);
+
+        let mut flx_autoreconnect = Flex::new(0, 0, GW, ROW_H, "");
+        flx_autoreconnect.set_type(FlexType::Row);
+        flx_autoreconnect.end();
+        flx_autoreconnect.add(&auto_reconnect);
+        app_col.add(&flx_autoreconnect);
+        app_col.fixed(&flx_autoreconnect, ROW_H);
 
         // RMS animation enable + meters
         let show_rms_lbl = fl!("chk-rms-monitor");
@@ -816,20 +834,10 @@ impl MainForm {
                 sb.set_text(&MainForm::format_config_status());
             }
         });
-        // vertical flex for the RMS meters
-        let mut flx_rms_v = Flex::new(0, 0, GW, ROW_H, "");
-        flx_rms_v.set_spacing(4);
-        flx_rms_v.set_type(FlexType::Column);
-        flx_rms_v.end();
-        flx_rms_v.add(&rms_mon_l);
-        flx_rms_v.add(&rms_mon_r);
-        flx_rms_v.make_resizable(true);
         let mut flx_rms = Flex::new(0, 0, GW, ROW_H, "");
-        flx_rms.set_spacing(10);
         flx_rms.set_type(FlexType::Row);
         flx_rms.end();
         flx_rms.add(&show_rms);
-        flx_rms.add(&flx_rms_v);
         app_col.add(&flx_rms);
         app_col.fixed(&flx_rms, ROW_H);
 
@@ -852,6 +860,15 @@ impl MainForm {
         tabs.end();
         vpack.add(&tabs);
         let _ = tabs.set_value(&g_status);
+
+        // RMS level meters always visible below the tabs
+        let mut flx_rms_v = Flex::new(0, 0, GW, 20, "");
+        flx_rms_v.set_spacing(4);
+        flx_rms_v.set_type(FlexType::Column);
+        flx_rms_v.end();
+        flx_rms_v.add(&rms_mon_l);
+        flx_rms_v.add(&rms_mon_r);
+        vpack.add(&flx_rms_v);
 
         // hidden restart button
         let mut flx_restart = Flex::new(0, 0, GW, 25, "");

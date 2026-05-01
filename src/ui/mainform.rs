@@ -213,7 +213,7 @@ impl MainForm {
         vpack.add(&flx_title);
 
         // show config option widgets in tabs
-        const TAB_H: i32 = 250;
+        const TAB_H: i32 = 240;
         const TAB_BAR_H: i32 = 30;
         const INNER_H: i32 = TAB_H - TAB_BAR_H;
         const ROW_H: i32 = 25;
@@ -458,9 +458,11 @@ impl MainForm {
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
-                let mut conf = get_config_mut();
-                conf.inject_silence = Some(b.is_set());
-                let _ = conf.update_config();
+                {
+                    let mut conf = get_config_mut();
+                    conf.inject_silence = Some(b.is_set());
+                    let _ = conf.update_config();
+                }
                 sb.set_text(&MainForm::format_config_status());
                 config_changed.set(true);
             }

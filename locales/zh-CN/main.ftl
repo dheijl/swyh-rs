@@ -27,6 +27,12 @@ chk-rms-monitor = RMS 监视器
 btn-apply-config = 点击应用配置更改
 upnp-devices = 网络 { $addr } 上的 UPNP 渲染设备
 
+# 标签页标题
+tab-audio = 音频
+tab-network = 网络
+tab-app = 应用
+tab-status = 状态
+
 # Status messages
 status-setup-audio = 配置音频源
 status-injecting-silence = 正在向输出流注入静音

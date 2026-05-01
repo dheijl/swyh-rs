@@ -27,6 +27,12 @@ chk-rms-monitor = Monitor RMS
 btn-apply-config = Applica modifiche alla configurazione
 upnp-devices = Dispositivi UPNP sulla rete { $addr }
 
+# Titoli delle schede
+tab-audio = Audio
+tab-network = Rete
+tab-app = App
+tab-status = Stato
+
 # Status messages
 status-setup-audio = Configurazione sorgenti audio
 status-injecting-silence = Inserimento silenzio nel flusso di uscita

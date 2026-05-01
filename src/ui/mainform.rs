@@ -282,7 +282,10 @@ impl MainForm {
             StreamingFormat::Flac.to_string(),
             StreamingFormat::Rf64.to_string(),
         ];
-        let initial_fmt = config.streaming_format.unwrap_or(StreamingFormat::Lpcm).to_string();
+        let initial_fmt = config
+            .streaming_format
+            .unwrap_or(StreamingFormat::Lpcm)
+            .to_string();
         let initial_fmt_idx = formats.iter().position(|f| f == &initial_fmt).unwrap_or(0) as i32;
         let mut fmt_choice = Choice::new(0, 0, 0, ROW_H, "");
         for fmt in &formats {
@@ -338,7 +341,10 @@ impl MainForm {
             StreamSize::U32maxNotChunked.to_string(),
             StreamSize::U32maxChunked.to_string(),
         ];
-        let initial_ss_idx = streamsizes.iter().position(|s| s == &streamsize.to_string()).unwrap_or(0) as i32;
+        let initial_ss_idx = streamsizes
+            .iter()
+            .position(|s| s == &streamsize.to_string())
+            .unwrap_or(0) as i32;
         let mut ss_choice = Choice::new(0, 0, 0, ROW_H, "");
         for s in &streamsizes {
             ss_choice.add_choice(s.as_str());
@@ -493,7 +499,9 @@ impl MainForm {
         network_col.end();
 
         // network selection
-        let initial_nw_idx = config.last_network.as_ref()
+        let initial_nw_idx = config
+            .last_network
+            .as_ref()
             .and_then(|nw| networks.iter().position(|n| n == nw))
             .unwrap_or(0) as i32;
         let mut choose_network_but = Choice::new(0, 0, 0, ROW_H, "");
@@ -634,8 +642,14 @@ impl MainForm {
 
         // Language choice
         let available_langs = i18n::available_languages();
-        let cur_lang = config.language.clone().unwrap_or_else(|| "en-US".to_string());
-        let initial_lang_idx = available_langs.iter().position(|l| l == &cur_lang).unwrap_or(0) as i32;
+        let cur_lang = config
+            .language
+            .clone()
+            .unwrap_or_else(|| "en-US".to_string());
+        let initial_lang_idx = available_langs
+            .iter()
+            .position(|l| l == &cur_lang)
+            .unwrap_or(0) as i32;
         let mut lang_button = Choice::new(0, 0, 0, ROW_H, "");
         for lang in &available_langs {
             lang_button.add_choice(lang);
@@ -713,7 +727,11 @@ impl MainForm {
 
         // log level choice
         let log_levels = ["Info", "Debug"];
-        let initial_ll_idx = if config.log_level == LevelFilter::Debug { 1i32 } else { 0i32 };
+        let initial_ll_idx = if config.log_level == LevelFilter::Debug {
+            1i32
+        } else {
+            0i32
+        };
         let mut log_level_choice = Choice::new(0, 0, 0, ROW_H, "");
         for ll in &log_levels {
             log_level_choice.add_choice(ll);
@@ -905,6 +923,7 @@ impl MainForm {
         flx_feedback.end();
         let buf = TextBuffer::default();
         let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
+        tb.set_text_size(12);
         tb.set_selection_color(enums::Color::DarkYellow);
         tb.set_buffer(Some(buf));
         flx_feedback.add(&tb);

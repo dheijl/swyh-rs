@@ -2,7 +2,7 @@
 
 - 1.20.3 (unreleased, waiting for cpal 0.18.0)
   - don't compute RMS for silence
-  - rework UI with TABs
+  - rework UI with TABs and FLTK choice widgets instead of menubuttons
 
 - 1.20.3-RC2(Apr 25 2026, dheijl)
   - rust 1.95.0

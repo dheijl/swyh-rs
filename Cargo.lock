@@ -194,7 +194,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.18.0"
-source = "git+https://github.com/RustAudio/cpal.git#f938e338c9811fbe4d428517acf1d15cc6d694d4"
+source = "git+https://github.com/RustAudio/cpal.git#ca34efcc3dd912926bb562843b89665cc8f4bf79"
 dependencies = [
  "alsa",
  "block2",
@@ -1499,7 +1499,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "swyh-rs"
-version = "1.20.3-RC2"
+version = "1.20.3-RC3"
 dependencies = [
  "bitflags",
  "cpal",

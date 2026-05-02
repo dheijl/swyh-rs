@@ -1,10 +1,8 @@
 # swyh-rs Changelog
 
 - 1.20.3 (unreleased, waiting for cpal 0.18.0)
-  - don't compute RMS for silence
-  - rework UI with TABs and FLTK choice widgets instead of menubuttons
 
-- 1.20.3-RC2(Apr 25 2026, dheijl)
+- 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0
   - use CPAL 0.18.0 development branch
   - localize the project using `fluent-templates`and the assistance of Claude
@@ -13,6 +11,8 @@
   - replace nl-BE with nl-NL
   - pick up the system locale if a supported language on a new installation. If the current system locale has no language file: try to find one matching the base locale (e.g. nl-BE => nl-NL, fr-CH => fr-FR, ...). Otherwise use en-US.
   - attempt to fix the SSP UDP problem on MacOS (but I can't test this myself)
+  - don't compute RMS for silence
+  - rework UI with TABs and FLTK choice widgets instead of menubuttons
 
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.

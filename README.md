@@ -28,7 +28,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is **[1.20.3-RC2](https://github.com/dheijl/swyh-rs/releases/tag/1.20.3-RC2)**, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is **[1.20.3-RC3](https://github.com/dheijl/swyh-rs/releases/tag/1.20.3-RC3)**, refer to the [Changelog](CHANGELOG.md) for more details.
 This RC is released to give the new CPAL 0.18.0 development release and the new localization feature some exposure. 
 
 You can find x86/64  Windows setup and binaries and Linux (Ubuntu/Debian) appimages in [Releases](https://github.com/dheijl/swyh-rs/releases).

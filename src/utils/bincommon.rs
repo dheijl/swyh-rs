@@ -36,6 +36,7 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
     let device = device.as_ref();
     let try_stream = match sample_format {
         SampleFormat::F32 => device.build_output_stream(config, write_silence::<f32>, err_fn, None),
+        SampleFormat::F64 => device.build_output_stream(config, write_silence::<f64>, err_fn, None),
         SampleFormat::I16 => device.build_output_stream(config, write_silence::<i16>, err_fn, None),
         SampleFormat::U16 => device.build_output_stream(config, write_silence::<u16>, err_fn, None),
         SampleFormat::I32 => device.build_output_stream(config, write_silence::<i32>, err_fn, None),

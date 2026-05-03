@@ -25,11 +25,12 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 - [Latency, streaming format and stream duration](#latency-and-streaming-format-and-stream-duration)
 - [Audio quality and Windows WasApi Loopback capture](#audio-quality-and-windows-wasapi-loopback-capture)
 - [Releases](#releases)
+- [Screenshots](#screenshots)
 
 ## Current Release
 
 The current release is **[1.20.3-RC3](https://github.com/dheijl/swyh-rs/releases/tag/1.20.3-RC3)**, refer to the [Changelog](CHANGELOG.md) for more details.
-This RC is released to give the new CPAL 0.18.0 development release and the new localization feature some exposure. 
+This RC is released to give the new CPAL 0.18.0 development release and the new localization feature some exposure.
 
 You can find x86/64  Windows setup and binaries and Linux (Ubuntu/Debian) appimages in [Releases](https://github.com/dheijl/swyh-rs/releases).
 
@@ -154,40 +155,64 @@ The icon was designed by @numanair, thanks!
 
 ### How does it work?
 
-- audio is captured from the default audio device (WasApi on Windows, Alsa on Linux, not tested on Mac), but you can choose any audio source you want. Changing the sound source needs a restart of the app to take effect.
-- On Windows you can check in the **soundmixer** that the audio device you're capturing is the device that is actually playing audio. On Linux you can use [pavucontrol](https://freedesktop.org/software/pulseaudio/pavucontrol/) to enable the audio monitor for the audio device you are capturing.
-- you can (and probably should) use the "_RMS monitor_" feature to verify that swyh-rs is actually capturing audio.
-- a built-in audio streaming web server is started on port 5901.
-- all media renderers are discoverded using **SSDP** on the local network, this takes about four seconds to complete. By default the network that connects to the internet is chosen (so that on a multihomed Windows machine the most likely interface is selected). If necessary you can choose another network from the network dropdown, for instance if you use a VPN. The SSDP discovery interval is configurable in the GUI. You can **disable SSDP discovery by setting the discovery interval to 0.0**. This puts swyh-rs GUI in "_serve only_" mode, so that you can only use it as an internet radio station.
-- then a button is shown for every renderer found by the SSDP discovery, together with a volume slider if the player supports changing the volume. You drag the slider to change the volume. When pressing the shift key while dragging, all _currently active_ sliders/players will copy the new volume of the dragged slider.
-- if you click the button for a renderer the OpenHome or AvTransport protocol is used to let the renderer play the captured audio from the webserver
-- audio is always sent in audio/l16 PCM format, no matter the input source, using the sample rate of the source, unless you enable 24 bit LPCM (see below).
-- some renderers will stop when detecting a pause between songs or for some other unknown reason. You can use the "_Autoresume_" checkbox if you encounter this problem. But always try to disable the "_Chunked Transfer Encoding_" first to see if this fixes the problem before you enable AutoResume. Since version 1.3.2 AutoResume should work with OpenHome renderers too (tested with Bubble UPNP Server and Chromecast/Nest Audio).
-- there is an "_Autoreconnect_" checkbox, if set all renderers **still active** when closing swyh-rs GUI will be automatically activated on program start
-- since 1.4.0 there is a dropdown that lets you choose between FLAC, LPCM or WAV format. Preferred format is FLAC, WAV or LPCM should only be used if FLAC does not work. Also, only FLAC will work with 24 bit.
-- there is (since 1.3.20) a check box "_24 bit_". It causes audio to be streamed in 24 bit LPCM format (audio/L24) with the sampling rate of the audio source. It only works reliably with the FLAC format. 24 bit works with Bubble/UPNP too with LPCM, but not with hardware streamers.
-- there is (since 1.3.13) an input box to select the _HTTP listener port_ for the streaming server. Default is 5901. If you use a firewall, this port should allow incoming HTTP connections from your renderer(s).
-- there is (since 1.3.6) an option to enable visualization of the RMS value (L+R channel) of the captured PCM audio signal. It will only add an insignificant amount of CPU use.
-- you can also enter the webserver url in the renderer, for instance in Volumio as a web radio at <http://{ip_address}:5901/stream/swyh.wav>, so that you can start playing from the Volumio UI if swyh-rs is already running
-- the program tries to run at a priority "`above normal`" in the hope that using the computer for other stuff will not cause stuttering. On Windows this always works, on Linux you need the necessary privilege (renice), for instance on Debian Bookworm you can add yourself to the `pipewire` group to get this privilege (`sudo usermod -a -G pipewire username`). On Ubuntu 20.04 you would add a line to `/etc/security/limits.conf` specifying a nice value of - 10 for your user, for instance: `username   -   nice  -10`
-- the SSDP discovery process is rerun every x minutes in the background, any newly discovered renderers will be automatically added to the GUI. Existing renderers that "disappear" during discovery are not deleted from the GUI, as SSDP discovery is not guaranteed to be failsafe (it uses UDP packets). The SSDP discovery interval is configurable, minimum value is 0.5 minutes, there is no maximum value.
-- after one or more configuration changes that need a program restart, a new button shows to apply the changes. It simply restarts swyh-rs.
-- Since version 1.2.2, swyh-rs will peridically send silence to connected renderers if no sound is being captured because no audio is currently being played. This prevents some renderers from disconnecting because they have not received any sound for some time (Bubble UPNP Server with Chromecast/Nest Audio). Apparently sending silence keeps them happy. For FLAC streaming white noise at -90 db is sent because silence is compressed away in FLAC.
-- the Inject Silence checkbox will continuously mix silence into the input stream, as an alternative for the above. Since version 1.12.0 this also works for FLAC streaming. Previously FLAC compressed the digital silence away resulting in large gaps between frames, sometimes causing connection loss.  
-- Since version 1.5 you can have multiple instances running where each instance uses a different configuration file. An optional command line parameter _-c config_ or _--configuration config_ has been added to enable this (using a shortcut or starting swyh-rs from the command line). This _config_ parameter is then used as part of the config.toml filename for the swyh-rs instance. The default _config_ is empty. Examples: _swyh-rs -c 1_ or _swyh-rs --configuration vb-audio_. This way you can **stream different audio sources** to different receivers simultaneously.
-- Since 1.9.9 you have a dropdown to select one of 5 possible HTTP streaming sizes, select the one that works best for you with the selected streaming format:
-  - NoneChunked: no Content-Length, chunked HTTP streaming
-  - U32MaxChunked: Content-Length = u32::MAX, chunked HTTP streaming
-  - U64MaxChunked: Content-Length = u64::MAX, chunked HTTP streaming
-  - U32MaxNotChunked: Content-Length = u32::MAX -1, no chunking, default for WAV
-  - U64MaxNotChunked: Content-Length = u64::MAX - 1, no chunking
-- Since 1.10.0, contributed by @ein-shved:
-  - there are now build files for the Nix build system and the possibility to install swyh-rs-cli as a service using Nix
-  - a more flexible CLI configuration with new -C (configfile) switch and automatic serve mode is no player specified
-- Since 1.10.5 you can enable **initial buffering** audio for a number of milliseconds before streaming starts, this may help to prevent stuttering on flaky (WiFi) networks or with streamers that don't have a configurable buffer size or that have a flaky system clock.
-- Since 1.11.1 you can select one of the FLTK color themes, using a new dropdown near the top of the window (PR #139 by @Villardo)
-- Since 1.12.10 you can hide a player by right-clicking it. To unhide all hidden players right-click the label"_UPNP rendering devices..._" above the players.
-- On Windows starting/closing an RDP session reinitializes the sound system, this aborts audio capture and sound is lost. swyh-rs will try to restore audio capture from the original device if possible (since 1.12.13).
+When swyh-rs starts, it:
+
+- captures audio from the selected audio source (WasApi on Windows, Alsa on Linux)
+- starts a built-in HTTP audio streaming web server on the configured port (default 5901)
+- runs **SSDP** discovery to find all UPnP/DLNA/OpenHome media renderers on the local network (takes about four seconds)
+- displays a button for every discovered renderer, together with a volume slider if the renderer supports volume control — drag the slider to change the volume; hold Shift while dragging to copy the new volume to all currently active renderers
+- clicking a renderer button uses the OpenHome or AvTransport protocol to instruct it to play the audio stream from the built-in web server
+
+SSDP discovery reruns every x minutes in the background; newly found renderers are added automatically. Renderers that disappear are kept in the GUI since SSDP (UDP-based) is not guaranteed reliable.
+
+You can also enter the web server URL directly in a renderer — for instance in Volumio as a web radio at `http://{ip_address}:5901/stream/swyh.wav` — so you can start playing from the renderer's own UI while swyh-rs is running.
+
+Since version 1.2.2, swyh-rs periodically sends silence to connected renderers when no audio is playing, to prevent some renderers from disconnecting. For FLAC, −90 dB white noise is sent instead (plain silence compresses away in FLAC).
+
+The program runs at "above normal" priority to reduce the chance of stuttering when the computer is busy. On Windows this always works. On Linux you need the necessary privilege (renice): on Debian Bookworm add yourself to the `pipewire` group (`sudo usermod -a -G pipewire username`); on Ubuntu 20.04 add a `nice -10` entry to `/etc/security/limits.conf` for your user.
+
+Since version 1.5 you can run multiple instances simultaneously, each with its own config file, using the `-c config` or `--configuration config` command-line option — e.g. `swyh-rs -c 1` or `swyh-rs --configuration vb-audio`. This lets you **stream different audio sources to different receivers simultaneously**.
+
+Since 1.12.10 you can hide a renderer button by right-clicking it. Right-click the "_UPNP rendering devices..._" label to unhide all hidden renderers.
+
+On Windows, starting or closing an RDP session re-initialises the sound system and aborts audio capture. Since 1.12.13, swyh-rs attempts to restore capture from the original device automatically.
+
+After one or more configuration changes that require a restart, a **Restart** button appears. Clicking it restarts swyh-rs with the new settings.
+
+The configuration UI is organised into four tabs:
+
+#### Audio tab
+
+- **Audio source**: select the audio capture device. Changing the source requires a restart.
+  On Windows, verify in the **Sound Mixer** that the chosen device is actually playing audio. On Linux, use [pavucontrol](https://freedesktop.org/software/pulseaudio/pavucontrol/) to enable the audio monitor for the capture device.
+- **Streaming format**: choose between FLAC (preferred), WAV, RF64, or LPCM. FLAC is recommended — it works reliably with 24-bit audio and causes the fewest compatibility issues. WAV or LPCM should only be used when FLAC does not work with your renderer.
+- **24 bit**: stream audio at 24-bit depth (FLAC/24 or LPCM audio/L24 at the source sample rate). Only works reliably with FLAC; 24-bit LPCM works with Bubble UPNP but not with most hardware streamers.
+- **Stream size**: select one of five HTTP streaming size/chunking modes — choose what works best with your renderer and format:
+  - _NoneChunked_: no Content-Length, chunked transfer encoding
+  - _U32MaxChunked_: Content-Length = u32::MAX, chunked
+  - _U64MaxChunked_: Content-Length = u64::MAX, chunked
+  - _U32MaxNotChunked_: Content-Length = u32::MAX − 1, no chunking (default for WAV)
+  - _U64MaxNotChunked_: Content-Length = u64::MAX − 1, no chunking
+- **Initial buffering** (ms): buffer audio for this many milliseconds before streaming starts. Helps prevent stuttering on flaky WiFi networks or with renderers that have no configurable buffer.
+- **Inject Silence**: continuously mix silence into the input stream as an alternative to the automatic periodic-silence mechanism, preventing some renderers from disconnecting during playback pauses. Works with FLAC since version 1.12.0. On Linux silence may be injected automatically so no need to check this in that case.
+
+#### Network tab
+
+- **Network interface**: select the network interface used for SSDP discovery and streaming. On a multihomed machine swyh-rs defaults to the interface that connects to the internet. Change this when a VPN or secondary interface is involved.
+- **HTTP port**: the port the streaming web server listens on (default 5901). If you use a firewall, allow incoming HTTP connections on this port from your renderer(s).
+- **SSDP interval** (minutes): how often SSDP discovery reruns in the background. Minimum is 0.5 minutes. Set to 0.0 to disable discovery entirely, putting swyh-rs into "_serve only_" mode — useful when running it purely as a local internet radio station.
+
+#### App tab
+
+- **Language / Theme**: select the UI language and FLTK colour theme.
+- **Log level**: set the logging verbosity (info / debug). Log files are written to the _.swyh-rs_ folder in your home directory. Use the debug build and a console window to capture Rust "panic" messages that a release build cannot log.
+- **Auto-resume**: automatically resume streaming if a renderer stops unexpectedly. Always try disabling _Chunked Transfer Encoding_ first to see if that alone fixes the problem before enabling Auto-resume.
+- **Auto-reconnect**: re-activate all renderers that were active when swyh-rs was last closed.
+- **RMS monitor**: enable visualisation of the RMS level (L+R channels) of the captured audio. Use this to verify that swyh-rs is actually capturing audio. Adds a negligible amount of CPU use.
+
+#### Status tab
+
+The Status tab is the active tab on startup. It shows a live, read-only summary of all current configuration settings and is updated automatically whenever a setting changes.
 
 ### SSDP and VPN
 
@@ -291,18 +316,11 @@ MAC: I'm sorry but I don't have one... If you have one and would like to contrib
 - the App settings tab:
 <img width="700" height="772" alt="app" src="https://github.com/user-attachments/assets/87cd25fc-ec38-406a-927b-99eec729890b" />
 
-
 - the Audio settings tab:
 <img width="700" height="772" alt="audio" src="https://github.com/user-attachments/assets/cf199c4c-439f-41e3-9141-2d1794550a1d" />
-
 
 - the Network settings tab:
 <img width="700" height="772" alt="netwerk" src="https://github.com/user-attachments/assets/32c8e352-2805-4dc7-a114-632761a4564c" />
 
-
 - the Status tab:
 <img width="700" height="772" alt="status" src="https://github.com/user-attachments/assets/b1c06acf-9c47-42be-b5fb-d1b2ec07e6cd" />
-
-
-
-

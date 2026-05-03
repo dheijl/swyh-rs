@@ -2,6 +2,8 @@
 
 - 1.20.3 (unreleased, waiting for cpal 0.18.0)
 
+- 1.20.3-RC4 (unreleased)
+
 - 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0
   - use CPAL 0.18.0 development branch

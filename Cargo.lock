@@ -194,7 +194,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.18.0"
-source = "git+https://github.com/RustAudio/cpal.git#ca34efcc3dd912926bb562843b89665cc8f4bf79"
+source = "git+https://github.com/RustAudio/cpal.git#078787ee8061c41fc3198e3a39d55238bc68fa4d"
 dependencies = [
  "alsa",
  "block2",
@@ -217,6 +217,7 @@ dependencies = [
  "objc2-foundation",
  "web-sys",
  "windows 0.62.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -1499,7 +1500,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "swyh-rs"
-version = "1.20.3-RC3"
+version = "1.20.3-RC4"
 dependencies = [
  "bitflags",
  "cpal",

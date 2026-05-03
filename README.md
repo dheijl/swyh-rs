@@ -165,21 +165,21 @@ When swyh-rs starts, it:
 
 SSDP discovery reruns every x minutes in the background; newly found renderers are added automatically. Renderers that disappear are kept in the GUI since SSDP (UDP-based) is not guaranteed reliable.
 
-You can also enter the web server URL directly in a renderer — for instance in Volumio as a web radio at `http://{ip_address}:5901/stream/swyh.wav` — so you can start playing from the renderer's own UI while swyh-rs is running.
+You can also enter the web server URL directly in a renderer — for instance in MoOde as a web radio at `http://{ip_address}:5901/stream/swyh.flac` — so you can start playing from the renderer's own UI while swyh-rs is running.
 
-Since version 1.2.2, swyh-rs periodically sends silence to connected renderers when no audio is playing, to prevent some renderers from disconnecting. For FLAC, −90 dB white noise is sent instead (plain silence compresses away in FLAC).
+On Linux silence is often automatically produced in the absence of sound. If this is not the case, you can enable the "_Inject silence_" checkbox in the audio tab. If no silence is present in the absence of sound, Swyh-rs periodically sends silence to connected renderers when no audio is playing, to prevent some renderers from disconnecting. For FLAC, a −90 dB white noise is sent instead.
 
 The program runs at "above normal" priority to reduce the chance of stuttering when the computer is busy. On Windows this always works. On Linux you need the necessary privilege (renice): on Debian Bookworm add yourself to the `pipewire` group (`sudo usermod -a -G pipewire username`); on Ubuntu 20.04 add a `nice -10` entry to `/etc/security/limits.conf` for your user.
 
 Since version 1.5 you can run multiple instances simultaneously, each with its own config file, using the `-c config` or `--configuration config` command-line option — e.g. `swyh-rs -c 1` or `swyh-rs --configuration vb-audio`. This lets you **stream different audio sources to different receivers simultaneously**.
 
-Since 1.12.10 you can hide a renderer button by right-clicking it. Right-click the "_UPNP rendering devices..._" label to unhide all hidden renderers.
+You can hide a renderer button by right-clicking it. Right-click the "_UPNP rendering devices..._" label to unhide all hidden renderers.
 
 On Windows, starting or closing an RDP session re-initialises the sound system and aborts audio capture. Since 1.12.13, swyh-rs attempts to restore capture from the original device automatically.
 
 After one or more configuration changes that require a restart, a **Restart** button appears. Clicking it restarts swyh-rs with the new settings.
 
-The configuration UI is organised into four tabs:
+The **configuration UI** is organised into four tabs:
 
 #### Audio tab
 

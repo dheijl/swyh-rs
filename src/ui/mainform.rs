@@ -12,8 +12,8 @@ use crate::{
     },
     fl,
     globals::statics::{
-        NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut, get_renderers,
-        get_renderers_mut,
+        APP_DATE, APP_VERSION, NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut,
+        get_renderers, get_renderers_mut,
     },
     renderers::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, i18n, traits::FwSlashPipeEscape, ui_logger::*},
@@ -109,7 +109,6 @@ impl MainForm {
         networks: &[String],
         local_addr: IpAddr,
         wd: &WavData,
-        app_version: &str,
         ssdp_kick_tx: crossbeam_channel::Sender<()>,
     ) -> MainForm {
         const GW: i32 = 640;
@@ -118,6 +117,8 @@ impl MainForm {
         const YPOS: i32 = 5;
         const WW: i32 = 700;
         const WH: i32 = 740;
+
+        let app_version = format!("{APP_VERSION}(build: {})", APP_DATE.unwrap_or("beta"));
 
         let title_color: Color = Color::from_u32(0x00e6_fff0);
         let app = app::App::default().with_scheme(app::Scheme::Gtk);

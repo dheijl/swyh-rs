@@ -213,7 +213,6 @@ fn main() {
     };
 
     // we now have enough information to create the GUI with meaningful data
-    let version_string = format!("{APP_VERSION}(build: {})", APP_DATE.unwrap_or("beta"));
     let (ssdp_kick_tx, ssdp_kick_rx) = crossbeam_channel::unbounded::<()>();
     let mut mf = MainForm::create(
         &config,
@@ -222,7 +221,6 @@ fn main() {
         &networks,
         local_addr,
         &wd,
-        &version_string,
         ssdp_kick_tx,
     );
 

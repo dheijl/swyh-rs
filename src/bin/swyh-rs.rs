@@ -214,6 +214,7 @@ fn main() {
 
     // we now have enough information to create the GUI with meaningful data
     let version_string = format!("{APP_VERSION}(build: {})", APP_DATE.unwrap_or("beta"));
+    let (ssdp_kick_tx, ssdp_kick_rx) = crossbeam_channel::unbounded::<()>();
     let mut mf = MainForm::create(
         &config,
         &config_changed,
@@ -222,6 +223,7 @@ fn main() {
         local_addr,
         &wd,
         &version_string,
+        ssdp_kick_tx,
     );
 
     // raise process priority a bit to prevent audio stuttering under cpu load
@@ -275,7 +277,7 @@ fn main() {
         let _jh = thread::Builder::new()
             .name("ssdp_updater".into())
             .stack_size(THREAD_STACK)
-            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int));
+            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int, ssdp_kick_rx));
         if let Err(e) = _jh {
             ui_log(
                 LogCategory::Error,

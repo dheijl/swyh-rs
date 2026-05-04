@@ -23,7 +23,12 @@ use crate::{
 /// run the `ssdp_updater` - thread that periodically run ssdp discovery
 /// and detect new renderers
 /// send any new renderers to the main thread on the Crossbeam ssdp channel
-pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
+/// `kick_rx` can be used to trigger an immediate discovery instead of waiting for the interval
+pub fn run_ssdp_updater(
+    ssdp_tx: &Sender<MessageType>,
+    ssdp_interval_mins: f64,
+    kick_rx: Receiver<()>,
+) {
     let agent = ureq::agent();
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
@@ -48,7 +53,8 @@ pub fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) 
             thread::sleep(Duration::from_millis(1000_u64));
             first_time = false;
         } else {
-            thread::sleep(Duration::from_millis(
+            // wait for the interval OR wake early if a kick is received
+            let _ = kick_rx.recv_timeout(Duration::from_millis(
                 (ssdp_interval_mins * ONE_MINUTE) as u64,
             ));
         }

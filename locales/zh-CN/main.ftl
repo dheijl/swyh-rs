@@ -16,6 +16,7 @@ new-audio-source-label = 新音频源：{ $name }
 chk-autoresume = 自动恢复播放
 chk-autoreconnect = 自动重连
 ssdp-interval-label = SSDP 间隔（分钟）
+btn-ssdp-discover = 立即运行 SSDP 发现
 log-level-label = 日志级别：{ $level }
 fmt-label = 格式：{ $format }
 chk-24bit = 24 位

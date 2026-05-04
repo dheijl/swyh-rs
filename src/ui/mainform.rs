@@ -110,6 +110,7 @@ impl MainForm {
         local_addr: IpAddr,
         wd: &WavData,
         app_version: &str,
+        ssdp_kick_tx: crossbeam_channel::Sender<()>,
     ) -> MainForm {
         const GW: i32 = 640;
         const FW: i32 = 640;
@@ -626,6 +627,18 @@ impl MainForm {
         flx_ssdp.add(&ssdp_interval);
         network_col.add(&flx_ssdp);
         network_col.fixed(&flx_ssdp, ROW_H);
+
+        // "Run SSDP discovery now" button — disabled when SSDP interval is 0 (thread not running)
+        let mut ssdp_now_btn = Button::new(0, 0, 0, ROW_H, "");
+        ssdp_now_btn.set_label(&fl!("btn-ssdp-discover"));
+        if config.ssdp_interval_mins <= 0.0 {
+            ssdp_now_btn.deactivate();
+        }
+        ssdp_now_btn.set_callback(move |_| {
+            let _ = ssdp_kick_tx.send(());
+        });
+        network_col.add(&ssdp_now_btn);
+        network_col.fixed(&ssdp_now_btn, ROW_H);
 
         g_network.add(&network_col);
         tabs.add(&g_network);

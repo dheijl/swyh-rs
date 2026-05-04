@@ -16,6 +16,7 @@ new-audio-source-label = New Audio Source: { $name }
 chk-autoresume = Autoresume play
 chk-autoreconnect = Autoreconnect
 ssdp-interval-label = SSDP Interval (in minutes)
+btn-ssdp-discover = Run SSDP discovery now
 log-level-label = Log Level: { $level }
 fmt-label = Format: { $format }
 chk-24bit = 24 bit

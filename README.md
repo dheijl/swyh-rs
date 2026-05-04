@@ -304,7 +304,7 @@ The binaries I publish in [Releases](https://github.com/dheijl/swyh-rs/releases)
   - the setup is built with InnoSetup
   - the setup and the binaries are not digitally signed, so Smartscreen or Defender may complain.
 - Linux:
-  - since V12.17 the appimages are built on an Ubuntu 20.04LTS Pro VM with the latest Rust stable version, so they should run on most systems.
+  - since V1.12.17 the appimages are built on an Ubuntu 20.04LTS Pro VM with the latest Rust stable version, so they should run on most systems.
   - the appimages contain update information, so you can update them using the [UpdateAppImage](https://github.com/AppImageCommunity/AppImageUpdate) tool.
 
 I do my best to keep everything up-to-date.

@@ -29,7 +29,7 @@ use fltk::{
     menu::Choice,
     misc::Progress,
     prelude::*,
-    text::{TextBuffer, TextDisplay},
+    text::{StyleTableEntry, TextBuffer, TextDisplay},
     valuator::{Counter, HorNiceSlider},
     window::DoubleWindow,
 };
@@ -885,6 +885,33 @@ impl MainForm {
         status_display.set_text_font(enums::Font::Courier);
         status_display.set_text_size(12);
         status_display.set_scrollbar_size(8);
+        let status_style_buf = TextBuffer::default();
+        let normal_color = status_display.text_color();
+        let styles = vec![
+            StyleTableEntry {
+                color: normal_color,
+                font: enums::Font::Courier,
+                size: 12,
+            },
+            StyleTableEntry {
+                color: Color::Green,
+                font: enums::Font::CourierBold,
+                size: 12,
+            },
+            StyleTableEntry {
+                color: Color::Red,
+                font: enums::Font::CourierBold,
+                size: 12,
+            },
+        ];
+        status_display.set_highlight_data(status_style_buf.clone(), styles);
+        {
+            let mut ssb = status_style_buf.clone();
+            let sb_ref = status_buf.clone();
+            status_buf.add_modify_callback(move |_, _, _, _, _| {
+                ssb.set_text(&MainForm::build_status_style(&sb_ref.text()));
+            });
+        }
         status_buf.set_text(&MainForm::format_config_status());
         g_status.add(&status_display);
         tabs.add(&g_status);
@@ -1070,6 +1097,28 @@ impl MainForm {
             bool_icon(config.monitor_rms),
         );
         s
+    }
+
+    fn build_status_style(text: &str) -> String {
+        let check = "✓".as_bytes();
+        let cross = "✗".as_bytes();
+        let bytes = text.as_bytes();
+        let mut style = vec![b'A'; bytes.len()];
+        let mut i = 0;
+        while i < bytes.len() {
+            let (style_char, len) = if bytes[i..].starts_with(check) {
+                (b'B', check.len())
+            } else if bytes[i..].starts_with(cross) {
+                (b'C', cross.len())
+            } else {
+                (b'A', 1)
+            };
+            for s in style.iter_mut().skip(i).take(len) {
+                *s = style_char;
+            }
+            i += len;
+        }
+        String::from_utf8(style).unwrap()
     }
 
     /// show a new renderer button for a new enderer discovered by ssdp

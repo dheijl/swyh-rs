@@ -254,7 +254,15 @@ Recognized options:
                 }
                 Short('L') | Long("language") => {
                     if let Ok(lang) = argparser.value() {
-                        self.language = Some(lang.string().unwrap_or_default());
+                        let lang = lang.string().unwrap_or_default();
+                        let available = crate::utils::i18n::available_languages();
+                        if available.contains(&lang) {
+                            self.language = Some(lang);
+                        } else {
+                            errors.push(format!(
+                                "Unknown language '{lang}', available: {available:?}."
+                            ));
+                        }
                     }
                 }
                 _ => (),

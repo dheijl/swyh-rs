@@ -92,6 +92,9 @@ fn main() -> Result<(), i32> {
         conf.clone()
     };
     // initialize i18n before any user-facing string is produced
+    if let Some(ref lang) = args.language {
+        config.language = Some(lang.clone());
+    }
     i18n::init(&config.language.clone().unwrap_or("en-US".to_string()));
     if let Some(config_id) = &config.config_id
         && !config_id.is_empty()

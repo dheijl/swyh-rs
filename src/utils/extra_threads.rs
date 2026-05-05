@@ -20,8 +20,8 @@ use crate::{
     renderers::rendercontrol::{Renderer, WavData, discover},
 };
 
-/// run the `ssdp_updater` - thread that periodically run ssdp discovery
-/// and detect new renderers
+/// run the `ssdp_updater` - thread that periodically runs ssdp discovery
+/// and detects new renderers
 /// send any new renderers to the main thread on the Crossbeam ssdp channel
 /// `kick_rx` can be used to trigger an immediate discovery instead of waiting for the interval
 pub fn run_ssdp_updater(

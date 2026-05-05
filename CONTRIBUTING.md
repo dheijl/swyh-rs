@@ -12,7 +12,9 @@ Please fork this project, commit your changes in a branch of your fork, then sta
 
 As this is a Rust project, you need to have standard Rust tooling installed. Please refer to the [official documentation](https://rust-lang.org/) for more information.
 
-You also need to install prerequisites of swyh-rs' dependencies (listed in Cargo.toml). At the time of writing, on Linux this can be performed with:
+You also need to install prerequisites of swyh-rs' dependencies (listed in Cargo.toml).
+
+- At the time of writing, on Linux this can be performed with:
 
 ```sh
 # libraries for compiling fltk-rs
@@ -21,9 +23,13 @@ sudo apt-get install libx11-dev libxext-dev libxft-dev libxinerama-dev libxcurso
 sudo apt-get install libasound2-dev
 ```
 
+- For Windows you need the MSV toolchain and CMake to build the c/C++ dependencies. The easiest way to get the MSV toolchain is to install Visual Studio Community Edition.
+
 ### Networking
 
-To be able to test the application, you need to allow certain types of network traffic related to DLNA/UPnP and streaming with swyh-rs. On Linux using `ufw`, this can be ensured with:
+To be able to test the application, you need to allow certain types of network traffic related to DLNA/UPnP and streaming with swyh-rs.
+
+- On Linux using `ufw`, this can be ensured with:
 
 ```sh
 sudo ufw allow in from 192.168.0.0/24 to any port 1900 proto udp
@@ -34,3 +40,5 @@ sudo ufw allow in from 192.168.0.0/24 to any port 5901  proto tcp
 sudo ufw allow in from fc00::/7 to any port 5901 proto tcp
 sudo ufw reload
 ```
+
+- On Windows you have to enable TCP port 5901 for inbound access in the Windows Firewall, and make sure that the UPNP related UDP ports are open.

@@ -1099,6 +1099,8 @@ impl MainForm {
         s
     }
 
+    /// apply a red/green color style to all cross/check marks
+    /// called once when the entire formatted text is set in the text buffer
     fn build_status_style(text: &str) -> String {
         let check = "✓".as_bytes();
         let cross = "✗".as_bytes();
@@ -1113,8 +1115,11 @@ impl MainForm {
             } else {
                 (b'A', 1)
             };
-            for s in style.iter_mut().skip(i).take(len) {
-                *s = style_char;
+            if style_char != b'A' {
+                let styleslice = &mut style[i..i + len];
+                for s in styleslice.iter_mut() {
+                    *s = style_char;
+                }
             }
             i += len;
         }

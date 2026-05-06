@@ -1102,26 +1102,12 @@ impl MainForm {
     /// apply a red/green color style to all cross/check marks
     /// called once when the entire formatted text is set in the text buffer
     fn build_status_style(text: &str) -> String {
-        let check = "✓".as_bytes();
-        let cross = "✗".as_bytes();
-        let bytes = text.as_bytes();
-        let mut style = vec![b'A'; bytes.len()];
-        let mut i = 0;
-        while i < bytes.len() {
-            let (style_char, len) = if bytes[i..].starts_with(check) {
-                (b'B', check.len())
-            } else if bytes[i..].starts_with(cross) {
-                (b'C', cross.len())
-            } else {
-                (b'A', 1)
-            };
-            if style_char != b'A' {
-                let styleslice = &mut style[i..i + len];
-                for s in styleslice.iter_mut() {
-                    *s = style_char;
-                }
-            }
-            i += len;
+        let mut style = vec![b'A'; text.len()];
+        for (i, m) in text.match_indices('✓') {
+            style[i..i + m.len()].fill(b'B');
+        }
+        for (i, m) in text.match_indices('✗') {
+            style[i..i + m.len()].fill(b'C');
         }
         String::from_utf8(style).unwrap()
     }

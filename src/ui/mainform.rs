@@ -895,12 +895,12 @@ impl MainForm {
             },
             StyleTableEntry {
                 color: Color::Green,
-                font: enums::Font::CourierBold,
+                font: enums::Font::Courier,
                 size: 12,
             },
             StyleTableEntry {
                 color: Color::Red,
-                font: enums::Font::CourierBold,
+                font: enums::Font::Courier,
                 size: 12,
             },
         ];

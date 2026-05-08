@@ -26,7 +26,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y lib{pango1.0,x11,xext,xft,xinerama}-dev\
                 lib{xcursor,xrender,xfixes,png,gl1-mesa,rust-alsa-sys}-dev\
-                libglu1-mesa-dev libdbus-1-dev pkgconfig
+                libglu1-mesa-dev libdbus-1-dev
         fi
     - uses: actions/checkout@v6
     - name: Install Rust

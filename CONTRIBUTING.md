@@ -19,11 +19,11 @@ You also need to install prerequisites of swyh-rs' dependencies (listed in Cargo
 ```sh
 # libraries for compiling fltk-rs
 sudo apt-get install libx11-dev libxext-dev libxft-dev libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev libpango1.0-dev libgl1-mesa-dev libglu1-mesa-dev
-# libasound2-dev for compiling the rust cpal sound library
-sudo apt-get install libasound2-dev
+# for compiling the Rust cpal 0.18 sound library
+sudo apt-get install libasound2-dev libdbus-1-dev pkgconfig
 ```
 
-- For Windows you need the MSV toolchain and CMake to build the c/C++ dependencies. The easiest way to get the MSV toolchain is to install Visual Studio Community Edition.
+- For Windows you need the MSV toolchain and CMake to build the C/C++ dependencies. The easiest way to get the MSV toolchain is to install Visual Studio Community Edition.
 
 ### Networking
 

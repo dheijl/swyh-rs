@@ -80,8 +80,8 @@ ureq = { version = "3.3.0", default-features = false, features = [
     "charset",
     "gzip",
 ] }
-wide = "1.3.0"
-xml = "1.2.1"
+wide = "1.4.0"
+xml = "1.3.0"
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.23", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }

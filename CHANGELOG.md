@@ -3,6 +3,7 @@
 - 1.20.3 (unreleased, waiting for cpal 0.18.0)
 
 - 1.20.3-RC4 (unreleased)
+  - new build dependencies for cpal 0.18: libdbus-1-dev, pkgconfig
 
 - 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0

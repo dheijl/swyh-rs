@@ -36,6 +36,7 @@ pub struct Args {
     pub volume: Option<u8>,
     pub upfront_buffer: Option<u32>,
     pub language: Option<String>,
+    pub sample_rate: Option<u32>,
 }
 
 impl Args {
@@ -64,6 +65,7 @@ Recognized options:
     -v (--volume) u8 : desired player volume between 0 and 100 [unchanged]
     -u (--upfront_buffer) u32 : initial buffering in milliseconds [0]
     -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
+    -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
 "#
         );
         println!("{self:?}");
@@ -262,6 +264,19 @@ Recognized options:
                             errors.push(format!(
                                 "Unknown language '{lang}', available: {available:?}."
                             ));
+                        }
+                    }
+                }
+                Short('R') | Long("sample_rate") => {
+                    if let Ok(rate) = argparser.value() {
+                        match rate.parse::<u32>() {
+                            Ok(n @ (44100 | 48000 | 88200 | 96000 | 176400 | 192000 | 352800 | 384000)) => {
+                                self.sample_rate = Some(n)
+                            }
+                            Ok(n) => errors.push(format!(
+                                "Invalid sample rate (44100/48000/88200/96000/176400/192000/352800/384000): {n}."
+                            )),
+                            Err(x) => errors.push(format!("Invalid sample rate: {x}.")),
                         }
                     }
                 }

@@ -4,6 +4,7 @@
 
 - 1.20.3-RC4 (unreleased)
   - new build dependencies for cpal 0.18: libdbus-1-dev, pkgconfig
+  - make the sample rate configurable because CPAL 0.18 now defaults to 48000 instead of using the default
 
 - 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0

@@ -20,7 +20,7 @@ use std::{
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
-use cpal::traits::StreamTrait;
+use cpal::{SampleFormat, traits::StreamTrait};
 use crossbeam_channel::{Sender, unbounded};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, error, info};
@@ -291,8 +291,15 @@ fn main() -> Result<(), i32> {
             get_default_address(&mut config)
         }
     };
+    // apply sample rate from args, overriding config if supplied
+    if let Some(rate) = args.sample_rate {
+        config.sample_rate = Some(rate);
+    }
     // we need to pass some audio config data to the streaming server
-    let audio_cfg = audio_output_device.default_config();
+    let configured_rate = config.sample_rate.unwrap_or(44100);
+    let audio_cfg = audio_output_device
+        .find_config(configured_rate, SampleFormat::F32, 2)
+        .unwrap_or_else(|| audio_output_device.default_config().clone());
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),

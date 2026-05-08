@@ -12,7 +12,7 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use cpal::{
-    Error, Sample, SupportedStreamConfig,
+    Error, Sample, SampleFormat, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait},
 };
 use crossbeam_channel::Sender;
@@ -64,6 +64,26 @@ impl DeviceKind {
             DeviceKind::Input(device) => device.default_input_config(),
             DeviceKind::Output(device) => device.default_output_config(),
         }
+    }
+
+    /// Find a [`SupportedStreamConfig`] matching the given sample rate, format, and channel count.
+    pub fn find_config(
+        &self,
+        wanted_rate: u32,
+        wanted_fmt: SampleFormat,
+        wanted_channels: u16,
+    ) -> Option<SupportedStreamConfig> {
+        let pred = |range: &cpal::SupportedStreamConfigRange| {
+            range.sample_format() == wanted_fmt
+                && range.channels() == wanted_channels
+                && range.min_sample_rate() <= wanted_rate
+                && range.max_sample_rate() >= wanted_rate
+        };
+        let found = match self {
+            DeviceKind::Input(device) => device.supported_input_configs().ok()?.find(pred),
+            DeviceKind::Output(device) => device.supported_output_configs().ok()?.find(pred),
+        };
+        found.map(|range| range.with_sample_rate(wanted_rate))
     }
 }
 
@@ -117,6 +137,17 @@ impl Device {
     #[must_use]
     pub fn default_config(&self) -> &SupportedStreamConfig {
         &self.stream_config
+    }
+
+    /// Find a [`SupportedStreamConfig`] matching the given sample rate, format, and channel count.
+    pub fn find_config(
+        &self,
+        wanted_rate: u32,
+        wanted_fmt: SampleFormat,
+        wanted_channels: u16,
+    ) -> Option<SupportedStreamConfig> {
+        self.kind
+            .find_config(wanted_rate, wanted_fmt, wanted_channels)
     }
 }
 

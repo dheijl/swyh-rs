@@ -84,6 +84,7 @@ pub struct MainForm {
     pub log_level_choice: Choice,
     pub fmt_choice: Choice,
     pub ss_choice: Choice,
+    pub sr_choice: Choice,
     pub b24_bit: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
@@ -414,10 +415,42 @@ impl MainForm {
                 sb.set_text(&MainForm::format_config_status());
             }
         });
+        // sample rate choice
+        const SAMPLE_RATES: &[u32] = &[44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000];
+        let current_sr = config.sample_rate.unwrap_or(44100);
+        let initial_sr_idx = SAMPLE_RATES
+            .iter()
+            .position(|&r| r == current_sr)
+            .unwrap_or(0) as i32;
+        let mut sr_choice = Choice::new(0, 0, 0, ROW_H, "");
+        for rate in SAMPLE_RATES {
+            sr_choice.add_choice(&rate.to_string());
+        }
+        sr_choice.set_value(initial_sr_idx);
+        sr_choice.set_callback({
+            let config_changed = config_changed.clone();
+            let mut sb = status_buf.clone();
+            move |c| {
+                let rate = SAMPLE_RATES[c.value() as usize];
+                {
+                    let mut conf = get_config_mut();
+                    conf.sample_rate = Some(rate);
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status());
+                config_changed.set(true);
+            }
+        });
+        let lbl_sr = Frame::default().with_label(&fl!("sample-rate-label"));
         let mut flx_b24 = Flex::new(0, 0, GW, ROW_H, "");
+        flx_b24.set_spacing(5);
         flx_b24.set_type(FlexType::Row);
         flx_b24.end();
         flx_b24.add(&b24_bit);
+        flx_b24.fixed(&b24_bit, 80);
+        flx_b24.add(&lbl_sr);
+        flx_b24.fixed(&lbl_sr, LABEL_W);
+        flx_b24.add(&sr_choice);
         audio_col.add(&flx_b24);
         audio_col.fixed(&flx_b24, ROW_H);
 
@@ -983,6 +1016,7 @@ impl MainForm {
             log_level_choice,
             fmt_choice,
             ss_choice,
+            sr_choice,
             b24_bit,
             show_rms,
             rms_mon_l,
@@ -1038,6 +1072,7 @@ impl MainForm {
             .streaming_format
             .map_or("lpcm".to_string(), |f| f.to_string());
         let bits = config.bits_per_sample.unwrap_or(16);
+        let sample_rate = config.sample_rate.unwrap_or(44100);
         let streamsize = if let Some(fmt) = config.streaming_format {
             match fmt {
                 StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked),
@@ -1062,7 +1097,12 @@ impl MainForm {
         let mut s = String::new();
         s += &fl!("audio-source-label", "name" = audio);
         s += "\n";
-        s += &format!("{}  {} bit\n", fl!("fmt-label", "format" = &format), bits);
+        s += &format!(
+            "{}  {} bit  {} Hz\n",
+            fl!("fmt-label", "format" = &format),
+            bits,
+            sample_rate
+        );
         s += &fl!("strmsize-label", "size" = streamsize);
         s += &format!("   buffer: {} ms\n", buf_ms);
         s += &format!(

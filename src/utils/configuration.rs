@@ -68,6 +68,9 @@ impl CfgDefaults {
     fn bits_per_sample() -> Option<u16> {
         Some(16)
     }
+    fn sample_rate() -> Option<u32> {
+        Some(44100)
+    }
 }
 
 // the configuration struct, read from and saved in config.ini
@@ -141,6 +144,8 @@ pub struct Configuration {
     pub color_theme: Option<u8>,
     #[serde(alias = "Language", default = "CfgDefaults::language")]
     pub language: Option<String>,
+    #[serde(alias = "SampleRate", default = "CfgDefaults::sample_rate")]
+    pub sample_rate: Option<u32>,
 }
 
 impl Default for Configuration {
@@ -181,6 +186,7 @@ impl Configuration {
             read_only: false,
             color_theme: None,
             language: Some(detect_default_language()),
+            sample_rate: Some(44100),
         }
     }
 
@@ -272,6 +278,10 @@ impl Configuration {
             && theme >= THEMES.len() as u8
         {
             config.configuration.color_theme = None;
+            force_update = true;
+        }
+        if config.configuration.sample_rate.is_none() {
+            config.configuration.sample_rate = Some(44100);
             force_update = true;
         }
         if force_update && !config.configuration.read_only {

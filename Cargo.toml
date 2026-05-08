@@ -45,8 +45,8 @@ required-features = ["cli"]
 winres = "0.1.12"
 
 [dependencies]
+cpal = { version = "0.18.0", default-features = false }
 bitflags = "2.11.1"
-cpal = "0.18.0"
 crossbeam-channel = "0.5.15"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"

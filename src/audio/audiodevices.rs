@@ -270,6 +270,7 @@ pub fn get_default_audio_output_device() -> Option<Device> {
 /// sets up an input stream for the `wave_reader` in the appropriate format (f32/i16/u16)
 pub fn capture_output_audio(
     device_wrap: &Device,
+    audio_cfg: &SupportedStreamConfig,
     rms_sender: Sender<AudioSamples>,
 ) -> Option<cpal::Stream> {
     let device = device_wrap.as_ref();
@@ -280,10 +281,7 @@ pub fn capture_output_audio(
             "name" = get_device_name(device).expect("Could not get default audio device name")
         ),
     );
-    let audio_cfg = device_wrap
-        .kind
-        .default_config_any()
-        .expect("No default stream config found");
+    let audio_cfg = audio_cfg.clone();
     ui_log(
         LogCategory::Info,
         &fl!("audio-default-config", "cfg" = format!("{audio_cfg:?}")),

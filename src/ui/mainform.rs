@@ -98,6 +98,7 @@ pub struct MainForm {
     bheight: i32,
     btn_index: i32,
     wd: WavData,
+    default_sample_rate: u32,
     local_addr: IpAddr,
     player_index: usize,
 }
@@ -112,6 +113,7 @@ impl MainForm {
         wd: &WavData,
         ssdp_kick_tx: crossbeam_channel::Sender<()>,
     ) -> MainForm {
+        let default_sample_rate = wd.default_sample_rate;
         const GW: i32 = 640;
         const FW: i32 = 640;
         const XPOS: i32 = 30;
@@ -263,7 +265,7 @@ impl MainForm {
                     conf.sound_source_index = Some(b.value());
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -312,7 +314,7 @@ impl MainForm {
                     conf.streaming_format = Some(newformat);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
         let lbl_fmt = Frame::default().with_label(&fl!("fmt-label", "format" = ""));
@@ -380,7 +382,7 @@ impl MainForm {
                         "size" = &newsize
                     ),
                 );
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
         let lbl_ss = Frame::default().with_label(&fl!("strmsize-label", "size" = ""));
@@ -412,17 +414,21 @@ impl MainForm {
                     }
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
-        // sample rate choice
+        // sample rate choice — index 0 is "System Default", indices 1+ are fixed rates
         const SAMPLE_RATES: &[u32] = &[44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000];
-        let current_sr = config.sample_rate.unwrap_or(44100);
-        let initial_sr_idx = SAMPLE_RATES
-            .iter()
-            .position(|&r| r == current_sr)
-            .unwrap_or(0) as i32;
+        let initial_sr_idx = match config.sample_rate {
+            None => 0,
+            Some(rate) => SAMPLE_RATES
+                .iter()
+                .position(|&r| r == rate)
+                .map(|i| i + 1)
+                .unwrap_or(0) as i32,
+        };
         let mut sr_choice = Choice::new(0, 0, 0, ROW_H, "");
+        sr_choice.add_choice(&format!("System Default ({default_sample_rate} Hz)"));
         for rate in SAMPLE_RATES {
             sr_choice.add_choice(&rate.to_string());
         }
@@ -431,13 +437,17 @@ impl MainForm {
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |c| {
-                let rate = SAMPLE_RATES[c.value() as usize];
+                let new_rate = if c.value() == 0 {
+                    None
+                } else {
+                    Some(SAMPLE_RATES[c.value() as usize - 1])
+                };
                 {
                     let mut conf = get_config_mut();
-                    conf.sample_rate = Some(rate);
+                    conf.sample_rate = new_rate;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -469,7 +479,7 @@ impl MainForm {
                     conf.inject_silence = Some(b.is_set());
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -506,7 +516,7 @@ impl MainForm {
                         conf.buffering_delay_msec = Some(b as u32);
                         let _ = conf.update_config();
                     }
-                    sb.set_text(&MainForm::format_config_status());
+                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
                 }
             }
         });
@@ -562,7 +572,7 @@ impl MainForm {
                     conf.last_network = Some(name.to_string());
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -596,7 +606,7 @@ impl MainForm {
                         conf.server_port = Some(new_value as u16);
                         let _ = conf.update_config();
                     }
-                    sb.set_text(&MainForm::format_config_status());
+                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
                     config_changed.set(true);
                 }
             }
@@ -642,7 +652,7 @@ impl MainForm {
                                 LogCategory::Warning,
                                 &fl!("warn-ssdp-changed", "interval" = ssdp_interval_mins),
                             );
-                            sb.set_text(&MainForm::format_config_status());
+                            sb.set_text(&MainForm::format_config_status(default_sample_rate));
                             config_changed.set(true);
                         }
                         true
@@ -720,7 +730,7 @@ impl MainForm {
                     conf.language = Some(lang.to_string());
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -758,7 +768,7 @@ impl MainForm {
                     conf.color_theme = Some(b.value() as u8);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
         let lbl_theme = Frame::default().with_label(&fl!("color-theme-label", "name" = ""));
@@ -802,7 +812,7 @@ impl MainForm {
                     conf.log_level = loglevel;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -831,7 +841,7 @@ impl MainForm {
                     conf.auto_resume = b.is_set();
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
         let auto_reconnect_lbl = fl!("chk-autoreconnect");
@@ -847,7 +857,7 @@ impl MainForm {
                     conf.auto_reconnect = b.is_set();
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
         let mut flx_autoresume = Flex::new(0, 0, GW, ROW_H, "");
@@ -896,7 +906,7 @@ impl MainForm {
                     conf.monitor_rms = run_rms;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status());
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
         let mut flx_rms = Flex::new(0, 0, GW, ROW_H, "");
@@ -945,7 +955,7 @@ impl MainForm {
                 ssb.set_text(&MainForm::build_status_style(&sb_ref.text()));
             });
         }
-        status_buf.set_text(&MainForm::format_config_status());
+        status_buf.set_text(&MainForm::format_config_status(default_sample_rate));
         g_status.add(&status_display);
         tabs.add(&g_status);
 
@@ -1028,6 +1038,7 @@ impl MainForm {
             bwidth: frame.width(),
             bheight: frame.height(),
             wd: *wd,
+            default_sample_rate,
             local_addr,
         }
     }
@@ -1059,11 +1070,12 @@ impl MainForm {
 
     /// refresh the status tab content from the current config
     pub fn refresh_status(&mut self) {
-        self.status_buf.set_text(&Self::format_config_status());
+        self.status_buf
+            .set_text(&Self::format_config_status(self.default_sample_rate));
     }
 
     /// build the status tab text from the current config
-    fn format_config_status() -> String {
+    fn format_config_status(default_sample_rate: u32) -> String {
         let config = get_config();
         let bool_icon = |b: bool| if b { "✓" } else { "✗" };
 
@@ -1072,7 +1084,7 @@ impl MainForm {
             .streaming_format
             .map_or("lpcm".to_string(), |f| f.to_string());
         let bits = config.bits_per_sample.unwrap_or(16);
-        let sample_rate = config.sample_rate.unwrap_or(44100);
+        let sample_rate = config.sample_rate.unwrap_or(default_sample_rate);
         let streamsize = if let Some(fmt) = config.streaming_format {
             match fmt {
                 StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked),

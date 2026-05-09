@@ -205,15 +205,22 @@ fn main() {
     };
 
     // we need to pass some audio config data to the play function
-    let configured_rate = config.sample_rate.unwrap_or(44100);
-    let audio_cfg = audio_output_device
-        .find_config(configured_rate, SampleFormat::F32, 2)
-        .unwrap_or_else(|| audio_output_device.default_config().clone());
+    let default_config = audio_output_device.default_config();
+    let default_rate = default_config.sample_rate();
+    let audio_cfg = if let Some(rate) = config.sample_rate {
+        audio_output_device
+            .find_config(rate, SampleFormat::F32, 2)
+            .unwrap_or_else(|| audio_output_device.default_config().clone())
+    } else {
+        audio_output_device.default_config().clone()
+    };
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
         channels: audio_cfg.channels(),
+        default_sample_rate: default_rate,
     };
+    debug!("wavdata: {:?}", wd);
 
     // we now have enough information to create the GUI with meaningful data
     let (ssdp_kick_tx, ssdp_kick_rx) = crossbeam_channel::unbounded::<()>();
@@ -237,7 +244,7 @@ fn main() {
     debug!("Try capturing system audio");
     let mut stream: Option<cpal::Stream> = None;
     let rms_chan1 = rms_channel.clone();
-    match capture_output_audio(&audio_output_device, rms_chan1.0) {
+    match capture_output_audio(&audio_output_device, &audio_cfg, rms_chan1.0) {
         Some(s) => {
             stream = Some(s);
         }
@@ -424,7 +431,8 @@ fn main() {
                         }
                         if found_audio_device {
                             let rms_chan3 = rms_channel.clone();
-                            if let Some(s) = capture_output_audio(&audio_output_device, rms_chan3.0)
+                            if let Some(s) =
+                                capture_output_audio(&audio_output_device, &audio_cfg, rms_chan3.0)
                             {
                                 stream = Some(s);
                                 info!("Audio capture resumed.");

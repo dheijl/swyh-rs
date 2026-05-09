@@ -271,6 +271,7 @@ pub struct WavData {
     pub sample_format: cpal::SampleFormat,
     pub sample_rate: cpal::SampleRate,
     pub channels: u16,
+    pub default_sample_rate: u32,
 }
 
 /// the parameters needed for streaming

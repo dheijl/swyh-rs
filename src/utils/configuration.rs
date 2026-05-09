@@ -69,7 +69,7 @@ impl CfgDefaults {
         Some(16)
     }
     fn sample_rate() -> Option<u32> {
-        Some(44100)
+        None
     }
 }
 
@@ -186,7 +186,7 @@ impl Configuration {
             read_only: false,
             color_theme: None,
             language: Some(detect_default_language()),
-            sample_rate: Some(44100),
+            sample_rate: None,
         }
     }
 
@@ -280,10 +280,7 @@ impl Configuration {
             config.configuration.color_theme = None;
             force_update = true;
         }
-        if config.configuration.sample_rate.is_none() {
-            config.configuration.sample_rate = Some(44100);
-            force_update = true;
-        }
+
         if force_update && !config.configuration.read_only {
             config.configuration.update_config().unwrap();
         }

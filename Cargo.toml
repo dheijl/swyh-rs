@@ -59,7 +59,7 @@ figura = "2.0.3"
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",
 ] }
-hashbrown = "0.17.0"
+hashbrown = "0.17.1"
 htmlescape = "0.3.1"
 if-addrs = "0.15.0"
 lexopt = "0.3.2"

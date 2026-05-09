@@ -3,8 +3,8 @@
 - 1.20.3 (unreleased, waiting for cpal 0.18.0)
 
 - 1.20.3-RC4 (unreleased)
-  - disable the new default real-time audio thread priority in CPAL 0.18, it causes trouble on older Ubuntu versions (manual config). It needs new build dependencies for cpal (libdbus-1-dev, pkg-config) should you want to enable it.
-  - make the sample rate configurable because CPAL 0.18 now defaults to 48000 instead of using the system default.
+  - disable the new default real-time audio thread priority in CPAL 0.18, it causes trouble on older Ubuntu versions (needs manual config as root). It needs new build dependencies for cpal (libdbus-1-dev, pkg-config) should you want to enable it.
+  - make the sample rate configurable because CPAL 0.18 now defaults to 48000 instead of using the system default on ALSA. Also make the system default sample rate selectable. On linux you should verify this with your Pipewire configuration (if any).
 
 - 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0

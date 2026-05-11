@@ -4,8 +4,7 @@
 
 - 1.20.3-RC4 (unreleased)
   - disable the realtime feature of CPAL as it doesn't work on ALSA and needs extra configuration as root by the user on other back-ends.
-  - add a new dropdown in the Audio TAB, that lets you select the sample rate. The sample rate is now configurable because CPAL 0.18 defaults to 48000 instead of using the system default on ALSA as ALSA does not expose the system default.
-  - the system default sample rate is now also selectable. On linux you should verify this with your Pipewire/pulse/Alsa configuration (if any).
+  - add a new dropdown in the Audio TAB, that lets you select the sample rate. The sample rate is now configurable because CPAL 0.18 defaults to 48000 on ALSA as ALSA does not expose the configured system default. The system default sample rate is also selectable, but on linux you should verify this with your Pipewire/Pulse/Alsa configuration (if any).
 
 - 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0

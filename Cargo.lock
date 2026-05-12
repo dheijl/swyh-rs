@@ -194,7 +194,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.18.0"
-source = "git+https://github.com/RustAudio/cpal.git#33e05ec94b5670c6f02080acf3fd6d8ac21e37cd"
+source = "git+https://github.com/RustAudio/cpal.git#2c7acf8ed42b6523f319145a8be256c446df5939"
 dependencies = [
  "alsa",
  "block2",
@@ -2244,9 +2244,9 @@ checksum = "636f85e5ca6488e96401b61eb7de54f4e44755c988af0f52cf90230c312a1a89"
 
 [[package]]
 name = "zerofrom"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69faa1f2a1ea75661980b013019ed6687ed0e83d069bc1114e2cc74c6c04c4df"
+checksum = "0ec05a11813ea801ff6d75110ad09cd0824ddba17dfe17128ea0d5f68e6c5272"
 
 [[package]]
 name = "zerovec"

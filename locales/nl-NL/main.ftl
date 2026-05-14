@@ -21,6 +21,7 @@ log-level-label = Log Level: { $level }
 fmt-label = Formaat: { $format }
 chk-24bit = 24 bit
 sample-rate-label = Samplefreq. (Hz):
+sr-system-default = Systeemstandaard ({ $rate } Hz)
 http-port-label = HTTP Poort:
 chk-inject-silence = Injecteer stilte
 strmsize-label = Streamsize: { $size }

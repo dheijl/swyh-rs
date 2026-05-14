@@ -21,6 +21,7 @@ log-level-label = 日志级别：{ $level }
 fmt-label = 格式：{ $format }
 chk-24bit = 24 位
 sample-rate-label = 采样率（Hz）：
+sr-system-default = 系统默认（{ $rate } Hz）
 http-port-label = HTTP 端口：
 chk-inject-silence = 注入静音
 strmsize-label = 流大小：{ $size }

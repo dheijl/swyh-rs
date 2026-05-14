@@ -428,7 +428,7 @@ impl MainForm {
                 .unwrap_or(0) as i32,
         };
         let mut sr_choice = Choice::new(0, 0, 0, ROW_H, "");
-        sr_choice.add_choice(&format!("System Default ({default_sample_rate} Hz)"));
+        sr_choice.add_choice(&fl!("sr-system-default", "rate" = default_sample_rate));
         for rate in SAMPLE_RATES {
             sr_choice.add_choice(&rate.to_string());
         }

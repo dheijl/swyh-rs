@@ -286,7 +286,11 @@ fn streaming_request(
 }
 
 /// HEAD METHOD request
-fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request, range: Option<RangeSpec>) {
+fn head_request(
+    streaming_ctx: &StreamingContext,
+    rq: tiny_http::Request,
+    range: Option<RangeSpec>,
+) {
     debug!("HEAD rq from {}", streaming_ctx.remote_addr);
     let (status_code, header_offset) = match &range {
         None => (200u16, 0usize),
@@ -462,7 +466,10 @@ fn content_range_value(ctx: &StreamingContext, start: usize) -> String {
 fn range_not_satisfiable(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     ui_log(
         LogCategory::Warning,
-        &fl!("srv-range-not-satisfiable", "addr" = &streaming_ctx.remote_addr),
+        &fl!(
+            "srv-range-not-satisfiable",
+            "addr" = &streaming_ctx.remote_addr
+        ),
     );
     let mut headers = get_std_headers();
     headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap());

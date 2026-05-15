@@ -243,6 +243,7 @@ Recognized options:
     -e (--ip_address) string : ip address of the network interface [last used]
     -x (--serve_only) bool : skip ssdp discovery and start serving immediately [false]
     -u (--upfront-buffer) i32: initial audio bufferign before streaming starts [0]
+    -L (--language): select the UI language [en-US]
 ```
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.

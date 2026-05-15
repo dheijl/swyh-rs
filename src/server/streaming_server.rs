@@ -165,9 +165,16 @@ fn streaming_request(
         Some(RangeSpec::From(start)) => {
             let hdr_size = wav_header_size(streaming_ctx) as u64;
             if *start <= hdr_size {
+                // Start within the WAV/RF64 header (or byte 0 for any format): 206,
+                // trim that many header bytes from the front of the stream.
                 (206u16, *start as usize)
             } else {
-                return range_not_satisfiable(streaming_ctx, request);
+                // Start is past the header and into the audio data — we cannot seek
+                // into a live stream. Fall back to 200 and serve from the beginning,
+                // which matches the pre-range-support behaviour and keeps MPD happy
+                // (MPD probes with Range: bytes=<Content-Length>- after reading the
+                // WAV header to verify the announced size).
+                (200u16, 0usize)
             }
         }
     };
@@ -183,6 +190,7 @@ fn streaming_request(
     // get the dlna headers
     let mut headers = get_dlna_headers(streaming_ctx);
     if status_code == 206 {
+        headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap());
         let cr = content_range_value(streaming_ctx, header_offset);
         headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
     }
@@ -290,13 +298,14 @@ fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request, range:
             if *start <= hdr_size {
                 (206u16, *start as usize)
             } else {
-                return range_not_satisfiable(streaming_ctx, rq);
+                (200u16, 0usize)
             }
         }
     };
     // get the dlna headers
     let mut headers = get_dlna_headers(streaming_ctx);
     if status_code == 206 {
+        headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap());
         let cr = content_range_value(streaming_ctx, header_offset);
         headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
     }
@@ -408,7 +417,6 @@ fn get_std_headers() -> Vec<Header> {
     headers.push(Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap());
     headers.push(Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap());
     headers.push(Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap());
-    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap());
     headers
 }
 
@@ -457,6 +465,7 @@ fn range_not_satisfiable(streaming_ctx: &StreamingContext, rq: tiny_http::Reques
         &fl!("srv-range-not-satisfiable", "addr" = &streaming_ctx.remote_addr),
     );
     let mut headers = get_std_headers();
+    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap());
     let cr = match streaming_ctx.streamsize {
         Some(size) => format!("bytes */{size}"),
         None => "bytes */*".to_string(),

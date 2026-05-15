@@ -143,3 +143,5 @@ srv-head-terminated = =>{ $addr } との HTTP HEAD 接続が終了しました [
 srv-unsupported-method = { $addr } からの未サポート HTTP メソッドリクエスト { $method }
 srv-bad-request = '{ $addr }' からの認識できないリクエスト '{ $url }'
 srv-stream-terminated = =>{ $addr } との HTTP ストリーミングリクエストが終了しました [{ $error }]
+
+srv-range-not-satisfiable = { $addr } からの範囲リクエストは満たせません、416 を返します

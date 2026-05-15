@@ -143,3 +143,5 @@ srv-head-terminated = =>Connexion HTTP HEAD avec { $addr } terminée [{ $error }
 srv-unsupported-method = Méthode HTTP non prise en charge { $method } depuis { $addr }
 srv-bad-request = Requête non reconnue '{ $url }' depuis '{ $addr }'
 srv-stream-terminated = =>Requête de streaming HTTP avec { $addr } terminée [{ $error }]
+
+srv-range-not-satisfiable = Requête de plage de { $addr } non satisfaisable, réponse 416

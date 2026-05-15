@@ -57,6 +57,7 @@ impl ChannelStream {
         tx: Sender<AudioSamples>,
         rx: Receiver<AudioSamples>,
         context: &StreamingContext,
+        header_offset: usize,
     ) -> ChannelStream {
         let flac_channel = if context.streaming_format == StreamingFormat::Flac {
             Some(FlacChannel::new(
@@ -69,7 +70,7 @@ impl ChannelStream {
             None
         };
         let capture_timeout = u64::from(get_config().capture_timeout.unwrap_or(5));
-        let wav_hdr = match context.streaming_format {
+        let mut wav_hdr = match context.streaming_format {
             StreamingFormat::Wav => {
                 create_wav_hdr(context.sample_rate, context.bits_per_sample as u16)
             }
@@ -78,6 +79,10 @@ impl ChannelStream {
             }
             _ => Vec::new(),
         };
+        // Trim the header when the client requested Range: bytes=N- (N within header)
+        if header_offset > 0 && !wav_hdr.is_empty() {
+            wav_hdr.drain(..header_offset.min(wav_hdr.len()));
+        }
         let chs = ChannelStream {
             s: tx,
             r: rx,

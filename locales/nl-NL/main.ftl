@@ -144,3 +144,5 @@ srv-head-terminated = =>Http HEAD verbinding met { $addr } beëindigd [{ $error 
 srv-unsupported-method = Niet-ondersteunde HTTP methode { $method } van { $addr }
 srv-bad-request = Onherkenbaar verzoek '{ $url }' van '{ $addr }'
 srv-stream-terminated = =>Http streaming verzoek met { $addr } beëindigd [{ $error }]
+
+srv-range-not-satisfiable = Bereikverzoek van { $addr } niet vervulbaar, antwoord 416

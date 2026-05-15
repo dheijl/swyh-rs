@@ -97,12 +97,13 @@ pub fn run_server(
                     streaming_ctx.set_streaming_params(&sp);
                     debug!("{streaming_ctx:?}");
                     // handle response, streaming if GET, headers only otherwise
+                    let range = parse_range_header(rq.headers());
                     match *rq.method() {
                         Method::Get => {
-                            streaming_request(&streaming_ctx, &feedback_tx_c, rq);
+                            streaming_request(&streaming_ctx, &feedback_tx_c, rq, range);
                         }
                         Method::Head => {
-                            head_request(&streaming_ctx, rq);
+                            head_request(&streaming_ctx, rq, range);
                         }
                         _ => {
                             invalid_request(&streaming_ctx, rq);
@@ -150,7 +151,27 @@ fn streaming_request(
     streaming_ctx: &StreamingContext,
     feedback_channel: &Sender<MessageType>,
     request: tiny_http::Request,
+    range: Option<RangeSpec>,
 ) {
+    // Determine HTTP status code and how many header bytes to skip based on the Range request.
+    // Linn streamers typically send `Range: bytes=0-`; we respond 206 and start from byte 0.
+    // A range starting within the WAV/RF64 header is also satisfiable by trimming the header.
+    // Anything else (bounded range or offset past the header) is rejected with 416.
+    let (status_code, header_offset) = match &range {
+        None => (200u16, 0usize),
+        Some(RangeSpec::Bounded) => {
+            return range_not_satisfiable(streaming_ctx, request);
+        }
+        Some(RangeSpec::From(start)) => {
+            let hdr_size = wav_header_size(streaming_ctx) as u64;
+            if *start <= hdr_size {
+                (206u16, *start as usize)
+            } else {
+                return range_not_satisfiable(streaming_ctx, request);
+            }
+        }
+    };
+
     ui_log(
         LogCategory::Info,
         &fl!(
@@ -160,11 +181,15 @@ fn streaming_request(
         ),
     );
     // get the dlna headers
-    let headers = get_dlna_headers(streaming_ctx);
+    let mut headers = get_dlna_headers(streaming_ctx);
+    if status_code == 206 {
+        let cr = content_range_value(streaming_ctx, header_offset);
+        headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
+    }
 
     // create the channelstream that receives the samples and streams them on demand
     let (tx, rx) = unbounded();
-    let channel_stream = ChannelStream::new(tx, rx, streaming_ctx);
+    let channel_stream = ChannelStream::new(tx, rx, streaming_ctx, header_offset);
     let nclients = {
         let mut clients = get_clients_mut();
         clients.insert(streaming_ctx.remote_addr.clone(), channel_stream.clone());
@@ -203,7 +228,7 @@ fn streaming_request(
         ),
     );
     let response = Response::new(
-        tiny_http::StatusCode(200),
+        tiny_http::StatusCode(status_code),
         headers,
         channel_stream,
         streaming_ctx.streamsize,
@@ -253,13 +278,30 @@ fn streaming_request(
 }
 
 /// HEAD METHOD request
-fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
+fn head_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request, range: Option<RangeSpec>) {
     debug!("HEAD rq from {}", streaming_ctx.remote_addr);
+    let (status_code, header_offset) = match &range {
+        None => (200u16, 0usize),
+        Some(RangeSpec::Bounded) => {
+            return range_not_satisfiable(streaming_ctx, rq);
+        }
+        Some(RangeSpec::From(start)) => {
+            let hdr_size = wav_header_size(streaming_ctx) as u64;
+            if *start <= hdr_size {
+                (206u16, *start as usize)
+            } else {
+                return range_not_satisfiable(streaming_ctx, rq);
+            }
+        }
+    };
     // get the dlna headers
-    let headers = get_dlna_headers(streaming_ctx);
-
+    let mut headers = get_dlna_headers(streaming_ctx);
+    if status_code == 206 {
+        let cr = content_range_value(streaming_ctx, header_offset);
+        headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
+    }
     let response = Response::new(
-        tiny_http::StatusCode(200),
+        tiny_http::StatusCode(status_code),
         headers,
         io::empty(),
         Some(0),
@@ -366,10 +408,75 @@ fn get_std_headers() -> Vec<Header> {
     headers.push(Header::from_bytes(&b"Server"[..], &b"swyh-rs tiny-http"[..]).unwrap());
     headers.push(Header::from_bytes(&b"icy-name"[..], &b"swyh-rs"[..]).unwrap());
     headers.push(Header::from_bytes(&b"Connection"[..], &b"close"[..]).unwrap());
-
-    /* don't accept range headers (Linn) until I know how to handle them
-    but don't send this header as the MPD player ignores the "none" value anyway and uses ranges
-    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"none"[..]).unwrap()); */
-
+    headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap());
     headers
+}
+
+/// A parsed HTTP Range header of the form `bytes=<start>-[<end>]`.
+enum RangeSpec {
+    /// `bytes=<start>-` — open-ended; only `start` is known
+    From(u64),
+    /// `bytes=<start>-<end>` — bounded range; cannot be honoured on a live stream
+    Bounded,
+}
+
+/// Parse the first `Range: bytes=…` header present in `headers`, if any.
+fn parse_range_header(headers: &[tiny_http::Header]) -> Option<RangeSpec> {
+    let h = headers.iter().find(|h| h.field.equiv("range"))?;
+    let rest = h.value.as_str().strip_prefix("bytes=")?;
+    let (start_str, end_str) = rest.split_once('-')?;
+    let start = start_str.parse::<u64>().ok()?;
+    if end_str.is_empty() {
+        Some(RangeSpec::From(start))
+    } else {
+        Some(RangeSpec::Bounded)
+    }
+}
+
+/// Returns the byte length of the WAV/RF64 header for this context, or 0 for LPCM/FLAC.
+fn wav_header_size(ctx: &StreamingContext) -> usize {
+    match ctx.streaming_format {
+        StreamingFormat::Wav => 44,
+        StreamingFormat::Rf64 => 80,
+        _ => 0,
+    }
+}
+
+/// Build a `Content-Range` value for a 206 response starting at `start`.
+/// When `streamsize` is unknown (chunked), a large sentinel is used so the
+/// header remains RFC 7233 compliant (last-byte-pos must be a concrete value).
+fn content_range_value(ctx: &StreamingContext, start: usize) -> String {
+    let size = ctx.streamsize.unwrap_or(usize::MAX - 1);
+    format!("bytes {start}-{}/{size}", size.saturating_sub(1))
+}
+
+/// Respond 416 Range Not Satisfiable.
+fn range_not_satisfiable(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
+    ui_log(
+        LogCategory::Warning,
+        &fl!("srv-range-not-satisfiable", "addr" = &streaming_ctx.remote_addr),
+    );
+    let mut headers = get_std_headers();
+    let cr = match streaming_ctx.streamsize {
+        Some(size) => format!("bytes */{size}"),
+        None => "bytes */*".to_string(),
+    };
+    headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
+    let response = Response::new(
+        tiny_http::StatusCode(416),
+        headers,
+        io::empty(),
+        Some(0),
+        None,
+    );
+    if let Err(e) = rq.respond(response) {
+        ui_log(
+            LogCategory::Error,
+            &fl!(
+                "srv-http-terminated",
+                "addr" = &streaming_ctx.remote_addr,
+                "error" = e.to_string()
+            ),
+        );
+    }
 }

@@ -4,7 +4,7 @@
 
 - 1.20.3-RC4 (unreleased)
   - add a "run SSDP discovery now" button to the network TAB, useful when swyh-rs is already running and you power on a device, so you don't have to restart swyh-rs or wait for the SSDP discovery timeout.
-  - disable the realtime feature of CPAL as it doesn't work on ALSA and needs extra configuration as root by the user on other back-ends.
+  - disable the realtime feature of CPAL as it doesn't work on ALSA and needs extra configuration as root by the user on other back-ends (the CPAL pipewire, jack, pulseaudio features). If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features. (IMHO) swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.
   - add a new dropdown in the Audio TAB, that lets you select the sample rate. The sample rate is now configurable because CPAL 0.18 defaults to 48000 on ALSA as ALSA does not expose the configured system default. The system default sample rate is also selectable, but on linux you should verify this with your Pipewire/Pulse/Alsa configuration (if any).
   - add support for HTTP Range headers, as used by Linn streamers. This could possibly fix issue #45.
 

@@ -12,7 +12,7 @@ use lexopt::{
 };
 use log::LevelFilter;
 
-use crate::{enums::streaming::*, utils::traits::SanitizeArg};
+use crate::{enums::streaming::*, globals::statics::SAMPLE_RATES, utils::traits::SanitizeArg};
 
 #[derive(Clone, Debug, Default)]
 pub struct Args {
@@ -270,12 +270,15 @@ Recognized options:
                 Short('R') | Long("sample_rate") => {
                     if let Ok(rate) = argparser.value() {
                         match rate.parse::<u32>() {
-                            Ok(n @ (44100 | 48000 | 88200 | 96000 | 176400 | 192000 | 352800 | 384000)) => {
-                                self.sample_rate = Some(n)
+                            Ok(n) if SAMPLE_RATES.contains(&n) => self.sample_rate = Some(n),
+                            Ok(n) => {
+                                let valid = SAMPLE_RATES
+                                    .iter()
+                                    .map(|r| r.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join("/");
+                                errors.push(format!("Invalid sample rate ({valid}): {n}."));
                             }
-                            Ok(n) => errors.push(format!(
-                                "Invalid sample rate (44100/48000/88200/96000/176400/192000/352800/384000): {n}."
-                            )),
                             Err(x) => errors.push(format!("Invalid sample rate: {x}.")),
                         }
                     }

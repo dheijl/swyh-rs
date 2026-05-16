@@ -12,8 +12,8 @@ use crate::{
     },
     fl,
     globals::statics::{
-        APP_DATE, APP_VERSION, NTHEMES, RUN_RMS_MONITOR, THEMES, get_config, get_config_mut,
-        get_renderers, get_renderers_mut,
+        APP_DATE, APP_VERSION, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, THEMES, get_config,
+        get_config_mut, get_renderers, get_renderers_mut,
     },
     renderers::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, i18n, traits::FwSlashPipeEscape, ui_logger::*},
@@ -418,7 +418,6 @@ impl MainForm {
             }
         });
         // sample rate choice — index 0 is "System Default", indices 1+ are fixed rates
-        const SAMPLE_RATES: &[u32] = &[44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000];
         let initial_sr_idx = match config.sample_rate {
             None => 0,
             Some(rate) => SAMPLE_RATES

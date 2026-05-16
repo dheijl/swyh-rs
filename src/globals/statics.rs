@@ -28,6 +28,9 @@ pub const THREAD_STACK: usize = 4 * 1024 * 1024;
 /// the global "enable rms monitor" flag
 pub static RUN_RMS_MONITOR: AtomicBool = AtomicBool::new(false);
 
+/// the list of supported audio sample rates
+pub const SAMPLE_RATES: &[u32] = &[44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000];
+
 /// the list of known fltk theme names
 pub static THEMES: &[&str] = &["Shake", "Gray", "Tan", "Dark", "Black", "None"];
 /// number of available themes (excluding the last dummy one, "None")

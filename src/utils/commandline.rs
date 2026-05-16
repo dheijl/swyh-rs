@@ -74,8 +74,11 @@ Recognized options:
     // parse commandline arguments
 
     pub fn parse(&mut self) -> Result<(), Vec<String>> {
+        self.parse_from(Parser::from_env())
+    }
+
+    pub(crate) fn parse_from(&mut self, mut argparser: Parser) -> Result<(), Vec<String>> {
         let mut errors: Vec<String> = Vec::new();
-        let mut argparser = Parser::from_env();
         while let Some(arg) = argparser.next().unwrap() {
             match arg {
                 Short('h') | Long("help") => {
@@ -292,5 +295,398 @@ Recognized options:
         } else {
             Err(errors)
         }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "cli")]
+mod tests {
+    use super::*;
+    use lexopt::Parser;
+
+    fn parse(args: &[&str]) -> Result<Args, Vec<String>> {
+        let mut a = Args::default();
+        a.parse_from(Parser::from_iter(args))?;
+        Ok(a)
+    }
+
+    // --- flags without values ---
+
+    #[test]
+    fn dry_run_short() {
+        let a = parse(&["prog", "-n"]).unwrap();
+        assert_eq!(a.dry_run, Some(true));
+    }
+
+    #[test]
+    fn dry_run_long() {
+        let a = parse(&["prog", "--no_run"]).unwrap();
+        assert_eq!(a.dry_run, Some(true));
+    }
+
+    #[test]
+    fn serve_only() {
+        let a = parse(&["prog", "-x"]).unwrap();
+        assert_eq!(a.serve_only, Some(true));
+        let a = parse(&["prog", "--serve_only"]).unwrap();
+        assert_eq!(a.serve_only, Some(true));
+    }
+
+    // --- config_id ---
+
+    #[test]
+    fn config_id() {
+        let a = parse(&["prog", "-c", "myconfig"]).unwrap();
+        assert_eq!(a.config_id.as_deref(), Some("myconfig"));
+        let a = parse(&["prog", "--config_id", "myconfig"]).unwrap();
+        assert_eq!(a.config_id.as_deref(), Some("myconfig"));
+    }
+
+    // --- server_port ---
+
+    #[test]
+    fn server_port_valid() {
+        let a = parse(&["prog", "-p", "5901"]).unwrap();
+        assert_eq!(a.server_port, Some(5901));
+    }
+
+    #[test]
+    fn server_port_invalid() {
+        let errs = parse(&["prog", "-p", "notaport"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid server port")));
+    }
+
+    // --- auto_resume ---
+
+    #[test]
+    fn auto_resume_with_value_true() {
+        for v in [
+            "true", "True", "TRUE", "T", "t", "yes", "Yes", "YES", "Y", "y", "1",
+        ] {
+            let a = parse(&["prog", "-r", v]).unwrap();
+            assert_eq!(a.auto_resume, Some(true), "failed for {v}");
+        }
+    }
+
+    #[test]
+    fn auto_resume_with_value_false() {
+        for v in [
+            "false", "False", "FALSE", "F", "f", "no", "No", "NO", "N", "n", "0",
+        ] {
+            let a = parse(&["prog", "-r", v]).unwrap();
+            assert_eq!(a.auto_resume, Some(false), "failed for {v}");
+        }
+    }
+
+    #[test]
+    fn auto_resume_no_value_defaults_true() {
+        // lexopt's value() consumes the next token even if it looks like a flag,
+        // so the only way to hit the else-branch (default true) is when -r is the last arg
+        let a = parse(&["prog", "-r"]).unwrap();
+        assert_eq!(a.auto_resume, Some(true));
+    }
+
+    // --- sound_source ---
+
+    #[test]
+    fn sound_source_numeric() {
+        let a = parse(&["prog", "-s", "2"]).unwrap();
+        assert_eq!(a.sound_source_index, Some(2));
+        assert!(a.sound_source_name.is_none());
+    }
+
+    #[test]
+    fn sound_source_by_name() {
+        let a = parse(&["prog", "-s", "Speakers"]).unwrap();
+        assert_eq!(a.sound_source_name.as_deref(), Some("Speakers"));
+        assert!(a.sound_source_index.is_none());
+    }
+
+    // --- log_level ---
+
+    #[test]
+    fn log_level_info() {
+        use log::LevelFilter;
+        let a = parse(&["prog", "-l", "info"]).unwrap();
+        assert_eq!(a.log_level, Some(LevelFilter::Info));
+        let a = parse(&["prog", "-l", "INFO"]).unwrap();
+        assert_eq!(a.log_level, Some(LevelFilter::Info));
+    }
+
+    #[test]
+    fn log_level_debug() {
+        use log::LevelFilter;
+        let a = parse(&["prog", "-l", "debug"]).unwrap();
+        assert_eq!(a.log_level, Some(LevelFilter::Debug));
+    }
+
+    #[test]
+    fn log_level_invalid() {
+        let errs = parse(&["prog", "-l", "trace"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid log_level")));
+    }
+
+    // --- ssdp_interval ---
+
+    #[test]
+    fn ssdp_interval_valid() {
+        let a = parse(&["prog", "-i", "10"]).unwrap();
+        assert_eq!(a.ssdp_interval_mins, Some(10.0));
+    }
+
+    #[test]
+    fn ssdp_interval_invalid() {
+        let errs = parse(&["prog", "-i", "nope"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid SSDP interval")));
+    }
+
+    // --- bits_per_sample ---
+
+    #[test]
+    fn bits_16_and_24_valid() {
+        assert_eq!(
+            parse(&["prog", "-b", "16"]).unwrap().bits_per_sample,
+            Some(16)
+        );
+        assert_eq!(
+            parse(&["prog", "-b", "24"]).unwrap().bits_per_sample,
+            Some(24)
+        );
+    }
+
+    #[test]
+    fn bits_other_values_invalid() {
+        for b in ["8", "32", "0"] {
+            let errs = parse(&["prog", "-b", b]).unwrap_err();
+            assert!(
+                errs.iter().any(|e| e.contains("Invalid bps")),
+                "expected error for {b}"
+            );
+        }
+    }
+
+    #[test]
+    fn bits_non_numeric_invalid() {
+        let errs = parse(&["prog", "-b", "abc"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid bps")));
+    }
+
+    // --- streaming format ---
+
+    #[test]
+    fn format_lpcm() {
+        let a = parse(&["prog", "-f", "lpcm"]).unwrap();
+        assert_eq!(a.streaming_format, Some(StreamingFormat::Lpcm));
+        assert_eq!(a.use_wave_format, None);
+    }
+
+    #[test]
+    fn format_wav_sets_wave_flag() {
+        let a = parse(&["prog", "-f", "WAV"]).unwrap();
+        assert_eq!(a.streaming_format, Some(StreamingFormat::Wav));
+        assert_eq!(a.use_wave_format, Some(true));
+    }
+
+    #[test]
+    fn format_rf64_sets_wave_flag() {
+        let a = parse(&["prog", "-f", "rf64"]).unwrap();
+        assert_eq!(a.streaming_format, Some(StreamingFormat::Rf64));
+        assert_eq!(a.use_wave_format, Some(true));
+    }
+
+    #[test]
+    fn format_flac() {
+        let a = parse(&["prog", "-f", "FLAC"]).unwrap();
+        assert_eq!(a.streaming_format, Some(StreamingFormat::Flac));
+    }
+
+    #[test]
+    fn format_with_streamsize() {
+        let a = parse(&["prog", "-f", "LPCM+U64maxNotChunked"]).unwrap();
+        assert_eq!(a.streaming_format, Some(StreamingFormat::Lpcm));
+        assert_eq!(a.stream_size, Some(StreamSize::U64maxNotChunked));
+    }
+
+    #[test]
+    fn format_all_streamsizes() {
+        let cases = [
+            ("LPCM+NoneChunked", StreamSize::NoneChunked),
+            ("LPCM+U32maxChunked", StreamSize::U32maxChunked),
+            ("LPCM+U32maxNotChunked", StreamSize::U32maxNotChunked),
+            ("LPCM+U64maxChunked", StreamSize::U64maxChunked),
+            ("LPCM+U64maxNotChunked", StreamSize::U64maxNotChunked),
+        ];
+        for (arg, expected) in cases {
+            let a = parse(&["prog", "-f", arg]).unwrap();
+            assert_eq!(a.stream_size, Some(expected), "failed for {arg}");
+        }
+    }
+
+    #[test]
+    fn format_invalid() {
+        let errs = parse(&["prog", "-f", "mp3"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid streaming_format")));
+    }
+
+    #[test]
+    fn format_invalid_streamsize() {
+        let errs = parse(&["prog", "-f", "LPCM+BADSIZE"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid streamsize")));
+    }
+
+    // --- player / active_players ---
+
+    #[test]
+    fn player_single() {
+        let a = parse(&["prog", "-o", "192.168.1.10"]).unwrap();
+        assert_eq!(a.player_ip.as_deref(), Some("192.168.1.10"));
+        assert_eq!(
+            a.active_players.as_deref(),
+            Some(&["192.168.1.10".to_string()][..])
+        );
+    }
+
+    #[test]
+    fn player_multiple_comma_separated() {
+        let a = parse(&["prog", "-o", "192.168.1.10,192.168.1.20"]).unwrap();
+        assert_eq!(a.player_ip.as_deref(), Some("192.168.1.10"));
+        let players = a.active_players.unwrap();
+        assert_eq!(players.len(), 2);
+        assert_eq!(players[1], "192.168.1.20");
+    }
+
+    // --- ip_address ---
+
+    #[test]
+    fn ip_address_valid_v4() {
+        let a = parse(&["prog", "-e", "192.168.0.1"]).unwrap();
+        assert_eq!(a.ip_address.as_deref(), Some("192.168.0.1"));
+    }
+
+    #[test]
+    fn ip_address_valid_v6() {
+        let a = parse(&["prog", "-e", "::1"]).unwrap();
+        assert_eq!(a.ip_address.as_deref(), Some("::1"));
+    }
+
+    #[test]
+    fn ip_address_invalid() {
+        let errs = parse(&["prog", "-e", "not.an.ip"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid ip address")));
+    }
+
+    // --- inject_silence ---
+
+    #[test]
+    fn inject_silence_true() {
+        let a = parse(&["prog", "-S", "true"]).unwrap();
+        assert_eq!(a.inject_silence, Some(true));
+    }
+
+    #[test]
+    fn inject_silence_false() {
+        let a = parse(&["prog", "-S", "false"]).unwrap();
+        assert_eq!(a.inject_silence, Some(false));
+    }
+
+    // --- volume ---
+
+    #[test]
+    fn volume_valid_boundaries() {
+        assert_eq!(parse(&["prog", "-v", "0"]).unwrap().volume, Some(0));
+        assert_eq!(parse(&["prog", "-v", "100"]).unwrap().volume, Some(100));
+        assert_eq!(parse(&["prog", "-v", "50"]).unwrap().volume, Some(50));
+    }
+
+    #[test]
+    fn volume_over_100_invalid() {
+        let errs = parse(&["prog", "-v", "101"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid volume")));
+    }
+
+    #[test]
+    fn volume_non_numeric_invalid() {
+        let errs = parse(&["prog", "-v", "loud"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid volume")));
+    }
+
+    // --- upfront_buffer ---
+
+    #[test]
+    fn upfront_buffer_valid() {
+        let a = parse(&["prog", "-u", "500"]).unwrap();
+        assert_eq!(a.upfront_buffer, Some(500));
+    }
+
+    #[test]
+    fn upfront_buffer_invalid() {
+        let errs = parse(&["prog", "-u", "abc"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid upfront buffer")));
+    }
+
+    // --- sample_rate ---
+
+    #[test]
+    fn sample_rate_valid() {
+        for &rate in SAMPLE_RATES.iter() {
+            let s = rate.to_string();
+            let a = parse(&["prog", "-R", &s]).unwrap();
+            assert_eq!(a.sample_rate, Some(rate), "failed for rate {rate}");
+        }
+    }
+
+    #[test]
+    fn sample_rate_invalid_value() {
+        let errs = parse(&["prog", "-R", "22050"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid sample rate")));
+    }
+
+    #[test]
+    fn sample_rate_non_numeric() {
+        let errs = parse(&["prog", "-R", "fast"]).unwrap_err();
+        assert!(errs.iter().any(|e| e.contains("Invalid sample rate")));
+    }
+
+    // --- error accumulation ---
+
+    #[test]
+    fn multiple_errors_all_reported() {
+        let errs = parse(&["prog", "-b", "32", "-v", "200", "-R", "22050"]).unwrap_err();
+        assert_eq!(errs.len(), 3, "expected 3 errors, got: {errs:?}");
+    }
+
+    // --- combined valid args ---
+
+    #[test]
+    fn combined_args() {
+        let a = parse(&[
+            "prog", "-n", "-b", "24", "-f", "FLAC", "-v", "75", "-p", "5900", "-x",
+        ])
+        .unwrap();
+        assert_eq!(a.dry_run, Some(true));
+        assert_eq!(a.bits_per_sample, Some(24));
+        assert_eq!(a.streaming_format, Some(StreamingFormat::Flac));
+        assert_eq!(a.volume, Some(75));
+        assert_eq!(a.server_port, Some(5900));
+        assert_eq!(a.serve_only, Some(true));
+    }
+
+    // --- long flag aliases ---
+
+    #[test]
+    fn long_flags_work() {
+        let a = parse(&[
+            "prog",
+            "--bits_per_sample",
+            "16",
+            "--volume",
+            "10",
+            "--server_port",
+            "8080",
+        ])
+        .unwrap();
+        assert_eq!(a.bits_per_sample, Some(16));
+        assert_eq!(a.volume, Some(10));
+        assert_eq!(a.server_port, Some(8080));
     }
 }

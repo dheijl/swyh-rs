@@ -206,19 +206,6 @@ impl Configuration {
     pub fn read_config() -> Configuration {
         let mut force_update = false;
         let configfile = Self::choose_config_path();
-        if !Path::new(&configfile).exists() {
-            println!("Creating a new default config {}", configfile.display());
-            let config = Configuration::new();
-            let configuration = Config {
-                configuration: config,
-            };
-            let f = File::create(&configfile).unwrap();
-            let s = toml::to_string(&configuration).unwrap();
-            let mut w = BufWriter::new(f);
-            println!("New default CONFIG: {s}");
-            w.write_all(s.as_bytes()).unwrap();
-            w.flush().unwrap();
-        }
         println!("Loading config from {}", configfile.display());
         let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
             eprintln!("Unable to read config file: {error}");
@@ -238,8 +225,7 @@ impl Configuration {
             force_update = true;
         }
         // replace missing values from old configs with reasonable defaults
-        if let Some(_u16) = config.configuration.server_port {
-        } else {
+        if config.configuration.server_port.is_none() {
             config.configuration.server_port = Some(SERVER_PORT);
             force_update = true;
         }
@@ -282,7 +268,10 @@ impl Configuration {
         }
 
         if force_update && !config.configuration.read_only {
-            config.configuration.update_config().unwrap();
+            config
+                .configuration
+                .update_config()
+                .expect("failed to update config");
         }
         config.configuration
     }
@@ -291,15 +280,15 @@ impl Configuration {
         if self.read_only {
             return Ok(());
         }
-        let configfile = Self::get_config_path(CONFIGFILE);
-        let f = File::create(configfile).unwrap();
+        let configfile = Self::choose_config_path();
+        let f = File::create(configfile)?;
         let conf = Config {
             configuration: self.clone(),
         };
-        let s = toml::to_string(&conf).unwrap();
+        let s = toml::to_string(&conf).map_err(std::io::Error::other)?;
         let mut w = BufWriter::new(f);
-        w.write_all(s.as_bytes()).unwrap();
-        w.flush().unwrap();
+        w.write_all(s.as_bytes())?;
+        w.flush()?;
         Ok(())
     }
 
@@ -314,12 +303,14 @@ impl Configuration {
                 let configuration = Config {
                     configuration: config,
                 };
-                let f = File::create(&configfile).unwrap();
-                let s = toml::to_string(&configuration).unwrap();
+                let f = File::create(&configfile).expect("failed to create config file");
+                let s =
+                    toml::to_string(&configuration).expect("failed to serialize default config");
                 let mut w = BufWriter::new(f);
                 println!("New default CONFIG: {s}");
-                w.write_all(s.as_bytes()).unwrap();
-                w.flush().unwrap();
+                w.write_all(s.as_bytes())
+                    .expect("failed to write config file");
+                w.flush().expect("failed to flush config file");
             }
             configfile
         }
@@ -329,7 +320,7 @@ impl Configuration {
         let hd = dirs::home_dir().unwrap_or_default();
         let config_dir = Path::new(&hd).join(".".to_string() + PKGNAME);
         if !Path::new(&config_dir).exists() {
-            fs::create_dir_all(&config_dir).unwrap();
+            fs::create_dir_all(&config_dir).expect("failed to create config directory");
         }
         config_dir
     }
@@ -344,7 +335,10 @@ impl Configuration {
     fn get_config_id() -> String {
         let mut config_id = String::new();
         let mut argparser = Parser::from_env();
-        while let Some(arg) = argparser.next().unwrap() {
+        while let Some(arg) = argparser
+            .next()
+            .expect("failed to parse command line arguments")
+        {
             if let Short('c') | Long("configuration") = arg
                 && let Ok(id) = argparser.value()
             {
@@ -362,7 +356,10 @@ impl Configuration {
     fn get_arg_config_path() -> Option<PathBuf> {
         let mut argparser = Parser::from_env();
         let mut path = None;
-        while let Some(arg) = argparser.next().unwrap() {
+        while let Some(arg) = argparser
+            .next()
+            .expect("failed to parse command line arguments")
+        {
             if let Short('C') | Long("configfile") = arg
                 && let Ok(opt) = argparser.value()
             {

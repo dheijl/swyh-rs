@@ -8,7 +8,8 @@
   - add a new dropdown in the Audio TAB, that lets you select the sample rate. The sample rate is now configurable because CPAL 0.18 defaults to 48000 on ALSA as ALSA does not expose the configured system default. The system default sample rate is also selectable, but on linux you should verify this with your Pipewire/Pulse/Alsa configuration (if any).
   - add support for HTTP Range headers, as used by Linn streamers. This could possibly fix issue #45.
   - add comprehensive commandline arguments testing
-  
+  - improve configuration loading/saving handling
+
 - 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0
   - use CPAL 0.18.0 development branch

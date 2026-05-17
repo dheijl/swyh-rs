@@ -99,7 +99,7 @@ rustix = { version = "1.1.4", default-features = false, features = ["process"] }
 #figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
-#cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/alsa-rt-safe-types" }
+#cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "fix/wasapi-input-streams" }
 cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }

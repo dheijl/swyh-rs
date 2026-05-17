@@ -4,9 +4,9 @@
 
 - 1.20.3-RC4 (unreleased)
   - add a "run SSDP discovery now" button to the network TAB, useful when swyh-rs is already running and you power on a device, so you don't have to restart swyh-rs or wait for the SSDP discovery timeout.
-  - disable the realtime feature of CPAL as it doesn't work on ALSA and needs extra configuration as root by the user on other back-ends (the CPAL pipewire, jack, pulseaudio features). If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features. (IMHO) swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.
-  - add a new dropdown in the Audio TAB, that lets you select the sample rate. The sample rate is now configurable because CPAL 0.18 defaults to 48000 on ALSA as ALSA does not expose the configured system default. The system default sample rate is also selectable, but on linux you should verify this with your Pipewire/Pulse/Alsa configuration (if any).
-  - add support for HTTP Range headers, as used by Linn streamers. This could possibly fix issue #45.
+  - The new CPAL `realtime` feature is not used. If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features (pipewire/pulseaudio/jack and realtime or realtime-dbus). I think swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.
+  - add a new dropdown in the Audio TAB, that lets you select the sample rate. The sample rate is now configurable because CPAL 0.18 defaults to 48000 on ALSA as ALSA does not expose the configured system default. The system default sample rate is also selectable, but on linux you should verify this value with your Pipewire/Pulse/Alsa configuration (if any) for instance with `pactl info`. It's important that you configure this correctly on Linux, on Windows the system default should be correct.
+  - add (very basic) support for HTTP Range headers, as used by Linn streamers. This could possibly fix issue #45.
   - add comprehensive commandline arguments testing
   - improve configuration loading/saving handling
 

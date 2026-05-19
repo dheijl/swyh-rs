@@ -6,6 +6,7 @@ use crate::{
     globals::statics::{SERVER_PORT, THEMES},
     utils::i18n::available_languages,
 };
+use anyhow::{Context, Result};
 use lexopt::{Parser, prelude::*};
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
@@ -181,8 +182,8 @@ impl Configuration {
             active_renderers: Vec::new(),
             hidden_renderers: Vec::new(),
             last_network: None,
-            config_dir: Self::get_config_dir(),
-            config_id: Some(Self::get_config_id()),
+            config_dir: Self::get_config_dir().unwrap_or_default(),
+            config_id: Some(Self::get_config_id().unwrap_or_default()),
             read_only: false,
             color_theme: None,
             language: Some(detect_default_language()),
@@ -202,10 +203,9 @@ impl Configuration {
         self.config_dir.clone()
     }
 
-    #[must_use]
-    pub fn read_config() -> Configuration {
+    pub fn read_config() -> Result<Configuration> {
         let mut force_update = false;
-        let configfile = Self::choose_config_path();
+        let configfile = Self::choose_config_path()?;
         println!("Loading config from {}", configfile.display());
         let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
             eprintln!("Unable to read config file: {error}");
@@ -213,9 +213,8 @@ impl Configuration {
         });
         let mut config: Config = from_str(&s).unwrap_or_else(|error| {
             eprintln!("Unable to deserialize config: {error}");
-            let config = Configuration::new();
             Config {
-                configuration: config,
+                configuration: Configuration::new(),
             }
         });
         if config.configuration.ssdp_interval_mins > 0.0
@@ -255,7 +254,7 @@ impl Configuration {
             force_update = true;
         }
         if !config.configuration.read_only {
-            let meta = fs::metadata(configfile);
+            let meta = fs::metadata(&configfile);
             if let Ok(meta) = meta {
                 config.configuration.read_only = meta.permissions().readonly();
             }
@@ -271,73 +270,85 @@ impl Configuration {
             config
                 .configuration
                 .update_config()
-                .expect("failed to update config");
+                .context("failed to update config")?;
         }
-        config.configuration
+        Ok(config.configuration)
     }
 
-    pub fn update_config(&self) -> std::io::Result<()> {
+    pub fn update_config(&self) -> Result<()> {
         if self.read_only {
             return Ok(());
         }
-        let configfile = Self::choose_config_path();
-        let f = File::create(configfile)?;
+        let configfile = Self::choose_config_path()?;
+        let f = File::create(&configfile)
+            .with_context(|| format!("failed to create config file: {}", configfile.display()))?;
         let conf = Config {
             configuration: self.clone(),
         };
-        let s = toml::to_string(&conf).map_err(std::io::Error::other)?;
+        let s = toml::to_string(&conf).context("failed to serialize config")?;
         let mut w = BufWriter::new(f);
-        w.write_all(s.as_bytes())?;
-        w.flush()?;
+        w.write_all(s.as_bytes())
+            .with_context(|| format!("failed to write config file: {}", configfile.display()))?;
+        w.flush()
+            .with_context(|| format!("failed to flush config file: {}", configfile.display()))?;
         Ok(())
     }
 
-    fn choose_config_path() -> PathBuf {
-        if let Some(path) = Self::get_arg_config_path() {
-            path
+    fn choose_config_path() -> Result<PathBuf> {
+        if let Some(path) = Self::get_arg_config_path()? {
+            Ok(path)
         } else {
-            let configfile = Self::get_config_path(CONFIGFILE);
+            let configfile = Self::get_config_path(CONFIGFILE)?;
             if !Path::new(&configfile).exists() {
                 println!("Creating a new default config {}", configfile.display());
-                let config = Configuration::new();
                 let configuration = Config {
-                    configuration: config,
+                    configuration: Configuration::new(),
                 };
-                let f = File::create(&configfile).expect("failed to create config file");
-                let s =
-                    toml::to_string(&configuration).expect("failed to serialize default config");
+                let f = File::create(&configfile).with_context(|| {
+                    format!("failed to create config file: {}", configfile.display())
+                })?;
+                let s = toml::to_string(&configuration)
+                    .context("failed to serialize default config")?;
                 let mut w = BufWriter::new(f);
                 println!("New default CONFIG: {s}");
-                w.write_all(s.as_bytes())
-                    .expect("failed to write config file");
-                w.flush().expect("failed to flush config file");
+                w.write_all(s.as_bytes()).with_context(|| {
+                    format!("failed to write config file: {}", configfile.display())
+                })?;
+                w.flush().with_context(|| {
+                    format!("failed to flush config file: {}", configfile.display())
+                })?;
             }
-            configfile
+            Ok(configfile)
         }
     }
 
-    fn get_config_dir() -> PathBuf {
+    fn get_config_dir() -> Result<PathBuf> {
         let hd = dirs::home_dir().unwrap_or_default();
         let config_dir = Path::new(&hd).join(".".to_string() + PKGNAME);
         if !Path::new(&config_dir).exists() {
-            fs::create_dir_all(&config_dir).expect("failed to create config directory");
+            fs::create_dir_all(&config_dir).with_context(|| {
+                format!(
+                    "failed to create config directory: {}",
+                    config_dir.display()
+                )
+            })?;
         }
-        config_dir
+        Ok(config_dir)
     }
 
-    fn get_config_path(filename: &str) -> PathBuf {
-        let id = Self::get_config_id();
+    fn get_config_path(filename: &str) -> Result<PathBuf> {
+        let id = Self::get_config_id()?;
         let configfilename = filename.replace("{}", &id);
-        let config_dir = Self::get_config_dir();
-        Path::new(&config_dir).join(configfilename)
+        let config_dir = Self::get_config_dir()?;
+        Ok(Path::new(&config_dir).join(configfilename))
     }
 
-    fn get_config_id() -> String {
+    fn get_config_id() -> Result<String> {
         let mut config_id = String::new();
         let mut argparser = Parser::from_env();
         while let Some(arg) = argparser
             .next()
-            .expect("failed to parse command line arguments")
+            .context("failed to parse command line arguments")?
         {
             if let Short('c') | Long("configuration") = arg
                 && let Ok(id) = argparser.value()
@@ -350,15 +361,15 @@ impl Configuration {
         if config_id.is_empty() {
             config_id = "_cli".to_string();
         }
-        config_id
+        Ok(config_id)
     }
 
-    fn get_arg_config_path() -> Option<PathBuf> {
+    fn get_arg_config_path() -> Result<Option<PathBuf>> {
         let mut argparser = Parser::from_env();
         let mut path = None;
         while let Some(arg) = argparser
             .next()
-            .expect("failed to parse command line arguments")
+            .context("failed to parse command line arguments")?
         {
             if let Short('C') | Long("configfile") = arg
                 && let Ok(opt) = argparser.value()
@@ -368,6 +379,6 @@ impl Configuration {
             }
         }
         println!("ARG override configfile (-C): {path:?}");
-        path
+        Ok(path)
     }
 }

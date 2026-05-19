@@ -126,13 +126,23 @@ fn main() {
             simplelog::TerminalMode::Stderr,
             ColorChoice::Auto,
         ),
-        WriteLogger::new(loglevel, log_config.clone(), File::create(logfile).unwrap()),
+        WriteLogger::new(
+            loglevel,
+            log_config.clone(),
+            File::create(&logfile).unwrap_or_else(|e| {
+                eprintln!("Failed to create log file {}: {e}", logfile.display());
+                std::process::exit(1);
+            }),
+        ),
     ]);
     #[cfg(not(any(debug_assertions, target_os = "linux")))]
     let _ = CombinedLogger::init(vec![WriteLogger::new(
         loglevel,
         log_config.clone(),
-        File::create(logfile).unwrap(),
+        File::create(&logfile).unwrap_or_else(|e| {
+            eprintln!("Failed to create log file {}: {e}", logfile.display());
+            std::process::exit(1);
+        }),
     )]);
 
     info!(

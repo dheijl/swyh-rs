@@ -211,7 +211,16 @@ pub fn get_output_audio_devices() -> Vec<Device> {
 
     for host_id in available_hosts {
         debug!("{}", host_id.name());
-        let host = cpal::host_from_id(host_id).unwrap();
+        let host = match cpal::host_from_id(host_id) {
+            Ok(h) => h,
+            Err(e) => {
+                ui_log(
+                    LogCategory::Error,
+                    &format!("Failed to open audio host {}: {e}", host_id.name()),
+                );
+                continue;
+            }
+        };
 
         let default_out = host
             .default_output_device()
@@ -223,7 +232,16 @@ pub fn get_output_audio_devices() -> Vec<Device> {
             .and_then(|e| get_device_name(&e).ok());
         debug!("  Default Input Device:\n    {default_in:?}");
 
-        let devices = host.devices().unwrap();
+        let devices = match host.devices() {
+            Ok(d) => d,
+            Err(e) => {
+                ui_log(
+                    LogCategory::Error,
+                    &format!("Failed to enumerate devices for {}: {e}", host_id.name()),
+                );
+                continue;
+            }
+        };
         debug!("  Devices: ");
         for (device_index, device) in devices.enumerate() {
             debug!(

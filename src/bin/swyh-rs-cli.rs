@@ -126,7 +126,14 @@ fn main() -> Result<(), i32> {
             simplelog::TerminalMode::Stderr,
             ColorChoice::Auto,
         ),
-        WriteLogger::new(loglevel, log_config.clone(), File::create(logfile).unwrap()),
+        WriteLogger::new(
+            loglevel,
+            log_config.clone(),
+            File::create(&logfile).unwrap_or_else(|e| {
+                eprintln!("Failed to create log file {}: {e}", logfile.display());
+                std::process::exit(1);
+            }),
+        ),
     ]);
 
     info!(

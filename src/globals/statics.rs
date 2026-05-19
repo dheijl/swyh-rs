@@ -63,8 +63,12 @@ pub fn get_msgchannel() -> RwLockReadGuard<'static, (Sender<MessageType>, Receiv
 }
 
 /// the global configuration state
-static CONFIG: LazyLock<RwLock<Configuration>> =
-    LazyLock::new(|| RwLock::new(Configuration::read_config()));
+static CONFIG: LazyLock<RwLock<Configuration>> = LazyLock::new(|| {
+    RwLock::new(Configuration::read_config().unwrap_or_else(|e| {
+        eprintln!("Fatal: failed to read config: {e:#}");
+        std::process::exit(1);
+    }))
+});
 pub fn get_config() -> RwLockReadGuard<'static, Configuration> {
     CONFIG.read().expect("CONFIG read lock poisoned")
 }

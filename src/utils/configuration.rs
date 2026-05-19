@@ -204,10 +204,13 @@ impl Configuration {
     }
 
     pub fn read_config() -> Result<Configuration> {
-        let mut force_update = false;
         let configfile = Self::choose_config_path()?;
         println!("Loading config from {}", configfile.display());
-        let s = fs::read_to_string(&configfile).unwrap_or_else(|error| {
+        Self::read_config_from(&configfile)
+    }
+
+    pub fn read_config_from(configfile: &Path) -> Result<Configuration> {
+        let s = fs::read_to_string(configfile).unwrap_or_else(|error| {
             eprintln!("Unable to read config file: {error}");
             String::new()
         });
@@ -217,6 +220,7 @@ impl Configuration {
                 configuration: Configuration::new(),
             }
         });
+        let mut force_update = false;
         if config.configuration.ssdp_interval_mins > 0.0
             && config.configuration.ssdp_interval_mins < 0.5
         {
@@ -254,7 +258,7 @@ impl Configuration {
             force_update = true;
         }
         if !config.configuration.read_only {
-            let meta = fs::metadata(&configfile);
+            let meta = fs::metadata(configfile);
             if let Ok(meta) = meta {
                 config.configuration.read_only = meta.permissions().readonly();
             }
@@ -265,22 +269,25 @@ impl Configuration {
             config.configuration.color_theme = None;
             force_update = true;
         }
-
         if force_update && !config.configuration.read_only {
             config
                 .configuration
-                .update_config()
+                .update_config_to(configfile)
                 .context("failed to update config")?;
         }
         Ok(config.configuration)
     }
 
     pub fn update_config(&self) -> Result<()> {
+        let configfile = Self::choose_config_path()?;
+        self.update_config_to(&configfile)
+    }
+
+    pub fn update_config_to(&self, configfile: &Path) -> Result<()> {
         if self.read_only {
             return Ok(());
         }
-        let configfile = Self::choose_config_path()?;
-        let f = File::create(&configfile)
+        let f = File::create(configfile)
             .with_context(|| format!("failed to create config file: {}", configfile.display()))?;
         let conf = Config {
             configuration: self.clone(),
@@ -380,5 +387,115 @@ impl Configuration {
         }
         println!("ARG override configfile (-C): {path:?}");
         Ok(path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    fn temp_toml(content: &str) -> NamedTempFile {
+        let mut f = NamedTempFile::new().unwrap();
+        write!(f, "{content}").unwrap();
+        f
+    }
+
+    #[test]
+    fn empty_file_yields_defaults() {
+        let f = NamedTempFile::new().unwrap();
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.server_port, Some(SERVER_PORT));
+        assert_eq!(cfg.bits_per_sample, Some(16));
+        assert_eq!(cfg.capture_timeout, Some(2000));
+        assert_eq!(cfg.inject_silence, Some(false));
+        assert_eq!(cfg.buffering_delay_msec, Some(0));
+        assert_eq!(cfg.sound_source_index, Some(0));
+    }
+
+    #[test]
+    fn round_trip_preserves_values() {
+        let f = NamedTempFile::new().unwrap();
+        let mut cfg = Configuration::new();
+        cfg.server_port = Some(5030);
+        cfg.auto_resume = true;
+        cfg.ssdp_interval_mins = 5.0;
+        cfg.streaming_format = Some(StreamingFormat::Flac);
+        cfg.update_config_to(f.path()).unwrap();
+
+        let loaded = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(loaded.server_port, Some(5030));
+        assert!(loaded.auto_resume);
+        assert_eq!(loaded.ssdp_interval_mins, 5.0);
+        assert_eq!(loaded.streaming_format, Some(StreamingFormat::Flac));
+    }
+
+    #[test]
+    fn ssdp_interval_clamped_below_minimum() {
+        let f = temp_toml("[configuration]\nssdp_interval_mins = 0.1\n");
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.ssdp_interval_mins, 0.5);
+    }
+
+    #[test]
+    fn ssdp_interval_zero_not_clamped() {
+        // zero means "disabled", not "too small" — clamp only applies when > 0
+        let f = temp_toml("[configuration]\nssdp_interval_mins = 0.0\n");
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.ssdp_interval_mins, 0.0);
+    }
+
+    #[test]
+    fn invalid_bits_per_sample_reset_to_16() {
+        let f = temp_toml("[configuration]\nbits_per_sample = 32\n");
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.bits_per_sample, Some(16));
+    }
+
+    #[test]
+    fn valid_bits_per_sample_preserved() {
+        for bps in [16u16, 24] {
+            let f = temp_toml(&format!("[configuration]\nbits_per_sample = {bps}\n"));
+            let cfg = Configuration::read_config_from(f.path()).unwrap();
+            assert_eq!(cfg.bits_per_sample, Some(bps), "bps={bps}");
+        }
+    }
+
+    #[test]
+    fn out_of_range_color_theme_reset_to_none() {
+        let oob = THEMES.len() as u8; // first value >= len
+        let f = temp_toml(&format!("[configuration]\ncolor_theme = {oob}\n"));
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.color_theme, None);
+    }
+
+    #[test]
+    fn valid_color_theme_preserved() {
+        let f = temp_toml("[configuration]\ncolor_theme = 0\n");
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.color_theme, Some(0));
+    }
+
+    #[test]
+    fn legacy_pascal_case_aliases_deserialize() {
+        let f = temp_toml(
+            "[Configuration]\nServerPort = 5030\nAutoResume = true\nLogLevel = \"Debug\"\n",
+        );
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.server_port, Some(5030));
+        assert!(cfg.auto_resume);
+        assert_eq!(cfg.log_level, LevelFilter::Debug);
+    }
+
+    #[test]
+    fn missing_optional_fields_get_defaults() {
+        let f = temp_toml("[configuration]\n");
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.server_port, Some(SERVER_PORT));
+        assert_eq!(cfg.capture_timeout, Some(2000));
+        assert_eq!(cfg.inject_silence, Some(false));
+        assert_eq!(cfg.buffering_delay_msec, Some(0));
+        assert_eq!(cfg.sound_source_index, Some(0));
     }
 }

@@ -83,7 +83,9 @@ pub enum StreamSize {
     U64maxNotChunked,
 }
 
-// streamsize/chunkthreshold pairs for tiny-http response
+// streamsize/chunkthreshold pairs for tiny-http response.
+// The "NotChunked" variants set content-length to MAX-1 and chunk-threshold to MAX
+// so tiny-http never triggers chunked transfer (threshold must exceed content-length).
 pub(crate) const NONECHUNKED: (Option<usize>, usize) = (None, 8192);
 pub(crate) const U32MAXCHUNKED: (Option<usize>, usize) = (Some(u32::MAX as usize), 8192);
 pub(crate) const U32MAXNOTCHUNKED: (Option<usize>, usize) =
@@ -139,6 +141,8 @@ pub enum BitDepth {
 }
 
 impl BitDepth {
+    /// Right-shift applied to an `i32` sample to extract the target bit depth.
+    /// `i32 >> 8` yields 24 significant bits; `i32 >> 16` yields 16.
     pub fn shift_value(&self) -> u8 {
         match self {
             BitDepth::Bits24 => 8u8,
@@ -208,7 +212,9 @@ pub struct StreamingContext {
 }
 
 impl StreamingContext {
-    /// initialize default values from config where possible
+    /// Build a `StreamingContext` from persisted config defaults.
+    /// `sample_rate` is a placeholder (44100) replaced by `set_sample_data` once the
+    /// capture device is known; `streamsize`/`chunksize` are finalised by `set_streaming_params`.
     pub fn from_config() -> StreamingContext {
         let cfg = get_config();
         StreamingContext {

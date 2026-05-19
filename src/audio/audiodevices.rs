@@ -202,6 +202,7 @@ fn log_stream_configs(
     }
 }
 
+/// Enumerate all output (and loopback-capable input) devices across every available CPAL host.
 #[must_use]
 pub fn get_output_audio_devices() -> Vec<Device> {
     let mut result = Vec::new();
@@ -274,6 +275,7 @@ pub fn get_output_audio_devices() -> Vec<Device> {
     result
 }
 
+/// Returns the system default output device, or `None` if unavailable.
 #[must_use]
 pub fn get_default_audio_output_device() -> Option<Device> {
     // audio hosts
@@ -283,9 +285,8 @@ pub fn get_default_audio_output_device() -> Option<Device> {
         .and_then(|device| DeviceKind::Output(device).try_into().ok())
 }
 
-/// `capture_audio_output` - capture the audio stream from the default audio output device
-///
-/// sets up an input stream for the `wave_reader` in the appropriate format (f32/i16/u16)
+/// Captures audio from an *output* device by opening it as a loopback input stream.
+/// The stream callback converts samples to f32 and fans them out to all registered HTTP clients.
 pub fn capture_output_audio(
     device_wrap: &Device,
     audio_cfg: &SupportedStreamConfig,

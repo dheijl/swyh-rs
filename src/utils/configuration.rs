@@ -197,18 +197,21 @@ impl Configuration {
         self.config_dir.clone()
     }
 
+    /// Returns the log directory — currently the same as `config_dir`.
     #[allow(dead_code)]
     #[must_use]
     pub fn log_dir(&self) -> PathBuf {
         self.config_dir.clone()
     }
 
+    /// Resolves the config path (honouring CLI overrides) and loads it, creating a default file if absent.
     pub fn read_config() -> Result<Configuration> {
         let configfile = Self::choose_config_path()?;
         println!("Loading config from {}", configfile.display());
         Self::read_config_from(&configfile)
     }
 
+    /// Deserialises config from `configfile`, migrating/clamping stale field values and falling back to defaults on parse failure.
     pub fn read_config_from(configfile: &Path) -> Result<Configuration> {
         let s = fs::read_to_string(configfile).unwrap_or_else(|error| {
             eprintln!("Unable to read config file: {error}");
@@ -278,11 +281,13 @@ impl Configuration {
         Ok(config.configuration)
     }
 
+    /// Persists the current config to the resolved config path; no-op when `read_only`.
     pub fn update_config(&self) -> Result<()> {
         let configfile = Self::choose_config_path()?;
         self.update_config_to(&configfile)
     }
 
+    /// Serialises `self` to `configfile`; silently succeeds (no write) when `read_only` is set.
     pub fn update_config_to(&self, configfile: &Path) -> Result<()> {
         if self.read_only {
             return Ok(());
@@ -301,6 +306,7 @@ impl Configuration {
         Ok(())
     }
 
+    /// Returns the effective config path: `-C`/`--configfile` arg overrides the standard location; creates the file with defaults if it doesn't exist yet.
     fn choose_config_path() -> Result<PathBuf> {
         if let Some(path) = Self::get_arg_config_path()? {
             Ok(path)
@@ -329,6 +335,7 @@ impl Configuration {
         }
     }
 
+    /// Returns `~/.swyh-rs[…]`, creating it if absent.
     fn get_config_dir() -> Result<PathBuf> {
         let hd = dirs::home_dir().unwrap_or_default();
         let config_dir = Path::new(&hd).join(".".to_string() + PKGNAME);
@@ -350,6 +357,7 @@ impl Configuration {
         Ok(Path::new(&config_dir).join(configfilename))
     }
 
+    /// Reads the `-c`/`--configuration` CLI flag as the config-profile suffix (e.g. `"foo"` → `config_foo.toml`); CLI builds always use `"_cli"` when absent.
     fn get_config_id() -> Result<String> {
         let mut config_id = String::new();
         let mut argparser = Parser::from_env();
@@ -371,6 +379,7 @@ impl Configuration {
         Ok(config_id)
     }
 
+    /// Reads the `-C`/`--configfile` CLI flag as a full path override (bypasses the standard config directory entirely).
     fn get_arg_config_path() -> Result<Option<PathBuf>> {
         let mut argparser = Parser::from_env();
         let mut path = None;

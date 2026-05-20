@@ -32,7 +32,7 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
             &fl!("err-inject-silence-stream", "error" = err.to_string()),
         )
     };
-    let config: StreamConfig = config.clone().into();
+    let config: StreamConfig = (*config).into();
     let device = device.as_ref();
     let try_stream = match sample_format {
         SampleFormat::F32 => device.build_output_stream(config, write_silence::<f32>, err_fn, None),

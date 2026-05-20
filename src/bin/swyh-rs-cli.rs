@@ -307,9 +307,9 @@ fn main() -> Result<(), i32> {
     let audio_cfg = if let Some(rate) = config.sample_rate {
         audio_output_device
             .find_config(rate, SampleFormat::F32, 2)
-            .unwrap_or_else(|| audio_output_device.default_config().clone())
+            .unwrap_or_else(|| *audio_output_device.default_config())
     } else {
-        audio_output_device.default_config().clone()
+        *audio_output_device.default_config()
     };
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),

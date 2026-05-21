@@ -71,7 +71,7 @@ log = { version = "0.4.29", features = [
     "release_max_level_debug",
     "serde",
 ] }
-mimalloc = { version = "0.1.50" }
+mimalloc = { version = "0.1.51" }
 serde = { version = "1.0.228", features = ["derive"] }
 socket2 = "0.6.3"
 simplelog = { version = "0.12.2", features = ["local-offset"] }

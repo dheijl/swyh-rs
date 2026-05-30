@@ -145,3 +145,4 @@ srv-bad-request = Richiesta non riconosciuta '{ $url }' da '{ $addr }'
 srv-stream-terminated = =>Richiesta di streaming HTTP con { $addr } terminata [{ $error }]
 
 srv-range-not-satisfiable = Richiesta di intervallo da { $addr } non soddisfacibile, risposta 416
+audio-downmix = Downmix dell'ingresso a { $channels } canali in stereo per lo streaming (ITU-R BS.775)

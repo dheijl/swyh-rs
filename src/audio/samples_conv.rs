@@ -90,6 +90,68 @@ pub(crate) fn i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
     buf[9..=11].copy_from_slice(&i32_array[3].to_be_bytes()[1..]);
 }
 
+/// Downmix coefficient for the center, side, and rear channels when folding multichannel
+/// audio into stereo. -3 dB ≈ 0.7071, the ITU-R BS.775 / ATSC A/52 stereo-downmix value.
+const DOWNMIX_ATTEN: f32 = std::f32::consts::FRAC_1_SQRT_2;
+
+/// Downmix interleaved multichannel f32 samples to interleaved stereo (L,R,L,R,...).
+///
+/// `channels` is the number of channels per frame in the input. The function assumes
+/// standard WAVE channel order (FL, FR, FC, LFE, BL, BR, SL, SR, ...). Channels beyond
+/// the 8th in WAVE order are summed equally into both L and R as a best-effort fallback.
+///
+/// Coefficients follow ITU-R BS.775 (also used by Blu-ray players and ffmpeg's default `-ac 2` downmix):
+///   L = FL + 0.7071·FC + 0.7071·BL + 0.7071·SL
+///   R = FR + 0.7071·FC + 0.7071·BR + 0.7071·SR
+/// LFE is dropped. The result is hard-clamped to ±1.0 to prevent integer overflow when
+/// the f32 samples are later converted to i16/i24 by `samples_to_i32`.
+///
+/// Special cases:
+/// - 1 channel: duplicated to L=R.
+/// - 2 channels: copied unchanged.
+///
+/// `stereo` is cleared and refilled, reusing its allocation across calls.
+pub(crate) fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) {
+    stereo.clear();
+    match channels {
+        0 | 2 => stereo.extend_from_slice(samples),
+        1 => {
+            stereo.reserve(samples.len() * 2);
+            for &s in samples {
+                stereo.push(s);
+                stereo.push(s);
+            }
+        }
+        n => {
+            let n = n as usize;
+            let frames = samples.len() / n;
+            stereo.reserve(frames * 2);
+            for frame in samples.chunks_exact(n) {
+                // Standard WAVE channel order: FL, FR, FC, LFE, BL, BR, SL, SR.
+                let fl = frame[0];
+                let fr = frame[1];
+                let fc = if n >= 3 { frame[2] } else { 0.0 };
+                // frame[3] is LFE — intentionally dropped.
+                let bl = if n >= 5 { frame[4] } else { 0.0 };
+                let br = if n >= 6 { frame[5] } else { 0.0 };
+                let sl = if n >= 7 { frame[6] } else { 0.0 };
+                let sr = if n >= 8 { frame[7] } else { 0.0 };
+                let mut l = fl + DOWNMIX_ATTEN * (fc + bl + sl);
+                let mut r = fr + DOWNMIX_ATTEN * (fc + br + sr);
+                // Any extra channels beyond standard 7.1 are mixed equally into both sides.
+                if n > 8 {
+                    for &extra in &frame[8..] {
+                        l += DOWNMIX_ATTEN * extra;
+                        r += DOWNMIX_ATTEN * extra;
+                    }
+                }
+                stereo.push(l.clamp(-1.0, 1.0));
+                stereo.push(r.clamp(-1.0, 1.0));
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,5 +164,74 @@ mod tests {
         assert_eq!(result[1], i16::MIN as i32);
         //assert_eq!(result[2], i16::MAX as i32 / 2);
         assert_eq!(result[3], 0i32);
+    }
+
+    #[test]
+    fn test_downmix_stereo_passthrough() {
+        let input = vec![0.1, -0.2, 0.3, -0.4];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 2, &mut out);
+        assert_eq!(out, input);
+    }
+
+    #[test]
+    fn test_downmix_mono_to_stereo() {
+        let input = vec![0.5, -0.5, 0.25];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 1, &mut out);
+        assert_eq!(out, vec![0.5, 0.5, -0.5, -0.5, 0.25, 0.25]);
+    }
+
+    #[test]
+    fn test_downmix_5_1_bs775() {
+        // One frame: FL=0.1, FR=0.2, FC=0.3, LFE=0.9 (dropped), BL=0.4, BR=0.5
+        let input = vec![0.1, 0.2, 0.3, 0.9, 0.4, 0.5];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 6, &mut out);
+        assert_eq!(out.len(), 2);
+        let expected_l = 0.1 + DOWNMIX_ATTEN * (0.3 + 0.4);
+        let expected_r = 0.2 + DOWNMIX_ATTEN * (0.3 + 0.5);
+        assert!(
+            (out[0] - expected_l).abs() < 1e-6,
+            "L: {} vs {}",
+            out[0],
+            expected_l
+        );
+        assert!(
+            (out[1] - expected_r).abs() < 1e-6,
+            "R: {} vs {}",
+            out[1],
+            expected_r
+        );
+    }
+
+    #[test]
+    fn test_downmix_clamps_overflow() {
+        // 5.1 frame engineered so L = 1.0 + 0.707*1.0 + 0.707*1.0 ≈ 2.41 → clamps to 1.0
+        let input = vec![1.0, 1.0, 1.0, 0.0, 1.0, 1.0];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 6, &mut out);
+        assert_eq!(out, vec![1.0, 1.0]);
+        // Negative side
+        let input = vec![-1.0, -1.0, -1.0, 0.0, -1.0, -1.0];
+        downmix_to_stereo(&input, 6, &mut out);
+        assert_eq!(out, vec![-1.0, -1.0]);
+    }
+
+    #[test]
+    fn test_downmix_frame_count() {
+        // 12 samples / 6 channels = 2 frames → 2 stereo frames = 4 samples out
+        let input = vec![0.0; 12];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 6, &mut out);
+        assert_eq!(out.len(), 4);
+    }
+
+    #[test]
+    fn test_downmix_reuses_buffer() {
+        // Calling twice with different inputs must clear any prior content.
+        let mut out = vec![99.0, 99.0, 99.0];
+        downmix_to_stereo(&[0.0; 6], 6, &mut out);
+        assert_eq!(out, vec![0.0, 0.0]);
     }
 }

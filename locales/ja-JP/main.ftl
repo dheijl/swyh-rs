@@ -145,3 +145,4 @@ srv-bad-request = '{ $addr }' からの認識できないリクエスト '{ $url
 srv-stream-terminated = =>{ $addr } との HTTP ストリーミングリクエストが終了しました [{ $error }]
 
 srv-range-not-satisfiable = { $addr } からの範囲リクエストは満たせません、416 を返します
+audio-downmix = { $channels } チャンネル入力をストリーミング用にステレオへダウンミックスしています (ITU-R BS.775)

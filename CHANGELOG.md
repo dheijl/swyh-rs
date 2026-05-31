@@ -10,7 +10,7 @@
   - add comprehensive commandline arguments testing
   - improve configuration loading/saving handling and introduce `anyhow` for error handling
   - rust 1.96.0
-  - add support for multi-channel caprture downmixing to stereo via PR #264 by @cChurro
+  - add support for multi-channel capture downmixing to stereo via PR #264 by @cChurro, also "upmix" mono to stereo using SIMD for performance
 
 - 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0

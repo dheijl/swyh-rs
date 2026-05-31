@@ -118,7 +118,14 @@ pub(crate) fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec
         2 => stereo.extend_from_slice(samples),
         1 => {
             stereo.reserve(samples.len() * 2);
-            for &s in samples {
+            let chunks = samples.chunks_exact(4);
+            let remainder = chunks.remainder();
+            for chunk in chunks {
+                let v = f32x4::new(*chunk.as_array().unwrap());
+                stereo.extend_from_slice(v.unpack_lo(v).as_array()); // [a,a,b,b]
+                stereo.extend_from_slice(v.unpack_hi(v).as_array()); // [c,c,d,d]
+            }
+            for &s in remainder {
                 stereo.push(s);
                 stereo.push(s);
             }
@@ -177,10 +184,32 @@ mod tests {
 
     #[test]
     fn test_downmix_mono_to_stereo() {
+        // 3 samples: all go through the scalar remainder path (< 4 samples per chunk)
         let input = vec![0.5, -0.5, 0.25];
         let mut out = Vec::new();
         downmix_to_stereo(&input, 1, &mut out);
         assert_eq!(out, vec![0.5, 0.5, -0.5, -0.5, 0.25, 0.25]);
+    }
+
+    #[test]
+    fn test_downmix_mono_to_stereo_simd_exact() {
+        // 4 samples: exercises exactly one SIMD chunk, no remainder
+        let input = vec![0.1, 0.2, 0.3, 0.4];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 1, &mut out);
+        assert_eq!(out, vec![0.1, 0.1, 0.2, 0.2, 0.3, 0.3, 0.4, 0.4]);
+    }
+
+    #[test]
+    fn test_downmix_mono_to_stereo_simd_with_remainder() {
+        // 6 samples: one SIMD chunk (4) + scalar remainder (2)
+        let input = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 1, &mut out);
+        assert_eq!(
+            out,
+            vec![0.1, 0.1, 0.2, 0.2, 0.3, 0.3, 0.4, 0.4, 0.5, 0.5, 0.6, 0.6]
+        );
     }
 
     #[test]

@@ -114,7 +114,8 @@ const DOWNMIX_ATTEN: f32 = std::f32::consts::FRAC_1_SQRT_2;
 pub(crate) fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) {
     stereo.clear();
     match channels {
-        0 | 2 => stereo.extend_from_slice(samples),
+        0 => {}
+        2 => stereo.extend_from_slice(samples),
         1 => {
             stereo.reserve(samples.len() * 2);
             for &s in samples {
@@ -233,5 +234,62 @@ mod tests {
         let mut out = vec![99.0, 99.0, 99.0];
         downmix_to_stereo(&[0.0; 6], 6, &mut out);
         assert_eq!(out, vec![0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_downmix_7_1_bs775() {
+        // One frame: FL=0.1, FR=0.2, FC=0.1, LFE=0.0 (dropped), BL=0.1, BR=0.1, SL=0.1, SR=0.1
+        // Values kept small to stay below the ±1.0 clamp.
+        let input = vec![0.1f32, 0.2, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 8, &mut out);
+        assert_eq!(out.len(), 2);
+        let expected_l = 0.1 + DOWNMIX_ATTEN * (0.1 + 0.1 + 0.1);
+        let expected_r = 0.2 + DOWNMIX_ATTEN * (0.1 + 0.1 + 0.1);
+        assert!(
+            (out[0] - expected_l).abs() < 1e-6,
+            "L: {} vs {}",
+            out[0],
+            expected_l
+        );
+        assert!(
+            (out[1] - expected_r).abs() < 1e-6,
+            "R: {} vs {}",
+            out[1],
+            expected_r
+        );
+    }
+
+    #[test]
+    fn test_downmix_beyond_8_channels() {
+        // 9-channel frame: standard 7.1 + one extra channel at index 8.
+        // Extra channel (0.5) is mixed equally into both sides with DOWNMIX_ATTEN.
+        // FL=0.1, FR=0.2, FC=0.0, LFE=0.0, BL=0.0, BR=0.0, SL=0.0, SR=0.0, extra=0.5
+        let input = vec![0.1f32, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5];
+        let mut out = Vec::new();
+        downmix_to_stereo(&input, 9, &mut out);
+        assert_eq!(out.len(), 2);
+        let expected_l = 0.1 + DOWNMIX_ATTEN * 0.5;
+        let expected_r = 0.2 + DOWNMIX_ATTEN * 0.5;
+        assert!(
+            (out[0] - expected_l).abs() < 1e-6,
+            "L: {} vs {}",
+            out[0],
+            expected_l
+        );
+        assert!(
+            (out[1] - expected_r).abs() < 1e-6,
+            "R: {} vs {}",
+            out[1],
+            expected_r
+        );
+    }
+
+    #[test]
+    fn test_downmix_zero_channels() {
+        // 0-channel input: stereo output must be empty.
+        let mut out = vec![1.0, 2.0];
+        downmix_to_stereo(&[], 0, &mut out);
+        assert!(out.is_empty());
     }
 }

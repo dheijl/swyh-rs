@@ -65,6 +65,7 @@ audio-capture-format = Audio capture sample format = { $fmt }
 err-capture-format-stream = Error capturing { $fmt } audio stream: { $error }
 err-capture-stream = Error { $error } capturing audio input stream
 audio-capture-receiving = Audio capture is now receiving samples.
+audio-downmix = Downmixing { $channels }-channel input to stereo for streaming (ITU-R BS.775)
 
 # FLAC encoder
 err-flac-already-running = Flac encoder already running!

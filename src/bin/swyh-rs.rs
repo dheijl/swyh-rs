@@ -227,7 +227,8 @@ fn main() {
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
-        channels: audio_cfg.channels(),
+        // post-downmix the stream is always 2-channel
+        channels: 2,
         default_sample_rate: default_rate,
     };
     debug!("wavdata: {:?}", wd);

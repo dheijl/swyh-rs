@@ -5,7 +5,7 @@
 //! registered HTTP streaming clients.
 
 use crate::{
-    audio::rwstream::AudioSamples,
+    audio::{rwstream::AudioSamples, samples_conv::downmix_to_stereo},
     enums::messages::MessageType,
     fl,
     globals::statics::{RUN_RMS_MONITOR, get_clients, get_config, get_msgchannel},
@@ -306,10 +306,19 @@ pub fn capture_output_audio(
         &fl!("audio-default-config", "cfg" = format!("{audio_cfg:?}")),
     );
     let mut f32_samples: Vec<f32> = Vec::with_capacity(16384);
+    let mut stereo_samples: Vec<f32> = Vec::with_capacity(16384);
+    let channels = audio_cfg.channels();
+    if channels != 2 {
+        // The streaming pipeline is stereo-only, so non-stereo input is downmixed here.
+        ui_log(
+            LogCategory::Info,
+            &fl!("audio-downmix", "channels" = channels.to_string()),
+        );
+    }
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             audio_cfg.config(),
-            move |data, _: &_| wave_reader_f32(data, &rms_sender),
+            move |data, _: &_| wave_reader_f32(data, channels, &mut stereo_samples, &rms_sender),
             capture_err_fn,
             None,
         ) {
@@ -335,7 +344,15 @@ pub fn capture_output_audio(
         cpal::SampleFormat::I16 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, _: &_| wave_reader::<i16>(data, &mut f32_samples, &rms_sender),
+                move |data, _: &_| {
+                    wave_reader::<i16>(
+                        data,
+                        channels,
+                        &mut f32_samples,
+                        &mut stereo_samples,
+                        &rms_sender,
+                    )
+                },
                 capture_err_fn,
                 None,
             ) {
@@ -362,7 +379,15 @@ pub fn capture_output_audio(
         cpal::SampleFormat::U16 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, _: &_| wave_reader::<u16>(data, &mut f32_samples, &rms_sender),
+                move |data, _: &_| {
+                    wave_reader::<u16>(
+                        data,
+                        channels,
+                        &mut f32_samples,
+                        &mut stereo_samples,
+                        &rms_sender,
+                    )
+                },
                 capture_err_fn,
                 None,
             ) {
@@ -389,7 +414,15 @@ pub fn capture_output_audio(
         cpal::SampleFormat::I32 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, _: &_| wave_reader::<i32>(data, &mut f32_samples, &rms_sender),
+                move |data, _: &_| {
+                    wave_reader::<i32>(
+                        data,
+                        channels,
+                        &mut f32_samples,
+                        &mut stereo_samples,
+                        &rms_sender,
+                    )
+                },
                 capture_err_fn,
                 None,
             ) {
@@ -457,19 +490,40 @@ static ONFIRSTCALL: Once = Once::new();
 
 /// `wave_reader` - the generic captured audio input stream reader.
 /// Calls `distribute_samples` to feed all the threads needing them.
-fn wave_reader<T>(samples: &[T], f32_samples: &mut Vec<f32>, rms_sender: &Sender<AudioSamples>)
-where
+/// Non-stereo input is downmixed via [`downmix_to_stereo`] before distribution.
+fn wave_reader<T>(
+    samples: &[T],
+    channels: u16,
+    f32_samples: &mut Vec<f32>,
+    stereo_samples: &mut Vec<f32>,
+    rms_sender: &Sender<AudioSamples>,
+) where
     T: Sample + ToSample<f32>,
 {
     ONFIRSTCALL.call_once(capture_started);
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
-    distribute_samples(f32_samples, rms_sender);
+    if channels == 2 {
+        distribute_samples(f32_samples, rms_sender);
+    } else {
+        downmix_to_stereo(f32_samples, channels, stereo_samples);
+        distribute_samples(stereo_samples, rms_sender);
+    }
 }
 
 /// Specialized version of the generic `wave_reader` above for the "default" f32 case with Alsa/WasApi/PipeWire/Pulse.
 /// It bypasses the samples conversion iterator.
-fn wave_reader_f32(samples: &[f32], rms_sender: &Sender<AudioSamples>) {
+fn wave_reader_f32(
+    samples: &[f32],
+    channels: u16,
+    stereo_samples: &mut Vec<f32>,
+    rms_sender: &Sender<AudioSamples>,
+) {
     ONFIRSTCALL.call_once(capture_started);
-    distribute_samples(samples, rms_sender);
+    if channels == 2 {
+        distribute_samples(samples, rms_sender);
+    } else {
+        downmix_to_stereo(samples, channels, stereo_samples);
+        distribute_samples(stereo_samples, rms_sender);
+    }
 }

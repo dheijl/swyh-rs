@@ -145,3 +145,4 @@ srv-bad-request = 来自 '{ $addr }' 的无法识别的请求 '{ $url }'
 srv-stream-terminated = =>与 { $addr } 的 HTTP 流媒体请求已终止 [{ $error }]
 
 srv-range-not-satisfiable = 来自 { $addr } 的范围请求无法满足，响应 416
+audio-downmix = 将 { $channels } 声道输入下混为立体声进行流式传输 (ITU-R BS.775)

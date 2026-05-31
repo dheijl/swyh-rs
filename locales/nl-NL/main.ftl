@@ -146,3 +146,4 @@ srv-bad-request = Onherkenbaar verzoek '{ $url }' van '{ $addr }'
 srv-stream-terminated = =>Http streaming verzoek met { $addr } beëindigd [{ $error }]
 
 srv-range-not-satisfiable = Bereikverzoek van { $addr } niet vervulbaar, antwoord 416
+audio-downmix = { $channels }-kanaals invoer wordt naar stereo gedownmixt voor streaming (ITU-R BS.775)

@@ -9,6 +9,8 @@
   - add (very basic) support for HTTP Range headers, as used by Linn streamers. This could possibly fix issue #45.
   - add comprehensive commandline arguments testing
   - improve configuration loading/saving handling and introduce `anyhow` for error handling
+  - rust 1.96.0
+  - add support for multi-channel caprture downmixing to stereo via PR #264 by @cChurro
 
 - 1.20.3-RC3 (May 2 2026, dheijl)
   - rust 1.95.0

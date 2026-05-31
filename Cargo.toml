@@ -53,7 +53,7 @@ crossbeam-channel = "0.5.15"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "6.0.0"
-ecow = "0.2.6"
+ecow = "0.3.0"
 fastrand = "2.4.1"
 fluent-uri = "0.4.1"
 fluent-templates = "0.14.0"
@@ -66,14 +66,14 @@ htmlescape = "0.3.1"
 if-addrs = "0.15.0"
 lexopt = "0.3.2"
 local-ip-address = { version = "0.6.13", optional = true }
-log = { version = "0.4.29", features = [
+log = { version = "0.4.30", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",
 ] }
-mimalloc = { version = "0.1.51" }
+mimalloc = { version = "0.1.52" }
 serde = { version = "1.0.228", features = ["derive"] }
-socket2 = "0.6.3"
+socket2 = "0.6.4"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
 tiny_http = "0.12.0"

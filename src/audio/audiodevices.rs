@@ -32,13 +32,6 @@ pub struct Device {
     stream_config: SupportedStreamConfig,
 }
 
-/// Type indicating whether a stream config is for input or output.
-#[derive(Debug)]
-enum ConfigType {
-    Input,
-    Output,
-}
-
 /// Type indicating whether a device is being treated as input or output.
 pub enum DeviceKind {
     /// An input device such as S/PDIF in or a microphone.
@@ -173,7 +166,16 @@ impl TryFrom<DeviceKind> for Device {
     }
 }
 
+/// Type indicating whether a stream config is for input or output.
+#[cfg(debug_assertions)]
+#[derive(Debug)]
+enum ConfigType {
+    Input,
+    Output,
+}
+
 /// Log all supported stream configs for both input and output devices.
+#[cfg(debug_assertions)]
 fn log_stream_configs(
     // Iterator returned by [cpal::Device::supported_input_configs] or [cpal::Device::supported_output_configs].
     configs: Result<impl Iterator<Item = cpal::SupportedStreamConfigRange>, cpal::Error>,
@@ -251,11 +253,13 @@ pub fn get_output_audio_devices() -> Vec<Device> {
                 get_device_name(&device).unwrap_or_default()
             );
             // List all of the supported stream configs per device.
+            #[cfg(debug_assertions)]
             log_stream_configs(
                 device.supported_output_configs(),
                 ConfigType::Output,
                 device_index,
             );
+            #[cfg(debug_assertions)]
             log_stream_configs(
                 device.supported_input_configs(),
                 ConfigType::Input,

@@ -18,6 +18,7 @@
   - add comprehensive commandline arguments testing
   - improve configuration loading/saving handling and introduce `anyhow` for error handling
   - add support for multi-channel capture downmixing to stereo via PR #264 by @Churro, also "upmix" mono to stereo using SIMD for performance
+  - fix increased Linux startup delay in release mode caused by CPAL 0.18 being more thorough and thus slower when enumerating device configurations
 
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.

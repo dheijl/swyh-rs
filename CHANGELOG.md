@@ -11,14 +11,14 @@
   - don't compute RMS (waste CPU) for silence
   - rework UI with TABs and FLTK choice widgets instead of menubuttons
   - compile with rust 1.96.0
-  - add a "run SSDP discovery now" button to the network TAB, useful when swyh-rs is already running and you power on a device, so you don't have to restart swyh-rs or wait for the SSDP discovery timeout.
+  - add a `run SSDP discovery now` button to the network TAB, useful when swyh-rs is already running and you power on a device, so you don't have to restart swyh-rs or wait for the SSDP discovery timeout.
   - The new CPAL `realtime` feature is not used. If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features (pipewire/pulseaudio/jack and realtime or realtime-dbus). I think swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.
-  - add a new dropdown in the Audio TAB, that lets you select the `sample rate`. The sample rate is now configurable because CPAL 0.18 defaults to 48000 on ALSA as ALSA does not expose the configured system default. The system default sample rate is also selectable, but on linux you should verify this value with your Pipewire/Pulse/Jack/Alsa configuration (if any) for instance with `pactl info`. It's important that you configure this correctly on Linux, on Windows the system default should be correct.
+  - add a new dropdown in the Audio TAB, that lets you select the `sample rate`. The sample rate is now configurable because CPAL 0.18 defaults to 48000 on ALSA as ALSA does not expose the configured system default. The system default sample rate is also selectable, but on linux you should verify this value with your Pipewire/Pulse/Jack/Alsa configuration (if any) for instance with `pactl info`. It's important that you configure this correctly on Linux, on Windows the system default should be correct. Linux will resample if you have a mismatch with the audio source, at the cost of some CPU usage and possibly quality loss.
   - add (very basic) support for HTTP Range headers, as used by Linn streamers. This could possibly fix issue #45.
   - add comprehensive commandline arguments testing
   - improve configuration loading/saving handling and introduce `anyhow` for error handling
   - add support for multi-channel capture downmixing to stereo via PR #264 by @Churro, also "upmix" mono to stereo using SIMD for performance
-  - fix increased Linux startup delay in release mode caused by CPAL 0.18 being more thorough and thus slower when enumerating device configurations
+  - fix increased Linux startup delay in release mode caused by CPAL 0.18 being more thorough and thus slower when enumerating device configurations. See CPAL issue #1230. Debug mode is a lot slower starting up.
 
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.

@@ -48,7 +48,7 @@ winres = "0.1.12"
 #cpal = { version = "0.18.0", default-features = false, features = ["realtime"] }
 cpal = { version = "0.18.0" }
 anyhow = "1"
-bitflags = "2.11.1"
+bitflags = "2.12.1"
 crossbeam-channel = "0.5.15"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
@@ -66,7 +66,7 @@ htmlescape = "0.3.1"
 if-addrs = "0.15.0"
 lexopt = "0.3.2"
 local-ip-address = { version = "0.6.13", optional = true }
-log = { version = "0.4.30", features = [
+log = { version = "0.4.31", features = [
     "max_level_trace",
     "release_max_level_debug",
     "serde",

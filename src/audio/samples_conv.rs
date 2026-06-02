@@ -266,8 +266,9 @@ mod tests {
     fn test_f32_to_i32_clamps_above_one() {
         // WASAPI shared-mode mixing can produce intersample peaks > 1.0. The clamp
         // must map these to full-scale, not let them wrap or drift via SIMD saturation.
-        // At 24-bit (no dither) the result is exact; at 16-bit dither could pull it
-        // 1 LSB below i16::MAX so we assert the ±1 LSB band there.
+        // At 24-bit (no dither) the result is exact; at 16-bit, all clamped-to-1.0
+        // inputs always produce exactly i16::MAX (positive dither saturates round_int;
+        // negative dither still floors to 32767 after the arithmetic shift).
         let arr = f32x4::new([1.05, 1.5, 100.0, f32::INFINITY]);
         let result_24 = f32_to_i32(BitDepth::Bits24, arr);
         for v in result_24 {
@@ -296,10 +297,11 @@ mod tests {
     fn test_f32_to_i32_handles_nan() {
         // NaN cannot occur in practice (WASAPI does not produce NaN samples), but the
         // pipeline must not panic if it ever did. On x86, MINPS/MAXPS — which back
-        // `fast_min`/`fast_max` — return the non-NaN operand when one input is NaN, so
-        // our ±1.0 clamps coerce any NaN to a finite rail before quantization. The
-        // exact rail it lands on is platform-/operand-order-dependent; we only assert
-        // the output stays inside the legal i16 range and is finite.
+        // `fast_min`/`fast_max` — return the *second* operand when the first is NaN;
+        // since our constants (CLAMP_HI, CLAMP_LO) are always the second operand, any
+        // NaN is coerced to ±1.0 before quantization. The exact rail it lands on is
+        // operand-order-dependent; we only assert the output stays inside the legal
+        // i16 range.
         let arr = f32x4::new([f32::NAN, 0.0, 0.0, 0.0]);
         let result = f32_to_i32(BitDepth::Bits16, arr);
         assert!(
@@ -398,7 +400,7 @@ mod tests {
             let max = *lane_samples[i].iter().max().unwrap();
             let min = *lane_samples[i].iter().min().unwrap();
             assert!(
-                max - min <= 3,
+                max - min <= 2,
                 "lane {i} spread too large: {min}..{max} (range {})",
                 max - min
             );
@@ -558,5 +560,22 @@ mod tests {
         let mut out = vec![1.0, 2.0];
         downmix_to_stereo(&[], 0, &mut out);
         assert!(out.is_empty());
+    }
+
+    #[test]
+    fn test_samples_to_i32_remainder_path_16bit() {
+        // 6 samples: one SIMD chunk of 4 + a 2-sample remainder. Exercises the
+        // odd-tail branch in samples_to_i32 with dithered 16-bit output.
+        let input = [0.25f32, -0.25, 0.5, -0.5, 0.1, -0.1];
+        let mut out = Vec::new();
+        samples_to_i32(&input, &mut out, BitDepth::Bits16);
+        assert_eq!(out.len(), 6);
+        for &v in &out {
+            assert!(v >= i16::MIN as i32 && v <= i16::MAX as i32);
+        }
+        let ref4 = (0.1_f32 * 32_768.0).round() as i32;
+        let ref5 = (-0.1_f32 * 32_768.0).round() as i32;
+        assert!((out[4] - ref4).abs() <= 1);
+        assert!((out[5] - ref5).abs() <= 1);
     }
 }

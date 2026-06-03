@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.20.3 (unreleased, waiting for cpal 0.18.0)
+  - the RC4 startup delay caused by enumerating ALSA devices/stream configs has been fixed with CPAL PR #1233 (thanks @roderickvd)
 
 - 1.20.3-RC4 (Jun 3 2026 dheijl)
   - use the CPAL 0.18.0 development branch

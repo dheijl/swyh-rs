@@ -2,8 +2,8 @@
 
 - 1.20.3 (unreleased, waiting for cpal 0.18.0)
 
-- 1.20.3-RC4 (unreleased)
-  - use CPAL 0.18.0 development branch
+- 1.20.3-RC4 (Jun 3 2026 dheijl)
+  - use the CPAL 0.18.0 development branch
   - localize the project using `fluent-templates` (and the assistance of Claude)
   - add nl-NL, fr-FR, it-IT de-DE, zh-CN and ja-JP translations with the help of Claude, they should be checked by a native speaker
   - pick up the system locale if a supported language on a new installation. If the current system locale has no language file: try to find one matching the base locale (e.g. nl-BE => nl-NL, fr-CH => fr-FR, ...). Otherwise use en-US.
@@ -18,7 +18,7 @@
   - add comprehensive commandline arguments testing
   - improve configuration loading/saving handling and introduce `anyhow` for error handling
   - add support for multi-channel capture downmixing to stereo via PR #264 by @Churro, also "upmix" mono to stereo using SIMD for performance
-  - fix increased Linux startup delay in release mode caused by CPAL 0.18 being more thorough and thus slower when enumerating device configurations. See CPAL issue #1230. Debug mode is a lot slower starting up.
+  - reduce increased Linux startup delay in release mode caused by CPAL 0.18 being more thorough and thus slower when enumerating device configurations. See CPAL issue #1230. Debug mode is a lot slower starting up. Even release mode is still noticably slower starting up with CPAL0.18.
   - samples_conv: TPDF dither, round-to-nearest, ±1.0 clamp at 16-bit added in PR #265 by @Churro
 
 - 1.20.2 (Apr 15 2026 dheijl)

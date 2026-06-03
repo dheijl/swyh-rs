@@ -136,7 +136,8 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - simultaneous streaming to multiple renderers is only limited by the number of renderer buttons that can be shown in the available space in the window.
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
 - streaming to Logitech Media Server does not work ([issue # 40]( https://github.com/dheijl/swyh-rs/issues/40))
-- streaming to Linn devices does not work (due to Linn using partial requests with Range headers)
+- CPAL 0.18 (used since 1.20.3-RC4) is more thorough when enumerating audio device configurations, which causes a noticeable increase in startup time on Linux. Debug builds are significantly slower than release builds in this regard.
+- streaming to Linn devices may now work: basic HTTP Range header support was added in 1.20.3-RC4 to handle Linn's partial-content requests (see issue #45). This has not been tested with real hardware.
 - if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panic-ing when deserializing.
 - when using WAV/RF64/LPCM with an MPD/FFMPEG based player like MoOde, you get a 5 second delay caused by FFMPEG analyzing the input stream. You can reduce this by specifying acceptable limits for analyzing audio in the MPD config like shown below, or you can use FLAC instead (recommended).
 
@@ -185,6 +186,8 @@ The **configuration UI** is organised into four tabs:
 
 - **Audio source**: select the audio capture device. Changing the source requires a restart.
   On Windows, verify in the **Sound Mixer** that the chosen device is actually playing audio. On Linux, use [pavucontrol](https://freedesktop.org/software/pulseaudio/pavucontrol/) to enable the audio monitor for the capture device.
+  Multi-channel sources (surround sound, etc.) are automatically downmixed to stereo; mono sources are upmixed to stereo.
+- **Sample rate**: select the sample rate to use for capture. On Windows the system default is correct. On Linux, CPAL 0.18 defaults to 48000 Hz on ALSA because ALSA does not expose the system default — verify the right value with `pactl info` and match it to your PipeWire/PulseAudio/ALSA configuration to avoid resampling.
 - **Streaming format**: choose between FLAC (preferred), WAV, RF64, or LPCM. FLAC is recommended — it works reliably with 24-bit audio and causes the fewest compatibility issues. WAV or LPCM should only be used when FLAC does not work with your renderer.
 - **24 bit**: stream audio at 24-bit depth (FLAC/24 or LPCM audio/L24 at the source sample rate). Only works reliably with FLAC; 24-bit LPCM works with Bubble UPNP but not with most hardware streamers.
 - **Stream size**: select one of five HTTP streaming size/chunking modes — choose what works best with your renderer and format:
@@ -201,10 +204,11 @@ The **configuration UI** is organised into four tabs:
 - **Network interface**: select the network interface used for SSDP discovery and streaming. On a multihomed machine swyh-rs defaults to the interface that connects to the internet. Change this when a VPN or secondary interface is involved.
 - **HTTP port**: the port the streaming web server listens on (default 5901). If you use a firewall, allow incoming HTTP connections on this port from your renderer(s).
 - **SSDP interval** (minutes): how often SSDP discovery reruns in the background. Minimum is 0.5 minutes. Set to 0.0 to disable discovery entirely, putting swyh-rs into "_serve only_" mode — useful when running it purely as a local internet radio station.
+- **Run SSDP discovery now**: triggers an immediate SSDP discovery run without waiting for the next scheduled interval. Useful when swyh-rs is already running and you power on a new renderer.
 
 #### App tab
 
-- **Language / Theme**: select the UI language and FLTK colour theme.
+- **Language / Theme**: select the UI language and FLTK colour theme. Supported languages: en-US, nl-NL, fr-FR, it-IT, de-DE, zh-CN, ja-JP. On a fresh installation the system locale is used automatically; if the exact locale has no translation, the nearest base locale is tried (e.g. nl-BE → nl-NL, fr-CH → fr-FR), falling back to en-US.
 - **Log level**: set the logging verbosity (info / debug). Log files are written to the _.swyh-rs_ folder in your home directory. Use the debug build and a console window to capture Rust "panic" messages that a release build cannot log.
 - **Auto-resume**: automatically resume streaming if a renderer stops unexpectedly. Always try disabling _Chunked Transfer Encoding_ first to see if that alone fixes the problem before enabling Auto-resume.
 - **Auto-reconnect**: re-activate all renderers that were active when swyh-rs was last closed.

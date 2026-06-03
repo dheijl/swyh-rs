@@ -315,13 +315,13 @@ MAC: I'm sorry but I don't have one... If you have one and would like to contrib
 ### Screenshots
 
 - the App settings tab:
-<img width="700" height="772" alt="app" src="https://github.com/user-attachments/assets/87cd25fc-ec38-406a-927b-99eec729890b" />
+<img width="702" height="772" alt="app" src="https://github.com/user-attachments/assets/39b39c97-defc-48da-8f6a-78180f108cb1" />
 
 - the Audio settings tab:
-<img width="700" height="772" alt="audio" src="https://github.com/user-attachments/assets/cf199c4c-439f-41e3-9141-2d1794550a1d" />
+<img width="702" height="772" alt="audio" src="https://github.com/user-attachments/assets/da8c4e71-181f-4e19-b684-36a6e629dac5" />
 
 - the Network settings tab:
-<img width="700" height="772" alt="netwerk" src="https://github.com/user-attachments/assets/32c8e352-2805-4dc7-a114-632761a4564c" />
+<img width="702" height="772" alt="network" src="https://github.com/user-attachments/assets/03339df5-d623-42bf-a4c9-4d0576bed019" />
 
 - the Status tab:
-<img width="700" height="772" alt="status" src="https://github.com/user-attachments/assets/b1c06acf-9c47-42be-b5fb-d1b2ec07e6cd" />
+<img width="702" height="772" alt="status" src="https://github.com/user-attachments/assets/752cbc1d-af7f-47de-8125-2bf254593149" />

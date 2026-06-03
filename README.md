@@ -180,6 +180,11 @@ On Windows, starting or closing an RDP session re-initialises the sound system a
 
 After one or more configuration changes that require a restart, a **Restart** button appears. Clicking it restarts swyh-rs with the new settings.
 
+Since version 1.20.3-RC4, thanks to contributions by @Churro:
+
+- TPDF dithering is used for 16-bit audio
+- multichannel audio is downmixed to stereo, and mono is "upmixed" to stereo.
+
 The **configuration UI** is organised into four tabs:
 
 #### Audio tab

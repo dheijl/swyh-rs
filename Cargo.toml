@@ -9,6 +9,7 @@ authors = [
     "theavege",
     "MoAlyousef",
     "saverioscagnoli",
+    "Churro",
 ]
 edition = "2024"
 name = "swyh-rs"

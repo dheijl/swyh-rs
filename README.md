@@ -193,6 +193,17 @@ The **configuration UI** is organised into four tabs:
   On Windows, verify in the **Sound Mixer** that the chosen device is actually playing audio. On Linux, use [pavucontrol](https://freedesktop.org/software/pulseaudio/pavucontrol/) to enable the audio monitor for the capture device.
   Multi-channel sources (surround sound, etc.) are automatically downmixed to stereo; mono sources are upmixed to stereo.
 - **Sample rate**: select the sample rate to use for capture. On Windows the system default is correct. On Linux, CPAL 0.18 defaults to 48000 Hz on ALSA because ALSA does not expose the system default — verify the right value with `pactl info` and match it to your PipeWire/PulseAudio/ALSA configuration to avoid resampling.
+If you're on a `PipeWire` system (very likely) you can configure Pipewire with your preferred sample rate and to let it follow the sample rate of the audio currently playing instead of always resampling to 48 kHz: create a file `~/.config/pipewire/pipewire.conf.d/10-rate.conf` with the folowing content:
+
+```text
+context.properties = {
+    default.clock.rate = 44100
+    default.clock.allowed-rates = [ 44100 48000 88200 96000 176400 192000 ]
+}
+```
+
+and restart Pipewire.
+
 - **Streaming format**: choose between FLAC (preferred), WAV, RF64, or LPCM. FLAC is recommended — it works reliably with 24-bit audio and causes the fewest compatibility issues. WAV or LPCM should only be used when FLAC does not work with your renderer.
 - **24 bit**: stream audio at 24-bit depth (FLAC/24 or LPCM audio/L24 at the source sample rate). Only works reliably with FLAC; 24-bit LPCM works with Bubble UPNP but not with most hardware streamers.
 - **Stream size**: select one of five HTTP streaming size/chunking modes — choose what works best with your renderer and format:

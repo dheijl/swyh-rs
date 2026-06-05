@@ -90,7 +90,7 @@ Audio is captured using the excellent Rust [cpal library](https://github.com/Rus
 [fltk-rs](https://github.com/MoAlyousef/fltk-rs) is used for the GUI, as it's easy to use, and it's small, cross-platform, fast and works well.
 For FLAC encoding the of use [flac-bound](https://github.com/nabijaczleweli/flac-bound) made adding FLAC encoding using the [libflac-sys Rust bindings](https://github.com/mgeier/libflac-sys/blob/master/src/bindings.rs) a breeze. This allowed me to link [libflac](https://github.com/xiph/flac) statically in the swyh-rs binary, no dlls needed!
 
-Tested on Windows 10 and on Ubuntu 20.04 LTS and Debian Bookworm (LMDE 6) with Raspberry Pi/Hifi-Berry based devices, currently running MoodeAudio 9.x. I don't have access to a Mac, so I don't know if that also works.
+Tested on Windows 10/11, Ubuntu 20.04 LTS and later, and Debian (LMDE 7) with Raspberry Pi/Hifi-Berry based devices, currently running MoodeAudio 10.x. I don't have access to a Mac, so I don't know if that also works.
 
 Because it is written in Rust it uses almost no resources (CPU usage barely measurable, Ram usage around or below 8 MB).
 
@@ -136,7 +136,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - simultaneous streaming to multiple renderers is only limited by the number of renderer buttons that can be shown in the available space in the window.
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
 - streaming to Logitech Media Server does not work ([issue # 40]( https://github.com/dheijl/swyh-rs/issues/40))
-- CPAL 0.18 (used since 1.20.3-RC4) is more thorough when enumerating audio device configurations, which causes a noticeable increase in startup time on Linux. Debug builds are significantly slower than release builds in this regard.
+- CPAL 0.18 (used since 1.20.3-RCx) is more thorough when enumerating audio device configurations, which causes a noticeable increase in startup time on Linux. Debug builds are significantly slower than release builds in this regard. This has been fixed in the current CPAL master (June 3, 2026).
 - streaming to Linn devices may now work: basic HTTP Range header support was added in 1.20.3-RC4 to handle Linn's partial-content requests (see issue #45). This has not been tested with real hardware.
 - if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panic-ing when deserializing.
 - when using WAV/RF64/LPCM with an MPD/FFMPEG based player like MoOde, you get a 5 second delay caused by FFMPEG analyzing the input stream. You can reduce this by specifying acceptable limits for analyzing audio in the MPD config like shown below, or you can use FLAC instead (recommended).

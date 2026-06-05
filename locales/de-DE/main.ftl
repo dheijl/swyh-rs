@@ -99,6 +99,7 @@ err-priority-linux = Keine Berechtigung zum Erhöhen der Prozesspriorität.
 # Error messages
 err-no-audio-device = Kein Standard-Audiogerät gefunden!
 err-no-sound-source = Keine Audioquelle in der Konfiguration!
+err-no-local-address = Lokale Netzwerkadresse konnte nicht ermittelt werden!
 err-capture-audio = Audio konnte nicht aufgenommen werden... Bitte Konfiguration prüfen.
 err-play-stream = Audiostrom kann nicht wiedergegeben werden.
 err-inject-silence = Stille kann nicht eingespeist werden!!

@@ -99,6 +99,7 @@ err-priority-linux = Autorizzazioni insufficienti per aumentare la priorità del
 # Error messages
 err-no-audio-device = Nessun dispositivo audio predefinito trovato!
 err-no-sound-source = Nessuna sorgente audio nella configurazione!
+err-no-local-address = Impossibile ottenere l'indirizzo di rete locale!
 err-capture-audio = Impossibile acquisire l'audio... Verificare la configurazione.
 err-play-stream = Impossibile riprodurre il flusso audio.
 err-inject-silence = Impossibile inserire il silenzio!!

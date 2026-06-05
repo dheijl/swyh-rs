@@ -30,8 +30,8 @@ pub fn get_local_addr() -> Option<IpAddr> {
 }
 
 #[cfg(not(feature = "gui"))]
-pub fn get_local_addr() -> Result<IpAddr, local_ip_address::Error> {
-    local_ip()
+pub fn get_local_addr() -> Option<IpAddr> {
+    local_ip().ok()
 }
 
 pub fn get_interfaces() -> Vec<String> {

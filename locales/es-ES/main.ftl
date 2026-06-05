@@ -99,6 +99,7 @@ err-priority-linux = Lo sentimos, pero no tiene permisos para aumentar la priori
 # Error messages
 err-no-audio-device = ¡No se encontró ningún dispositivo de audio predeterminado!
 err-no-sound-source = ¡No hay fuente de sonido en la configuración!
+err-no-local-address = ¡No se pudo obtener la dirección de red local!
 err-capture-audio = No se pudo capturar el audio... Por favor, compruebe la configuración.
 err-play-stream = No se puede reproducir el stream de audio.
 err-inject-silence = ¡¡No se puede inyectar silencio!!

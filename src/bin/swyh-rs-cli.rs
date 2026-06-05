@@ -282,7 +282,10 @@ fn main() -> Result<(), i32> {
     // get the local network network address
     let local_addr: IpAddr = {
         fn get_default_address(config: &mut Configuration) -> IpAddr {
-            let addr = get_local_addr().expect("Could not obtain local address.");
+            let addr = get_local_addr().unwrap_or_else(|| {
+                eprintln!("Could not obtain local network address.");
+                std::process::exit(1);
+            });
             config.last_network = Some(addr.to_string());
             info!("Using network {addr}");
             addr

@@ -100,6 +100,7 @@ err-priority-linux = Geen rechten om de processprioriteit te verhogen...
 # Error messages
 err-no-audio-device = geen default audio bron gevonden!
 err-no-sound-source = Geen audio bron in config!
+err-no-local-address = Lokaal netwerkadres kon niet worden bepaald!
 err-capture-audio = Kan de audio niet afvangen ...Controleer de configuratie.
 err-play-stream = Kan de audio stream niet afspelen.
 err-inject-silence = Kan geen stilte injecteren !!

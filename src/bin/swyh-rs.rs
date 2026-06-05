@@ -43,7 +43,7 @@ use swyh_rs::{
     },
     renderers::rendercontrol::{Renderer, StreamInfo, WavData},
     server::streaming_server::run_server,
-    ui::mainform::MainForm,
+    ui::{fatal_error::fatal_error, mainform::MainForm},
     utils::{
         bincommon::run_silence_injector,
         extra_threads::{run_rms_monitor, run_ssdp_updater},
@@ -196,21 +196,24 @@ fn main() {
 
     // get the default network that connects to the internet
     let local_addr: IpAddr = {
-        fn get_default_address() -> IpAddr {
-            let addr = get_local_addr().expect("Could not obtain local address.");
+        fn get_default_address() -> Option<IpAddr> {
+            let addr = get_local_addr()?;
             let mut conf = get_config_mut();
             conf.last_network = Some(addr.to_string());
             let _ = conf.update_config();
-            addr
+            Some(addr)
         }
         if let Some(ref net) = config.last_network {
-            let mut nw = net.parse().unwrap_or_else(|_| get_default_address());
+            let mut nw = net.parse().unwrap_or_else(|_| {
+                get_default_address().unwrap_or_else(|| fatal_error(fl!("err-no-local-address")))
+            });
             if !networks.contains(net) {
-                nw = get_default_address();
+                nw = get_default_address()
+                    .unwrap_or_else(|| fatal_error(fl!("err-no-local-address")));
             }
             nw
         } else {
-            get_default_address()
+            get_default_address().unwrap_or_else(|| fatal_error(fl!("err-no-local-address")))
         }
     };
 
@@ -496,18 +499,6 @@ fn main() {
         info!("Time-out waiting for HTTP streaming shutdown - exiting.");
     }
     log::logger().flush();
-}
-
-/// show a fatal error message
-fn fatal_error(msg: String) -> ! {
-    fltk::dialog::message_default(&msg);
-    while app::wait() {
-        thread::sleep(Duration::from_millis(250));
-        if app::should_program_quit() {
-            break;
-        }
-    }
-    std::process::exit(-1);
 }
 
 /// update the playstate for the renderer with this ip address

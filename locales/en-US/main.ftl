@@ -100,6 +100,7 @@ err-priority-linux = Sorry, but you don't have permissions to raise priority...
 # Error messages
 err-no-audio-device = No default audio device found!
 err-no-sound-source = No sound source in config!
+err-no-local-address = Could not obtain local network address!
 err-capture-audio = Could not capture audio ...Please check configuration.
 err-play-stream = Unable to play audio stream.
 err-inject-silence = Unable to inject silence !!

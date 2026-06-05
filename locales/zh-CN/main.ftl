@@ -99,6 +99,7 @@ err-priority-linux = 抱歉，您没有提升优先级的权限...
 # Error messages
 err-no-audio-device = 未找到默认音频设备！
 err-no-sound-source = 配置中没有声音源！
+err-no-local-address = 无法获取本地网络地址！
 err-capture-audio = 无法捕获音频...请检查配置。
 err-play-stream = 无法播放音频流。
 err-inject-silence = 无法注入静音！！

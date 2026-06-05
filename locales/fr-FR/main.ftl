@@ -99,6 +99,7 @@ err-priority-linux = Désolé, vous n'avez pas les permissions pour augmenter la
 # Error messages
 err-no-audio-device = Aucun périphérique audio par défaut trouvé !
 err-no-sound-source = Aucune source sonore dans la configuration !
+err-no-local-address = Impossible d'obtenir l'adresse réseau locale !
 err-capture-audio = Impossible de capturer l'audio... Veuillez vérifier la configuration.
 err-play-stream = Impossible de lire le flux audio.
 err-inject-silence = Impossible d'injecter du silence !!

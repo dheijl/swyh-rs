@@ -193,9 +193,9 @@ dependencies = [
 
 [[package]]
 name = "cpal"
-version = "0.18.0"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9dd2b2151ebb4d5866c804d89fe28244bfb6b74481b9b4d406e4ec4d7f88ce5"
+checksum = "5f77b11176c37874be37e8d691c946e31b2b8c357abce9526f6a99eb469e1028"
 dependencies = [
  "alsa",
  "block2",
@@ -1623,7 +1623,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "swyh-rs"
-version = "1.20.3"
+version = "1.20.4"
 dependencies = [
  "anyhow",
  "bitflags",

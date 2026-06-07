@@ -71,9 +71,9 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bitflags"
-version = "2.12.1"
+version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84d7ced0ae9557296835c32bf1b1e02b44c746701f898460fb000d7eaa84f00a"
+checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
 
 [[package]]
 name = "block2"
@@ -194,7 +194,8 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.18.0"
-source = "git+https://github.com/RustAudio/cpal.git#004897773f17fa15afbc3270b7cca37cfbbdef2a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9dd2b2151ebb4d5866c804d89fe28244bfb6b74481b9b4d406e4ec4d7f88ce5"
 dependencies = [
  "alsa",
  "block2",

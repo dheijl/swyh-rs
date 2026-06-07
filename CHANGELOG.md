@@ -1,26 +1,23 @@
 # swyh-rs Changelog
 
-- 1.20.3 (unreleased, waiting for cpal 0.18.0)
-  - the RC4 startup delay caused by enumerating ALSA devices/stream configs has been fixed with CPAL PR #1233 (thanks @roderickvd)
-
-- 1.20.3-RC4 (Jun 3 2026 dheijl)
-  - use the CPAL 0.18.0 development branch
+- 1.20.3 (Jun 7 2026, dheijl)
+  - now uses CPAL 0.18.0. The new CPAL `realtime` feature is not used. If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features (pipewire/pulseaudio/jack and realtime or realtime-dbus). I think swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.
+  - compiled with rust 1.96.0
   - localize the project using `fluent-templates` (and the assistance of Claude)
   - add nl-NL, fr-FR, it-IT de-DE, zh-CN and ja-JP translations with the help of Claude, they should be checked by a native speaker
   - pick up the system locale if a supported language on a new installation. If the current system locale has no language file: try to find one matching the base locale (e.g. nl-BE => nl-NL, fr-CH => fr-FR, ...). Otherwise use en-US.
   - attempt to fix the SSDP UDP problem on MacOS (but I can't test this myself)
   - don't compute RMS (waste CPU) for silence
   - rework UI with TABs and FLTK choice widgets instead of menubuttons
-  - compile with rust 1.96.0
   - add a `run SSDP discovery now` button to the network TAB, useful when swyh-rs is already running and you power on a device, so you don't have to restart swyh-rs or wait for the SSDP discovery timeout.
-  - The new CPAL `realtime` feature is not used. If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features (pipewire/pulseaudio/jack and realtime or realtime-dbus). I think swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.
   - add a new dropdown in the Audio TAB, that lets you select the `sample rate`. The sample rate is now configurable because CPAL 0.18 defaults to 48000 on ALSA as ALSA does not expose the configured system default. The system default sample rate is also selectable, but on linux you should verify this value with your Pipewire/Pulse/Jack/Alsa configuration (if any) for instance with `pactl info`. It's important that you configure this correctly on Linux, on Windows the system default should be correct. Linux will resample if you have a mismatch with the audio source, at the cost of some CPU usage and possibly quality loss.
   - add (very basic) support for HTTP Range headers, as used by Linn streamers. This could possibly fix issue #45.
   - add comprehensive commandline arguments testing
   - improve configuration loading/saving handling and introduce `anyhow` for error handling
-  - add support for multi-channel capture downmixing to stereo via PR #264 by @Churro, also "upmix" mono to stereo using SIMD for performance
-  - reduce increased Linux startup delay in release mode caused by CPAL 0.18 being more thorough and thus slower when enumerating device configurations. See CPAL issue #1230. Debug mode is a lot slower starting up. Even release mode is still noticably slower starting up with CPAL0.18.
-  - samples_conv: TPDF dither, round-to-nearest, ±1.0 clamp at 16-bit added in PR #265 by @Churro
+  - PR #264 by @Churro: add support for `multi-channel` capture downmixing to stereo,  also "upmix" mono to stereo using SIMD.
+  - PR #265 by @Churro; in samples_conv: add `TPDF dither`, round-to-nearest, and ±1.0 clamp at 16-bit.
+  - reduce increased Linux startup delay in release mode caused by CPAL 0.18 being more thorough and thus slower when enumerating device configurations. See CPAL issue #1230. Debug mode is still slightly slower starting up.
+  - move "fatal_error()"to src/ui and localize it
 
 - 1.20.2 (Apr 15 2026 dheijl)
   - revert change in logging audio device errors, it caused useless noise in logfile on Linux.

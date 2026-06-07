@@ -46,10 +46,9 @@ required-features = ["cli"]
 winres = "0.1.12"
 
 [dependencies]
-#cpal = { version = "0.18.0", default-features = false, features = ["realtime"] }
 cpal = { version = "0.18.0" }
 anyhow = "1"
-bitflags = "2.12.1"
+bitflags = "2.13.0"
 crossbeam-channel = "0.5.15"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
@@ -105,7 +104,6 @@ tempfile = "3"
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "perf/alsa-enumeration" }
-cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
 zmij = { git = "https://github.com/dtolnay/zmij" }

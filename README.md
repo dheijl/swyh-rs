@@ -263,6 +263,7 @@ Recognized options:
     -x (--serve_only) bool : skip ssdp discovery and start serving immediately [false]
     -u (--upfront-buffer) i32: initial audio bufferign before streaming starts [0]
     -L (--language): select the UI language [en-US]
+    -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
 ```
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.

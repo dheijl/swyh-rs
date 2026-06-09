@@ -12,6 +12,7 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use bitflags::bitflags;
+use ecow::EcoString;
 use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::{button::LightButton, valuator::HorNiceSlider};
@@ -1178,16 +1179,16 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
 /// build a renderer struct by (roughly) parsing the GetDescription.xml
 fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
     let parser = EventReader::new(xml.as_bytes());
-    let mut cur_elem = String::with_capacity(16);
+    let mut cur_elem = EcoString::new();
     let mut service = AvService::new();
     let mut renderer = Renderer::new(agent);
     for e in parser {
         match e {
             Ok(XmlEvent::StartElement { name, .. }) => {
-                cur_elem.clone_from(&name.local_name);
+                cur_elem = EcoString::from(name.local_name);
             }
             Ok(XmlEvent::EndElement { name }) => {
-                let end_elem = name.local_name;
+                let end_elem = EcoString::from(name.local_name);
                 if end_elem == "service" {
                     let id = service.service_id.as_str();
                     if ["Playlist", "urn:av-openhome-org:service"]

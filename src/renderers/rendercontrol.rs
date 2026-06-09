@@ -1212,25 +1212,16 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
                     service = AvService::new();
                 }
             }
-            Ok(XmlEvent::Characters(value)) => {
-                let el = cur_elem.as_str();
-                // these are localnames
-                if el == "serviceType" {
-                    service.service_type = value;
-                } else if el == "serviceId" {
-                    service.service_id = value;
-                } else if el == "modelName" {
-                    renderer.dev_model = value;
-                } else if el == "friendlyName" {
-                    renderer.dev_name = value;
-                } else if el == "deviceType" {
-                    renderer.dev_type = value;
-                } else if el == "URLBase" {
-                    renderer.dev_url = value;
-                } else if el == "controlURL" {
-                    service.control_url = normalize_url(&value);
-                }
-            }
+            Ok(XmlEvent::Characters(value)) => match cur_elem.as_str() {
+                "serviceType" => service.service_type = value,
+                "serviceId" => service.service_id = value,
+                "modelName" => renderer.dev_model = value,
+                "friendlyName" => renderer.dev_name = value,
+                "deviceType" => renderer.dev_type = value,
+                "URLBase" => renderer.dev_url = value,
+                "controlURL" => service.control_url = normalize_url(&value),
+                _ => {}
+            },
 
             Err(e) => {
                 error!("SSDP Get Renderer Description Error: {e}");

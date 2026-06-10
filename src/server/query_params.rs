@@ -4,7 +4,6 @@
 //! parameters to control bit depth and stream size per connection.
 
 use crate::enums::streaming::{BitDepth, StreamSize, StreamingFormat};
-use fluent_uri::Uri;
 use std::str::FromStr;
 
 const VALID_URLS: [&str; 5] = [
@@ -37,49 +36,35 @@ impl StreamingParams {
             ss: None,
             fmt: None,
         };
-        // parse url, check path and querystring
-        // `Uri::parse()` needs a SCHEME and a HOST, let's add dummy ones
-        let uri = "http://swyh.local".to_string() + url;
-        if let Ok(parsed_url) = Uri::parse(uri.as_str()) {
-            // validate path and extract streaming format
-            let lc_path = parsed_url.path().as_str().to_lowercase();
-            if VALID_URLS.contains(&lc_path.as_str()) {
-                params.path = Some(lc_path.clone());
-                params.fmt = lc_path
-                    .get(PATH_PREFIX_LEN..)
-                    .and_then(|ext| StreamingFormat::from_str(ext).ok());
-            }
-            // get query string if present and extract parameters
-            if params.fmt.is_some()
-                && let Some(query) = parsed_url.query()
-            {
-                // parse key=value pairs from the querystring
-                // extract bd (bit depth) and ss (streamsize) if found
-                let query_string = query.as_str();
-                if !query_string.is_empty() {
-                    query_string
-                        .split('&')
-                        .filter_map(|part| {
-                            let mut kv_pair = part.splitn(2, '=');
-                            match (kv_pair.next(), kv_pair.next()) {
-                                (Some(k), Some(v)) => Some((k, v)),
-                                _ => None,
-                            }
-                        })
-                        .for_each(|(k, v)| match k {
-                            "bd" => {
-                                params.bd = Some(BitDepth::from_str(v).unwrap_or(BitDepth::Bits16))
-                            }
-                            "ss" => {
-                                params.ss =
-                                    Some(StreamSize::from_str(v).unwrap_or(StreamSize::NoneChunked))
-                            }
-                            _ => (),
-                        });
-                }
-            }
+        // split path from optional query string without a full URI parse
+        let (path_part, query_part) = url.split_once('?').unwrap_or((url, ""));
+        let lc_path = path_part.to_lowercase();
+        if VALID_URLS.contains(&lc_path.as_str()) {
+            params.fmt = lc_path
+                .get(PATH_PREFIX_LEN..)
+                .and_then(|ext| StreamingFormat::from_str(ext).ok());
+            params.path = Some(lc_path);
         }
-        // return the params
+        // parse key=value pairs from the querystring
+        // extract bd (bit depth) and ss (streamsize) if found
+        if params.fmt.is_some() {
+            query_part
+                .split('&')
+                .filter_map(|part| {
+                    let mut kv_pair = part.splitn(2, '=');
+                    match (kv_pair.next(), kv_pair.next()) {
+                        (Some(k), Some(v)) => Some((k, v)),
+                        _ => None,
+                    }
+                })
+                .for_each(|(k, v)| match k {
+                    "bd" => params.bd = Some(BitDepth::from_str(v).unwrap_or(BitDepth::Bits16)),
+                    "ss" => {
+                        params.ss = Some(StreamSize::from_str(v).unwrap_or(StreamSize::NoneChunked))
+                    }
+                    _ => (),
+                });
+        }
         params
     }
 }

@@ -823,13 +823,13 @@ impl Renderer {
             .unwrap_or_else(|| "<Error/>".to_string());
         debug!("av_get_volume response: {vol_xml}");
         let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = String::with_capacity(16);
+        let mut cur_elem = EcoString::new();
         let mut have_vol_response = false;
         let mut str_volume = "-1".to_string();
         for e in parser {
             match e {
                 Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem.clone_from(&name.local_name);
+                    cur_elem = EcoString::from(name.local_name);
                     if cur_elem == "GetVolumeResponse" {
                         have_vol_response = true;
                     }

@@ -194,8 +194,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f77b11176c37874be37e8d691c946e31b2b8c357abce9526f6a99eb469e1028"
+source = "git+https://github.com/RustAudio/cpal.git#6ea4fcd74e002cfe660158a33014d7bb499de94c"
 dependencies = [
  "alsa",
  "block2",

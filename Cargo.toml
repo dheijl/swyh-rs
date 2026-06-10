@@ -104,6 +104,7 @@ tempfile = "3"
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "perf/alsa-enumeration" }
+cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
 zmij = { git = "https://github.com/dtolnay/zmij" }

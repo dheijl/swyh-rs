@@ -396,8 +396,7 @@ impl Renderer {
     fn parse_url(&mut self) {
         let host: String;
         let port: u16;
-        let dev_url = self.dev_url.clone();
-        match Uri::parse(dev_url.as_str()) {
+        match Uri::parse(self.dev_url.as_str()) {
             Ok(url) => {
                 if let Some(auth) = url.authority() {
                     host = auth.host().to_string();
@@ -1248,16 +1247,84 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parse_url_ip_with_port() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.1.26:80/".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.1.26");
+        assert_eq!(rend.port, 80);
+        rend.dev_url = "http://192.168.1.26:12345/".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.1.26");
+        assert_eq!(rend.port, 12345);
+    }
+
+    #[test]
+    fn parse_url_no_port() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.1.26/".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.1.26");
+        assert_eq!(rend.port, 0);
+    }
+
+    #[test]
+    fn parse_url_hostname_with_port() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://myrenderer.local:8080/desc.xml".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "myrenderer.local");
+        assert_eq!(rend.port, 8080);
+    }
+
+    #[test]
+    fn parse_url_hostname_no_port() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://myrenderer.local/desc.xml".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "myrenderer.local");
+        assert_eq!(rend.port, 0);
+    }
+
+    #[test]
+    fn parse_url_with_path() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.0.1:1234/some/path/desc.xml".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.0.1");
+        assert_eq!(rend.port, 1234);
+    }
+
+    #[test]
+    fn parse_url_invalid_url() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "not a url at all".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "0.0.0.0");
+        assert_eq!(rend.port, 0);
+    }
+
+    #[test]
+    fn parse_url_no_authority() {
+        let mut rend = Renderer::new(&ureq::agent());
+        // relative URL has no authority
+        rend.dev_url = "/just/a/path".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "0.0.0.0");
+        assert_eq!(rend.port, 0);
+    }
+
+    #[test]
     fn renderer() {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://192.168.1.26:80/".to_string();
         rend.parse_url();
         assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 80); // default port
+        assert_eq!(rend.port, 80);
         rend.dev_url = "http://192.168.1.26:12345/".to_string();
         rend.parse_url();
         assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 12345); // other port
+        assert_eq!(rend.port, 12345);
     }
 
     #[test]

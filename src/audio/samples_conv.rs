@@ -115,44 +115,218 @@ pub(crate) fn f32_to_i32(bd: BitDepth, f32_simd: f32x4) -> [i32; 4] {
     s4i.to_array()
 }
 
+/// SSSE3 PSHUFB byte-pack/endian implementations for the four `i32_to_i*` functions.
+/// Each loads 4 i32s into one XMM register, issues a single PSHUFB to rearrange
+/// bytes into the target layout, then stores: one `MOVQ` (8 B) for i16, or a
+/// `MOVQ` + 4-byte scalar tail for i24.
+#[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
+mod simd_impl {
+    use core::arch::x86_64::*;
+
+    // _mm_set_epi8 arguments run from e15 (byte 15, high) down to e0 (byte 0, low).
+    // PSHUFB: output byte i = input byte mask[i]; mask byte with high bit set → 0.
+
+    #[inline(always)]
+    pub(super) unsafe fn i32x4_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
+        unsafe {
+            let v = _mm_loadu_si128(i32_array.as_ptr() as *const __m128i);
+            // Gather bytes [0,1, 4,5, 8,9, 12,13] → positions 0-7 (low 2 bytes of each i32, LE)
+            let mask = _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 13, 12, 9, 8, 5, 4, 1, 0);
+            _mm_storel_epi64(buf.as_mut_ptr() as *mut __m128i, _mm_shuffle_epi8(v, mask));
+        }
+    }
+
+    #[inline(always)]
+    pub(super) unsafe fn i32x4_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
+        unsafe {
+            let v = _mm_loadu_si128(i32_array.as_ptr() as *const __m128i);
+            // Gather bytes [1,0, 5,4, 9,8, 13,12] → positions 0-7 (low 2 bytes, byte-swapped)
+            let mask = _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 12, 13, 8, 9, 4, 5, 0, 1);
+            _mm_storel_epi64(buf.as_mut_ptr() as *mut __m128i, _mm_shuffle_epi8(v, mask));
+        }
+    }
+
+    #[inline(always)]
+    pub(super) unsafe fn i32x4_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
+        unsafe {
+            let v = _mm_loadu_si128(i32_array.as_ptr() as *const __m128i);
+            // Gather bytes [0,1,2, 4,5,6, 8,9,10, 12,13,14] → positions 0-11 (low 3 bytes, LE)
+            let mask = _mm_set_epi8(-1, -1, -1, -1, 14, 13, 12, 10, 9, 8, 6, 5, 4, 2, 1, 0);
+            let s = _mm_shuffle_epi8(v, mask);
+            _mm_storel_epi64(buf.as_mut_ptr() as *mut __m128i, s);
+            let hi_u32 = _mm_cvtsi128_si32(_mm_srli_si128::<8>(s)) as u32;
+            buf[8..12].copy_from_slice(&hi_u32.to_le_bytes());
+        }
+    }
+
+    #[inline(always)]
+    pub(super) unsafe fn i32x4_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
+        unsafe {
+            let v = _mm_loadu_si128(i32_array.as_ptr() as *const __m128i);
+            // Gather bytes [2,1,0, 6,5,4, 10,9,8, 14,13,12] → positions 0-11 (24-bit BE, dropping MSB)
+            let mask = _mm_set_epi8(-1, -1, -1, -1, 12, 13, 14, 8, 9, 10, 4, 5, 6, 0, 1, 2);
+            let s = _mm_shuffle_epi8(v, mask);
+            _mm_storel_epi64(buf.as_mut_ptr() as *mut __m128i, s);
+            let hi_u32 = _mm_cvtsi128_si32(_mm_srli_si128::<8>(s)) as u32;
+            buf[8..12].copy_from_slice(&hi_u32.to_le_bytes());
+        }
+    }
+}
+
+/// AArch64 NEON `vqtbl1q_u8` equivalents of the SSSE3 implementations above.
+/// `vqtbl1q_u8` is the direct NEON analogue of PSHUFB: output lane i = source lane
+/// mask[i], with mask values ≥ 16 producing 0 — so our 0xFF "don't-care" bytes work
+/// identically. NEON is part of the AArch64 baseline ISA so no `target_feature` gate
+/// is needed.
+#[cfg(target_arch = "aarch64")]
+mod neon_impl {
+    use core::arch::aarch64::*;
+    use core::mem::transmute;
+
+    // vqtbl1q_u8: output lane i = source lane mask[i]  (0xFF → 0, same as PSHUFB).
+
+    #[inline(always)]
+    pub(super) unsafe fn i32x4_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
+        unsafe {
+            let v = vld1q_u8(i32_array.as_ptr() as *const u8);
+            // Gather bytes [0,1, 4,5, 8,9, 12,13] → lanes 0-7 (low 2 bytes of each i32, LE)
+            let mask: uint8x16_t = transmute::<[u8; 16], _>([
+                0, 1, 4, 5, 8, 9, 12, 13, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            ]);
+            vst1_u8(buf.as_mut_ptr(), vget_low_u8(vqtbl1q_u8(v, mask)));
+        }
+    }
+
+    #[inline(always)]
+    pub(super) unsafe fn i32x4_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
+        unsafe {
+            let v = vld1q_u8(i32_array.as_ptr() as *const u8);
+            // Gather bytes [1,0, 5,4, 9,8, 13,12] → lanes 0-7 (low 2 bytes, byte-swapped)
+            let mask: uint8x16_t = transmute::<[u8; 16], _>([
+                1, 0, 5, 4, 9, 8, 13, 12, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            ]);
+            vst1_u8(buf.as_mut_ptr(), vget_low_u8(vqtbl1q_u8(v, mask)));
+        }
+    }
+
+    #[inline(always)]
+    pub(super) unsafe fn i32x4_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
+        unsafe {
+            let v = vld1q_u8(i32_array.as_ptr() as *const u8);
+            // Gather bytes [0,1,2, 4,5,6, 8,9,10, 12,13,14] → lanes 0-11 (low 3 bytes, LE)
+            let mask: uint8x16_t = transmute::<[u8; 16], _>([
+                0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 0xFF, 0xFF, 0xFF, 0xFF,
+            ]);
+            let s = vqtbl1q_u8(v, mask);
+            vst1_u8(buf.as_mut_ptr(), vget_low_u8(s));
+            // Bytes 8-11 sit in the low 4 lanes of the high half.
+            let val = vget_lane_u32::<0>(vreinterpret_u32_u8(vget_high_u8(s)));
+            buf[8..12].copy_from_slice(&val.to_le_bytes());
+        }
+    }
+
+    #[inline(always)]
+    pub(super) unsafe fn i32x4_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
+        unsafe {
+            let v = vld1q_u8(i32_array.as_ptr() as *const u8);
+            // Gather bytes [2,1,0, 6,5,4, 10,9,8, 14,13,12] → lanes 0-11 (24-bit BE, drop MSB)
+            let mask: uint8x16_t = transmute::<[u8; 16], _>([
+                2, 1, 0, 6, 5, 4, 10, 9, 8, 14, 13, 12, 0xFF, 0xFF, 0xFF, 0xFF,
+            ]);
+            let s = vqtbl1q_u8(v, mask);
+            vst1_u8(buf.as_mut_ptr(), vget_low_u8(s));
+            let val = vget_lane_u32::<0>(vreinterpret_u32_u8(vget_high_u8(s)));
+            buf[8..12].copy_from_slice(&val.to_le_bytes());
+        }
+    }
+}
+
+// Convenience alias so the dispatch cfg expressions stay readable.
+// Active on: x86_64+ssse3 | aarch64.  Absent → scalar path.
+#[allow(unused_macros)]
+macro_rules! simd_active {
+    () => {
+        any(
+            all(target_arch = "x86_64", target_feature = "ssse3"),
+            target_arch = "aarch64",
+        )
+    };
+}
+
 #[inline(always)]
 pub(crate) fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
-    // assert to remove bounds checks
     assert!(buf.len() == 8);
-    buf[0..=1].copy_from_slice(&(i32_array[0] as i16).to_le_bytes());
-    buf[2..=3].copy_from_slice(&(i32_array[1] as i16).to_le_bytes());
-    buf[4..=5].copy_from_slice(&(i32_array[2] as i16).to_le_bytes());
-    buf[6..=7].copy_from_slice(&(i32_array[3] as i16).to_le_bytes());
+    #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
+    return unsafe { simd_impl::i32x4_to_i16le(i32_array, buf) };
+    #[cfg(target_arch = "aarch64")]
+    return unsafe { neon_impl::i32x4_to_i16le(i32_array, buf) };
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_feature = "ssse3"),
+        target_arch = "aarch64"
+    )))]
+    {
+        buf[0..=1].copy_from_slice(&(i32_array[0] as i16).to_le_bytes());
+        buf[2..=3].copy_from_slice(&(i32_array[1] as i16).to_le_bytes());
+        buf[4..=5].copy_from_slice(&(i32_array[2] as i16).to_le_bytes());
+        buf[6..=7].copy_from_slice(&(i32_array[3] as i16).to_le_bytes());
+    }
 }
 
 #[inline(always)]
 pub(crate) fn i32_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
-    // assert to remove bounds checks
     assert!(buf.len() == 12);
-    buf[0..=2].copy_from_slice(&i32_array[0].to_le_bytes()[..=2]);
-    buf[3..=5].copy_from_slice(&i32_array[1].to_le_bytes()[..=2]);
-    buf[6..=8].copy_from_slice(&i32_array[2].to_le_bytes()[..=2]);
-    buf[9..=11].copy_from_slice(&i32_array[3].to_le_bytes()[..=2]);
+    #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
+    return unsafe { simd_impl::i32x4_to_i24le(i32_array, buf) };
+    #[cfg(target_arch = "aarch64")]
+    return unsafe { neon_impl::i32x4_to_i24le(i32_array, buf) };
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_feature = "ssse3"),
+        target_arch = "aarch64"
+    )))]
+    {
+        buf[0..=2].copy_from_slice(&i32_array[0].to_le_bytes()[..=2]);
+        buf[3..=5].copy_from_slice(&i32_array[1].to_le_bytes()[..=2]);
+        buf[6..=8].copy_from_slice(&i32_array[2].to_le_bytes()[..=2]);
+        buf[9..=11].copy_from_slice(&i32_array[3].to_le_bytes()[..=2]);
+    }
 }
 
 #[inline(always)]
 pub(crate) fn i32_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
-    // assert to remove bounds checks
     assert!(buf.len() == 8);
-    buf[0..=1].copy_from_slice(&(i32_array[0] as i16).to_be_bytes());
-    buf[2..=3].copy_from_slice(&(i32_array[1] as i16).to_be_bytes());
-    buf[4..=5].copy_from_slice(&(i32_array[2] as i16).to_be_bytes());
-    buf[6..=7].copy_from_slice(&(i32_array[3] as i16).to_be_bytes());
+    #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
+    return unsafe { simd_impl::i32x4_to_i16be(i32_array, buf) };
+    #[cfg(target_arch = "aarch64")]
+    return unsafe { neon_impl::i32x4_to_i16be(i32_array, buf) };
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_feature = "ssse3"),
+        target_arch = "aarch64"
+    )))]
+    {
+        buf[0..=1].copy_from_slice(&(i32_array[0] as i16).to_be_bytes());
+        buf[2..=3].copy_from_slice(&(i32_array[1] as i16).to_be_bytes());
+        buf[4..=5].copy_from_slice(&(i32_array[2] as i16).to_be_bytes());
+        buf[6..=7].copy_from_slice(&(i32_array[3] as i16).to_be_bytes());
+    }
 }
 
 #[inline(always)]
 pub(crate) fn i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
-    // assert to remove bounds checks
     assert!(buf.len() == 12);
-    buf[0..=2].copy_from_slice(&i32_array[0].to_be_bytes()[1..]);
-    buf[3..=5].copy_from_slice(&i32_array[1].to_be_bytes()[1..]);
-    buf[6..=8].copy_from_slice(&i32_array[2].to_be_bytes()[1..]);
-    buf[9..=11].copy_from_slice(&i32_array[3].to_be_bytes()[1..]);
+    #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
+    return unsafe { simd_impl::i32x4_to_i24be(i32_array, buf) };
+    #[cfg(target_arch = "aarch64")]
+    return unsafe { neon_impl::i32x4_to_i24be(i32_array, buf) };
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_feature = "ssse3"),
+        target_arch = "aarch64"
+    )))]
+    {
+        buf[0..=2].copy_from_slice(&i32_array[0].to_be_bytes()[1..]);
+        buf[3..=5].copy_from_slice(&i32_array[1].to_be_bytes()[1..]);
+        buf[6..=8].copy_from_slice(&i32_array[2].to_be_bytes()[1..]);
+        buf[9..=11].copy_from_slice(&i32_array[3].to_be_bytes()[1..]);
+    }
 }
 
 /// Downmix coefficient for the center, side, and rear channels when folding multichannel
@@ -560,6 +734,75 @@ mod tests {
         let mut out = vec![1.0, 2.0];
         downmix_to_stereo(&[], 0, &mut out);
         assert!(out.is_empty());
+    }
+
+    #[test]
+    fn test_i32_to_i16le_bytes() {
+        // Known byte pattern: low 2 bytes of each i32, in LE order.
+        let arr = [0x00010203_i32, 0x04050607, 0x08090A0B, 0x0C0D0E0F];
+        let mut buf = [0u8; 8];
+        i32_to_i16le(&arr, &mut buf);
+        assert_eq!(buf, [0x03, 0x02, 0x07, 0x06, 0x0B, 0x0A, 0x0F, 0x0E]);
+    }
+
+    #[test]
+    fn test_i32_to_i16be_bytes() {
+        // Same values, bytes of low i16 in BE order.
+        let arr = [0x00010203_i32, 0x04050607, 0x08090A0B, 0x0C0D0E0F];
+        let mut buf = [0u8; 8];
+        i32_to_i16be(&arr, &mut buf);
+        assert_eq!(buf, [0x02, 0x03, 0x06, 0x07, 0x0A, 0x0B, 0x0E, 0x0F]);
+    }
+
+    #[test]
+    fn test_i32_to_i24le_bytes() {
+        // Low 3 bytes of each i32, in LE order.
+        let arr = [0x00010203_i32, 0x04050607, 0x08090A0B, 0x0C0D0E0F];
+        let mut buf = [0u8; 12];
+        i32_to_i24le(&arr, &mut buf);
+        assert_eq!(
+            buf,
+            [
+                0x03, 0x02, 0x01, 0x07, 0x06, 0x05, 0x0B, 0x0A, 0x09, 0x0F, 0x0E, 0x0D
+            ]
+        );
+    }
+
+    #[test]
+    fn test_i32_to_i24be_bytes() {
+        // to_be_bytes()[1..] for each i32: drops MSB, emits remaining 3 in BE order.
+        let arr = [0x00010203_i32, 0x04050607, 0x08090A0B, 0x0C0D0E0F];
+        let mut buf = [0u8; 12];
+        i32_to_i24be(&arr, &mut buf);
+        assert_eq!(
+            buf,
+            [
+                0x01, 0x02, 0x03, 0x05, 0x06, 0x07, 0x09, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F
+            ]
+        );
+    }
+
+    #[test]
+    fn test_i32_to_i16le_negative() {
+        // Negative values exercise the sign-bit byte path.
+        let arr = [-1_i32, -2, i16::MIN as i32, i16::MAX as i32];
+        let mut buf = [0u8; 8];
+        i32_to_i16le(&arr, &mut buf);
+        let mut expected = [0u8; 8];
+        expected[0..2].copy_from_slice(&(-1_i16).to_le_bytes());
+        expected[2..4].copy_from_slice(&(-2_i16).to_le_bytes());
+        expected[4..6].copy_from_slice(&i16::MIN.to_le_bytes());
+        expected[6..8].copy_from_slice(&i16::MAX.to_le_bytes());
+        assert_eq!(buf, expected);
+    }
+
+    #[test]
+    fn test_i32_to_i24be_negative() {
+        // Verify sign-byte handling: for -1 (0xFFFFFFFF), to_be_bytes()[1..] = [0xFF,0xFF,0xFF].
+        let arr = [-1_i32, -1, -1, -1];
+        let mut buf = [0u8; 12];
+        i32_to_i24be(&arr, &mut buf);
+        assert_eq!(buf, [0xFF; 12]);
     }
 
     #[test]

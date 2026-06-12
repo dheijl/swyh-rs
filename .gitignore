@@ -11,7 +11,7 @@ tray_icon/build/
 tray_icon/dist/
 
 # flatpak builder output
-.cargo/
+# .cargo/
 .flatpak-builder/
 vendor/
 deploy/flatpak/build.log

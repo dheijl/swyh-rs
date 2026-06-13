@@ -23,6 +23,7 @@ chk-24bit = 24 位
 sample-rate-label = 采样率（Hz）：
 sr-system-default = 系统默认（{ $rate } Hz）
 http-port-label = HTTP 端口：
+chk-use-dither = 16位 TPDF 抖动
 chk-inject-silence = 注入静音
 strmsize-label = 流大小：{ $size }
 buffer-label = 初始缓冲区（毫秒）：

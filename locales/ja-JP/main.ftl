@@ -23,6 +23,7 @@ chk-24bit = 24ビット
 sample-rate-label = 周波数（Hz）：
 sr-system-default = システムデフォルト（{ $rate } Hz）
 http-port-label = HTTP ポート：
+chk-use-dither = 16ビット TPDFディザー
 chk-inject-silence = 無音を挿入
 strmsize-label = ストリームサイズ：{ $size }
 buffer-label = 初期バッファ（ミリ秒）：

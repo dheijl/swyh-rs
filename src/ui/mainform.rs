@@ -86,6 +86,7 @@ pub struct MainForm {
     pub ss_choice: Choice,
     pub sr_choice: Choice,
     pub b24_bit: CheckButton,
+    pub use_dither: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
@@ -402,15 +403,41 @@ impl MainForm {
         if config.bits_per_sample.unwrap_or(16) == 24 {
             b24_bit.set(true);
         }
+        // dither checkbox — created before b24_bit's callback so we can clone it in
+        let use_dither_lbl = fl!("chk-use-dither");
+        let mut use_dither = CheckButton::new(0, 0, 0, 0, use_dither_lbl.as_str());
+        if config.use_dither.unwrap_or(true) {
+            use_dither.set(true);
+        }
+        if config.bits_per_sample.unwrap_or(16) == 24 {
+            use_dither.set(false);
+            use_dither.deactivate();
+        }
+        use_dither.set_callback({
+            let mut sb = status_buf.clone();
+            move |b| {
+                {
+                    let mut conf = get_config_mut();
+                    conf.use_dither = Some(b.is_set());
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
         b24_bit.set_callback({
             let mut sb = status_buf.clone();
+            let mut use_dither_ref = use_dither.clone();
             move |b| {
                 {
                     let mut conf = get_config_mut();
                     if b.is_set() {
                         conf.bits_per_sample = Some(24);
+                        use_dither_ref.set(false);
+                        use_dither_ref.deactivate();
                     } else {
                         conf.bits_per_sample = Some(16);
+                        use_dither_ref.activate();
+                        use_dither_ref.set(conf.use_dither.unwrap_or(true));
                     }
                     let _ = conf.update_config();
                 }
@@ -486,6 +513,7 @@ impl MainForm {
         flx_inj.set_type(FlexType::Row);
         flx_inj.end();
         flx_inj.add(&inj_silence);
+        flx_inj.add(&use_dither);
         audio_col.add(&flx_inj);
         audio_col.fixed(&flx_inj, ROW_H);
 
@@ -1027,6 +1055,7 @@ impl MainForm {
             ss_choice,
             sr_choice,
             b24_bit,
+            use_dither,
             show_rms,
             rms_mon_l,
             rms_mon_r,

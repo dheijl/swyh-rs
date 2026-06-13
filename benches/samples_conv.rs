@@ -9,7 +9,8 @@
 //! arms in `samples_conv.rs`.  They are defined here because on x86_64+ssse3 / aarch64
 //! the scalar path is not compiled into the crate binary, so we cannot call it directly.
 
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use std::hint::black_box;
 use swyh_rs::audio::samples_conv::{
     i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le, samples_to_i32,
 };
@@ -52,9 +53,14 @@ fn scalar_i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
 }
 
 /// Scalar f32→i32 conversion matching the SIMD path exactly: clamp, scale by 2³¹,
-/// TPDF dither at 16-bit (2× fastrand per sample), half-LSB nudge, round, arithmetic shift.
+/// optional TPDF dither at 16-bit (2× fastrand per sample), half-LSB nudge, round, arithmetic shift.
 #[inline(never)]
-fn scalar_samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd: BitDepth) {
+fn scalar_samples_to_i32(
+    f32_samples: &[f32],
+    i32_samples: &mut Vec<i32>,
+    bd: BitDepth,
+    use_dither: bool,
+) {
     i32_samples.clear();
     const F32_TO_I32: f32 = (i32::MAX as f32) + 1.0; // 2^31
     const LSB_AT_16BIT: f32 = 65536.0; // 2^31 / 2^15
@@ -67,7 +73,11 @@ fn scalar_samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd: Bi
     for &s in f32_samples {
         let scaled = s.clamp(-1.0, 1.0) * F32_TO_I32;
         let pre_quant = if bd == BitDepth::Bits16 {
-            let dither = (fastrand::f32() - fastrand::f32()) * LSB_AT_16BIT;
+            let dither = if use_dither {
+                (fastrand::f32() - fastrand::f32()) * LSB_AT_16BIT
+            } else {
+                0.0
+            };
             scaled + dither + half_lsb
         } else {
             scaled + half_lsb
@@ -158,7 +168,8 @@ fn bench_byte_pack_buffer(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
-// samples_to_i32: SIMD (wide f32x4) vs scalar loop, 16-bit and 24-bit
+// samples_to_i32: SIMD (wide f32x4) vs scalar loop
+//   Cases: 16-bit with dither, 16-bit without dither, 24-bit
 // ---------------------------------------------------------------------------
 
 fn bench_samples_to_i32(c: &mut Criterion) {
@@ -169,13 +180,21 @@ fn bench_samples_to_i32(c: &mut Criterion) {
     let mut g = c.benchmark_group("samples_to_i32");
     g.throughput(Throughput::Elements(N as u64));
 
-    for bd in [BitDepth::Bits16, BitDepth::Bits24] {
-        let label = format!("{bd}bit");
-        g.bench_with_input(BenchmarkId::new("simd", &label), &bd, |b, &bd| {
-            b.iter(|| samples_to_i32(black_box(&samples), black_box(&mut out), bd))
+    // (bit_depth, use_dither, bench label)
+    let cases: &[(BitDepth, bool, &str)] = &[
+        (BitDepth::Bits16, true, "16bit_dither"),
+        (BitDepth::Bits16, false, "16bit_nodither"),
+        (BitDepth::Bits24, false, "24bit"),
+    ];
+
+    for &(bd, use_dither, label) in cases {
+        g.bench_with_input(BenchmarkId::new("simd", label), label, |b, _| {
+            b.iter(|| samples_to_i32(black_box(&samples), black_box(&mut out), bd, use_dither))
         });
-        g.bench_with_input(BenchmarkId::new("scalar", &label), &bd, |b, &bd| {
-            b.iter(|| scalar_samples_to_i32(black_box(&samples), black_box(&mut out), bd))
+        g.bench_with_input(BenchmarkId::new("scalar", label), label, |b, _| {
+            b.iter(|| {
+                scalar_samples_to_i32(black_box(&samples), black_box(&mut out), bd, use_dither)
+            })
         });
     }
     g.finish();

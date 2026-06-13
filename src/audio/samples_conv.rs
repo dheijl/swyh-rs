@@ -60,7 +60,12 @@ fn tpdf_dither_lanes_16_threadlocal() -> f32x4 {
 /// convert f32 samples to i32 for flac encoding
 /// but scaled to i16 or i24 according to shift (8 or 16)
 /// using SIMD SSE xmm registers (with the wide crate).
-pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd: BitDepth) {
+pub fn samples_to_i32(
+    f32_samples: &[f32],
+    i32_samples: &mut Vec<i32>,
+    bd: BitDepth,
+    use_dither: bool,
+) {
     debug_assert!(
         f32_samples.len() & 1 == 0,
         "Number of FLAC samples should always be even!"
@@ -71,20 +76,20 @@ pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd: BitDe
     chunks.for_each(|chunk| {
         // chunks are guaranteed to be 4 elements
         let f32_array = f32x4::new(*chunk.as_array().unwrap());
-        let i_array = f32_to_i32(bd, f32_array);
+        let i_array = f32_to_i32(bd, f32_array, use_dither);
         i32_samples.extend_from_slice(&i_array);
     });
     if remainder.len() == 2 {
         let f32_array = f32x4::new([remainder[0], remainder[1], 0.0, 0.0]);
-        let i_array = f32_to_i32(bd, f32_array);
+        let i_array = f32_to_i32(bd, f32_array, use_dither);
         i32_samples.extend_from_slice(&i_array[0..2]);
     }
 }
 
 /// convert 4 contiguous f32 samples to an i32 array (scaled to bitdepth)
 #[inline(always)]
-pub fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4]) -> [i32; 4] {
-    f32_to_i32(bd, f32x4::new(*samples))
+pub fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4], use_dither: bool) -> [i32; 4] {
+    f32_to_i32(bd, f32x4::new(*samples), use_dither)
 }
 
 /// Convert 4 f32 samples in an f32x4 to 4 i32 samples (using SIMD), scaled to the
@@ -99,15 +104,20 @@ pub fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4]) -> [i32; 4] {
 /// documented contract — it wraps the underlying SSE `CVTPS2DQ` to give defined
 /// behaviour). Defence in depth against any path that bypasses the clamp.
 #[inline(always)]
-pub fn f32_to_i32(bd: BitDepth, f32_simd: f32x4) -> [i32; 4] {
+pub fn f32_to_i32(bd: BitDepth, f32_simd: f32x4, use_dither: bool) -> [i32; 4] {
     let clamped = f32_simd.fast_min(CLAMP_HI).fast_max(CLAMP_LO);
     let scaled = clamped * F32_TO_I32_SIMD;
-    // Apply TPDF dither at 16 bits (skipped at 24), then add the half-LSB nudge that
+    // Apply TPDF dither at 16 bits when enabled, then add the half-LSB nudge that
     // converts the subsequent `round_int + arithmetic-shift` into true round-to-nearest.
     // Without the nudge, `>> N` floors toward −∞ and re-introduces a constant −0.5 LSB
     // DC bias even though `round_int` itself rounds correctly.
     let pre_quant = if bd == BitDepth::Bits16 {
-        scaled + tpdf_dither_lanes_16_threadlocal() + HALF_LSB_16_SIMD
+        let dither = if use_dither {
+            tpdf_dither_lanes_16_threadlocal()
+        } else {
+            f32x4::splat(0.0)
+        };
+        scaled + dither + HALF_LSB_16_SIMD
     } else {
         scaled + HALF_LSB_24_SIMD
     };
@@ -421,7 +431,7 @@ mod tests {
         // ±1 LSB of the deterministic round-to-nearest value. We assert the
         // tolerance band rather than exact equality.
         let arr = f32x4::new([1.0, -1.0, 0.5, 0.0]);
-        let result = f32_to_i32(BitDepth::Bits16, arr);
+        let result = f32_to_i32(BitDepth::Bits16, arr, true);
         // For input 1.0: clamp leaves 1.0, multiply gives ≈ 2^31 (in f32). Adding
         // any dither in (−65536, +65536) plus the 32768 nudge then arithmetic-shifting
         // by 16 always lands at 32767 (positive dither saturates round_int to i32::MAX
@@ -444,11 +454,11 @@ mod tests {
         // inputs always produce exactly i16::MAX (positive dither saturates round_int;
         // negative dither still floors to 32767 after the arithmetic shift).
         let arr = f32x4::new([1.05, 1.5, 100.0, f32::INFINITY]);
-        let result_24 = f32_to_i32(BitDepth::Bits24, arr);
+        let result_24 = f32_to_i32(BitDepth::Bits24, arr, false);
         for v in result_24 {
             assert_eq!(v, 0x7F_FFFF);
         }
-        let result_16 = f32_to_i32(BitDepth::Bits16, arr);
+        let result_16 = f32_to_i32(BitDepth::Bits16, arr, true);
         for v in result_16 {
             assert!((v - i16::MAX as i32).abs() <= 1);
         }
@@ -457,11 +467,11 @@ mod tests {
     #[test]
     fn test_f32_to_i32_clamps_below_neg_one() {
         let arr = f32x4::new([-1.05, -1.5, -100.0, f32::NEG_INFINITY]);
-        let result_24 = f32_to_i32(BitDepth::Bits24, arr);
+        let result_24 = f32_to_i32(BitDepth::Bits24, arr, false);
         for v in result_24 {
             assert_eq!(v, -0x80_0000);
         }
-        let result_16 = f32_to_i32(BitDepth::Bits16, arr);
+        let result_16 = f32_to_i32(BitDepth::Bits16, arr, true);
         for v in result_16 {
             assert!((v - i16::MIN as i32).abs() <= 1);
         }
@@ -477,7 +487,7 @@ mod tests {
         // operand-order-dependent; we only assert the output stays inside the legal
         // i16 range.
         let arr = f32x4::new([f32::NAN, 0.0, 0.0, 0.0]);
-        let result = f32_to_i32(BitDepth::Bits16, arr);
+        let result = f32_to_i32(BitDepth::Bits16, arr, true);
         assert!(
             result[0] >= i16::MIN as i32 && result[0] <= i16::MAX as i32,
             "NaN escaped clamp: {}",
@@ -491,7 +501,7 @@ mod tests {
         // continue to match exactly. This test guards against accidental dithering
         // creeping into the 24-bit path in the future.
         let arr = f32x4::new([1.0, -1.0, 0.5, 0.0]);
-        let result = f32_to_i32(BitDepth::Bits24, arr);
+        let result = f32_to_i32(BitDepth::Bits24, arr, false);
         // 1.0 · 2^31 saturates to i32::MAX, then >> 8 = 0x7FFFFF
         assert_eq!(result[0], 0x7F_FFFF);
         // -1.0 · 2^31 = -2^31, >> 8 = -0x80_0000 (sign-extended arithmetic shift)
@@ -565,7 +575,7 @@ mod tests {
         let arr = f32x4::new(inputs);
         let mut lane_samples: [Vec<i32>; 4] = Default::default();
         for _ in 0..1000 {
-            let r = f32_to_i32(BitDepth::Bits16, arr);
+            let r = f32_to_i32(BitDepth::Bits16, arr, true);
             for i in 0..4 {
                 lane_samples[i].push(r[i]);
             }
@@ -811,7 +821,7 @@ mod tests {
         // odd-tail branch in samples_to_i32 with dithered 16-bit output.
         let input = [0.25f32, -0.25, 0.5, -0.5, 0.1, -0.1];
         let mut out = Vec::new();
-        samples_to_i32(&input, &mut out, BitDepth::Bits16);
+        samples_to_i32(&input, &mut out, BitDepth::Bits16, true);
         assert_eq!(out.len(), 6);
         for &v in &out {
             assert!(v >= i16::MIN as i32 && v <= i16::MAX as i32);

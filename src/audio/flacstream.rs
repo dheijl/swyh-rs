@@ -75,6 +75,7 @@ pub(crate) struct FlacChannel {
     sample_rate: u32,
     bits_per_sample: u32,
     channels: u32,
+    use_dither: bool,
 }
 
 impl FlacChannel {
@@ -84,6 +85,7 @@ impl FlacChannel {
         sample_rate: u32,
         bits_per_sample: u32,
         channels: u32,
+        use_dither: bool,
     ) -> FlacChannel {
         let (flac_out, flac_in): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = unbounded();
         FlacChannel {
@@ -94,6 +96,7 @@ impl FlacChannel {
             sample_rate,
             bits_per_sample,
             channels,
+            use_dither,
         }
     }
 
@@ -109,6 +112,7 @@ impl FlacChannel {
         let ch = self.channels;
         let bps = self.bits_per_sample;
         let sr = self.sample_rate;
+        let use_dither = self.use_dither;
         let l_active = self.active.clone();
         // fire up thread
         self.active.store(true, Release);
@@ -149,7 +153,7 @@ impl FlacChannel {
                 while l_active.load(Acquire) {
                     if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS);
-                        samples_to_i32(&f32_samples, &mut i32_samples, bd);
+                        samples_to_i32(&f32_samples, &mut i32_samples, bd, use_dither);
                         if enc
                             .process_interleaved(
                                 &i32_samples,
@@ -200,7 +204,7 @@ fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
         f32_array[2] = (rng.f32() * 2.0) - 1.0;
         f32_array[3] = (rng.f32() * 2.0) - 1.0;
         let f32_simd = f32x4::new(f32_array);
-        let i32_array = f32_to_i32(bd, f32_simd);
+        let i32_array = f32_to_i32(bd, f32_simd, false);
         samples.iter_mut().zip(i32_array).for_each(|s| {
             if s.1 >= 0 {
                 *s.0 = s.1 & 0x03;

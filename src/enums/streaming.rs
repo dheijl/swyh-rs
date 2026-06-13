@@ -209,6 +209,7 @@ pub struct StreamingContext {
     pub chunksize: usize,
     pub streamsize: Option<usize>,
     pub url: EcoString,
+    pub use_dither: bool,
 }
 
 impl StreamingContext {
@@ -232,6 +233,7 @@ impl StreamingContext {
             chunksize: 0,
             streamsize: None,
             url: EcoString::new(),
+            use_dither: cfg.use_dither.unwrap_or(true),
         }
     }
     /// initialize `remote_addr` and `remote_ip`

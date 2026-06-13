@@ -49,6 +49,7 @@ pub struct ChannelStream {
     wav_hdr: Vec<u8>,
     use_wave_format: bool,
     bits_per_sample: u16,
+    use_dither: bool,
     flac_channel: Option<FlacChannel>,
 }
 
@@ -65,6 +66,7 @@ impl ChannelStream {
                 context.sample_rate,
                 context.bits_per_sample as u32,
                 2,
+                context.use_dither,
             ))
         } else {
             None
@@ -95,6 +97,7 @@ impl ChannelStream {
             wav_hdr,
             use_wave_format: context.needs_wav_hdr(),
             bits_per_sample: context.bits_per_sample as u16,
+            use_dither: context.use_dither,
             streaming_format: context.streaming_format,
             flac_channel,
         };
@@ -221,18 +224,25 @@ impl ChannelStream {
             let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(sample_chunks);
             // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
             // the unwrap on sch.as_array() is safe as all chunks are guaranteed 4 elements (CHUNKSIZE)
+            let use_dither = self.use_dither;
             match (endianness, bd) {
                 (Little, Bits16) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i16le(&f32_chunk_to_i32(bd, sch.as_array().unwrap()), bch);
+                    i32_to_i16le(
+                        &f32_chunk_to_i32(bd, sch.as_array().unwrap(), use_dither),
+                        bch,
+                    );
                 }),
                 (Little, Bits24) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i24le(&f32_chunk_to_i32(bd, sch.as_array().unwrap()), bch);
+                    i32_to_i24le(&f32_chunk_to_i32(bd, sch.as_array().unwrap(), false), bch);
                 }),
                 (Big, Bits16) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i16be(&f32_chunk_to_i32(bd, sch.as_array().unwrap()), bch);
+                    i32_to_i16be(
+                        &f32_chunk_to_i32(bd, sch.as_array().unwrap(), use_dither),
+                        bch,
+                    );
                 }),
                 (Big, Bits24) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i24be(&f32_chunk_to_i32(bd, sch.as_array().unwrap()), bch);
+                    i32_to_i24be(&f32_chunk_to_i32(bd, sch.as_array().unwrap(), false), bch);
                 }),
             }
         } // make_contiguous borrow ends here

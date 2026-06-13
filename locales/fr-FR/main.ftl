@@ -23,6 +23,7 @@ chk-24bit = 24 bits
 sample-rate-label = Fréquence (Hz) :
 sr-system-default = Défaut système ({ $rate } Hz)
 http-port-label = Port HTTP :
+chk-use-dither = Dither TPDF 16 bits
 chk-inject-silence = Injecter du silence
 strmsize-label = Streamsize : { $size }
 buffer-label = Tampon initial (msec) :

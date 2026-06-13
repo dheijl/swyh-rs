@@ -72,6 +72,9 @@ impl CfgDefaults {
     fn sample_rate() -> Option<u32> {
         None
     }
+    fn use_dither() -> Option<bool> {
+        Some(true)
+    }
 }
 
 // the configuration struct, read from and saved in config.ini
@@ -147,6 +150,8 @@ pub struct Configuration {
     pub language: Option<String>,
     #[serde(alias = "SampleRate", default = "CfgDefaults::sample_rate")]
     pub sample_rate: Option<u32>,
+    #[serde(alias = "UseDither", default = "CfgDefaults::use_dither")]
+    pub use_dither: Option<bool>,
 }
 
 impl Default for Configuration {
@@ -188,6 +193,7 @@ impl Configuration {
             color_theme: None,
             language: Some(detect_default_language()),
             sample_rate: None,
+            use_dither: Some(true),
         }
     }
 

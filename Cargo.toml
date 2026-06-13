@@ -98,7 +98,7 @@ rustix = { version = "1.1.4", default-features = false, features = ["process"] }
 
 [dev-dependencies]
 tempfile = "3"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8.2", features = ["html_reports"] }
 fastrand = "2.4.1"
 
 [[bench]]

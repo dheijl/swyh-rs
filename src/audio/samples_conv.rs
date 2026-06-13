@@ -60,7 +60,7 @@ fn tpdf_dither_lanes_16_threadlocal() -> f32x4 {
 /// convert f32 samples to i32 for flac encoding
 /// but scaled to i16 or i24 according to shift (8 or 16)
 /// using SIMD SSE xmm registers (with the wide crate).
-pub(crate) fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd: BitDepth) {
+pub fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd: BitDepth) {
     debug_assert!(
         f32_samples.len() & 1 == 0,
         "Number of FLAC samples should always be even!"
@@ -83,7 +83,7 @@ pub(crate) fn samples_to_i32(f32_samples: &[f32], i32_samples: &mut Vec<i32>, bd
 
 /// convert 4 contiguous f32 samples to an i32 array (scaled to bitdepth)
 #[inline(always)]
-pub(crate) fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4]) -> [i32; 4] {
+pub fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4]) -> [i32; 4] {
     f32_to_i32(bd, f32x4::new(*samples))
 }
 
@@ -99,7 +99,7 @@ pub(crate) fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4]) -> [i32; 4] {
 /// documented contract — it wraps the underlying SSE `CVTPS2DQ` to give defined
 /// behaviour). Defence in depth against any path that bypasses the clamp.
 #[inline(always)]
-pub(crate) fn f32_to_i32(bd: BitDepth, f32_simd: f32x4) -> [i32; 4] {
+pub fn f32_to_i32(bd: BitDepth, f32_simd: f32x4) -> [i32; 4] {
     let clamped = f32_simd.fast_min(CLAMP_HI).fast_max(CLAMP_LO);
     let scaled = clamped * F32_TO_I32_SIMD;
     // Apply TPDF dither at 16 bits (skipped at 24), then add the half-LSB nudge that
@@ -254,7 +254,7 @@ macro_rules! simd_active {
 }
 
 #[inline(always)]
-pub(crate) fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
+pub fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
     assert!(buf.len() == 8);
     #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
     return unsafe { simd_impl::i32x4_to_i16le(i32_array, buf) };
@@ -273,7 +273,7 @@ pub(crate) fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
 }
 
 #[inline(always)]
-pub(crate) fn i32_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
+pub fn i32_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
     assert!(buf.len() == 12);
     #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
     return unsafe { simd_impl::i32x4_to_i24le(i32_array, buf) };
@@ -292,7 +292,7 @@ pub(crate) fn i32_to_i24le(i32_array: &[i32; 4], buf: &mut [u8]) {
 }
 
 #[inline(always)]
-pub(crate) fn i32_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
+pub fn i32_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
     assert!(buf.len() == 8);
     #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
     return unsafe { simd_impl::i32x4_to_i16be(i32_array, buf) };
@@ -311,7 +311,7 @@ pub(crate) fn i32_to_i16be(i32_array: &[i32; 4], buf: &mut [u8]) {
 }
 
 #[inline(always)]
-pub(crate) fn i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
+pub fn i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
     assert!(buf.len() == 12);
     #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
     return unsafe { simd_impl::i32x4_to_i24be(i32_array, buf) };
@@ -350,7 +350,7 @@ const DOWNMIX_ATTEN: f32 = std::f32::consts::FRAC_1_SQRT_2;
 /// - 2 channels: copied unchanged.
 ///
 /// `stereo` is cleared and refilled, reusing its allocation across calls.
-pub(crate) fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) {
+pub fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) {
     stereo.clear();
     match channels {
         0 => {}

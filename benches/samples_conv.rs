@@ -5,9 +5,12 @@
 //! Run with:
 //!   cargo bench --bench samples_conv
 //!
-//! The scalar reference functions below are verbatim copies of the `#[cfg(not(...))]`
-//! arms in `samples_conv.rs`.  They are defined here because on x86_64+ssse3 / aarch64
-//! the scalar path is not compiled into the crate binary, so we cannot call it directly.
+//! The scalar byte-pack reference functions below are verbatim copies of the
+//! `#[cfg(not(...))]` fallback arms in `samples_conv.rs` (active on targets without
+//! SSSE3/NEON).  They are defined here because on x86_64+ssse3 / aarch64 the scalar
+//! path is not compiled into the crate binary, so we cannot call it directly.
+//! `samples_to_i32` / `f32_to_i32` have no scalar fallback — they always use
+//! `wide::f32x4` — so `bench_samples_to_i32` measures only the production SIMD path.
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
@@ -53,46 +56,12 @@ fn scalar_i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
     buf[9..=11].copy_from_slice(&i32_array[3].to_be_bytes()[1..]);
 }
 
-/// Scalar f32→i32 conversion matching the SIMD path exactly: clamp, scale by 2³¹,
-/// optional TPDF dither at 16-bit (2× fastrand per sample), half-LSB nudge, round, arithmetic shift.
-#[inline(never)]
-fn scalar_samples_to_i32(
-    f32_samples: &[f32],
-    i32_samples: &mut Vec<i32>,
-    bd: BitDepth,
-    use_dither: bool,
-) {
-    i32_samples.clear();
-    const F32_TO_I32: f32 = (i32::MAX as f32) + 1.0; // 2^31
-    const LSB_AT_16BIT: f32 = 65536.0; // 2^31 / 2^15
-    let half_lsb = if bd == BitDepth::Bits16 {
-        32_768.0_f32
-    } else {
-        128.0_f32
-    };
-    let shift = bd.shift_value();
-    for &s in f32_samples {
-        let scaled = s.clamp(-1.0, 1.0) * F32_TO_I32;
-        let pre_quant = if bd == BitDepth::Bits16 {
-            let dither = if use_dither {
-                (fastrand::f32() - fastrand::f32()) * LSB_AT_16BIT
-            } else {
-                0.0
-            };
-            scaled + dither + half_lsb
-        } else {
-            scaled + half_lsb
-        };
-        i32_samples.push((pre_quant.round() as i32) >> shift);
-    }
-}
-
 // ---------------------------------------------------------------------------
 // TPDF dither: scalar-multiply variant vs. SIMD-multiply variant
 // ---------------------------------------------------------------------------
 
-// Mirrors the current tpdf_dither_lanes_16_threadlocal: each element gets its
-// own scalar multiply before the four values are packed into an f32x4.
+// Old approach (superseded): each element gets its own scalar multiply before
+// the four values are packed into an f32x4 — four scalar MULSSs.
 #[inline(always)]
 fn tpdf_dither_scalar_mul() -> f32x4 {
     f32x4::new([
@@ -103,8 +72,9 @@ fn tpdf_dither_scalar_mul() -> f32x4 {
     ])
 }
 
-// Alternative: pack the raw diffs into an f32x4 first, then multiply the
-// whole register by a splat — one SIMD MULPS instead of four scalar MULSSs.
+// Current production approach (mirrors tpdf_dither_lanes_16_threadlocal): pack
+// the raw diffs into an f32x4 first, then multiply the whole register by a
+// splat — one SIMD MULPS instead of four scalar MULSSs.
 #[inline(always)]
 fn tpdf_dither_simd_mul() -> f32x4 {
     let diffs = f32x4::new([
@@ -226,8 +196,10 @@ fn bench_byte_pack_buffer(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
-// samples_to_i32: SIMD (wide f32x4) vs scalar loop
-//   Cases: 16-bit with dither, 16-bit without dither, 24-bit
+// samples_to_i32 throughput: measures the real production path (f32x4 SIMD)
+//   Cases: 16-bit with dither, 16-bit without dither, 24-bit.
+//   Note: at 24-bit the use_dither flag is ignored by f32_to_i32; both 24-bit
+//   cases should compile to identical code and show equal throughput.
 // ---------------------------------------------------------------------------
 
 fn bench_samples_to_i32(c: &mut Criterion) {
@@ -238,21 +210,16 @@ fn bench_samples_to_i32(c: &mut Criterion) {
     let mut g = c.benchmark_group("samples_to_i32");
     g.throughput(Throughput::Elements(N as u64));
 
-    // (bit_depth, use_dither, bench label)
     let cases: &[(BitDepth, bool, &str)] = &[
         (BitDepth::Bits16, true, "16bit_dither"),
         (BitDepth::Bits16, false, "16bit_nodither"),
-        (BitDepth::Bits24, false, "24bit"),
+        (BitDepth::Bits24, false, "24bit_nodither"),
+        (BitDepth::Bits24, true, "24bit_dither_ignored"),
     ];
 
     for &(bd, use_dither, label) in cases {
         g.bench_with_input(BenchmarkId::new("simd", label), label, |b, _| {
             b.iter(|| samples_to_i32(black_box(&samples), black_box(&mut out), bd, use_dither))
-        });
-        g.bench_with_input(BenchmarkId::new("scalar", label), label, |b, _| {
-            b.iter(|| {
-                scalar_samples_to_i32(black_box(&samples), black_box(&mut out), bd, use_dither)
-            })
         });
     }
     g.finish();

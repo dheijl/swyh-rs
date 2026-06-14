@@ -47,14 +47,18 @@ static HALF_LSB_24_SIMD: f32x4 = f32x4::splat(128.0);
 /// post-multiply f32 domain. Each lane is `(u1 − u2) · LSB`, with u1, u2 ∼ U[0, 1).
 /// Peak amplitude ±1 LSB, mean 0, triangular density on (−1, 1) LSB. Reads from
 /// `fastrand`'s per-thread RNG.
+///
+/// The raw diffs are packed into an f32x4 first; the scale factor is then applied
+/// as a single SIMD MULPS rather than four scalar MULSSs before packing.
 #[inline(always)]
 fn tpdf_dither_lanes_16_threadlocal() -> f32x4 {
-    f32x4::new([
-        (fastrand::f32() - fastrand::f32()) * LSB_AT_16BIT_POST_MULT,
-        (fastrand::f32() - fastrand::f32()) * LSB_AT_16BIT_POST_MULT,
-        (fastrand::f32() - fastrand::f32()) * LSB_AT_16BIT_POST_MULT,
-        (fastrand::f32() - fastrand::f32()) * LSB_AT_16BIT_POST_MULT,
-    ])
+    let diffs = f32x4::new([
+        fastrand::f32() - fastrand::f32(),
+        fastrand::f32() - fastrand::f32(),
+        fastrand::f32() - fastrand::f32(),
+        fastrand::f32() - fastrand::f32(),
+    ]);
+    diffs * f32x4::splat(LSB_AT_16BIT_POST_MULT)
 }
 
 /// convert f32 samples to i32 for flac encoding
@@ -112,12 +116,11 @@ pub fn f32_to_i32(bd: BitDepth, f32_simd: f32x4, use_dither: bool) -> [i32; 4] {
     // Without the nudge, `>> N` floors toward −∞ and re-introduces a constant −0.5 LSB
     // DC bias even though `round_int` itself rounds correctly.
     let pre_quant = if bd == BitDepth::Bits16 {
-        let dither = if use_dither {
-            tpdf_dither_lanes_16_threadlocal()
+        if use_dither {
+            scaled + tpdf_dither_lanes_16_threadlocal() + HALF_LSB_16_SIMD
         } else {
-            f32x4::splat(0.0)
-        };
-        scaled + dither + HALF_LSB_16_SIMD
+            scaled + HALF_LSB_16_SIMD
+        }
     } else {
         scaled + HALF_LSB_24_SIMD
     };

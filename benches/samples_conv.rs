@@ -15,6 +15,7 @@ use swyh_rs::audio::samples_conv::{
     i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le, samples_to_i32,
 };
 use swyh_rs::enums::streaming::BitDepth;
+use wide::f32x4;
 
 // ---------------------------------------------------------------------------
 // Scalar reference implementations (always compiled regardless of CPU target)
@@ -84,6 +85,63 @@ fn scalar_samples_to_i32(
         };
         i32_samples.push((pre_quant.round() as i32) >> shift);
     }
+}
+
+// ---------------------------------------------------------------------------
+// TPDF dither: scalar-multiply variant vs. SIMD-multiply variant
+// ---------------------------------------------------------------------------
+
+// Mirrors the current tpdf_dither_lanes_16_threadlocal: each element gets its
+// own scalar multiply before the four values are packed into an f32x4.
+#[inline(always)]
+fn tpdf_dither_scalar_mul() -> f32x4 {
+    f32x4::new([
+        (fastrand::f32() - fastrand::f32()) * 65536.0_f32,
+        (fastrand::f32() - fastrand::f32()) * 65536.0_f32,
+        (fastrand::f32() - fastrand::f32()) * 65536.0_f32,
+        (fastrand::f32() - fastrand::f32()) * 65536.0_f32,
+    ])
+}
+
+// Alternative: pack the raw diffs into an f32x4 first, then multiply the
+// whole register by a splat — one SIMD MULPS instead of four scalar MULSSs.
+#[inline(always)]
+fn tpdf_dither_simd_mul() -> f32x4 {
+    let diffs = f32x4::new([
+        fastrand::f32() - fastrand::f32(),
+        fastrand::f32() - fastrand::f32(),
+        fastrand::f32() - fastrand::f32(),
+        fastrand::f32() - fastrand::f32(),
+    ]);
+    diffs * f32x4::splat(65536.0_f32)
+}
+
+fn bench_tpdf_dither(c: &mut Criterion) {
+    const N: usize = 4096; // lanes per iteration (N/4 dither calls)
+    let mut g = c.benchmark_group("tpdf_dither_16");
+    g.throughput(Throughput::Elements(N as u64));
+
+    g.bench_function("scalar_mul", |b| {
+        b.iter(|| {
+            let mut acc = f32x4::splat(0.0_f32);
+            for _ in 0..N / 4 {
+                acc += black_box(tpdf_dither_scalar_mul());
+            }
+            black_box(acc)
+        })
+    });
+
+    g.bench_function("simd_mul", |b| {
+        b.iter(|| {
+            let mut acc = f32x4::splat(0.0_f32);
+            for _ in 0..N / 4 {
+                acc += black_box(tpdf_dither_simd_mul());
+            }
+            black_box(acc)
+        })
+    });
+
+    g.finish();
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +260,7 @@ fn bench_samples_to_i32(c: &mut Criterion) {
 
 criterion_group!(
     benches,
+    bench_tpdf_dither,
     bench_byte_pack,
     bench_byte_pack_buffer,
     bench_samples_to_i32,

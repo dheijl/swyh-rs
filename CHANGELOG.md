@@ -6,7 +6,7 @@
   - .cargo/config.toml: target `SSSE3` (mainly for the `PSHUFB` instruction when converting endianness). Binaries now need a CPU less than 20 years old (for X86-64 builds).
   - add a fast SIMD path for SSSE3 (default in .cargo/config.toml) and Neon targets in samples_conv.rs. Add a benchmark that shows a 7.5 x speed-up for 24 bit, and a 1.6 x speed-up for 16 bit. The 16 bit timing is dominated by the recently added TPDF dithering that can't be vectorized.
   - 16-bit TPD dither is now optional. The 16-bit TPDF dither checkbox in the Audio tab is enabled when 24-bit is not checked, and disabled and inactive when 24-bit is checked. You should probably enavble dither for 16 bit, but you have the choice. Not dithering speeds up the samples conversion several times.
-  - optimize the 16 bit dither code a bit (almost a 50 % inmprovement).
+  - optimize the 16 bit dither code a bit (almost a 30 % inmprovement).
 
 - 1.20.3 (Jun 7 2026, dheijl)
   - now uses CPAL 0.18.0. The new CPAL `realtime` feature is not used. If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features (pipewire/pulseaudio/jack and realtime or realtime-dbus). I think swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.

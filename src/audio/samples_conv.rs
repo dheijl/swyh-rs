@@ -254,18 +254,6 @@ mod neon_impl {
     }
 }
 
-// Convenience alias so the dispatch cfg expressions stay readable.
-// Active on: x86_64+ssse3 | aarch64.  Absent → scalar path.
-#[allow(unused_macros)]
-macro_rules! simd_active {
-    () => {
-        any(
-            all(target_arch = "x86_64", target_feature = "ssse3"),
-            target_arch = "aarch64",
-        )
-    };
-}
-
 #[inline(always)]
 pub fn i32_to_i16le(i32_array: &[i32; 4], buf: &mut [u8]) {
     assert!(buf.len() == 8);
@@ -359,8 +347,10 @@ const DOWNMIX_ATTEN: f32 = std::f32::consts::FRAC_1_SQRT_2;
 /// the f32 samples are later converted to i16/i24 by `samples_to_i32`.
 ///
 /// Special cases:
-/// - 1 channel: duplicated to L=R.
+/// - 1 channel: duplicated to L=R (SIMD).
 /// - 2 channels: copied unchanged.
+/// - 6 channels (5.1): branch-free fast path.
+/// - 8 channels (7.1): branch-free fast path.
 ///
 /// `stereo` is cleared and refilled, reusing its allocation across calls.
 pub fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) {
@@ -380,6 +370,28 @@ pub fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) 
             for &s in remainder {
                 stereo.push(s);
                 stereo.push(s);
+            }
+        }
+        // WAVE 5.1: FL FR FC LFE(drop) BL BR
+        6 => {
+            stereo.reserve(samples.len() / 3);
+            for frame in samples.chunks_exact(6) {
+                let l = (frame[0] + DOWNMIX_ATTEN * (frame[2] + frame[4])).clamp(-1.0, 1.0);
+                let r = (frame[1] + DOWNMIX_ATTEN * (frame[2] + frame[5])).clamp(-1.0, 1.0);
+                stereo.push(l);
+                stereo.push(r);
+            }
+        }
+        // WAVE 7.1: FL FR FC LFE(drop) BL BR SL SR
+        8 => {
+            stereo.reserve(samples.len() / 4);
+            for frame in samples.chunks_exact(8) {
+                let l =
+                    (frame[0] + DOWNMIX_ATTEN * (frame[2] + frame[4] + frame[6])).clamp(-1.0, 1.0);
+                let r =
+                    (frame[1] + DOWNMIX_ATTEN * (frame[2] + frame[5] + frame[7])).clamp(-1.0, 1.0);
+                stereo.push(l);
+                stereo.push(r);
             }
         }
         n => {

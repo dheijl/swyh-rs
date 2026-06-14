@@ -1137,11 +1137,20 @@ impl MainForm {
         let mut s = String::new();
         s += &fl!("audio-source-label", "name" = audio);
         s += "\n";
+        let dither_suffix = if bits == 16 {
+            format!(
+                "  TPDF dither {}",
+                bool_icon(config.use_dither.unwrap_or(true))
+            )
+        } else {
+            String::new()
+        };
         s += &format!(
-            "{}  {} bit  {} Hz\n",
+            "{}  {} bit  {} Hz{}\n",
             fl!("fmt-label", "format" = &format),
             bits,
-            sample_rate
+            sample_rate,
+            dither_suffix
         );
         s += &fl!("strmsize-label", "size" = streamsize);
         s += &format!("   buffer: {} ms\n", buf_ms);

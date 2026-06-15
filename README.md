@@ -247,23 +247,26 @@ This is the "Usage message" (produced by the -h or --help option):
 ```sh
 Recognized options:
     -h (--help) : print usage
-    -n (--no-run) : dry-run mode that exits just before starting to stream
-    -c (--config_id) string : config_id [_cli]
+    -n (--no_run) : dry-run, don't start streaming
     -C (--configfile) string : alternative full pathname of configfile
+    -c (--config_id) string : config_id [_cli]
     -p (--server_port) u16 : server_port [5901]
-    -a (--auto_reconnect) bool : auto reconnect [true]
     -r (--auto_resume) bool : auto_resume [false]
-    -s (--sound_source) u16 : sound_source index or name [os default]
+    -s (--sound_source) u16|string  : sound_source index or name [os default]
     -l (--log_level) string : log_level (info/debug) [info]
     -i (--ssdp_interval) i32 : ssdp_interval_mins [10]
     -b (--bits) u16 : bits_per_sample (16/24) [16]
-    -f (--format) string : streaming_format (lpcm/flac/wav) [LPCM] optionally followed by a plus sign and a streamsize[LPCM+U64maxNotChunked] 
-    -o (--player_ip) string : the player ip address [last used player] or the player device name (can be comma-seperated list if multiple players are selected)
+    -f (--format) string : streaming_format (lpcm/flac/wav/rf64) [LPCM]
+       optionally followed by a plus sign and a streamsize [LPCM+U64maxNotChunked] 
+    -o (--player_ip) string : (comma-separated) player ip address(es) [last used player]
     -e (--ip_address) string : ip address of the network interface [last used]
-    -x (--serve_only) bool : skip ssdp discovery and start serving immediately [false]
-    -u (--upfront-buffer) i32: initial audio bufferign before streaming starts [0]
-    -L (--language): select the UI language [en-US]
+    -S (--inject_silence) bool : inject silence into stream (bool) [false]
+    -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
+    -v (--volume) u8 : desired player volume between 0 and 100 [unchanged]
+    -u (--upfront_buffer) u32 : initial buffering in milliseconds [0]
+    -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
     -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
+    -d (--dither) bool : use TPDF dither for 16-bit output [true]
 ```
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.
@@ -271,6 +274,10 @@ Most options except -h, -n and -x are saved in the config file, so once a config
 
 Options -h, -n and -x will ignore the optional boolean argument (true/false) if specified. Specifying the option alone is equivalent to true.
 Other boolean options accept an optional true/false, because they are remembered in the config file and you should be able to change the stored value.
+
+Short options allow you to append the value to the short option, for example -S44100 is equivalent to -S 44100 and --sample_rate 44100, same for -xno etc...
+
+Boolean values accept y/yes/n/no/t/true/f/false/1/0.
 
 Hint: use the **-n (dry-run) mode** to get the index of the sound source device and the ip address of the receiver that you need to pass as commandline parameter.
 

@@ -154,6 +154,9 @@ fn main() -> Result<(), i32> {
     if args.inject_silence.is_some() {
         config.inject_silence = args.inject_silence;
     }
+    if args.use_dither.is_some() {
+        config.use_dither = args.use_dither;
+    }
     // set soundsource index or name from args or config
     let audio_devices = get_output_audio_devices();
     // get the index from args or config

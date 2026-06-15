@@ -37,6 +37,7 @@ pub struct Args {
     pub upfront_buffer: Option<u32>,
     pub language: Option<String>,
     pub sample_rate: Option<u32>,
+    pub use_dither: Option<bool>,
 }
 
 impl Args {
@@ -66,6 +67,7 @@ Recognized options:
     -u (--upfront_buffer) u32 : initial buffering in milliseconds [0]
     -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
     -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
+    -d (--dither) bool : use TPDF dither for 16-bit output [true]
 "#
         );
         println!("{self:?}");
@@ -286,6 +288,16 @@ Recognized options:
                         }
                     }
                 }
+                Short('d') | Long("dither") => {
+                    if let Ok(dither) = argparser.value() {
+                        match dither.string().unwrap_or_default().sanitize_bool().parse() {
+                            Ok(v) => self.use_dither = Some(v),
+                            Err(x) => errors.push(format!("Invalid dither flag: {x}.")),
+                        }
+                    } else {
+                        self.use_dither = Some(true);
+                    }
+                }
                 _ => (),
             }
         }
@@ -384,6 +396,14 @@ mod tests {
         // so the only way to hit the else-branch (default true) is when -r is the last arg
         let a = parse(&["prog", "-r"]).unwrap();
         assert_eq!(a.auto_resume, Some(true));
+    }
+
+    #[test]
+    fn auto_resume_attached_value() {
+        let a = parse(&["prog", "-rtrue"]).unwrap();
+        assert_eq!(a.auto_resume, Some(true));
+        let a = parse(&["prog", "-rfalse"]).unwrap();
+        assert_eq!(a.auto_resume, Some(false));
     }
 
     // --- sound_source ---
@@ -645,6 +665,35 @@ mod tests {
     fn sample_rate_non_numeric() {
         let errs = parse(&["prog", "-R", "fast"]).unwrap_err();
         assert!(errs.iter().any(|e| e.contains("Invalid sample rate")));
+    }
+
+    // --- dither ---
+
+    #[test]
+    fn dither_true() {
+        let a = parse(&["prog", "-d", "true"]).unwrap();
+        assert_eq!(a.use_dither, Some(true));
+    }
+
+    #[test]
+    fn dither_false() {
+        let a = parse(&["prog", "--dither", "false"]).unwrap();
+        assert_eq!(a.use_dither, Some(false));
+    }
+
+    #[test]
+    fn dither_no_value_defaults_true() {
+        // lexopt only hits the else-branch (default true) when -d is the last arg
+        let a = parse(&["prog", "-d"]).unwrap();
+        assert_eq!(a.use_dither, Some(true));
+    }
+
+    #[test]
+    fn dither_attached_value() {
+        let a = parse(&["prog", "-dtrue"]).unwrap();
+        assert_eq!(a.use_dither, Some(true));
+        let a = parse(&["prog", "-dfalse"]).unwrap();
+        assert_eq!(a.use_dither, Some(false));
     }
 
     // --- error accumulation ---

@@ -140,11 +140,10 @@ impl ChannelStream {
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
-            self.fifo
-                .append(&mut VecDeque::from(chunk.as_ref().clone()));
+            self.fifo.extend(chunk.iter().copied());
             self.sending_silence = false;
         } else {
-            self.fifo.append(&mut VecDeque::from(self.silence.clone()));
+            self.fifo.extend(self.silence.iter().copied());
             self.sending_silence = true;
         }
     }
@@ -223,26 +222,40 @@ impl ChannelStream {
             // zip the buf in chunks of buf_chunksize with the sample chunks of 4 f32 values
             let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(sample_chunks);
             // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
-            // the unwrap on sch.as_array() is safe as all chunks are guaranteed 4 elements (CHUNKSIZE)
+            // SAFETY: chunks_exact(4) guarantees every chunk is exactly 4 elements
             let use_dither = self.use_dither;
             match (endianness, bd) {
                 (Little, Bits16) => chunks_iter.for_each(|(bch, sch)| {
                     i32_to_i16le(
-                        &f32_chunk_to_i32(bd, sch.as_array().unwrap(), use_dither),
+                        &f32_chunk_to_i32(
+                            bd,
+                            unsafe { sch.as_array().unwrap_unchecked() },
+                            use_dither,
+                        ),
                         bch,
                     );
                 }),
                 (Little, Bits24) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i24le(&f32_chunk_to_i32(bd, sch.as_array().unwrap(), false), bch);
+                    i32_to_i24le(
+                        &f32_chunk_to_i32(bd, unsafe { sch.as_array().unwrap_unchecked() }, false),
+                        bch,
+                    );
                 }),
                 (Big, Bits16) => chunks_iter.for_each(|(bch, sch)| {
                     i32_to_i16be(
-                        &f32_chunk_to_i32(bd, sch.as_array().unwrap(), use_dither),
+                        &f32_chunk_to_i32(
+                            bd,
+                            unsafe { sch.as_array().unwrap_unchecked() },
+                            use_dither,
+                        ),
                         bch,
                     );
                 }),
                 (Big, Bits24) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i24be(&f32_chunk_to_i32(bd, sch.as_array().unwrap(), false), bch);
+                    i32_to_i24be(
+                        &f32_chunk_to_i32(bd, unsafe { sch.as_array().unwrap_unchecked() }, false),
+                        bch,
+                    );
                 }),
             }
         } // make_contiguous borrow ends here

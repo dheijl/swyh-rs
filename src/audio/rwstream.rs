@@ -140,10 +140,10 @@ impl ChannelStream {
     fn get_samples(&mut self) {
         let time_out = self.capture_timeout;
         if let Ok(chunk) = self.r.recv_timeout(time_out) {
-            self.fifo.extend(chunk.iter().copied());
+            self.fifo.extend(chunk.iter());
             self.sending_silence = false;
         } else {
-            self.fifo.extend(self.silence.iter().copied());
+            self.fifo.extend(self.silence.iter());
             self.sending_silence = true;
         }
     }

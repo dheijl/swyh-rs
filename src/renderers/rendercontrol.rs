@@ -17,7 +17,7 @@ use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::{button::LightButton, valuator::HorNiceSlider};
 use fluent_uri::Uri;
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 use log::{debug, error, info};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
@@ -1074,59 +1074,63 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
     }
 
     // only keep OH devices and AV devices that are not OH capable
+    let oh_locations: HashSet<String> = oh_devices.iter().map(|(l, _)| l.clone()).collect();
     let mut usable_devices: Vec<(String, SocketAddr)> =
         Vec::with_capacity(oh_devices.len() + av_devices.len());
-    for (oh_location, sa) in &oh_devices {
-        usable_devices.push((oh_location.to_string(), *sa));
-    }
-    for (av_location, sa) in &av_devices {
-        if usable_devices.iter().any(|d| d.0 == *av_location) {
+    usable_devices.extend(oh_devices);
+    for (av_location, sa) in av_devices {
+        if oh_locations.contains(av_location.as_str()) {
             debug!("SSDP Discovery: skipping AV renderer {av_location} as it is also OH");
         } else {
-            usable_devices.push((av_location.to_string(), *sa));
+            usable_devices.push((av_location, sa));
         }
     }
     // now filter out devices we already know about
-    for (location, sa) in &usable_devices {
-        if rmap.iter().any(|m| *location == m.1.location) {
+    let known_locations: HashSet<&str> = rmap.values().map(|r| r.location.as_str()).collect();
+    for (location, sa) in usable_devices {
+        if known_locations.contains(location.as_str()) {
             info!("SSDP discovery: Skipping known Renderer at {location}");
         } else {
             info!("SSDP discovery: new Renderer found at : {location}");
-            devices.push((location.to_string(), *sa));
+            devices.push((location, sa));
         }
     }
 
-    // now get the new renderers description xml
+    // now get the new renderers description xml, fetched concurrently since each
+    // is an independent blocking HTTP round-trip to a different renderer
     debug!("Getting new renderer descriptions");
-    let mut renderers: Vec<Renderer> = Vec::with_capacity(devices.len());
-
-    for (location, from) in devices {
-        if let Some(xml) = get_service_description(agent, &location)
-            && let Some(mut rend) = get_renderer(agent, &xml)
-        {
-            rend.location.clone_from(&location);
-            let mut s = from.to_string();
-            if let Some(i) = s.find(':') {
-                s.truncate(i);
-            }
-            rend.remote_addr = s;
-            // check for an absent URLBase in the description
-            // or devices like Yamaha WXAD-10 with bad URLBase port number
-            if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {
-                let mut url_base = location;
-                if url_base.contains("http://") {
-                    url_base = url_base["http://".to_string().len()..].to_string();
-                    let pos = url_base.find('/').unwrap_or_default();
-                    if pos > 0 {
-                        url_base = url_base[0..pos].to_string();
+    let renderers: Vec<Renderer> = std::thread::scope(|scope| {
+        let handles: Vec<_> = devices
+            .into_iter()
+            .map(|(location, from)| {
+                scope.spawn(move || {
+                    let xml = get_service_description(agent, &location)?;
+                    let mut rend = get_renderer(agent, &xml)?;
+                    rend.location.clone_from(&location);
+                    rend.remote_addr = from.ip().to_string();
+                    // check for an absent URLBase in the description
+                    // or devices like Yamaha WXAD-10 with bad URLBase port number
+                    if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {
+                        let mut url_base = location;
+                        if url_base.contains("http://") {
+                            url_base = url_base["http://".to_string().len()..].to_string();
+                            let pos = url_base.find('/').unwrap_or_default();
+                            if pos > 0 {
+                                url_base = url_base[0..pos].to_string();
+                            }
+                        }
+                        rend.dev_url = format!("http://{url_base}/");
                     }
-                }
-                rend.dev_url = format!("http://{url_base}/");
-            }
-            rend.parse_url();
-            renderers.push(rend);
-        }
-    }
+                    rend.parse_url();
+                    Some(rend)
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .filter_map(|h| h.join().unwrap_or(None))
+            .collect()
+    });
 
     for r in &renderers {
         debug!(

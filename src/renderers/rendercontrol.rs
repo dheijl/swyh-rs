@@ -770,19 +770,19 @@ impl Renderer {
         // parse response to extract volume
         debug!("oh_get_volume response: {vol_xml}");
         let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = String::with_capacity(16);
+        let mut cur_elem = EcoString::new();
         let mut have_vol_response = false;
-        let mut str_volume = "-1".to_string();
+        let mut str_volume = EcoString::from("-1".to_string());
         for e in parser {
             match e {
                 Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem.clone_from(&name.local_name);
+                    cur_elem = EcoString::from(&name.local_name);
                     if cur_elem == "VolumeResponse" {
                         have_vol_response = true;
                     }
                 }
                 Ok(XmlEvent::Characters(value)) if cur_elem == "Value" && have_vol_response => {
-                    str_volume = value;
+                    str_volume = EcoString::from(value);
                 }
                 Err(e) => {
                     error!("OH Volume XML parse error: {e}");

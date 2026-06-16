@@ -8,6 +8,7 @@
   - 16-bit TPD dither is now optional. The 16-bit TPDF dither checkbox in the Audio tab is enabled when 24-bit is not checked, and disabled and inactive when 24-bit is checked. You should probably enavble dither for 16 bit, but you have the choice. Not dithering speeds up the samples conversion several times.
   - optimize the 16 bit dither code a bit (almost a 30 % inmprovement).
   - add a CLI commandline option -d/--dither (default true)
+  - optimize SSDP discovery (parallel description fetch)
 
 - 1.20.3 (Jun 7 2026, dheijl)
   - now uses CPAL 0.18.0. The new CPAL `realtime` feature is not used. If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features (pipewire/pulseaudio/jack and realtime or realtime-dbus). I think swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.

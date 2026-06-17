@@ -53,7 +53,9 @@ impl StreamingParams {
                 .filter_map(|part| part.split_once('='))
                 .for_each(|(k, v)| match k {
                     "bd" => params.bd = Some(BitDepth::from_str(v).unwrap_or(BitDepth::Bits16)),
-                    "ss" => params.ss = Some(StreamSize::from_str(v).unwrap_or(StreamSize::NoneChunked)),
+                    "ss" => {
+                        params.ss = Some(StreamSize::from_str(v).unwrap_or(StreamSize::NoneChunked))
+                    }
                     _ => (),
                 });
         }

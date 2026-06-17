@@ -25,6 +25,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 - [Latency, streaming format and stream duration](#latency-and-streaming-format-and-stream-duration)
 - [Audio quality and Windows WasApi Loopback capture](#audio-quality-and-windows-wasapi-loopback-capture)
 - [Releases](#releases)
+- [AI use](#ai-use)
 - [Screenshots](#screenshots)
 
 ## Current Release
@@ -338,6 +339,10 @@ The binaries I publish in [Releases](https://github.com/dheijl/swyh-rs/releases)
 I do my best to keep everything up-to-date.
 
 MAC: I'm sorry but I don't have one... If you have one and would like to contribute: please go ahead!
+
+### AI use
+
+  Since version 1.19 I started using Claude for code review or advice, occasionally letting Claude insert or replace some code where I thought that Claude was right and/or did better than me (which was not always the case). I'm not a fan of vibe coding, I want to be responsible for every line of code in swyh-rs.
 
 ### Screenshots
 

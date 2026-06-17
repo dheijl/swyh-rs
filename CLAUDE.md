@@ -47,20 +47,9 @@ fn process_file(path: &str) -> Result<String> {
 ### 2. Concurrency & Thread Safety
 
 - **Ownership model**: Leverage Rust's ownership system for thread safety
-- **Async/await**: Use `tokio` for asynchronous programming
-- **Channel communication**: Use `Crossbeam` channels for thread communication
+- **Thread-based concurrency**: This project uses OS threads, not async/await — do not introduce `tokio` or `async-std`
+- **Channel communication**: Use `crossbeam-channel` for thread communication
 - **Mutex/RwLock**: Use for shared mutable state when necessary
-
-```rust
-// Async example
-use tokio::time::{sleep, Duration};
-
-async fn fetch_data(url: &str) -> Result<String> {
-    let response = reqwest::get(url).await?;
-    let text = response.text().await?;
-    Ok(text)
-}
-```
 
 ### 3. Configuration & Dependency Injection
 
@@ -134,9 +123,8 @@ pub fn authenticate(username: &str, password: &str) -> Result<User, AuthError> {
 
 ### Logging Standards
 
-- **Structured logging**: Use `log` for structured logging
+- **Structured logging**: Use the `log` crate (`log::info!`, `log::debug!`, etc.) — do not use `tracing`
 - **Log levels**: Use appropriate levels (trace, debug, info, warn, error)
-- **Contextual logging**: Include relevant context with spans
 - **Performance**: Use logging guards for expensive operations
 
 ### Testing Requirements
@@ -242,12 +230,11 @@ fn platform_specific_function() {
 - **Iterator chains**: Use iterator adaptors for efficient data processing
 - **Profiling**: Use `perf` and `flamegraph` for performance analysis
 
-### Async Performance
+### Concurrency Performance
 
-- **Async runtime**: Choose appropriate async runtime (tokio, async-std)
-- **Concurrent operations**: Use `join!` and `select!` for concurrency
+- **Thread pools**: Spawn threads for long-running tasks (audio capture, HTTP serving, SSDP)
 - **Buffering**: Use appropriate buffer sizes for I/O operations
-- **Connection pooling**: Implement connection pooling for database/network operations
+- **Channels**: Prefer `crossbeam-channel` over `std::sync::mpsc` for performance
 
 ## Security & Privacy
 
@@ -294,11 +281,10 @@ fn platform_specific_function() {
 ### Core Libraries
 
 - **serde**: Serialization/deserialization
-- **tokio**: Async runtime
 - **anyhow/thiserror**: Error handling
-- **tracing**: Structured logging
-- **clap**: Command-line argument parsing
-- **lexopt**: alternative command-line parsing
+- **log**: Structured logging
+- **lexopt**: Command-line argument parsing (CLI binary only)
+- **crossbeam-channel**: Thread communication
 
 ### Testing Libraries
 

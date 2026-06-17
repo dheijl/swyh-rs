@@ -50,18 +50,10 @@ impl StreamingParams {
         if params.fmt.is_some() {
             query_part
                 .split('&')
-                .filter_map(|part| {
-                    let mut kv_pair = part.splitn(2, '=');
-                    match (kv_pair.next(), kv_pair.next()) {
-                        (Some(k), Some(v)) => Some((k, v)),
-                        _ => None,
-                    }
-                })
+                .filter_map(|part| part.split_once('='))
                 .for_each(|(k, v)| match k {
                     "bd" => params.bd = Some(BitDepth::from_str(v).unwrap_or(BitDepth::Bits16)),
-                    "ss" => {
-                        params.ss = Some(StreamSize::from_str(v).unwrap_or(StreamSize::NoneChunked))
-                    }
+                    "ss" => params.ss = Some(StreamSize::from_str(v).unwrap_or(StreamSize::NoneChunked)),
                     _ => (),
                 });
         }

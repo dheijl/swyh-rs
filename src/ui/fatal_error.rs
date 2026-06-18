@@ -7,7 +7,7 @@ pub fn fatal_error(msg: String) -> ! {
     fltk::dialog::message_default(&msg);
     while fltk::app::wait() {
         thread::sleep(Duration::from_millis(250));
-        if fltk::app::should_program_quit() {
+        if fltk::app::event_is_click() {
             break;
         }
     }

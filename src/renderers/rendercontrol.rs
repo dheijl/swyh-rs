@@ -914,6 +914,7 @@ static AV_DEVICE: &str = AV_SCHEMA;
 static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";
 static OH_DEVICE: &str = OH_SCHEMA;
 
+/// the relevant info extracted from an SSDP response
 struct SsdpResponse {
     status_code: u32,
     location: String,
@@ -921,6 +922,8 @@ struct SsdpResponse {
     is_oh: bool,
 }
 
+/// parse the the relevant headers from the SSDP HTTP response
+/// into an SsdpResponse struct
 fn parse_ssdp_response(resp: &str) -> SsdpResponse {
     let mut lines = resp.lines();
     let status_code = lines
@@ -964,37 +967,19 @@ fn parse_ssdp_response(resp: &str) -> SsdpResponse {
     }
 }
 
-//
-// SSDP UPNP service discovery
-//
-// returns a list of all AVTransport DLNA and Openhome rendering devices
-//
-pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
-    // default SSDP respons TTL
+/// Send SSDP M-SEARCH messages and collect AV/OH renderer responses.
+///
+/// Returns a deduplicated list of `(location_url, socket_addr)` pairs,
+/// preferring OpenHome entries when a device advertises both protocols.
+/// Returns `None` if the UDP socket cannot be created or bound.
+fn ssdp_search(local_addr: IpAddr) -> Option<Vec<(String, SocketAddr)>> {
     const DEFAULT_SEARCH_TTL: u32 = 2;
-    // SSDP UDP search message for media renderers with a 3.0 second MX response time
     static SSDP_DISCOVER_MSG: &str = "M-SEARCH * HTTP/1.1\r\n\
 Host: 239.255.255.250:1900\r\n\
 Man: \"ssdp:discover\"\r\n\
 ST: {device_type}\r\n\
 MX: 3\r\n\r\n";
 
-    debug!("SSDP discovery started");
-
-    // get the address of the selected interface
-    let ip = if let Some(s) = get_config().last_network.clone() {
-        s
-    } else {
-        ui_log(LogCategory::Error, &fl!("err-ssdp-no-network"));
-        return None;
-    };
-    info!("running SSDP on {ip}");
-    let local_addr: IpAddr = if let Ok(addr) = ip.parse() {
-        addr
-    } else {
-        ui_log(LogCategory::Error, &fl!("err-ssdp-parse-ip"));
-        return None;
-    };
     let bind_addr = SocketAddr::new(local_addr, 0);
     let sock2 = if let Ok(s) = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP)) {
         s
@@ -1020,12 +1005,10 @@ MX: 3\r\n\r\n";
         ui_log(LogCategory::Error, &fl!("err-ssdp-ttl"));
     }
     let socket: UdpSocket = sock2.into();
-    // broadcast the M-SEARCH message (MX is 3 secs) and collect responses
+    let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
     let mut oh_devices: Vec<(String, SocketAddr)> = Vec::new();
     let mut av_devices: Vec<(String, SocketAddr)> = Vec::new();
-    let mut devices: Vec<(String, SocketAddr)> = Vec::new();
-    //  SSDP UDP broadcast address
-    let broadcast_address: SocketAddr = ([239, 255, 255, 250], 1900).into();
+
     let msg = SSDP_DISCOVER_MSG.replace("{device_type}", OH_DEVICE);
     if socket.send_to(msg.as_bytes(), broadcast_address).is_err() {
         ui_log(LogCategory::Error, &fl!("err-ssdp-oh-send"));
@@ -1034,11 +1017,10 @@ MX: 3\r\n\r\n";
     if socket.send_to(msg.as_bytes(), broadcast_address).is_err() {
         ui_log(LogCategory::Error, &fl!("err-ssdp-av-send"));
     }
-    // collect the responses and remeber all new renderers
+
     let start = Instant::now();
     loop {
         let duration = start.elapsed().as_millis() as u64;
-        // keep capturing responses for 3.1 seconds
         if duration >= 3100 {
             break;
         }
@@ -1047,10 +1029,9 @@ MX: 3\r\n\r\n";
             .set_read_timeout(Some(Duration::from_millis(max_wait_time)))
             .ok();
         let mut buf: [u8; 2048] = [0; 2048];
-        let resp: String;
         match socket.recv_from(&mut buf) {
             Ok((received, from)) => {
-                resp = String::from_utf8_lossy(&buf[0..received]).to_string();
+                let resp = String::from_utf8_lossy(&buf[0..received]).to_string();
                 debug!(
                     "SSDP: HTTP response at {} from {}: \r\n{}",
                     start.elapsed().as_millis(),
@@ -1060,7 +1041,7 @@ MX: 3\r\n\r\n";
                 let parsed = parse_ssdp_response(&resp);
                 if parsed.status_code != 200 {
                     error!("SSDP: UHTTP error response status={}", parsed.status_code);
-                    continue; // ignore
+                    continue;
                 }
                 if !parsed.location.is_empty() {
                     if parsed.is_av {
@@ -1088,28 +1069,58 @@ MX: 3\r\n\r\n";
         }
     }
 
-    // only keep OH devices and AV devices that are not OH capable
+    // only keep OH devices and AV devices that are not also OH capable
     let oh_locations: HashSet<String> = oh_devices.iter().map(|(l, _)| l.clone()).collect();
-    let mut usable_devices: Vec<(String, SocketAddr)> =
+    let mut usable: Vec<(String, SocketAddr)> =
         Vec::with_capacity(oh_devices.len() + av_devices.len());
-    usable_devices.extend(oh_devices);
+    usable.extend(oh_devices);
     for (av_location, sa) in av_devices {
         if oh_locations.contains(av_location.as_str()) {
             debug!("SSDP Discovery: skipping AV renderer {av_location} as it is also OH");
         } else {
-            usable_devices.push((av_location, sa));
+            usable.push((av_location, sa));
         }
     }
-    // now filter out devices we already know about
+    Some(usable)
+}
+
+//
+// SSDP UPNP service discovery
+//
+// returns a list of all AVTransport DLNA and Openhome rendering devices
+//
+pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
+    debug!("SSDP discovery started");
+
+    // get the address of the selected interface
+    let ip = if let Some(s) = get_config().last_network.clone() {
+        s
+    } else {
+        ui_log(LogCategory::Error, &fl!("err-ssdp-no-network"));
+        return None;
+    };
+    info!("running SSDP on {ip}");
+    let local_addr: IpAddr = if let Ok(addr) = ip.parse() {
+        addr
+    } else {
+        ui_log(LogCategory::Error, &fl!("err-ssdp-parse-ip"));
+        return None;
+    };
+
+    // filter out devices we already know about
     let known_locations: HashSet<&str> = rmap.values().map(|r| r.location.as_str()).collect();
-    for (location, sa) in usable_devices {
-        if known_locations.contains(location.as_str()) {
-            info!("SSDP discovery: Skipping known Renderer at {location}");
-        } else {
-            info!("SSDP discovery: new Renderer found at : {location}");
-            devices.push((location, sa));
-        }
-    }
+    let devices: Vec<(String, SocketAddr)> = ssdp_search(local_addr)?
+        .into_iter()
+        .filter(|(location, _)| {
+            if known_locations.contains(location.as_str()) {
+                info!("SSDP discovery: Skipping known Renderer at {location}");
+                false
+            } else {
+                info!("SSDP discovery: new Renderer found at : {location}");
+                true
+            }
+        })
+        .collect();
 
     // now get the new renderers description xml, fetched concurrently since each
     // is an independent blocking HTTP round-trip to a different renderer
@@ -1168,7 +1179,8 @@ MX: 3\r\n\r\n";
     Some(renderers)
 }
 
-/// `get_service_description` - get the upnp service description xml for a media renderer
+/// `get_service_description`
+/// get the upnp service description xml for a media renderer
 fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String> {
     debug!("Get service description for {location}");
     match agent

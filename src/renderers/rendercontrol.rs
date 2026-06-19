@@ -1106,9 +1106,9 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
         ui_log(LogCategory::Error, &fl!("err-ssdp-parse-ip"));
         return None;
     };
-
-    // filter out devices we already know about
+    // build a hashset of the devices we have discovered previously
     let known_locations: HashSet<&str> = rmap.values().map(|r| r.location.as_str()).collect();
+    // run the SSDP search and filter out the devices we already know about
     let devices: Vec<(String, SocketAddr)> = ssdp_search(local_addr)?
         .into_iter()
         .filter(|(location, _)| {
@@ -1158,24 +1158,27 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
             .collect()
     });
 
-    for r in &renderers {
-        debug!(
-            "Renderer {} {} ip {} at location {} has {} services",
-            r.dev_name,
-            r.dev_model,
-            r.remote_addr,
-            r.location,
-            r.services.len()
-        );
-        debug!(
-            "  => OpenHome Playlist control url: '{}', AvTransport url: '{}'",
-            r.oh_control_url, r.av_control_url
-        );
-        for s in &r.services {
-            debug!(".. {} {} {}", s.service_type, s.service_id, s.control_url);
+    #[cfg(debug_assertions)]
+    {
+        for r in &renderers {
+            debug!(
+                "Renderer {} {} ip {} at location {} has {} services",
+                r.dev_name,
+                r.dev_model,
+                r.remote_addr,
+                r.location,
+                r.services.len()
+            );
+            debug!(
+                "  => OpenHome Playlist control url: '{}', AvTransport url: '{}'",
+                r.oh_control_url, r.av_control_url
+            );
+            for s in &r.services {
+                debug!(".. {} {} {}", s.service_type, s.service_id, s.control_url);
+            }
         }
+        debug!("SSDP discovery complete");
     }
-    debug!("SSDP discovery complete");
     Some(renderers)
 }
 

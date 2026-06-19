@@ -909,12 +909,60 @@ impl Renderer {
     }
 }
 
-// SSDP UDP search message for media renderers with a 3.0 second MX response time
-static SSDP_DISCOVER_MSG: &str = "M-SEARCH * HTTP/1.1\r\n\
-Host: 239.255.255.250:1900\r\n\
-Man: \"ssdp:discover\"\r\n\
-ST: {device_type}\r\n\
-MX: 3\r\n\r\n";
+static AV_SCHEMA: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
+static AV_DEVICE: &str = AV_SCHEMA;
+static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";
+static OH_DEVICE: &str = OH_SCHEMA;
+
+struct SsdpResponse {
+    status_code: u32,
+    location: String,
+    is_av: bool,
+    is_oh: bool,
+}
+
+fn parse_ssdp_response(resp: &str) -> SsdpResponse {
+    let mut lines = resp.lines();
+    let status_code = lines
+        .next()
+        .unwrap_or("")
+        .trim_start_matches("HTTP/1.1 ")
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect::<String>()
+        .parse::<u32>()
+        .unwrap_or(0);
+    let mut location = String::new();
+    let mut is_av = false;
+    let mut is_oh = false;
+    lines
+        .filter_map(|l| {
+            let mut split = l.splitn(2, ':');
+            match (split.next(), split.next()) {
+                (Some(header), Some(value)) => Some((header, value.trim())),
+                _ => None,
+            }
+        })
+        .for_each(
+            |(header, value)| match header.to_ascii_uppercase().as_str() {
+                "LOCATION" => location = value.to_string(),
+                "ST" => {
+                    if value.contains(AV_SCHEMA) {
+                        is_av = true;
+                    } else if value.contains(OH_SCHEMA) {
+                        is_oh = true;
+                    }
+                }
+                _ => (),
+            },
+        );
+    SsdpResponse {
+        status_code,
+        location,
+        is_av,
+        is_oh,
+    }
+}
 
 //
 // SSDP UPNP service discovery
@@ -922,11 +970,14 @@ MX: 3\r\n\r\n";
 // returns a list of all AVTransport DLNA and Openhome rendering devices
 //
 pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
-    static AV_SCHEMA: &str = "urn:schemas-upnp-org:service:RenderingControl:1";
-    static AV_DEVICE: &str = AV_SCHEMA;
-    static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";
-    static OH_DEVICE: &str = OH_SCHEMA;
+    // default SSDP respons TTL
     const DEFAULT_SEARCH_TTL: u32 = 2;
+    // SSDP UDP search message for media renderers with a 3.0 second MX response time
+    static SSDP_DISCOVER_MSG: &str = "M-SEARCH * HTTP/1.1\r\n\
+Host: 239.255.255.250:1900\r\n\
+Man: \"ssdp:discover\"\r\n\
+ST: {device_type}\r\n\
+MX: 3\r\n\r\n";
 
     debug!("SSDP discovery started");
 
@@ -1006,54 +1057,18 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
                     from,
                     resp
                 );
-                let response: Vec<&str> = resp.split("\r\n").collect();
-                if !response.is_empty() {
-                    let status_code = response[0]
-                        .trim_start_matches("HTTP/1.1 ")
-                        .chars()
-                        .take_while(char::is_ascii_digit)
-                        .collect::<String>()
-                        .parse::<u32>()
-                        .unwrap_or(0);
-
-                    if status_code != 200 {
-                        error!("SSDP: UHTTP error response status={status_code}");
-                        continue; // ignore
-                    }
-                    // parse the SSDP UHTTP response headers
-                    let mut dev_location = String::new();
-                    let mut oh_device = false;
-                    let mut av_device = false;
-                    response
-                        .iter()
-                        .filter_map(|l| {
-                            let mut split = l.splitn(2, ':');
-                            match (split.next(), split.next()) {
-                                (Some(header), Some(value)) => Some((header, value.trim())),
-                                _ => None,
-                            }
-                        })
-                        .for_each(
-                            |(header, value)| match header.to_ascii_uppercase().as_str() {
-                                "LOCATION" => dev_location = value.to_string(),
-                                "ST" => {
-                                    if value.contains(AV_SCHEMA) {
-                                        av_device = true;
-                                    } else if value.contains(OH_SCHEMA) {
-                                        oh_device = true;
-                                    }
-                                }
-                                _ => (),
-                            },
-                        );
-                    if !dev_location.is_empty() {
-                        if av_device {
-                            av_devices.push((dev_location.clone(), from));
-                            debug!("SSDP Discovery: AV renderer: {dev_location}");
-                        } else if oh_device {
-                            oh_devices.push((dev_location.clone(), from));
-                            debug!("SSDP Discovery: OH renderer: {dev_location}");
-                        }
+                let parsed = parse_ssdp_response(&resp);
+                if parsed.status_code != 200 {
+                    error!("SSDP: UHTTP error response status={}", parsed.status_code);
+                    continue; // ignore
+                }
+                if !parsed.location.is_empty() {
+                    if parsed.is_av {
+                        av_devices.push((parsed.location.clone(), from));
+                        debug!("SSDP Discovery: AV renderer: {}", parsed.location);
+                    } else if parsed.is_oh {
+                        oh_devices.push((parsed.location.clone(), from));
+                        debug!("SSDP Discovery: OH renderer: {}", parsed.location);
                     }
                 }
             }
@@ -1387,60 +1402,17 @@ mod tests {
 
     #[test]
     fn test_bubble() {
-        static BUBBLE_SSDP: &str = "HTTP/1.1 200 OK
-Ext:
-St: urn:schemas-upnp-org:service:RenderingControl:1
-Server: Linux/6.8.4-3-pve UPnP/1.0 BubbleUPnPServer/0.9-update49
-Usn: uuid:e8dbf26b-de8f-4c96-0000-0000002ea642::urn:schemas-upnp-org:service:RenderingControl:1
-Cache-control: max-age=1800\r\n
-Location: http://192.168.1.181:33065/dev/e8dbf26b-de8f-4c96-0000-0000002ea642/desc.xml
-";
-        let response: Vec<&str> = BUBBLE_SSDP.split("\n").collect();
-        if !response.is_empty() {
-            let status_code = response[0]
-                .trim_start_matches("HTTP/1.1 ")
-                .chars()
-                .take_while(|x| x.is_ascii_digit())
-                .collect::<String>()
-                .parse::<u32>()
-                .unwrap_or(0);
-
-            assert!(status_code == 200);
-
-            let mut dev_url = String::new();
-            let mut oh_device = false;
-            let mut av_device = false;
-            response
-                .iter()
-                .filter_map(|l| {
-                    let mut split = l.splitn(2, ':');
-                    match (split.next(), split.next()) {
-                        (Some(header), Some(value)) => Some((header, value.trim())),
-                        _ => None,
-                    }
-                })
-                .for_each(|hv_pair| match hv_pair.0.to_ascii_uppercase().as_str() {
-                    "LOCATION" => dev_url = hv_pair.1.to_string(),
-                    "ST" => match hv_pair.1 {
-                        schema
-                            if schema
-                                .contains("urn:schemas-upnp-org:service:RenderingControl:1") =>
-                        {
-                            av_device = true;
-                        }
-                        schema if schema.contains("urn:av-openhome-org:service:Product:1") => {
-                            oh_device = true;
-                        }
-                        _ => (),
-                    },
-                    _ => eprintln!("{} = {}", hv_pair.0, hv_pair.1),
-                });
-            eprintln!("{dev_url}");
-            eprintln!("{oh_device}");
-            eprintln!("{av_device}");
-            assert!(!dev_url.is_empty());
-            assert!(av_device);
-            assert!(!oh_device);
-        }
+        static BUBBLE_SSDP: &str = "HTTP/1.1 200 OK\r\n\
+Ext:\r\n\
+St: urn:schemas-upnp-org:service:RenderingControl:1\r\n\
+Server: Linux/6.8.4-3-pve UPnP/1.0 BubbleUPnPServer/0.9-update49\r\n\
+Usn: uuid:e8dbf26b-de8f-4c96-0000-0000002ea642::urn:schemas-upnp-org:service:RenderingControl:1\r\n\
+Cache-control: max-age=1800\r\n\
+Location: http://192.168.1.181:33065/dev/e8dbf26b-de8f-4c96-0000-0000002ea642/desc.xml\r\n";
+        let parsed = parse_ssdp_response(BUBBLE_SSDP);
+        assert_eq!(parsed.status_code, 200);
+        assert!(!parsed.location.is_empty());
+        assert!(parsed.is_av);
+        assert!(!parsed.is_oh);
     }
 }

@@ -1040,7 +1040,7 @@ MX: 3\r\n\r\n";
                 );
                 let parsed = parse_ssdp_response(&resp);
                 if parsed.status_code != 200 {
-                    error!("SSDP: UHTTP error response status={}", parsed.status_code);
+                    error!("SSDP: HTTP error response status={}", parsed.status_code);
                     continue;
                 }
                 if !parsed.location.is_empty() {

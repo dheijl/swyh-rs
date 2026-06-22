@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="870" viewBox="0 0 960 870">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#555"/>
+    </marker>
+    <style>
+      text { font-family: ui-monospace, "Cascadia Code", "Consolas", monospace; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="870" fill="#f5f7f9"/>
+
+  <!-- ── Title ── -->
+  <text x="480" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#1a1a2e">swyh-rs · Audio Sample Flow: Capture → Streaming Clients</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       LAYER 1 — OS Audio Device
+  ════════════════════════════════════════════════════ -->
+  <rect x="270" y="40" width="420" height="54" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="6"/>
+  <text x="480" y="61" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">OS Audio Device</text>
+  <text x="480" y="79" text-anchor="middle" font-size="11" fill="#1565c0">WASAPI loopback · ALSA · PipeWire · PulseAudio  (via CPAL)</text>
+
+  <!-- arrow OS → wave_reader -->
+  <line x1="480" y1="94" x2="480" y2="118" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="492" y="111" font-size="10" fill="#444">raw PCM  (F32 | I16 | U16 | I32,  N channels)</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       LAYER 2 — wave_reader (CPAL stream callback)
+  ════════════════════════════════════════════════════ -->
+  <rect x="110" y="120" width="740" height="56" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="6"/>
+  <text x="480" y="141" text-anchor="middle" font-size="13" font-weight="bold" fill="#1b5e20">wave_reader / wave_reader_f32  ·  src/audio/audiodevices.rs</text>
+  <text x="480" y="159" text-anchor="middle" font-size="11" fill="#2e7d32">① Convert to f32 via dasp_sample::ToSample     ② Downmix to stereo if channels ≠ 2  (samples_conv::downmix_to_stereo)</text>
+  <!-- CPAL thread badge -->
+  <rect x="116" y="126" width="116" height="16" fill="#c8e6c9" stroke="#388e3c" stroke-width="1" rx="3"/>
+  <text x="174" y="138" text-anchor="middle" font-size="9" fill="#1b5e20">CPAL audio thread</text>
+
+  <!-- arrow wave_reader → distribute_samples -->
+  <line x1="480" y1="176" x2="480" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="492" y="193" font-size="10" fill="#444">&amp;[f32]  stereo samples</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       LAYER 3 — distribute_samples
+  ════════════════════════════════════════════════════ -->
+  <rect x="160" y="202" width="640" height="56" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="6"/>
+  <text x="480" y="222" text-anchor="middle" font-size="13" font-weight="bold" fill="#e65100">distribute_samples()  ·  src/audio/audiodevices.rs</text>
+  <text x="480" y="241" text-anchor="middle" font-size="11" fill="#bf360c">Arc&lt;Vec&lt;f32&gt;&gt; shared_samples  —  Arc::clone() fanout to every active HTTP client  +  rms_sender.send()</text>
+
+  <!-- fan-out arrow: left → ChannelStream (straight down, offset left) -->
+  <line x1="420" y1="258" x2="380" y2="296" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="338" y="280" font-size="10" fill="#444">Arc::clone()</text>
+  <text x="323" y="292" font-size="10" fill="#444">× N clients</text>
+
+  <!-- fan-out arrow: right → RMS monitor -->
+  <line x1="660" y1="258" x2="765" y2="296" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="672" y="279" font-size="10" fill="#444">rms_sender</text>
+  <text x="672" y="291" font-size="10" fill="#444">.send()</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       RMS Monitor (side branch)
+  ════════════════════════════════════════════════════ -->
+  <rect x="752" y="296" width="186" height="60" fill="#fce4ec" stroke="#c2185b" stroke-width="2" rx="6"/>
+  <text x="845" y="317" text-anchor="middle" font-size="12" font-weight="bold" fill="#880e4f">RMS Monitor Thread</text>
+  <text x="845" y="333" text-anchor="middle" font-size="10" fill="#ad1457">Receiver&lt;AudioSamples&gt;</text>
+  <text x="845" y="348" text-anchor="middle" font-size="10" fill="#ad1457">→ UI VU-meter display</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       LAYER 4 — ChannelStream (one per HTTP client)
+  ════════════════════════════════════════════════════ -->
+  <rect x="80" y="296" width="642" height="74" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="6"/>
+  <text x="400" y="316" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a148c">ChannelStream  [one instance per HTTP client]  ·  src/audio/rwstream.rs</text>
+  <text x="400" y="334" text-anchor="middle" font-size="11" fill="#6a1b9a">CLIENTS: RwLock&lt;HashMap&lt;EcoString, ChannelStream&gt;&gt;  (src/globals/statics.rs)</text>
+  <text x="400" y="352" text-anchor="middle" font-size="11" fill="#6a1b9a">write(): pushes Arc&lt;Vec&lt;f32&gt;&gt; onto Sender&lt;AudioSamples&gt; crossbeam ch.  (max 10 000 queued)</text>
+
+  <!-- arrow ChannelStream → fork -->
+  <line x1="400" y1="370" x2="400" y2="402" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="412" y="390" font-size="10" fill="#444">Receiver&lt;AudioSamples&gt;</text>
+
+  <!-- ── fork horizontal ── -->
+  <line x1="240" y1="402" x2="712" y2="402" stroke="#555" stroke-width="1.5"/>
+  <!-- fork down-left to LPCM box -->
+  <line x1="240" y1="402" x2="240" y2="420" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- fork down-right to FLAC box -->
+  <line x1="712" y1="402" x2="712" y2="420" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- format labels on the fork -->
+  <text x="124" y="399" font-size="10" fill="#555">streaming_format:</text>
+  <text x="124" y="411" font-size="10" font-weight="bold" fill="#3949ab">LPCM | WAV | RF64</text>
+  <text x="716" y="399" font-size="10" fill="#555">streaming_format:</text>
+  <text x="716" y="411" font-size="10" font-weight="bold" fill="#006064">FLAC</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       LAYER 5a — LPCM / WAV / RF64 path
+  ════════════════════════════════════════════════════ -->
+  <rect x="45" y="420" width="390" height="180" fill="#e8eaf6" stroke="#3949ab" stroke-width="2" rx="6"/>
+  <text x="240" y="441" text-anchor="middle" font-size="12" font-weight="bold" fill="#1a237e">LPCM / WAV / RF64 path</text>
+  <text x="240" y="456" text-anchor="middle" font-size="10" fill="#283593">fill_lpcm_buffer()  ·  src/audio/rwstream.rs</text>
+  <line x1="60" y1="463" x2="420" y2="463" stroke="#3949ab" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="240" y="479" text-anchor="middle" font-size="10" fill="#283593">① WAV / RF64 header prepended (44 / 80 bytes)</text>
+  <text x="240" y="496" text-anchor="middle" font-size="10" fill="#283593">② r.recv_timeout() → push to VecDeque&lt;f32&gt; fifo</text>
+  <text x="240" y="512" text-anchor="middle" font-size="10" fill="#283593">   or push silence_buffer on capture timeout</text>
+  <text x="240" y="529" text-anchor="middle" font-size="10" fill="#283593">③ f32_chunk_to_i32()  —  SIMD f32x4 (wide crate)</text>
+  <text x="240" y="545" text-anchor="middle" font-size="10" fill="#283593">   TPDF dither applied at 16-bit  (src/audio/samples_conv.rs)</text>
+  <text x="240" y="561" text-anchor="middle" font-size="10" fill="#283593">④ i32_to_i16le/be  or  i32_to_i24le/be  (endian per format)</text>
+  <text x="240" y="577" text-anchor="middle" font-size="10" fill="#283593">⑤ Encoded bytes fill HTTP &amp;mut [u8] read buffer</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       LAYER 5b — FLAC path
+  ════════════════════════════════════════════════════ -->
+  <rect x="505" y="420" width="415" height="180" fill="#e0f7fa" stroke="#0097a7" stroke-width="2" rx="6"/>
+  <text x="712" y="441" text-anchor="middle" font-size="12" font-weight="bold" fill="#006064">FLAC path  —  FlacChannel  ·  src/audio/flacstream.rs</text>
+  <text x="712" y="456" text-anchor="middle" font-size="10" fill="#00838f">encoder thread "flac_encoder"  (flac-bound crate, compression level 1)</text>
+  <line x1="520" y1="463" x2="905" y2="463" stroke="#0097a7" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="712" y="479" text-anchor="middle" font-size="10" fill="#00838f">① samples_rcvr.recv_timeout()  →  samples_to_i32() (SIMD)</text>
+  <text x="712" y="495" text-anchor="middle" font-size="10" fill="#00838f">   or near-silence noise burst on timeout (keep FLAC stream alive)</text>
+  <text x="712" y="512" text-anchor="middle" font-size="10" fill="#00838f">② enc.process_interleaved() — encode FLAC frames</text>
+  <text x="712" y="528" text-anchor="middle" font-size="10" fill="#00838f">③ FlacWriter (impl Write) pushes bytes onto</text>
+  <text x="712" y="544" text-anchor="middle" font-size="10" fill="#00838f">   Sender&lt;Vec&lt;u8&gt;&gt;  flac_out  crossbeam channel</text>
+  <text x="712" y="561" text-anchor="middle" font-size="10" fill="#00838f">④ fill_flac_buffer(): Receiver&lt;Vec&lt;u8&gt;&gt;  flac_in</text>
+  <text x="712" y="577" text-anchor="middle" font-size="10" fill="#00838f">   → VecDeque&lt;u8&gt; flac_fifo → HTTP &amp;mut [u8] read buffer</text>
+
+  <!-- ── merge arrows from encoding layers to HTTP ── -->
+  <line x1="240" y1="600" x2="240" y2="632" stroke="#555" stroke-width="1.5"/>
+  <line x1="712" y1="600" x2="712" y2="632" stroke="#555" stroke-width="1.5"/>
+  <!-- horizontal merge line -->
+  <line x1="240" y1="632" x2="712" y2="632" stroke="#555" stroke-width="1.5"/>
+  <!-- single arrow down to HTTP box -->
+  <line x1="480" y1="632" x2="480" y2="640" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════
+       LAYER 6 — HTTP Streaming Response
+  ════════════════════════════════════════════════════ -->
+  <rect x="100" y="640" width="760" height="74" fill="#fff8e1" stroke="#f9a825" stroke-width="2" rx="6"/>
+  <text x="480" y="661" text-anchor="middle" font-size="13" font-weight="bold" fill="#e65100">HTTP Streaming Response  ·  src/server/streaming_server.rs  (tiny-http)</text>
+  <text x="480" y="679" text-anchor="middle" font-size="11" fill="#bf360c">200 OK / 206 Partial Content  ·  Content-Type: audio/L16 | audio/L24 | audio/vnd.wave;codec=1 | audio/flac</text>
+  <text x="480" y="697" text-anchor="middle" font-size="11" fill="#bf360c">TransferMode.dlna.org: Streaming  ·  ChannelStream impl Read drives the response body</text>
+
+  <!-- arrows HTTP → renderers -->
+  <line x1="248" y1="714" x2="192" y2="758" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="480" y1="714" x2="480" y2="758" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="712" y1="714" x2="768" y2="758" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- label above the "···" spacers -->
+  <text x="348" y="744" text-anchor="middle" font-size="18" fill="#999">· · ·</text>
+  <text x="614" y="744" text-anchor="middle" font-size="18" fill="#999">· · ·</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       LAYER 7 — DLNA / UPnP Renderers
+  ════════════════════════════════════════════════════ -->
+  <rect x="100" y="758" width="178" height="66" fill="#e3f2fd" stroke="#1976d2" stroke-width="1.5" rx="6"/>
+  <text x="189" y="779" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">Renderer 1</text>
+  <text x="189" y="795" text-anchor="middle" font-size="10" fill="#1565c0">Linn · Volumio · Kodi</text>
+  <text x="189" y="811" text-anchor="middle" font-size="10" fill="#1565c0">DLNA / UPnP AV</text>
+
+  <rect x="391" y="758" width="178" height="66" fill="#e3f2fd" stroke="#1976d2" stroke-width="1.5" rx="6"/>
+  <text x="480" y="779" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">Renderer 2</text>
+  <text x="480" y="795" text-anchor="middle" font-size="10" fill="#1565c0">MPD · BubbleUPnP</text>
+  <text x="480" y="811" text-anchor="middle" font-size="10" fill="#1565c0">DLNA / UPnP AV</text>
+
+  <rect x="682" y="758" width="178" height="66" fill="#e3f2fd" stroke="#1976d2" stroke-width="1.5" rx="6"/>
+  <text x="771" y="779" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">Renderer N</text>
+  <text x="771" y="795" text-anchor="middle" font-size="10" fill="#1565c0">OpenHome · Roon</text>
+  <text x="771" y="811" text-anchor="middle" font-size="10" fill="#1565c0">DLNA / UPnP AV</text>
+
+  <!-- Footer note -->
+  <text x="480" y="846" text-anchor="middle" font-size="10" fill="#888">Each HTTP streaming client has its own ChannelStream with its own crossbeam channel — capture is shared via Arc, encoding is per-client.</text>
+</svg>

@@ -185,6 +185,11 @@ Since version 1.20.3-RC4, thanks to contributions by @Churro:
 - TPDF dithering is used for 16-bit audio
 - multichannel audio is downmixed to stereo, and mono is "upmixed" to stereo.
 
+A diagram showing the flow of the audio samples: 
+
+<img width="1024" height="928" alt="audio_flow" src="https://github.com/user-attachments/assets/cfb0c5be-49d6-4873-a14b-306190717ddb" />
+
+
 The **configuration UI** is organised into four tabs:
 
 #### Audio tab

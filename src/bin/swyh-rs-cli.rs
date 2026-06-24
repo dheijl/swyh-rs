@@ -20,14 +20,14 @@ use std::{
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
-use cpal::{SampleFormat, traits::StreamTrait};
-use crossbeam_channel::{Sender, unbounded};
+use cpal::{SampleFormat, SupportedStreamConfig, traits::StreamTrait};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, error, info};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
 use swyh_rs::{
     audio::audiodevices::{
-        capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+        Device, capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
     },
     enums::{
         messages::MessageType,
@@ -76,7 +76,7 @@ fn main() -> Result<(), i32> {
     }
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     // but it's possible that there is no default audio device
-    let mut audio_output_device_opt = get_default_audio_output_device();
+    let audio_output_device_opt = get_default_audio_output_device();
 
     // initialize config
     let mut config = {
@@ -88,7 +88,6 @@ fn main() -> Result<(), i32> {
             conf.sound_source = Some(audio_output_device.name().into());
             let _ = conf.update_config();
         }
-
         conf.clone()
     };
     // initialize i18n before any user-facing string is produced
@@ -102,39 +101,8 @@ fn main() -> Result<(), i32> {
         println!("{}", fl!("status-loaded-config", "id" = config_id));
     }
     config.monitor_rms = false;
-    // set args loglevel
-    if let Some(level) = args.log_level {
-        config.log_level = level;
-    }
-    if cfg!(debug_assertions) {
-        config.log_level = LevelFilter::Debug;
-    }
-    // configure simplelogger
-    let loglevel = config.log_level;
-    let config_id = config.config_id.clone().unwrap();
-    let logfilename = "log{}.txt".replace("{}", &config_id);
-    let logfile = Path::new(&config.log_dir()).join(logfilename);
-    let mut log_config_builder = ConfigBuilder::new();
-    log_config_builder.set_time_format_rfc2822();
-    let _ = log_config_builder.set_time_offset_to_local(); // silently fall back to UTC on error
-    let log_config = log_config_builder.build();
 
-    let _ = CombinedLogger::init(vec![
-        TermLogger::new(
-            loglevel,
-            log_config.clone(),
-            simplelog::TerminalMode::Stderr,
-            ColorChoice::Auto,
-        ),
-        WriteLogger::new(
-            loglevel,
-            log_config.clone(),
-            File::create(&logfile).unwrap_or_else(|e| {
-                eprintln!("Failed to create log file {}: {e}", logfile.display());
-                std::process::exit(1);
-            }),
-        ),
-    ]);
+    setup_logging(&config, args.log_level);
 
     info!(
         "{} V {}(build: {}) - Running on {}, {}, {} - Logging started.",
@@ -157,173 +125,23 @@ fn main() -> Result<(), i32> {
     if args.use_dither.is_some() {
         config.use_dither = args.use_dither;
     }
-    // set soundsource index or name from args or config
-    let audio_devices = get_output_audio_devices();
-    // get the index from args or config
-    let mut ss_index = {
-        if let Some(index) = args.sound_source_index {
-            args.sound_source_name = None;
-            index
-        } else {
-            config.sound_source_index.unwrap_or(-1i32)
-        }
-    };
-    // config index can be overridden by name from args
-    let ss_name = {
-        if let Some(name) = args.sound_source_name {
-            ss_index = -1i32;
-            name
-        } else {
-            config.sound_source.clone().unwrap_or_default()
-        }
-    };
-    // use index from config if present and no name arg present
-    if ss_index >= 0 {
-        // args - sound source index
-        config.sound_source_index = Some(ss_index);
-        for (index, adev) in audio_devices.into_iter().enumerate() {
-            let devname = adev.name().to_owned();
-            ui_log(
-                LogCategory::Info,
-                &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
-            );
-            if index == ss_index as usize {
-                audio_output_device_opt = Some(adev);
-                config.sound_source = Some(devname.clone());
-                ui_log(
-                    LogCategory::Info,
-                    &fl!(
-                        "cli-selected-audio-source-idx",
-                        "name" = &devname,
-                        "index" = index
-                    ),
-                );
-            } else {
-                let config_sound_source = config.sound_source.clone().unwrap_or_default();
-                if devname == config_sound_source {
-                    audio_output_device_opt = Some(adev);
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!("cli-selected-audio-source", "name" = &devname),
-                    );
-                }
-            }
-        }
-    } else if !ss_name.is_empty() {
-        // args = sound source name, check for duplicate name position
-        let (dupname, duppos) = if ss_name.contains(':') {
-            let parts: Vec<&str> = ss_name.split(':').collect();
-            (parts[0], parts[1])
-        } else {
-            ("", "")
-        };
-        if duppos.is_empty() {
-            for (index, adev) in audio_devices.into_iter().enumerate() {
-                let devname = adev.name().to_owned();
-                ui_log(
-                    LogCategory::Info,
-                    &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
-                );
-                if devname.to_uppercase().contains(&ss_name.to_uppercase()) {
-                    audio_output_device_opt = Some(adev);
-                    config.sound_source = Some(devname.clone());
-                    config.sound_source_index = Some(index as i32);
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!(
-                            "cli-selected-audio-source-idx",
-                            "name" = &devname,
-                            "index" = index
-                        ),
-                    );
-                } else if devname == *config.sound_source.as_ref().unwrap() {
-                    audio_output_device_opt = Some(adev);
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!("cli-selected-audio-source", "name" = &devname),
-                    );
-                }
-            }
-        } else if let Ok(pos) = duppos.parse::<usize>() {
-            let dups: Vec<_> = audio_devices
-                .into_iter()
-                .enumerate()
-                .filter(|(_i, d)| d.name().to_uppercase().contains(&dupname.to_uppercase()))
-                .collect();
-            for (index, dev) in dups.into_iter().enumerate() {
-                if index == pos {
-                    let devname = dev.1.name().to_string();
-                    audio_output_device_opt = Some(dev.1);
-                    config.sound_source = Some(devname.clone());
-                    config.sound_source_index = Some(dev.0 as i32);
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!(
-                            "cli-selected-audio-source-pos",
-                            "name" = &devname,
-                            "pos" = pos
-                        ),
-                    );
-                }
-            }
-        }
-    }
 
-    let mut audio_output_device = audio_output_device_opt.expect("No default audio device");
+    let mut audio_output_device =
+        select_audio_source_cli(&mut args, &mut config, audio_output_device_opt)
+            .expect("No default audio device");
 
-    // get the list of available networks
+    // get the list of available networks and log them
     let networks = get_interfaces();
     for ip in &networks {
         ui_log(LogCategory::Info, &fl!("cli-found-network", "ip" = ip));
     }
-    // args: ip_address
-    if let Some(ip) = args.ip_address
-        && networks.contains(&ip)
-    {
-        config.last_network = Some(ip.parse().unwrap());
-    }
-    // get the local network network address
-    let local_addr: IpAddr = {
-        fn get_default_address(config: &mut Configuration) -> IpAddr {
-            let addr = get_local_addr().unwrap_or_else(|| {
-                eprintln!("Could not obtain local network address.");
-                std::process::exit(1);
-            });
-            config.last_network = Some(addr.to_string());
-            info!("Using network {addr}");
-            addr
-        }
-        if let Some(ref network) = config.last_network {
-            if networks.contains(network) {
-                info!("Using network {network}");
-                network.parse().unwrap()
-            } else {
-                get_default_address(&mut config)
-            }
-        } else {
-            get_default_address(&mut config)
-        }
-    };
     // apply sample rate from args, overriding config if supplied
     if let Some(rate) = args.sample_rate {
         config.sample_rate = Some(rate);
     }
-    // we need to pass some audio config data to the streaming server
-    let default_rate = audio_output_device.default_config().sample_rate();
-    let audio_cfg = if let Some(rate) = config.sample_rate {
-        audio_output_device
-            .find_config(rate, SampleFormat::F32, 2)
-            .unwrap_or_else(|| *audio_output_device.default_config())
-    } else {
-        *audio_output_device.default_config()
-    };
-    let wd = WavData {
-        sample_format: audio_cfg.sample_format(),
-        sample_rate: audio_cfg.sample_rate(),
-        // post-downmix the stream is always 2-channel
-        channels: 2,
-        default_sample_rate: default_rate,
-    };
+
+    let local_addr = resolve_local_addr_cli(args.ip_address.as_deref(), &mut config, &networks);
+    let (audio_cfg, wd) = build_wav_data(&audio_output_device, &config);
 
     // raise process priority a bit to prevent audio stuttering under cpu load
     raise_priority();
@@ -344,8 +162,7 @@ fn main() -> Result<(), i32> {
         };
     stream.play().expect("Unable to play audio stream");
 
-    // If silence injector is on, create a silence injector stream.
-    // it has to be kept alive, it only seems unused
+    // If silence injector is on, create a silence injector stream and keep it alive
     let _silence_stream = {
         if let Some(true) = config.inject_silence {
             if let Some(stream) = run_silence_injector(&audio_output_device) {
@@ -376,117 +193,25 @@ fn main() -> Result<(), i32> {
     let mut serve_only = args.serve_only.unwrap_or(false);
     // if only serving: no ssdp discovery
     if !serve_only || args.dry_run.is_some() {
-        // now start the SSDP discovery update thread with a Crossbeam channel for renderer updates
-        // the discovered renderers will be kept in this list
         ui_log(LogCategory::Info, &fl!("status-starting-ssdp"));
-        let ssdp_int = config.ssdp_interval_mins;
-        let ssdp_tx = msg_tx.clone();
-        let _ = thread::Builder::new()
-            .name("ssdp_updater".into())
-            .stack_size(THREAD_STACK)
-            .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_int))
-            .unwrap();
-    }
-    // set args autoresume
-    config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
-    // set args server port
-    if args.server_port.is_some() {
-        config.server_port = args.server_port;
-    }
-    // set args bits per sample
-    if args.bits_per_sample.is_some() {
-        config.bits_per_sample = args.bits_per_sample;
-    }
-    // set args streaming format and streamsize
-    if let Some(ref sf) = args.streaming_format {
-        config.streaming_format = args.streaming_format;
-        if args.stream_size.is_some() {
-            match sf {
-                Lpcm => config.lpcm_stream_size = args.stream_size,
-                Wav => config.wav_stream_size = args.stream_size,
-                Flac => config.flac_stream_size = args.stream_size,
-                Rf64 => config.rf64_stream_size = args.stream_size,
-            }
-        }
-    }
-    // upfront buffering
-    if args.upfront_buffer.is_some() {
-        config.buffering_delay_msec = args.upfront_buffer;
+        spawn_cli_ssdp_updater(msg_tx.clone(), config.ssdp_interval_mins);
     }
 
+    apply_streaming_args(&args, &mut config);
+
     // start the webserver
-    let server_port = config.server_port;
-    let feedback_tx = msg_tx.clone();
-    let _ = thread::Builder::new()
-        .name("swyh_rs_webserver".into())
-        .stack_size(THREAD_STACK)
-        .spawn(move || {
-            run_server(
-                &local_addr,
-                server_port.unwrap_or_default(),
-                wd,
-                &feedback_tx,
-            );
-        })
-        .unwrap();
+    spawn_cli_webserver(
+        local_addr,
+        config.server_port.unwrap_or_default(),
+        wd,
+        msg_tx.clone(),
+    );
     // give the web server thread a chance to start
     thread::yield_now();
 
-    // we may have to translate player names to IP addresses
+    // translate player names to IP addresses using SSDP discovery results
     if !serve_only && (args.player_ip.is_some() || config.last_renderer.is_some()) {
-        // give the webserver a chance to start and wait for ssdp to complete
-        thread::sleep(Duration::from_secs(5));
-        // get the results of the ssdp discovery
-        let mut n = 0;
-        while let Ok(msg) = msg_rx.try_recv() {
-            match msg {
-                MessageType::SsdpMessage(newr) => {
-                    get_renderers_mut().push(*newr.clone());
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!(
-                            "cli-available-renderer",
-                            "n" = n,
-                            "name" = &newr.dev_name,
-                            "addr" = &newr.remote_addr
-                        ),
-                    );
-                    n += 1;
-                }
-                MessageType::PlayerMessage(_) => (),
-                MessageType::LogMessage(_) => (),
-                MessageType::CaptureAborted => (),
-            }
-        }
-        // now check for player names(s) instead of ip addresses
-        if let Some(ref pl_ip) = args.player_ip
-            && let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(pl_ip))
-        {
-            ui_log(
-                LogCategory::Info,
-                &fl!(
-                    "cli-default-renderer-ip",
-                    "ip" = pl_ip,
-                    "addr" = &r.remote_addr
-                ),
-            );
-            args.player_ip = Some(r.remote_addr.clone());
-        }
-        if let Some(active_players) = &args.active_players {
-            let mut ip_players: Vec<String> = Vec::new();
-            active_players.iter().for_each(|ap| {
-                if let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(ap)) {
-                    ip_players.push(r.remote_addr.clone());
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!("cli-active-renderer", "name" = ap, "addr" = &r.remote_addr),
-                    );
-                }
-            });
-            if !ip_players.is_empty() {
-                args.active_players = Some(ip_players);
-            }
-        }
+        resolve_player_names(&msg_rx, &mut args);
     }
 
     // set args last_renderer and active players
@@ -502,42 +227,18 @@ fn main() -> Result<(), i32> {
         serve_only = true;
     }
 
-    // in serve-only mode (-x): disable auto_reconnect else it's always on
-    if serve_only {
-        config.auto_reconnect = false;
-    } else {
-        // else autoreconnect is always on
-        config.auto_reconnect = true;
-    }
+    // in serve-only mode: disable auto_reconnect; else it's always on
+    config.auto_reconnect = !serve_only;
+
     // update config with new args
     sync_config(&config);
 
     let mut player: Option<Renderer> = None;
-    // select the player unless only serving
     if !serve_only {
-        let last_renderer = config.last_renderer.as_ref().unwrap();
-        if get_renderers().is_empty() {
-            error!("{}", fl!("cli-no-renderers"));
+        let Some(r) = select_primary_renderer(&mut config) else {
             return Err(-1);
-        }
-        // default = first player
-        player = Some(get_renderers()[0].clone());
-        // but use the configured renderer if present
-        if let Some(pl) = get_renderers()
-            .iter()
-            .find(|&renderer| renderer.remote_addr == *last_renderer)
-        {
-            player = Some(pl.clone());
-        }
-        let def_player = player.as_ref().unwrap();
-        // if specified player ip not found: use default player
-        if *last_renderer != def_player.remote_addr {
-            config.last_renderer = Some(def_player.remote_addr.clone());
-        }
-        ui_log(
-            LogCategory::Info,
-            &fl!("cli-default-player-ip", "ip" = &def_player.remote_addr),
-        );
+        };
+        player = Some(r);
     }
 
     // update config with new args
@@ -602,30 +303,24 @@ fn main() -> Result<(), i32> {
                     }
                 }
                 MessageType::PlayerMessage(streamer_feedback) => {
-                    match streamer_feedback.streaming_state {
-                        StreamingState::Started => {}
-                        StreamingState::Ended => {
-                            if !serve_only {
-                                // first check if the renderer has actually not started streaming again
-                                // as this can happen with Bubble/Nest Audio Openhome
-                                let still_streaming = get_clients().values().any(|chanstrm| {
-                                    chanstrm.remote_ip == streamer_feedback.remote_ip
-                                });
-                                if !still_streaming
-                                    && autoresume
-                                    && let Some(r) = get_renderers_mut()
-                                        .iter_mut()
-                                        .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                                {
-                                    let _ = r.play(&local_addr, streaminfo);
-                                }
-                            }
+                    if let StreamingState::Ended = streamer_feedback.streaming_state
+                        && !serve_only
+                    {
+                        let still_streaming = get_clients()
+                            .values()
+                            .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
+                        if !still_streaming
+                            && autoresume
+                            && let Some(r) = get_renderers_mut()
+                                .iter_mut()
+                                .find(|r| r.remote_addr == streamer_feedback.remote_ip)
+                        {
+                            let _ = r.play(&local_addr, streaminfo);
                         }
                     }
                 }
                 MessageType::LogMessage(msg) => ui_log(LogCategory::Info, &msg),
                 MessageType::CaptureAborted => {
-                    // retry count when audio capture is broken
                     let mut capture_retry_count = 0i32;
                     while capture_retry_count < 5 {
                         thread::sleep(Duration::from_millis(250));
@@ -658,33 +353,9 @@ fn main() -> Result<(), i32> {
                 }
             }
         }
-        // handle CTL-C interrupt: shutdown the player(s)
+        // handle Ctrl-C: stop all players and exit
         if shutting_down.load(Ordering::Relaxed) {
-            println!("{}", fl!("cli-received-ctrlc"));
-            if !serve_only && player.is_some() && !get_clients().is_empty() {
-                for mut pl in playing {
-                    if get_clients()
-                        .values()
-                        .any(|cs| cs.remote_ip == pl.remote_addr)
-                    {
-                        println!("{}", fl!("cli-ctrlc-stopping", "name" = &pl.dev_name));
-                        pl.stop_play();
-                    }
-                }
-                // also wait some time for the player(s) to drop the HTTP streaming connection
-                for _ in 0..100 {
-                    if get_clients().is_empty() {
-                        println!("{}", fl!("cli-ctrlc-no-connections"));
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(100));
-                }
-                if !get_clients().is_empty() {
-                    println!("{}", fl!("cli-ctrlc-timeout"));
-                }
-            }
-            log::logger().flush();
-            std::process::exit(0);
+            shutdown_ctrlc(serve_only, player.as_ref(), playing);
         }
         thread::sleep(Duration::from_millis(100));
     }
@@ -692,18 +363,381 @@ fn main() -> Result<(), i32> {
 
 fn sync_config(config: &Configuration) {
     let _ = config.update_config();
-    // update in_memory shared config for other threads
+    // update in-memory shared config for other threads
     {
         let mut conf = get_config_mut();
         *conf = config.clone();
     }
 }
 
-/// run the `ssdp_updater` - thread that periodically run ssdp discovery
-/// and detect new renderers
-/// send any new renderers to te main thread on the Crossbeam ssdp channel
+/// configure simplelog with both terminal and file sinks
+fn setup_logging(config: &Configuration, args_log_level: Option<LevelFilter>) {
+    let loglevel = if cfg!(debug_assertions) {
+        LevelFilter::Debug
+    } else {
+        args_log_level.unwrap_or(config.log_level)
+    };
+    let config_id = config.config_id.clone().unwrap_or_default();
+    let logfilename = "log{}.txt".replace("{}", &config_id);
+    let logfile = Path::new(&config.log_dir()).join(logfilename);
+    let mut log_config_builder = ConfigBuilder::new();
+    log_config_builder.set_time_format_rfc2822();
+    let _ = log_config_builder.set_time_offset_to_local(); // silently fall back to UTC on error
+    let log_config = log_config_builder.build();
+    let _ = CombinedLogger::init(vec![
+        TermLogger::new(
+            loglevel,
+            log_config.clone(),
+            simplelog::TerminalMode::Stderr,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            loglevel,
+            log_config.clone(),
+            File::create(&logfile).unwrap_or_else(|e| {
+                eprintln!("Failed to create log file {}: {e}", logfile.display());
+                std::process::exit(1);
+            }),
+        ),
+    ]);
+}
+
+/// select the audio output device from args or config;
+/// updates `config.sound_source` / `config.sound_source_index` and returns the chosen device
+fn select_audio_source_cli(
+    args: &mut Args,
+    config: &mut Configuration,
+    default_device: Option<Device>,
+) -> Option<Device> {
+    let audio_devices = get_output_audio_devices();
+    let mut audio_output_device_opt = default_device;
+
+    // get the index from args or config
+    let mut ss_index = {
+        if let Some(index) = args.sound_source_index {
+            args.sound_source_name = None;
+            index
+        } else {
+            config.sound_source_index.unwrap_or(-1i32)
+        }
+    };
+    // config index can be overridden by name from args
+    let ss_name = {
+        if let Some(name) = args.sound_source_name.take() {
+            ss_index = -1i32;
+            name
+        } else {
+            config.sound_source.clone().unwrap_or_default()
+        }
+    };
+
+    // use index from config if present and no name arg present
+    if ss_index >= 0 {
+        config.sound_source_index = Some(ss_index);
+        for (index, adev) in audio_devices.into_iter().enumerate() {
+            let devname = adev.name().to_owned();
+            ui_log(
+                LogCategory::Info,
+                &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
+            );
+            if index == ss_index as usize {
+                audio_output_device_opt = Some(adev);
+                config.sound_source = Some(devname.clone());
+                ui_log(
+                    LogCategory::Info,
+                    &fl!(
+                        "cli-selected-audio-source-idx",
+                        "name" = &devname,
+                        "index" = index
+                    ),
+                );
+            } else {
+                let config_sound_source = config.sound_source.clone().unwrap_or_default();
+                if devname == config_sound_source {
+                    audio_output_device_opt = Some(adev);
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!("cli-selected-audio-source", "name" = &devname),
+                    );
+                }
+            }
+        }
+    } else if !ss_name.is_empty() {
+        // args = sound source name; check for duplicate name position syntax "name:pos"
+        let (dupname, duppos) = if ss_name.contains(':') {
+            let parts: Vec<&str> = ss_name.split(':').collect();
+            (parts[0], parts[1])
+        } else {
+            ("", "")
+        };
+        if duppos.is_empty() {
+            for (index, adev) in audio_devices.into_iter().enumerate() {
+                let devname = adev.name().to_owned();
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
+                );
+                if devname.to_uppercase().contains(&ss_name.to_uppercase()) {
+                    audio_output_device_opt = Some(adev);
+                    config.sound_source = Some(devname.clone());
+                    config.sound_source_index = Some(index as i32);
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!(
+                            "cli-selected-audio-source-idx",
+                            "name" = &devname,
+                            "index" = index
+                        ),
+                    );
+                } else if devname == *config.sound_source.as_ref().unwrap() {
+                    audio_output_device_opt = Some(adev);
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!("cli-selected-audio-source", "name" = &devname),
+                    );
+                }
+            }
+        } else if let Ok(pos) = duppos.parse::<usize>() {
+            let dups: Vec<_> = audio_devices
+                .into_iter()
+                .enumerate()
+                .filter(|(_i, d)| d.name().to_uppercase().contains(&dupname.to_uppercase()))
+                .collect();
+            for (index, dev) in dups.into_iter().enumerate() {
+                if index == pos {
+                    let devname = dev.1.name().to_string();
+                    audio_output_device_opt = Some(dev.1);
+                    config.sound_source = Some(devname.clone());
+                    config.sound_source_index = Some(dev.0 as i32);
+                    ui_log(
+                        LogCategory::Info,
+                        &fl!(
+                            "cli-selected-audio-source-pos",
+                            "name" = &devname,
+                            "pos" = pos
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    audio_output_device_opt
+}
+
+/// resolve the local IP address to bind to, applying the `--ip` arg and persisting the result
+fn resolve_local_addr_cli(
+    ip_arg: Option<&str>,
+    config: &mut Configuration,
+    networks: &[String],
+) -> IpAddr {
+    if let Some(ip) = ip_arg
+        && networks.contains(&ip.to_string())
+    {
+        config.last_network = Some(ip.to_string());
+    }
+
+    fn get_default(config: &mut Configuration) -> IpAddr {
+        let addr = get_local_addr().unwrap_or_else(|| {
+            eprintln!("Could not obtain local network address.");
+            std::process::exit(1);
+        });
+        config.last_network = Some(addr.to_string());
+        info!("Using network {addr}");
+        addr
+    }
+
+    let last_network = config.last_network.clone();
+    if let Some(ref network) = last_network {
+        if networks.contains(network) {
+            info!("Using network {network}");
+            network.parse().unwrap()
+        } else {
+            get_default(config)
+        }
+    } else {
+        get_default(config)
+    }
+}
+
+/// determine the stream config and build the `WavData` descriptor
+fn build_wav_data(device: &Device, config: &Configuration) -> (SupportedStreamConfig, WavData) {
+    let default_rate = device.default_config().sample_rate();
+    let audio_cfg = if let Some(rate) = config.sample_rate {
+        device
+            .find_config(rate, SampleFormat::F32, 2)
+            .unwrap_or_else(|| *device.default_config())
+    } else {
+        *device.default_config()
+    };
+    let wd = WavData {
+        sample_format: audio_cfg.sample_format(),
+        sample_rate: audio_cfg.sample_rate(),
+        // post-downmix the stream is always 2-channel
+        channels: 2,
+        default_sample_rate: default_rate,
+    };
+    (audio_cfg, wd)
+}
+
+/// spawn the CLI SSDP discovery thread
+fn spawn_cli_ssdp_updater(ssdp_tx: Sender<MessageType>, ssdp_interval_mins: f64) {
+    thread::Builder::new()
+        .name("ssdp_updater".into())
+        .stack_size(THREAD_STACK)
+        .spawn(move || run_ssdp_updater(&ssdp_tx, ssdp_interval_mins))
+        .unwrap();
+}
+
+/// spawn the HTTP streaming webserver thread
+fn spawn_cli_webserver(
+    local_addr: IpAddr,
+    server_port: u16,
+    wd: WavData,
+    feedback_tx: Sender<MessageType>,
+) {
+    thread::Builder::new()
+        .name("swyh_rs_webserver".into())
+        .stack_size(THREAD_STACK)
+        .spawn(move || run_server(&local_addr, server_port, wd, &feedback_tx))
+        .unwrap();
+}
+
+/// apply streaming-related args (format, bit depth, buffer, etc.) to config
+fn apply_streaming_args(args: &Args, config: &mut Configuration) {
+    config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
+    if args.server_port.is_some() {
+        config.server_port = args.server_port;
+    }
+    if args.bits_per_sample.is_some() {
+        config.bits_per_sample = args.bits_per_sample;
+    }
+    if let Some(ref sf) = args.streaming_format {
+        config.streaming_format = args.streaming_format;
+        if args.stream_size.is_some() {
+            match sf {
+                Lpcm => config.lpcm_stream_size = args.stream_size,
+                Wav => config.wav_stream_size = args.stream_size,
+                Flac => config.flac_stream_size = args.stream_size,
+                Rf64 => config.rf64_stream_size = args.stream_size,
+            }
+        }
+    }
+    if args.upfront_buffer.is_some() {
+        config.buffering_delay_msec = args.upfront_buffer;
+    }
+}
+
+/// wait for SSDP discovery to complete, then translate any player names in `args`
+/// to their IP addresses
+fn resolve_player_names(msg_rx: &Receiver<MessageType>, args: &mut Args) {
+    // give the webserver a chance to start and wait for ssdp to complete
+    thread::sleep(Duration::from_secs(5));
+    let mut n = 0;
+    while let Ok(msg) = msg_rx.try_recv() {
+        if let MessageType::SsdpMessage(newr) = msg {
+            get_renderers_mut().push(*newr.clone());
+            ui_log(
+                LogCategory::Info,
+                &fl!(
+                    "cli-available-renderer",
+                    "n" = n,
+                    "name" = &newr.dev_name,
+                    "addr" = &newr.remote_addr
+                ),
+            );
+            n += 1;
+        }
+    }
+    // resolve player name to IP address if a name was given instead of an IP
+    if let Some(ref pl_ip) = args.player_ip
+        && let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(pl_ip))
+    {
+        ui_log(
+            LogCategory::Info,
+            &fl!(
+                "cli-default-renderer-ip",
+                "ip" = pl_ip,
+                "addr" = &r.remote_addr
+            ),
+        );
+        args.player_ip = Some(r.remote_addr.clone());
+    }
+    if let Some(active_players) = &args.active_players {
+        let mut ip_players: Vec<String> = Vec::new();
+        active_players.iter().for_each(|ap| {
+            if let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(ap)) {
+                ip_players.push(r.remote_addr.clone());
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("cli-active-renderer", "name" = ap, "addr" = &r.remote_addr),
+                );
+            }
+        });
+        if !ip_players.is_empty() {
+            args.active_players = Some(ip_players);
+        }
+    }
+}
+
+/// select the primary renderer from the discovered list based on config
+fn select_primary_renderer(config: &mut Configuration) -> Option<Renderer> {
+    if get_renderers().is_empty() {
+        error!("{}", fl!("cli-no-renderers"));
+        return None;
+    }
+    let last_renderer = config.last_renderer.as_deref().unwrap_or("");
+    // default = first player
+    let mut player = get_renderers()[0].clone();
+    // use the configured renderer if present
+    if let Some(pl) = get_renderers()
+        .iter()
+        .find(|r| r.remote_addr == last_renderer)
+    {
+        player = pl.clone();
+    }
+    // if specified player ip not found: record which default we're using
+    if last_renderer != player.remote_addr {
+        config.last_renderer = Some(player.remote_addr.clone());
+    }
+    ui_log(
+        LogCategory::Info,
+        &fl!("cli-default-player-ip", "ip" = &player.remote_addr),
+    );
+    Some(player)
+}
+
+/// stop all playing renderers, wait for HTTP connections to drain, then exit
+fn shutdown_ctrlc(serve_only: bool, player: Option<&Renderer>, playing: Vec<Renderer>) -> ! {
+    println!("{}", fl!("cli-received-ctrlc"));
+    if !serve_only && player.is_some() && !get_clients().is_empty() {
+        for mut pl in playing {
+            if get_clients()
+                .values()
+                .any(|cs| cs.remote_ip == pl.remote_addr)
+            {
+                println!("{}", fl!("cli-ctrlc-stopping", "name" = &pl.dev_name));
+                pl.stop_play();
+            }
+        }
+        for _ in 0..100 {
+            if get_clients().is_empty() {
+                println!("{}", fl!("cli-ctrlc-no-connections"));
+                break;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+        if !get_clients().is_empty() {
+            println!("{}", fl!("cli-ctrlc-timeout"));
+        }
+    }
+    log::logger().flush();
+    std::process::exit(0);
+}
+
+/// run the `ssdp_updater` — periodically discover DLNA/OpenHome renderers
+/// and forward new ones to the main thread via `ssdp_tx`
 fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
-    // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     let agent = ureq::agent();
     loop {

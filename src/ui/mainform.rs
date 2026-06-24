@@ -105,6 +105,10 @@ pub struct MainForm {
 }
 
 impl MainForm {
+    /// Builds the entire main window in one function.
+    /// Splitting it into per-tab helpers would require passing `status_buf` (the
+    /// TextBuffer backing the Status tab) into every builder, plus a return struct
+    /// per tab to hand back the widgets stored in `MainForm` — more churn than gain.
     pub fn create(
         config: &Configuration,
         config_changed: &Rc<Cell<bool>>,

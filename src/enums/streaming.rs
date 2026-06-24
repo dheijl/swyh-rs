@@ -188,21 +188,13 @@ pub enum Endian {
     Big,
 }
 
-/// helper holding struct to avoid repeatedly reading the config data
-/// or cloning the large Configuration struct
-/// it gathers all the information needed for HTTP streaming and
-/// starts out with the default values from the config
-/// it is then updated as needed before streaming starts
+/// All per-connection streaming parameters, fully initialised in one shot by [`StreamingContext::new`].
 #[derive(Debug)]
 pub struct StreamingContext {
     pub sample_rate: u32,
     pub sample_format: cpal::SampleFormat,
     pub bits_per_sample: BitDepth,
     pub streaming_format: StreamingFormat,
-    pub lpcm_streamsize: StreamSize,
-    pub wav_streamsize: StreamSize,
-    pub flac_streamsize: StreamSize,
-    pub rf64_streamsize: StreamSize,
     pub buffering_delay_msec: u32,
     pub remote_addr: EcoString, // ip:port
     pub remote_ip: EcoString,   // ip only
@@ -213,74 +205,55 @@ pub struct StreamingContext {
 }
 
 impl StreamingContext {
-    /// Build a `StreamingContext` from persisted config defaults.
-    /// `sample_rate` is a placeholder (44100) replaced by `set_sample_data` once the
-    /// capture device is known; `streamsize`/`chunksize` are finalised by `set_streaming_params`.
-    pub fn from_config() -> StreamingContext {
+    /// Build a fully-initialised `StreamingContext` from config, a live request, and its parsed URL params.
+    pub fn new(wd: WavData, rq: &Request, params: &StreamingParams) -> StreamingContext {
         let cfg = get_config();
+
+        let url = EcoString::from(rq.url());
+        let remote_addr = EcoString::from(rq.remote_addr().unwrap().to_string());
+        let mut remote_ip = remote_addr.clone();
+        if let Some(i) = remote_addr.find(':') {
+            remote_ip.truncate(i);
+        }
+
+        let streaming_format = params
+            .fmt
+            .unwrap_or_else(|| cfg.streaming_format.unwrap_or(StreamingFormat::Flac));
+        let bits_per_sample = params
+            .bd
+            .unwrap_or_else(|| BitDepth::from(cfg.bits_per_sample.unwrap_or(16)));
+
+        let (streamsize, chunksize) =
+            params
+                .ss
+                .map(|ss| ss.values())
+                .unwrap_or_else(|| match streaming_format {
+                    StreamingFormat::Lpcm => cfg.lpcm_stream_size.unwrap().values(),
+                    StreamingFormat::Wav => cfg.wav_stream_size.unwrap().values(),
+                    StreamingFormat::Rf64 => cfg.rf64_stream_size.unwrap().values(),
+                    StreamingFormat::Flac => cfg.flac_stream_size.unwrap().values(),
+                });
+
         StreamingContext {
-            sample_rate: 44100,
-            sample_format: cpal::SampleFormat::F32,
-            bits_per_sample: BitDepth::from(cfg.bits_per_sample.unwrap_or(16)),
-            streaming_format: cfg.streaming_format.unwrap_or(StreamingFormat::Flac),
-            lpcm_streamsize: cfg.lpcm_stream_size.unwrap(),
-            wav_streamsize: cfg.wav_stream_size.unwrap(),
-            flac_streamsize: cfg.flac_stream_size.unwrap(),
-            rf64_streamsize: cfg.rf64_stream_size.unwrap(),
+            sample_rate: wd.sample_rate,
+            sample_format: wd.sample_format,
+            bits_per_sample,
+            streaming_format,
             buffering_delay_msec: cfg.buffering_delay_msec.unwrap_or(0),
-            remote_addr: EcoString::new(),
-            remote_ip: EcoString::new(),
-            chunksize: 0,
-            streamsize: None,
-            url: EcoString::new(),
+            remote_addr,
+            remote_ip,
+            chunksize,
+            streamsize,
+            url,
             use_dither: cfg.use_dither.unwrap_or(true),
         }
     }
-    /// initialize `remote_addr` and `remote_ip`
-    pub fn set_remote_addr(&mut self, rq: &Request) {
-        self.url = EcoString::from(rq.url());
-        self.remote_addr = EcoString::from(rq.remote_addr().unwrap().to_string());
-        self.remote_ip = self.remote_addr.clone();
-        if let Some(i) = self.remote_addr.find(':') {
-            self.remote_ip.truncate(i);
-        }
-    }
-    /// intialize sample rate and format from `WavData`
-    pub fn set_sample_data(&mut self, wd: WavData) {
-        self.sample_rate = wd.sample_rate;
-        self.sample_format = wd.sample_format;
-    }
-    /// update with values from url, and query parameters if present
-    pub fn set_streaming_params(&mut self, query_params: &StreamingParams) {
-        // streaming format
-        if let Some(fmt) = query_params.fmt {
-            self.streaming_format = fmt;
-        }
-        // bit depth
-        if let Some(bd) = query_params.bd {
-            self.bits_per_sample = bd;
-        }
-        // get default streamsize/chunksize
-        let (mut streamsize, mut chunksize) = match self.streaming_format {
-            StreamingFormat::Lpcm => self.lpcm_streamsize.values(),
-            StreamingFormat::Wav => self.wav_streamsize.values(),
-            StreamingFormat::Rf64 => self.rf64_streamsize.values(),
-            StreamingFormat::Flac => self.flac_streamsize.values(),
-        };
-        // unless overridden in query params
-        if let Some(ss) = query_params.ss {
-            (streamsize, chunksize) = ss.values();
-        }
-        // update streamsize/chunksize accordingly
-        self.streamsize = streamsize;
-        self.chunksize = chunksize;
-    }
-    /// do we need a WAV/RF64 header for this streaming format ?
+
     #[inline]
     pub fn needs_wav_hdr(&self) -> bool {
         self.streaming_format.needs_wav_hdr()
     }
-    /// return the dlna audio format string for this stream
+
     pub fn dlna_audio_string(&self) -> String {
         self.streaming_format
             .dlna_audio_string(self.bits_per_sample)

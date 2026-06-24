@@ -11,7 +11,7 @@ use crate::{
         streaming::{BitDepth, StreamingContext, StreamingFormat, StreamingState},
     },
     fl,
-    globals::statics::get_clients_mut,
+    globals::statics::{get_clients_mut, get_config},
     renderers::rendercontrol::WavData,
     server::query_params::StreamingParams,
     utils::ui_logger::{LogCategory, ui_log},
@@ -44,17 +44,18 @@ pub fn run_server(
 ) {
     let addr = format!("{local_addr}:{server_port}");
     ui_log(LogCategory::Info, &fl!("srv-listening", "addr" = addr));
-    // get the needed config info upfront
-    let stream_config = StreamingContext::from_config();
-    ui_log(
-        LogCategory::Info,
-        &fl!(
-            "srv-default-streaming",
-            "rate" = wd.sample_rate,
-            "bps" = stream_config.bits_per_sample,
-            "format" = stream_config.streaming_format,
-        ),
-    );
+    {
+        let cfg = get_config();
+        ui_log(
+            LogCategory::Info,
+            &fl!(
+                "srv-default-streaming",
+                "rate" = wd.sample_rate,
+                "bps" = BitDepth::from(cfg.bits_per_sample.unwrap_or(16)),
+                "format" = cfg.streaming_format.unwrap_or(StreamingFormat::Flac),
+            ),
+        );
+    } // drop the read lock before entering the server loop
     let server = Arc::new(Server::http(addr).unwrap_or_else(|e| {
         ui_log(
             LogCategory::Error,
@@ -80,21 +81,13 @@ pub fn run_server(
                     );
                     #[cfg(debug_assertions)]
                     dump_rq_headers(&rq);
-                    // create fresh streaming context from config info for each new streaming request
-                    // as some parameters may have changed
-                    let mut streaming_ctx = StreamingContext::from_config();
-                    // parse the GET request and update context
-                    streaming_ctx.set_remote_addr(&rq);
-                    // update context from WavData
-                    streaming_ctx.set_sample_data(wd);
-                    //  - decode streaming query params from url if present
+                    // validate the request URL before building the context
                     let sp = StreamingParams::from_url(rq.url());
-                    // - check for valid request uri
                     if sp.path.is_none() {
-                        return bad_request(&streaming_ctx, rq);
+                        return bad_request(rq);
                     }
-                    // - update streaming context from querystring (if present), this completes the context
-                    streaming_ctx.set_streaming_params(&sp);
+                    // build a fully-initialised context from all available inputs
+                    let streaming_ctx = StreamingContext::new(wd, &rq, &sp);
                     debug!("{streaming_ctx:?}");
                     // handle response, streaming if GET, headers only otherwise
                     let range = parse_range_header(rq.headers());
@@ -362,15 +355,12 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
     }
 }
 
-/// this request is not recotgnized, reject with an error 404
-fn bad_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
+/// this request is not recognised, reject with 404
+fn bad_request(rq: tiny_http::Request) {
+    let remote_addr = rq.remote_addr().map(|a| a.to_string()).unwrap_or_default();
     ui_log(
         LogCategory::Warning,
-        &fl!(
-            "srv-bad-request",
-            "url" = rq.url(),
-            "addr" = &streaming_ctx.remote_addr
-        ),
+        &fl!("srv-bad-request", "url" = rq.url(), "addr" = remote_addr),
     );
     let headers = get_std_headers();
     let response = Response::new(
@@ -385,7 +375,7 @@ fn bad_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
             LogCategory::Error,
             &fl!(
                 "srv-stream-terminated",
-                "addr" = &streaming_ctx.remote_addr,
+                "addr" = remote_addr,
                 "error" = e.to_string()
             ),
         );

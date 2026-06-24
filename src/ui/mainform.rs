@@ -1134,9 +1134,9 @@ impl MainForm {
             .unwrap_or("-");
         let log_level = config.log_level;
 
-        let mut s = String::new();
-        s += &fl!("audio-source-label", "name" = audio);
-        s += "\n";
+        let mut s = String::with_capacity(512);
+        s.push_str(&fl!("audio-source-label", "name" = audio));
+        s.push('\n');
         let dither_suffix = if bits == 16 {
             format!(
                 "  TPDF dither {}",
@@ -1145,38 +1145,38 @@ impl MainForm {
         } else {
             String::new()
         };
-        s += &format!(
+        s.push_str(&format!(
             "{}  {} bit  {} Hz{}\n",
             fl!("fmt-label", "format" = &format),
             bits,
             sample_rate,
             dither_suffix
-        );
-        s += &fl!("strmsize-label", "size" = streamsize);
-        s += &format!("   buffer: {} ms\n", buf_ms);
-        s += &format!(
+        ));
+        s.push_str(&fl!("strmsize-label", "size" = streamsize));
+        s.push_str(&format!("   buffer: {} ms\n", buf_ms));
+        s.push_str(&format!(
             "{}  {}\n",
             fl!("chk-inject-silence"),
             bool_icon(config.inject_silence.unwrap_or(false))
-        );
-        s += "\n";
-        s += &fl!("active-network", "addr" = network);
-        s += "\n";
-        s += &format!(
+        ));
+        s.push('\n');
+        s.push_str(&fl!("active-network", "addr" = network));
+        s.push('\n');
+        s.push_str(&format!(
             "{}  {}   SSDP: {} min\n",
             fl!("http-port-label"),
             port,
             ssdp
-        );
-        s += "\n";
-        s += &fl!("language-label", "lang" = lang);
-        s += "\n";
-        s += &fl!("color-theme-label", "name" = theme);
-        s += "\n";
-        s += &fl!("log-level-label", "level" = log_level);
-        s += "\n";
-        s += "\n";
-        s += &format!(
+        ));
+        s.push('\n');
+        s.push_str(&fl!("language-label", "lang" = lang));
+        s.push('\n');
+        s.push_str(&fl!("color-theme-label", "name" = theme));
+        s.push('\n');
+        s.push_str(&fl!("log-level-label", "level" = log_level));
+        s.push('\n');
+        s.push('\n');
+        s.push_str(&format!(
             "{}  {}   {}  {}   {}  {}\n",
             fl!("chk-autoresume"),
             bool_icon(config.auto_resume),
@@ -1184,7 +1184,7 @@ impl MainForm {
             bool_icon(config.auto_reconnect),
             fl!("chk-rms-monitor"),
             bool_icon(config.monitor_rms),
-        );
+        ));
         s
     }
 

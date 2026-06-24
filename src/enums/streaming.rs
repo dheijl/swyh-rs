@@ -254,6 +254,24 @@ impl StreamingContext {
         self.streaming_format.needs_wav_hdr()
     }
 
+    /// Byte length of the WAV/RF64 header prepended to this stream, or 0 for LPCM/FLAC.
+    #[inline]
+    pub fn wav_header_size(&self) -> usize {
+        match self.streaming_format {
+            StreamingFormat::Wav => 44,
+            StreamingFormat::Rf64 => 80,
+            _ => 0,
+        }
+    }
+
+    /// Build a `Content-Range` header value for a 206 response starting at `start`.
+    /// Falls back to a large sentinel when `streamsize` is unknown (chunked), keeping
+    /// the header RFC 7233-compliant (last-byte-pos must be a concrete value).
+    pub fn content_range_value(&self, start: usize) -> String {
+        let size = self.streamsize.unwrap_or(usize::MAX - 1);
+        format!("bytes {start}-{}/{size}", size.saturating_sub(1))
+    }
+
     pub fn dlna_audio_string(&self) -> String {
         self.streaming_format
             .dlna_audio_string(self.bits_per_sample)

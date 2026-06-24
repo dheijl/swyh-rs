@@ -156,7 +156,7 @@ fn streaming_request(
             return range_not_satisfiable(streaming_ctx, request);
         }
         Some(RangeSpec::From(start)) => {
-            let hdr_size = wav_header_size(streaming_ctx) as u64;
+            let hdr_size = streaming_ctx.wav_header_size() as u64;
             if *start <= hdr_size {
                 // Start within the WAV/RF64 header (or byte 0 for any format): 206,
                 // trim that many header bytes from the front of the stream.
@@ -184,7 +184,7 @@ fn streaming_request(
     let mut headers = get_dlna_headers(streaming_ctx);
     if status_code == 206 {
         headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap());
-        let cr = content_range_value(streaming_ctx, header_offset);
+        let cr = streaming_ctx.content_range_value(header_offset);
         headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
     }
 
@@ -291,7 +291,7 @@ fn head_request(
             return range_not_satisfiable(streaming_ctx, rq);
         }
         Some(RangeSpec::From(start)) => {
-            let hdr_size = wav_header_size(streaming_ctx) as u64;
+            let hdr_size = streaming_ctx.wav_header_size() as u64;
             if *start <= hdr_size {
                 (206u16, *start as usize)
             } else {
@@ -303,7 +303,7 @@ fn head_request(
     let mut headers = get_dlna_headers(streaming_ctx);
     if status_code == 206 {
         headers.push(Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap());
-        let cr = content_range_value(streaming_ctx, header_offset);
+        let cr = streaming_ctx.content_range_value(header_offset);
         headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
     }
     let response = Response::new(
@@ -433,23 +433,6 @@ fn parse_range_header(headers: &[tiny_http::Header]) -> Option<RangeSpec> {
     } else {
         Some(RangeSpec::Bounded)
     }
-}
-
-/// Returns the byte length of the WAV/RF64 header for this context, or 0 for LPCM/FLAC.
-fn wav_header_size(ctx: &StreamingContext) -> usize {
-    match ctx.streaming_format {
-        StreamingFormat::Wav => 44,
-        StreamingFormat::Rf64 => 80,
-        _ => 0,
-    }
-}
-
-/// Build a `Content-Range` value for a 206 response starting at `start`.
-/// When `streamsize` is unknown (chunked), a large sentinel is used so the
-/// header remains RFC 7233 compliant (last-byte-pos must be a concrete value).
-fn content_range_value(ctx: &StreamingContext, start: usize) -> String {
-    let size = ctx.streamsize.unwrap_or(usize::MAX - 1);
-    format!("bytes {start}-{}/{size}", size.saturating_sub(1))
 }
 
 /// Respond 416 Range Not Satisfiable.

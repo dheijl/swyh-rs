@@ -226,9 +226,13 @@ fn main() {
                     debug!("Renderer {} Volume: {vol}", newr.dev_name);
                     mf.add_renderer_button(&mut newr);
                 }
+                // show a log message in the textbox
                 MessageType::LogMessage(msg) => {
                     mf.add_log_msg(&msg);
                 }
+                // Audio device disappeared; retry up to 5 times
+                // cause may be an RDP connection, or a Bluetooth disconnect or whatever
+                // by name because the device index may have changed after re-enumeration.
                 MessageType::CaptureAborted => {
                     let mut capture_retry_count = 0i32;
                     stream = None;

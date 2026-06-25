@@ -270,7 +270,7 @@ fn main() -> Result<(), i32> {
             {
                 let mut player = pl.clone();
                 if let Some(vol) = args.volume
-                    && player.get_volume() > -1
+                    && player.volume > -1
                 {
                     player.set_volume(vol.into());
                 }

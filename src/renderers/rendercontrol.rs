@@ -1148,6 +1148,7 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
                         rend.dev_url = format!("http://{url_base}/");
                     }
                     rend.parse_url();
+                    rend.get_volume();
                     Some(rend)
                 })
             })

@@ -222,8 +222,7 @@ fn main() {
                 }
                 // add a new button for each renderer discovered by SSDP
                 MessageType::SsdpMessage(mut newr) => {
-                    let vol = newr.get_volume();
-                    debug!("Renderer {} Volume: {vol}", newr.dev_name);
+                    debug!("Renderer {} Volume: {}", newr.dev_name, newr.volume);
                     mf.add_renderer_button(&mut newr);
                 }
                 // show a log message in the textbox

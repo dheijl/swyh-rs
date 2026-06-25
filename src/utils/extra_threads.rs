@@ -79,6 +79,9 @@ pub fn run_rms_monitor(
     loop {
         // avoid the Crossbeam spin loops in Backoff
         if !RUN_RMS_MONITOR.load(Ordering::Relaxed) {
+            while rms_receiver.try_recv().is_ok() {}
+            ch_sum = f32x4::splat(0f32);
+            total_samples = 0;
             thread::sleep(Duration::from_millis(500));
             continue;
         }
@@ -102,8 +105,10 @@ pub fn run_rms_monitor(
                     ch_sum = i4.mul_add(i4, ch_sum);
                 }
             }
-            // no samples: clear RMS widgets
+            // no samples: clear RMS widgets and reset accumulators
             Err(RecvTimeoutError::Timeout) => {
+                ch_sum = f32x4::splat(0f32);
+                total_samples = 0;
                 if !(rms_frame_l.value() == 0f64 && rms_frame_r.value() == 0f64) {
                     rms_frame_l.set_value(0f64);
                     rms_frame_r.set_value(0f64);

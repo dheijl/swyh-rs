@@ -64,6 +64,7 @@ pub fn run_ssdp_updater(
 /// compute the left and right channel RMS value for every 100 ms period
 /// and show the values in the UI
 /// sums left and right channel samples, 4 samples at a time (SSE SIMD)
+/// the wave_reader makes sure that we always have stereo (2 channels)
 pub fn run_rms_monitor(
     wd: WavData,
     rms_receiver: &Receiver<AudioSamples>,
@@ -98,7 +99,7 @@ pub fn run_rms_monitor(
                     let i4 = f4 * imax;
                     i4.mul_add(i4, acc)
                 });
-                // only stereo supported !
+                debug_assert!(remainder.is_empty() || remainder.len() == 2);
                 if remainder.len() == 2 {
                     let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
                     let i4 = rem * imax;

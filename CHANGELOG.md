@@ -12,6 +12,8 @@
   - simplify url querystring parsing
   - add a note about the use of AI (with Claude).
   - add a schematic showing the flow of the audio samples
+  - RMS monitor: drain the RMS channel properly on pause
+  - configuration: cache the filename in the in-memory config to reuse it in config.update()
 
 - 1.20.3 (Jun 7 2026, dheijl)
   - now uses CPAL 0.18.0. The new CPAL `realtime` feature is not used. If you think you need the real-time audio thread, you'll have to recompile swyh-rs with the appropriate CPAL features (pipewire/pulseaudio/jack and realtime or realtime-dbus). I think swyh-rs does not need it, and by using ALSA only it runs on all distros, old and new.

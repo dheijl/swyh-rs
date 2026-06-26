@@ -77,15 +77,21 @@ pub fn run_rms_monitor(
     let mut total_samples = 0usize;
     let mut ch_sum = f32x4::splat(0f32);
     let imax = f32x4::splat(F32_TO_I16);
+    let mut channel_drained = false;
     loop {
         // avoid the Crossbeam spin loops in Backoff
         if !RUN_RMS_MONITOR.load(Ordering::Relaxed) {
-            while rms_receiver.try_recv().is_ok() {}
-            ch_sum = f32x4::splat(0f32);
-            total_samples = 0;
-            thread::sleep(Duration::from_millis(500));
+            if !channel_drained {
+                // drain the channel and reset RMS values
+                while rms_receiver.try_recv().is_ok() {}
+                channel_drained = true;
+                ch_sum = f32x4::splat(0f32);
+                total_samples = 0;
+            }
+            thread::sleep(Duration::from_millis(250));
             continue;
         }
+        channel_drained = false;
         match rms_receiver.recv_timeout(Duration::from_millis(500)) {
             // update RMS value with new samples
             Ok(samples) => {

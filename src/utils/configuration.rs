@@ -140,6 +140,8 @@ pub struct Configuration {
     pub last_network: Option<String>,
     #[serde(alias = "ConfigDir", default)]
     config_dir: PathBuf,
+    #[serde(skip, default)]
+    config_path: PathBuf,
     #[serde(alias = "ConfigId", default)]
     pub config_id: Option<String>,
     #[serde(alias = "ReadOnly", default)]
@@ -188,6 +190,7 @@ impl Configuration {
             hidden_renderers: Vec::new(),
             last_network: None,
             config_dir: Self::get_config_dir().unwrap_or_default(),
+            config_path: PathBuf::new(),
             config_id: Some(Self::get_config_id().unwrap_or_default()),
             read_only: false,
             color_theme: None,
@@ -278,6 +281,7 @@ impl Configuration {
             config.configuration.color_theme = None;
             force_update = true;
         }
+        config.configuration.config_path = configfile.to_path_buf();
         if force_update && !config.configuration.read_only {
             config
                 .configuration
@@ -289,8 +293,12 @@ impl Configuration {
 
     /// Persists the current config to the resolved config path; no-op when `read_only`.
     pub fn update_config(&self) -> Result<()> {
-        let configfile = Self::choose_config_path()?;
-        self.update_config_to(&configfile)
+        if !self.config_path.as_os_str().is_empty() {
+            self.update_config_to(&self.config_path)
+        } else {
+            let configfile = Self::choose_config_path()?;
+            self.update_config_to(&configfile)
+        }
     }
 
     /// Serialises `self` to `configfile`; silently succeeds (no write) when `read_only` is set.

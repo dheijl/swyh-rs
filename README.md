@@ -185,10 +185,9 @@ Since version 1.20.3-RC4, thanks to contributions by @Churro:
 - TPDF dithering is used for 16-bit audio
 - multichannel audio is downmixed to stereo, and mono is "upmixed" to stereo.
 
-A diagram showing the flow of the audio samples: 
+A diagram showing the flow of the audio samples:
 
 <img width="1024" height="928" alt="audio_flow" src="https://github.com/user-attachments/assets/cfb0c5be-49d6-4873-a14b-306190717ddb" />
-
 
 The **configuration UI** is organised into four tabs:
 
@@ -352,13 +351,17 @@ MAC: I'm sorry but I don't have one... If you have one and would like to contrib
 ### Screenshots
 
 - the App settings tab:
+
 <img width="702" height="772" alt="app" src="https://github.com/user-attachments/assets/39b39c97-defc-48da-8f6a-78180f108cb1" />
 
 - the Audio settings tab:
+
 <img width="702" height="772" alt="audio" src="https://github.com/user-attachments/assets/da8c4e71-181f-4e19-b684-36a6e629dac5" />
 
 - the Network settings tab:
+
 <img width="702" height="772" alt="network" src="https://github.com/user-attachments/assets/03339df5-d623-42bf-a4c9-4d0576bed019" />
 
 - the Status tab:
+
 <img width="702" height="772" alt="status" src="https://github.com/user-attachments/assets/752cbc1d-af7f-47de-8125-2bf254593149" />

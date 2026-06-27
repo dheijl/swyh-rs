@@ -2,13 +2,13 @@
 
 - 1.20.4 (unreleased)
   - some refactoring/optimization
-  - use latest cpal master
+  - use latest cpal
   - .cargo/config.toml: target `SSSE3` (mainly for the `PSHUFB` instruction when converting endianness). Binaries now need a CPU less than 20 years old (for X86-64 builds).
   - add a fast SIMD path for SSSE3 (default in .cargo/config.toml) and Neon targets in samples_conv.rs. Add a benchmark that shows a 7.5 x speed-up for 24 bit, and a 1.6 x speed-up for 16 bit. The 16 bit timing is dominated by the recently added TPDF dithering that can't be vectorized.
-  - 16-bit TPD dither is now optional. The 16-bit TPDF dither checkbox in the Audio tab is enabled when 24-bit is not checked, and disabled and inactive when 24-bit is checked. You should probably enavble dither for 16 bit, but you have the choice. Not dithering speeds up the samples conversion several times.
+  - 16-bit TPD dither is now optional. The 16-bit TPDF dither checkbox in the Audio tab is enabled when 24-bit is not checked, and disabled and inactive when 24-bit is checked. You should probably enable dither for 16 bit, but you have the choice. Not dithering speeds up the samples conversion several times.
   - optimize the 16 bit dither code a bit (almost a 30 % inmprovement).
   - add a CLI commandline option -d/--dither (default true)
-  - optimize SSDP discovery (parallel description fetch)
+  - optimize SSDP discovery (parallel description and volume fetch)
   - simplify url querystring parsing
   - add a note about the use of AI (with Claude).
   - add a schematic showing the flow of the audio samples

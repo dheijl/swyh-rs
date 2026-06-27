@@ -136,6 +136,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - simultaneous streaming to multiple renderers is only limited by the number of renderer buttons that can be shown in the available space in the window.
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
 - streaming to Logitech Media Server does not work ([issue # 40]( https://github.com/dheijl/swyh-rs/issues/40))
+- Since 1.20.4 the published x86-64 binaries require **SSSE3** support (any x86-64 CPU made in roughly the last 20 years has this). If you run on very old hardware you will need to recompile without the `target-cpu=native` / SSSE3 flags in `.cargo/config.toml`.
 - CPAL 0.18 (used since 1.20.3-RCx) is more thorough when enumerating audio device configurations, which causes a noticeable increase in startup time on Linux. Debug builds are significantly slower than release builds in this regard. This has been fixed in the current CPAL master (June 3, 2026).
 - streaming to Linn devices may now work: basic HTTP Range header support was added in 1.20.3-RC4 to handle Linn's partial-content requests (see issue #45). This has not been tested with real hardware.
 - if for some reason your config file gets corrupted/invalid it will be replaced with a default configuration at startup instead of panic-ing when deserializing.
@@ -217,6 +218,7 @@ and restart Pipewire.
   - _U32MaxNotChunked_: Content-Length = u32::MAX − 1, no chunking (default for WAV)
   - _U64MaxNotChunked_: Content-Length = u64::MAX − 1, no chunking
 - **Initial buffering** (ms): buffer audio for this many milliseconds before streaming starts. Helps prevent stuttering on flaky WiFi networks or with renderers that have no configurable buffer.
+- **TPDF dither**: apply TPDF dither when converting to 16-bit audio. Only active when 24-bit is not selected; the checkbox is grayed out when 24-bit is enabled. Dithering improves perceived audio quality at 16-bit but adds a small CPU overhead; disable it if you need the lowest possible CPU usage.
 - **Inject Silence**: continuously mix silence into the input stream as an alternative to the automatic periodic-silence mechanism, preventing some renderers from disconnecting during playback pauses. Works with FLAC since version 1.12.0. On Linux silence may be injected automatically so no need to check this in that case.
 
 #### Network tab

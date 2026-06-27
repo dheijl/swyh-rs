@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.20.4 (unreleased)
+- 1.20.4 (Jun 27 2026, dheijl)
   - some refactoring/optimization
   - use latest cpal
   - .cargo/config.toml: target `SSSE3` (mainly for the `PSHUFB` instruction when converting endianness). Binaries now need a CPU less than 20 years old (for X86-64 builds).

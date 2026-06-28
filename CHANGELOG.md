@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.20.5 (unreleased)
+
 - 1.20.4 (Jun 27 2026, dheijl)
   - some refactoring/optimization
   - use latest cpal

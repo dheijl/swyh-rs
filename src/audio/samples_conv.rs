@@ -77,6 +77,11 @@ pub fn samples_to_i32(
     i32_samples.clear();
     let chunks = f32_samples.chunks_exact(4);
     let remainder = chunks.remainder();
+    // `bd`/`use_dither` are constant for the whole call. `f32_to_i32` is
+    // `#[inline(always)]`, so the compiler inlines its match into this loop and then
+    // hoists it (LICM) since the operands never change across iterations — the
+    // per-chunk code ends up branch-free without needing a hand-rolled function
+    // pointer (which would *block* inlining and force a real indirect call per chunk).
     chunks.for_each(|chunk| {
         // chunks are guaranteed to be 4 elements
         let f32_array = f32x4::new(*chunk.as_array().unwrap());
@@ -104,28 +109,57 @@ pub fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4], use_dither: bool) -> [
 /// (~−141 dBFS) is below audibility on any consumer playback chain, so dither would
 /// add only noise without perceptual benefit.
 ///
+/// This dispatches to the three quantizers below ([`f32x4_to_i32x4_16_dither`],
+/// [`f32x4_to_i32x4_16`], [`f32x4_to_i32x4_24`]) via a plain `match`, not a stored `fn`
+/// pointer — being `#[inline(always)]`, the match (and the chosen branch's body) inlines
+/// straight into the caller, so in a loop where `bd`/`use_dither` don't change, the
+/// compiler's loop-invariant-code-motion pass hoists the match out on its own, leaving a
+/// branch-free per-iteration body. A stored `fn` pointer would prevent that inlining and
+/// force a real indirect call on every chunk instead.
+#[inline(always)]
+pub fn f32_to_i32(bd: BitDepth, f32_simd: f32x4, use_dither: bool) -> [i32; 4] {
+    match (bd, use_dither) {
+        (BitDepth::Bits16, true) => f32x4_to_i32x4_16_dither(f32_simd),
+        (BitDepth::Bits16, false) => f32x4_to_i32x4_16(f32_simd),
+        (BitDepth::Bits24, _) => f32x4_to_i32x4_24(f32_simd),
+    }
+}
+
+/// Clamp to ±1.0 and scale into the post-multiply (i32-domain) f32 range. Shared by
+/// all three quantizers below.
+#[inline(always)]
+fn clamp_and_scale(f32_simd: f32x4) -> f32x4 {
+    f32_simd.fast_min(CLAMP_HI).fast_max(CLAMP_LO) * F32_TO_I32_SIMD
+}
+
 /// `round_int` saturates out-of-range inputs and maps NaN to 0 (per the `wide` crate's
 /// documented contract — it wraps the underlying SSE `CVTPS2DQ` to give defined
 /// behaviour). Defence in depth against any path that bypasses the clamp.
+///
+/// 16-bit, dithered: adds TPDF dither plus the half-LSB nudge that converts the
+/// subsequent `round_int + arithmetic-shift` into true round-to-nearest. Without the
+/// nudge, `>> N` floors toward −∞ and re-introduces a constant −0.5 LSB DC bias even
+/// though `round_int` itself rounds correctly.
 #[inline(always)]
-pub fn f32_to_i32(bd: BitDepth, f32_simd: f32x4, use_dither: bool) -> [i32; 4] {
-    let clamped = f32_simd.fast_min(CLAMP_HI).fast_max(CLAMP_LO);
-    let scaled = clamped * F32_TO_I32_SIMD;
-    // Apply TPDF dither at 16 bits when enabled, then add the half-LSB nudge that
-    // converts the subsequent `round_int + arithmetic-shift` into true round-to-nearest.
-    // Without the nudge, `>> N` floors toward −∞ and re-introduces a constant −0.5 LSB
-    // DC bias even though `round_int` itself rounds correctly.
-    let pre_quant = if bd == BitDepth::Bits16 {
-        if use_dither {
-            scaled + tpdf_dither_lanes_16_threadlocal() + HALF_LSB_16_SIMD
-        } else {
-            scaled + HALF_LSB_16_SIMD
-        }
-    } else {
-        scaled + HALF_LSB_24_SIMD
-    };
-    let s4i = pre_quant.round_int() >> bd.shift_value();
-    s4i.to_array()
+fn f32x4_to_i32x4_16_dither(f32_simd: f32x4) -> [i32; 4] {
+    let pre_quant =
+        clamp_and_scale(f32_simd) + tpdf_dither_lanes_16_threadlocal() + HALF_LSB_16_SIMD;
+    (pre_quant.round_int() >> BitDepth::Bits16.shift_value()).to_array()
+}
+
+/// 16-bit, undithered: same as [`f32x4_to_i32x4_16_dither`] minus the dither term.
+#[inline(always)]
+fn f32x4_to_i32x4_16(f32_simd: f32x4) -> [i32; 4] {
+    let pre_quant = clamp_and_scale(f32_simd) + HALF_LSB_16_SIMD;
+    (pre_quant.round_int() >> BitDepth::Bits16.shift_value()).to_array()
+}
+
+/// 24 bits: dither is skipped — the residual quantization noise floor (~−141 dBFS) is
+/// below the threshold of audibility on any consumer playback chain.
+#[inline(always)]
+fn f32x4_to_i32x4_24(f32_simd: f32x4) -> [i32; 4] {
+    let pre_quant = clamp_and_scale(f32_simd) + HALF_LSB_24_SIMD;
+    (pre_quant.round_int() >> BitDepth::Bits24.shift_value()).to_array()
 }
 
 /// SSSE3 PSHUFB byte-pack/endian implementations for the four `i32_to_i*` functions.

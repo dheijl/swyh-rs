@@ -223,6 +223,12 @@ impl ChannelStream {
             let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(sample_chunks);
             // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
             // SAFETY: chunks_exact(4) guarantees every chunk is exactly 4 elements
+            //
+            // `endianness`/`bd` pick the match arm once per call (not per chunk); within
+            // an arm, `f32_chunk_to_i32` is `#[inline(always)]` so its internal bd/dither
+            // branch inlines into this closure and the compiler hoists it out of the
+            // per-chunk loop on its own (loop-invariant code motion), since `bd` and
+            // `use_dither` never change across iterations.
             let use_dither = self.use_dither;
             match (endianness, bd) {
                 (Little, Bits16) => chunks_iter.for_each(|(bch, sch)| {

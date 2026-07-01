@@ -6,7 +6,8 @@
 //! LPCM, WAV, RF64, or FLAC format.
 use crate::{
     audio::samples_conv::{
-        f32_chunk_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le,
+        f32x4_to_i32x4_16, f32x4_to_i32x4_16_dither, f32x4_to_i32x4_24, i32_to_i16be, i32_to_i16le,
+        i32_to_i24be, i32_to_i24le,
     },
     enums::streaming::{
         BitDepth::{self, *},
@@ -26,11 +27,34 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use wide::f32x4;
 
 use super::flacstream::FlacChannel;
 
 /// Shared audio sample buffer passed between capture and streaming threads.
 pub type AudioSamples = Arc<Vec<f32>>;
+
+/// Quantize each 4-sample chunk with `quantize`, then pack the resulting `[i32; 4]`
+/// into the matching output bytes with `pack`. Generic over both so that each call site
+/// in [`ChannelStream::fill_lpcm_buffer`] — one per `(endianness, bd, use_dither)`
+/// combination — monomorphizes its own copy of this loop with a specific
+/// quantizer/packer pair resolved at the type level, guaranteeing a branch-free loop
+/// body regardless of optimization level.
+#[inline(always)]
+fn quantize_and_pack<'b, 's, Q, P>(
+    chunks_iter: impl Iterator<Item = (&'b mut [u8], &'s [f32])>,
+    quantize: Q,
+    pack: P,
+) where
+    Q: Fn(f32x4) -> [i32; 4],
+    P: Fn(&[i32; 4], &mut [u8]),
+{
+    chunks_iter.for_each(|(bch, sch)| {
+        // SAFETY: chunks_exact(4) guarantees every chunk is exactly 4 elements
+        let samples = unsafe { sch.as_array().unwrap_unchecked() };
+        pack(&quantize(f32x4::new(*samples)), bch);
+    });
+}
 
 /// Channelstream - used to transport the f32 samples from the `wave_reader`
 /// to the http output stream in LPCM/WAV/FLAC format
@@ -224,45 +248,32 @@ impl ChannelStream {
             // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
             // SAFETY: chunks_exact(4) guarantees every chunk is exactly 4 elements
             //
-            // `endianness`/`bd` pick the match arm once per call (not per chunk); within
-            // an arm, `f32_chunk_to_i32` is `#[inline(always)]` so its internal bd/dither
-            // branch inlines into this closure and the compiler hoists it out of the
-            // per-chunk loop on its own (loop-invariant code motion), since `bd` and
-            // `use_dither` never change across iterations.
+            // `endianness`/`bd`/`use_dither` pick the match arm once per call (not per
+            // chunk); `quantize_and_pack` is generic over the quantizer/packer pair, so
+            // each arm below monomorphizes its own branch-free copy of the loop with a
+            // specific function pair baked in — guaranteed by the language's
+            // monomorphization model rather than relying on the optimizer to hoist an
+            // invariant branch out on its own.
             let use_dither = self.use_dither;
-            match (endianness, bd) {
-                (Little, Bits16) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i16le(
-                        &f32_chunk_to_i32(
-                            bd,
-                            unsafe { sch.as_array().unwrap_unchecked() },
-                            use_dither,
-                        ),
-                        bch,
-                    );
-                }),
-                (Little, Bits24) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i24le(
-                        &f32_chunk_to_i32(bd, unsafe { sch.as_array().unwrap_unchecked() }, false),
-                        bch,
-                    );
-                }),
-                (Big, Bits16) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i16be(
-                        &f32_chunk_to_i32(
-                            bd,
-                            unsafe { sch.as_array().unwrap_unchecked() },
-                            use_dither,
-                        ),
-                        bch,
-                    );
-                }),
-                (Big, Bits24) => chunks_iter.for_each(|(bch, sch)| {
-                    i32_to_i24be(
-                        &f32_chunk_to_i32(bd, unsafe { sch.as_array().unwrap_unchecked() }, false),
-                        bch,
-                    );
-                }),
+            match (endianness, bd, use_dither) {
+                (Little, Bits16, true) => {
+                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16le);
+                }
+                (Little, Bits16, false) => {
+                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_16, i32_to_i16le);
+                }
+                (Little, Bits24, _) => {
+                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_24, i32_to_i24le);
+                }
+                (Big, Bits16, true) => {
+                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16be);
+                }
+                (Big, Bits16, false) => {
+                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_16, i32_to_i16be);
+                }
+                (Big, Bits24, _) => {
+                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_24, i32_to_i24be);
+                }
             }
         } // make_contiguous borrow ends here
         self.fifo.drain(0..samples_needed);

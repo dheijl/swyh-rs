@@ -61,6 +61,37 @@ fn tpdf_dither_lanes_16_threadlocal() -> f32x4 {
     diffs * f32x4::splat(LSB_AT_16BIT_POST_MULT)
 }
 
+/// Convert an f32 sample slice to i32, 4 samples at a time, using `quantize`.
+///
+/// Generic over the quantizer rather than taking a `bd`/`use_dither` pair, so that each
+/// caller below gets its own monomorphized copy of this loop with a *specific* function
+/// item baked in at the call to `quantize`. That's a guarantee from the language's
+/// monomorphization model — every instantiation is a distinct, statically-known call,
+/// with no data to branch on inside the loop body — rather than a hope that the
+/// optimizer's loop-invariant-code-motion pass notices `bd`/`use_dither` don't change
+/// and hoists a branch out on its own (which only happens at `-O1`+, and even then is a
+/// heuristic, not something the type system enforces).
+#[inline(always)]
+fn quantize_chunks<Q: Fn(f32x4) -> [i32; 4]>(
+    f32_samples: &[f32],
+    i32_samples: &mut Vec<i32>,
+    quantize: Q,
+) {
+    let chunks = f32_samples.chunks_exact(4);
+    let remainder = chunks.remainder();
+    chunks.for_each(|chunk| {
+        // chunks are guaranteed to be 4 elements
+        let f32_array = f32x4::new(*chunk.as_array().unwrap());
+        let i_array = quantize(f32_array);
+        i32_samples.extend_from_slice(&i_array);
+    });
+    if remainder.len() == 2 {
+        let f32_array = f32x4::new([remainder[0], remainder[1], 0.0, 0.0]);
+        let i_array = quantize(f32_array);
+        i32_samples.extend_from_slice(&i_array[0..2]);
+    }
+}
+
 /// convert f32 samples to i32 for flac encoding
 /// but scaled to i16 or i24 according to shift (8 or 16)
 /// using SIMD SSE xmm registers (with the wide crate).
@@ -75,23 +106,16 @@ pub fn samples_to_i32(
         "Number of FLAC samples should always be even!"
     );
     i32_samples.clear();
-    let chunks = f32_samples.chunks_exact(4);
-    let remainder = chunks.remainder();
-    // `bd`/`use_dither` are constant for the whole call. `f32_to_i32` is
-    // `#[inline(always)]`, so the compiler inlines its match into this loop and then
-    // hoists it (LICM) since the operands never change across iterations — the
-    // per-chunk code ends up branch-free without needing a hand-rolled function
-    // pointer (which would *block* inlining and force a real indirect call per chunk).
-    chunks.for_each(|chunk| {
-        // chunks are guaranteed to be 4 elements
-        let f32_array = f32x4::new(*chunk.as_array().unwrap());
-        let i_array = f32_to_i32(bd, f32_array, use_dither);
-        i32_samples.extend_from_slice(&i_array);
-    });
-    if remainder.len() == 2 {
-        let f32_array = f32x4::new([remainder[0], remainder[1], 0.0, 0.0]);
-        let i_array = f32_to_i32(bd, f32_array, use_dither);
-        i32_samples.extend_from_slice(&i_array[0..2]);
+    match (bd, use_dither) {
+        (BitDepth::Bits16, true) => {
+            quantize_chunks(f32_samples, i32_samples, f32x4_to_i32x4_16_dither);
+        }
+        (BitDepth::Bits16, false) => {
+            quantize_chunks(f32_samples, i32_samples, f32x4_to_i32x4_16);
+        }
+        (BitDepth::Bits24, _) => {
+            quantize_chunks(f32_samples, i32_samples, f32x4_to_i32x4_24);
+        }
     }
 }
 
@@ -141,7 +165,7 @@ fn clamp_and_scale(f32_simd: f32x4) -> f32x4 {
 /// nudge, `>> N` floors toward −∞ and re-introduces a constant −0.5 LSB DC bias even
 /// though `round_int` itself rounds correctly.
 #[inline(always)]
-fn f32x4_to_i32x4_16_dither(f32_simd: f32x4) -> [i32; 4] {
+pub(crate) fn f32x4_to_i32x4_16_dither(f32_simd: f32x4) -> [i32; 4] {
     let pre_quant =
         clamp_and_scale(f32_simd) + tpdf_dither_lanes_16_threadlocal() + HALF_LSB_16_SIMD;
     (pre_quant.round_int() >> BitDepth::Bits16.shift_value()).to_array()
@@ -149,7 +173,7 @@ fn f32x4_to_i32x4_16_dither(f32_simd: f32x4) -> [i32; 4] {
 
 /// 16-bit, undithered: same as [`f32x4_to_i32x4_16_dither`] minus the dither term.
 #[inline(always)]
-fn f32x4_to_i32x4_16(f32_simd: f32x4) -> [i32; 4] {
+pub(crate) fn f32x4_to_i32x4_16(f32_simd: f32x4) -> [i32; 4] {
     let pre_quant = clamp_and_scale(f32_simd) + HALF_LSB_16_SIMD;
     (pre_quant.round_int() >> BitDepth::Bits16.shift_value()).to_array()
 }
@@ -157,7 +181,7 @@ fn f32x4_to_i32x4_16(f32_simd: f32x4) -> [i32; 4] {
 /// 24 bits: dither is skipped — the residual quantization noise floor (~−141 dBFS) is
 /// below the threshold of audibility on any consumer playback chain.
 #[inline(always)]
-fn f32x4_to_i32x4_24(f32_simd: f32x4) -> [i32; 4] {
+pub(crate) fn f32x4_to_i32x4_24(f32_simd: f32x4) -> [i32; 4] {
     let pre_quant = clamp_and_scale(f32_simd) + HALF_LSB_24_SIMD;
     (pre_quant.round_int() >> BitDepth::Bits24.shift_value()).to_array()
 }

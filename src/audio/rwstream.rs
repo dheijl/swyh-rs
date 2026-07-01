@@ -11,6 +11,7 @@ use crate::{
     },
     enums::streaming::{
         BitDepth::{self, *},
+        Dither::{self, *},
         Endian::{self, *},
         StreamingContext, StreamingFormat,
     },
@@ -73,7 +74,7 @@ pub struct ChannelStream {
     wav_hdr: Vec<u8>,
     use_wave_format: bool,
     bits_per_sample: u16,
-    use_dither: bool,
+    use_dither: Dither,
     flac_channel: Option<FlacChannel>,
 }
 
@@ -256,19 +257,19 @@ impl ChannelStream {
             // invariant branch out on its own.
             let use_dither = self.use_dither;
             match (endianness, bd, use_dither) {
-                (Little, Bits16, true) => {
+                (Little, Bits16, Dither) => {
                     quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16le);
                 }
-                (Little, Bits16, false) => {
+                (Little, Bits16, NoDither) => {
                     quantize_and_pack(chunks_iter, f32x4_to_i32x4_16, i32_to_i16le);
                 }
                 (Little, Bits24, _) => {
                     quantize_and_pack(chunks_iter, f32x4_to_i32x4_24, i32_to_i24le);
                 }
-                (Big, Bits16, true) => {
+                (Big, Bits16, Dither) => {
                     quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16be);
                 }
-                (Big, Bits16, false) => {
+                (Big, Bits16, NoDither) => {
                     quantize_and_pack(chunks_iter, f32x4_to_i32x4_16, i32_to_i16be);
                 }
                 (Big, Bits24, _) => {

@@ -188,6 +188,22 @@ pub enum Endian {
     Big,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Dither {
+    Dither,
+    NoDither,
+}
+
+impl From<bool> for Dither {
+    fn from(use_dither: bool) -> Self {
+        if use_dither {
+            Dither::Dither
+        } else {
+            Dither::NoDither
+        }
+    }
+}
+
 /// All per-connection streaming parameters, fully initialised in one shot by [`StreamingContext::new`].
 #[derive(Debug)]
 pub struct StreamingContext {
@@ -201,7 +217,7 @@ pub struct StreamingContext {
     pub chunksize: usize,
     pub streamsize: Option<usize>,
     pub url: EcoString,
-    pub use_dither: bool,
+    pub use_dither: Dither,
 }
 
 impl StreamingContext {
@@ -245,7 +261,7 @@ impl StreamingContext {
             chunksize,
             streamsize,
             url,
-            use_dither: cfg.use_dither.unwrap_or(true),
+            use_dither: Dither::from(cfg.use_dither.unwrap_or(true)),
         }
     }
 

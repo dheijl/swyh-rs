@@ -17,7 +17,7 @@ use std::hint::black_box;
 use swyh_rs::audio::samples_conv::{
     i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le, samples_to_i32,
 };
-use swyh_rs::enums::streaming::BitDepth;
+use swyh_rs::enums::streaming::{BitDepth, Dither};
 use wide::f32x4;
 
 // ---------------------------------------------------------------------------
@@ -210,11 +210,11 @@ fn bench_samples_to_i32(c: &mut Criterion) {
     let mut g = c.benchmark_group("samples_to_i32");
     g.throughput(Throughput::Elements(N as u64));
 
-    let cases: &[(BitDepth, bool, &str)] = &[
-        (BitDepth::Bits16, true, "16bit_dither"),
-        (BitDepth::Bits16, false, "16bit_nodither"),
-        (BitDepth::Bits24, false, "24bit_nodither"),
-        (BitDepth::Bits24, true, "24bit_dither_ignored"),
+    let cases: &[(BitDepth, Dither, &str)] = &[
+        (BitDepth::Bits16, Dither::Dither, "16bit_dither"),
+        (BitDepth::Bits16, Dither::NoDither, "16bit_nodither"),
+        (BitDepth::Bits24, Dither::NoDither, "24bit_nodither"),
+        (BitDepth::Bits24, Dither::Dither, "24bit_dither_ignored"),
     ];
 
     for &(bd, use_dither, label) in cases {

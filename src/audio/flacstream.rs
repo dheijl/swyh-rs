@@ -25,7 +25,7 @@ use crate::{
         rwstream::AudioSamples,
         samples_conv::{f32_to_i32, samples_to_i32},
     },
-    enums::streaming::BitDepth,
+    enums::streaming::{BitDepth, Dither},
     fl,
     globals::statics::THREAD_STACK,
     utils::ui_logger::{LogCategory, ui_log},
@@ -75,7 +75,7 @@ pub(crate) struct FlacChannel {
     sample_rate: u32,
     bits_per_sample: u32,
     channels: u32,
-    use_dither: bool,
+    use_dither: Dither,
 }
 
 impl FlacChannel {
@@ -85,7 +85,7 @@ impl FlacChannel {
         sample_rate: u32,
         bits_per_sample: u32,
         channels: u32,
-        use_dither: bool,
+        use_dither: Dither,
     ) -> FlacChannel {
         let (flac_out, flac_in): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = unbounded();
         FlacChannel {
@@ -204,7 +204,7 @@ fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
         f32_array[2] = (rng.f32() * 2.0) - 1.0;
         f32_array[3] = (rng.f32() * 2.0) - 1.0;
         let f32_simd = f32x4::new(f32_array);
-        let i32_array = f32_to_i32(bd, f32_simd, false);
+        let i32_array = f32_to_i32(bd, f32_simd, Dither::NoDither);
         samples.iter_mut().zip(i32_array).for_each(|s| {
             if s.1 >= 0 {
                 *s.0 = s.1 & 0x03;

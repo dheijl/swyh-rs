@@ -38,13 +38,7 @@ use log::{LevelFilter, debug, info};
 
 use fltk_theme::{ColorMap, ColorTheme, color_themes};
 
-use std::{
-    cell::{Cell, RefCell},
-    net::IpAddr,
-    rc::Rc,
-    str::FromStr,
-    sync::atomic::Ordering,
-};
+use std::{cell::Cell, net::IpAddr, rc::Rc, str::FromStr, sync::atomic::Ordering};
 
 /// fltk themes
 struct ThemeDesc {
@@ -102,6 +96,7 @@ pub struct MainForm {
     default_sample_rate: u32,
     local_addr: IpAddr,
     player_index: usize,
+    config_changed: Rc<Cell<bool>>,
 }
 
 impl MainForm {
@@ -147,61 +142,16 @@ impl MainForm {
         wind.end();
         wind.show();
 
-        // Shared reference to the renderer-list header frame, used in the right-click handler
-        // below to identify the frame by widget identity rather than by label content.
-        let renderer_header: Rc<RefCell<Option<Frame>>> = Rc::new(RefCell::new(None));
-
-        wind.handle({
-            let config_changed = config_changed.clone();
-            let renderer_header = renderer_header.clone();
-            move |_, _ev| {
-                // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called
-                // debug!("_ev = {:?}, app_event = {:?}", _ev, app::event());
-                let ev = app::event();
-                match ev {
-                    Event::Close => {
-                        app.quit();
-                        //std::process::exit(0);
-                        true
-                    }
-                    Event::Push => {
-                        if app::event_mouse_button() == app::MouseButton::Right {
-                            if let Some(lightbtn) = app::belowmouse::<LightButton>() {
-                                let players = get_renderers().clone();
-                                for player in players {
-                                    if let Some(mut button) = player.rend_ui.button
-                                        && button == lightbtn
-                                    {
-                                        button.hide();
-                                        if let Some(mut slider) = player.rend_ui.slider {
-                                            slider.hide();
-                                        }
-                                        let mut config = get_config_mut();
-                                        config.hidden_renderers.push(player.remote_addr.clone());
-                                        let _ = config.update_config();
-                                        config_changed.set(true);
-                                        return true;
-                                    }
-                                }
-                            } else if let Some(frame) = app::belowmouse::<Frame>() {
-                                let is_renderer_header = renderer_header
-                                    .borrow()
-                                    .as_ref()
-                                    .map(|hf| *hf == frame)
-                                    .unwrap_or(false);
-                                if is_renderer_header {
-                                    let mut config = get_config_mut();
-                                    config.hidden_renderers.clear();
-                                    let _ = config.update_config();
-                                    config_changed.set(true);
-                                    return true;
-                                }
-                            }
-                        }
-                        false
-                    }
-                    _ => false,
+        wind.handle(move |_, _ev| {
+            // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called
+            // debug!("_ev = {:?}, app_event = {:?}", _ev, app::event());
+            match app::event() {
+                Event::Close => {
+                    app.quit();
+                    //std::process::exit(0);
+                    true
                 }
+                _ => false,
             }
         });
 
@@ -255,18 +205,19 @@ impl MainForm {
         }
         choose_audio_source_but.set_value(config.sound_source_index.unwrap_or(0));
         choose_audio_source_but.set_callback({
-            let audio_sources = audio_sources.to_vec();
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
-                if b.value() < 0 {
+                let Some(name) = b.choice().map(|n| n.as_str().fw_slash_pipe_unescape()) else {
                     return;
-                }
-                let name = &audio_sources[(b.value() as usize).clamp(0, audio_sources.len() - 1)];
-                ui_log(LogCategory::Info, &fl!("warn-audio-changed", "name" = name));
+                };
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("warn-audio-changed", "name" = &name),
+                );
                 {
                     let mut conf = get_config_mut();
-                    conf.sound_source = Some(name.to_string());
+                    conf.sound_source = Some(name);
                     conf.sound_source_index = Some(b.value());
                     let _ = conf.update_config();
                 }
@@ -305,10 +256,9 @@ impl MainForm {
         fmt_choice.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
-                if b.value() < 0 {
+                let Some(format) = b.choice() else {
                     return;
-                }
-                let format = formats[b.value() as usize].clone();
+                };
                 ui_log(
                     LogCategory::Info,
                     &fl!("info-format-changed", "format" = &format),
@@ -363,10 +313,9 @@ impl MainForm {
         ss_choice.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
-                if b.value() < 0 {
+                let Some(newsize) = b.choice() else {
                     return;
-                }
-                let newsize = streamsizes[b.value() as usize].clone();
+                };
                 let streamsize = StreamSize::from_str(&newsize).unwrap();
                 let streaming_format = {
                     let mut conf = get_config_mut();
@@ -586,21 +535,19 @@ impl MainForm {
         }
         choose_network_but.set_value(initial_nw_idx);
         choose_network_but.set_callback({
-            let networks = networks.to_vec();
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
-                if b.value() < 0 {
+                let Some(name) = b.choice() else {
                     return;
-                }
-                let name = &networks[(b.value() as usize).clamp(0, networks.len() - 1)];
+                };
                 ui_log(
                     LogCategory::Info,
-                    &fl!("warn-network-changed", "name" = name),
+                    &fl!("warn-network-changed", "name" = &name),
                 );
                 {
                     let mut conf = get_config_mut();
-                    conf.last_network = Some(name.to_string());
+                    conf.last_network = Some(name);
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
@@ -744,21 +691,19 @@ impl MainForm {
         }
         lang_button.set_value(initial_lang_idx);
         lang_button.set_callback({
-            let available_langs = available_langs.clone();
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
-                if b.value() < 0 {
+                let Some(lang) = b.choice() else {
                     return;
-                }
-                let lang = &available_langs[b.value() as usize];
+                };
                 ui_log(
                     LogCategory::Warning,
-                    &fl!("warn-language-changed", "lang" = lang),
+                    &fl!("warn-language-changed", "lang" = &lang),
                 );
                 {
                     let mut conf = get_config_mut();
-                    conf.language = Some(lang.to_string());
+                    conf.language = Some(lang);
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
@@ -1025,10 +970,25 @@ impl MainForm {
         frame.set_frame(FrameType::BorderBox);
         frame.set_label(&fl!("upnp-devices", "addr" = local_addr));
         frame.set_color(title_color);
+        // right-click on the header un-hides all previously hidden renderers
+        frame.handle({
+            let config_changed = config_changed.clone();
+            move |_, ev| {
+                // event_button() is a plain i32 (3 = right); avoid event_mouse_button(),
+                // which transmutes the raw code and panics on non-button events (Move, Enter, ...)
+                if ev == Event::Push && app::event_button() == 3 {
+                    let mut config = get_config_mut();
+                    config.hidden_renderers.clear();
+                    let _ = config.update_config();
+                    config_changed.set(true);
+                    true
+                } else {
+                    false
+                }
+            }
+        });
         flx_buttons.add(&frame);
         vpack.add(&flx_buttons);
-        // Store the frame reference so the right-click handler can identify it by identity
-        *renderer_header.borrow_mut() = Some(frame.clone());
 
         // ssdp discovered renderer buttons go here
         let btn_insert_index = vpack.children();
@@ -1072,6 +1032,7 @@ impl MainForm {
             wd: *wd,
             default_sample_rate,
             local_addr,
+            config_changed: config_changed.clone(),
         }
     }
 
@@ -1312,6 +1273,37 @@ impl MainForm {
         } else {
             new_renderer.rend_ui.slider = None;
         }
+        // right-click hides this renderer's button (and slider, if any).
+        // fltk-rs runs the widget's built-in handle() first by default and ORs in
+        // our result, which would fire the button's own play/stop callback on
+        // FL_RELEASE before we ever get to swallow the event — flip that order.
+        pbut.super_handle_first(false);
+        pbut.handle({
+            let config_changed = self.config_changed.clone();
+            let remote_addr = new_renderer.remote_addr.clone();
+            let mut slider = new_renderer.rend_ui.slider.clone();
+            move |b, ev| {
+                // event_button() is a plain i32 (3 = right); avoid event_mouse_button(),
+                // which transmutes the raw code and panics on non-button events (Move, Enter, ...)
+                match ev {
+                    Event::Push if app::event_button() == 3 => {
+                        b.hide();
+                        if let Some(sl) = slider.as_mut() {
+                            sl.hide();
+                        }
+                        let mut config = get_config_mut();
+                        config.hidden_renderers.push(remote_addr.clone());
+                        let _ = config.update_config();
+                        config_changed.set(true);
+                        true
+                    }
+                    // swallow the rest of the right-click gesture too, so the button's
+                    // own click handling (fired on Released) doesn't also toggle play/stop
+                    Event::Released | Event::Drag if app::event_button() == 3 => true,
+                    _ => false,
+                }
+            }
+        });
         new_renderer.rend_ui.button = Some(pbut.clone());
         // add the new renderer to the global list of renderers
         get_renderers_mut().push(new_renderer.clone());

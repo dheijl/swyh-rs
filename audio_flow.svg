@@ -30,7 +30,7 @@
   ════════════════════════════════════════════════════ -->
   <rect x="110" y="120" width="740" height="56" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="6"/>
   <text x="480" y="141" text-anchor="middle" font-size="13" font-weight="bold" fill="#1b5e20">wave_reader / wave_reader_f32  ·  src/audio/audiodevices.rs</text>
-  <text x="480" y="159" text-anchor="middle" font-size="11" fill="#2e7d32">① Convert to f32 via dasp_sample::ToSample     ② Downmix to stereo if channels ≠ 2  (samples_conv::downmix_to_stereo)</text>
+  <text x="480" y="159" text-anchor="middle" font-size="11" fill="#2e7d32">① Convert to f32 (dasp_sample::ToSample)  ② Downmix to stereo (samples_conv::downmix_to_stereo)</text>
   <!-- CPAL thread badge -->
   <rect x="116" y="126" width="116" height="16" fill="#c8e6c9" stroke="#388e3c" stroke-width="1" rx="3"/>
   <text x="174" y="138" text-anchor="middle" font-size="9" fill="#1b5e20">CPAL audio thread</text>
@@ -44,7 +44,7 @@
   ════════════════════════════════════════════════════ -->
   <rect x="160" y="202" width="640" height="56" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="6"/>
   <text x="480" y="222" text-anchor="middle" font-size="13" font-weight="bold" fill="#e65100">distribute_samples()  ·  src/audio/audiodevices.rs</text>
-  <text x="480" y="241" text-anchor="middle" font-size="11" fill="#bf360c">Arc&lt;Vec&lt;f32&gt;&gt; shared_samples  —  Arc::clone() fanout to every active HTTP client  +  rms_sender.send()</text>
+  <text x="480" y="241" text-anchor="middle" font-size="11" fill="#bf360c">Arc&lt;Vec&lt;f32&gt;&gt; shared_samples — Arc::clone() fanout to each HTTP client + rms_sender.send()</text>
 
   <!-- fan-out arrow: left → ChannelStream (straight down, offset left) -->
   <line x1="420" y1="258" x2="380" y2="296" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
@@ -99,7 +99,7 @@
   <text x="240" y="479" text-anchor="middle" font-size="10" fill="#283593">① WAV / RF64 header prepended (44 / 80 bytes)</text>
   <text x="240" y="496" text-anchor="middle" font-size="10" fill="#283593">② r.recv_timeout() → push to VecDeque&lt;f32&gt; fifo</text>
   <text x="240" y="512" text-anchor="middle" font-size="10" fill="#283593">   or push silence_buffer on capture timeout</text>
-  <text x="240" y="529" text-anchor="middle" font-size="10" fill="#283593">③ f32_chunk_to_i32()  —  SIMD f32x4 (wide crate)</text>
+  <text x="240" y="529" text-anchor="middle" font-size="10" fill="#283593">③ quantize_and_pack()  —  SIMD f32x4 (wide crate)</text>
   <text x="240" y="545" text-anchor="middle" font-size="10" fill="#283593">   TPDF dither applied at 16-bit  (src/audio/samples_conv.rs)</text>
   <text x="240" y="561" text-anchor="middle" font-size="10" fill="#283593">④ i32_to_i16le/be  or  i32_to_i24le/be  (endian per format)</text>
   <text x="240" y="577" text-anchor="middle" font-size="10" fill="#283593">⑤ Encoded bytes fill HTTP &amp;mut [u8] read buffer</text>
@@ -109,15 +109,16 @@
   ════════════════════════════════════════════════════ -->
   <rect x="505" y="420" width="415" height="180" fill="#e0f7fa" stroke="#0097a7" stroke-width="2" rx="6"/>
   <text x="712" y="441" text-anchor="middle" font-size="12" font-weight="bold" fill="#006064">FLAC path  —  FlacChannel  ·  src/audio/flacstream.rs</text>
-  <text x="712" y="456" text-anchor="middle" font-size="10" fill="#00838f">encoder thread "flac_encoder"  (flac-bound crate, compression level 1)</text>
+  <text x="712" y="456" text-anchor="middle" font-size="10" fill="#00838f">encoder thread "flac_encoder"  (flac-bound crate, level 1)</text>
   <line x1="520" y1="463" x2="905" y2="463" stroke="#0097a7" stroke-width="1" stroke-dasharray="4,3"/>
   <text x="712" y="479" text-anchor="middle" font-size="10" fill="#00838f">① samples_rcvr.recv_timeout()  →  samples_to_i32() (SIMD)</text>
-  <text x="712" y="495" text-anchor="middle" font-size="10" fill="#00838f">   or near-silence noise burst on timeout (keep FLAC stream alive)</text>
-  <text x="712" y="512" text-anchor="middle" font-size="10" fill="#00838f">② enc.process_interleaved() — encode FLAC frames</text>
-  <text x="712" y="528" text-anchor="middle" font-size="10" fill="#00838f">③ FlacWriter (impl Write) pushes bytes onto</text>
-  <text x="712" y="544" text-anchor="middle" font-size="10" fill="#00838f">   Sender&lt;Vec&lt;u8&gt;&gt;  flac_out  crossbeam channel</text>
-  <text x="712" y="561" text-anchor="middle" font-size="10" fill="#00838f">④ fill_flac_buffer(): Receiver&lt;Vec&lt;u8&gt;&gt;  flac_in</text>
-  <text x="712" y="577" text-anchor="middle" font-size="10" fill="#00838f">   → VecDeque&lt;u8&gt; flac_fifo → HTTP &amp;mut [u8] read buffer</text>
+  <text x="712" y="493" text-anchor="middle" font-size="9" fill="#00838f" font-style="italic">   TPDF dither applied at 16-bit, same as LPCM path</text>
+  <text x="712" y="507" text-anchor="middle" font-size="10" fill="#00838f">   or near-silence noise burst on timeout (keep FLAC stream alive)</text>
+  <text x="712" y="522" text-anchor="middle" font-size="10" fill="#00838f">② enc.process_interleaved() — encode FLAC frames</text>
+  <text x="712" y="537" text-anchor="middle" font-size="10" fill="#00838f">③ FlacWriter (impl Write) pushes bytes onto</text>
+  <text x="712" y="552" text-anchor="middle" font-size="10" fill="#00838f">   Sender&lt;Vec&lt;u8&gt;&gt;  flac_out  crossbeam channel</text>
+  <text x="712" y="567" text-anchor="middle" font-size="10" fill="#00838f">④ fill_flac_buffer(): Receiver&lt;Vec&lt;u8&gt;&gt;  flac_in</text>
+  <text x="712" y="582" text-anchor="middle" font-size="10" fill="#00838f">   → VecDeque&lt;u8&gt; flac_fifo → HTTP &amp;mut [u8] read buffer</text>
 
   <!-- ── merge arrows from encoding layers to HTTP ── -->
   <line x1="240" y1="600" x2="240" y2="632" stroke="#555" stroke-width="1.5"/>

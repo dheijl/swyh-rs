@@ -25,7 +25,7 @@ use std::{
     net::{IpAddr, SocketAddr, UdpSocket},
     time::{Duration, Instant},
 };
-use xml::reader::{EventReader, XmlEvent};
+use xml::reader::{EventReader, ParserConfig, XmlEvent};
 
 /// a Figura Template with Curly Braces as delimiter
 type CbTemplate = Template<'{', '}'>;
@@ -1212,7 +1212,8 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
 
 /// build a renderer struct by (roughly) parsing the GetDescription.xml
 fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
-    let parser = EventReader::new(xml.as_bytes());
+    let parser =
+        EventReader::new_with_config(xml.as_bytes(), ParserConfig::new().trim_whitespace(true));
     let mut cur_elem = EcoString::new();
     let mut service = AvService::new();
     let mut renderer = Renderer::new(agent);
@@ -1222,20 +1223,15 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
                 cur_elem = EcoString::from(name.local_name);
             }
             Ok(XmlEvent::EndElement { name }) => {
-                let end_elem = EcoString::from(name.local_name);
-                if end_elem == "service" {
+                if name.local_name == "service" {
                     let id = service.service_id.as_str();
-                    if ["Playlist", "urn:av-openhome-org:service"]
-                        .iter()
-                        .all(|&p| id.contains(p))
-                    {
-                        renderer.oh_control_url.clone_from(&service.control_url);
-                        renderer.supported_protocols |= SupportedProtocols::OPENHOME;
-                    } else if ["Volume", "urn:av-openhome-org:service"]
-                        .iter()
-                        .all(|&p| id.contains(p))
-                    {
-                        renderer.oh_volume_url.clone_from(&service.control_url);
+                    if id.contains("urn:av-openhome-org:service") {
+                        if id.contains("Playlist") {
+                            renderer.oh_control_url.clone_from(&service.control_url);
+                            renderer.supported_protocols |= SupportedProtocols::OPENHOME;
+                        } else if id.contains("Volume") {
+                            renderer.oh_volume_url.clone_from(&service.control_url);
+                        }
                     } else if id.contains(":AVTransport") {
                         renderer.av_control_url.clone_from(&service.control_url);
                         renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;

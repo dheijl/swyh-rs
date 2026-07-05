@@ -134,6 +134,8 @@ pub fn samples_to_i32(
 /// compiler's loop-invariant-code-motion pass hoists the match out on its own, leaving a
 /// branch-free per-iteration body. A stored `fn` pointer would prevent that inlining and
 /// force a real indirect call on every chunk instead.
+///
+/// Only used by the flac "fill_noise_buffer()" and the tests now.
 #[inline(always)]
 pub fn f32_to_i32(bd: BitDepth, f32_simd: f32x4, use_dither: Dither) -> [i32; 4] {
     match (bd, use_dither) {

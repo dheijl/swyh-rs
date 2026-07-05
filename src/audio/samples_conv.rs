@@ -43,22 +43,49 @@ static HALF_LSB_16_SIMD: f32x4 = f32x4::splat(32_768.0);
 /// paths unbiased and the math symmetric.
 static HALF_LSB_24_SIMD: f32x4 = f32x4::splat(128.0);
 
-/// Generate one f32x4 of triangular-PDF (TPDF) dither for 16-bit quantization, in the
-/// post-multiply f32 domain. Each lane is `(u1 − u2) · LSB`, with u1, u2 ∼ U[0, 1).
-/// Peak amplitude ±1 LSB, mean 0, triangular density on (−1, 1) LSB. Reads from
-/// `fastrand`'s per-thread RNG.
+/// Turn 32 bytes of raw RNG output (4 WyRand `u64`s) into one f32x4 of triangular-PDF
+/// (TPDF) dither for 16-bit quantization, in the post-multiply f32 domain. Each lane is
+/// `(u1 − u2) · LSB`, with u1, u2 ∼ U[0, 1). Peak amplitude ±1 LSB, mean 0, triangular
+/// density on (−1, 1) LSB.
 ///
-/// The raw diffs are packed into an f32x4 first; the scale factor is then applied
-/// as a single SIMD MULPS rather than four scalar MULSSs before packing.
+/// Each `u64` is split into two `u32` halves, and each half is scaled to `[0, 1)` via
+/// `(half >> 1) as f32 * MUL` — the same shift-then-scale trick `fastrand::f32_inclusive`
+/// applies to a full 64-bit draw, applied here twice per word. WyRand's multiply step
+/// already mixes entropy across all 64 output bits, so the two halves are
+/// independent-enough draws; this gets 8 values out of 4 RNG state updates instead of 8.
+///
+/// Shared by the thread-local production path ([`tpdf_dither_lanes_16_threadlocal`]) and
+/// the seeded test path (`tpdf_dither_lanes_16_seeded` in `tests`), so both exercise the
+/// same bit-level conversion — only the entropy source differs.
+#[inline(always)]
+fn tpdf_dither_lanes_16_from_bytes(buf: [u8; 32]) -> f32x4 {
+    const MUL: f32 = 1.0 / (1u32 << 31) as f32;
+
+    let mut u = [0.0f32; 8];
+    for (i, w) in buf.chunks_exact(8).enumerate() {
+        // chunks are guaranteed to be 8 bytes exactly
+        let word = u64::from_ne_bytes(w.try_into().unwrap());
+        u[2 * i] = ((word as u32) >> 1) as f32 * MUL;
+        u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32 * MUL;
+    }
+
+    let diffs = f32x4::new([u[0] - u[1], u[2] - u[3], u[4] - u[5], u[6] - u[7]]);
+    diffs * f32x4::splat(LSB_AT_16BIT_POST_MULT)
+}
+
+/// Generate one f32x4 of TPDF dither, reading from `fastrand`'s per-thread RNG.
+///
+/// Draws entropy via one `fastrand::fill` call rather than 8 separate `fastrand::f32()`
+/// calls. `fastrand::f32()` does not inline across the crate boundary in this build
+/// (confirmed via disassembly: each call is a real `call` through the GOT, re-entering
+/// the thread-local `Cell` take/replace guard every time), so 8 calls pay that dispatch
+/// 8 times; `fill()` pays it once and then just loops the plain `#[inline]` WyRand step
+/// (add + widening multiply + xor) with no further dispatch.
 #[inline(always)]
 fn tpdf_dither_lanes_16_threadlocal() -> f32x4 {
-    let diffs = f32x4::new([
-        fastrand::f32() - fastrand::f32(),
-        fastrand::f32() - fastrand::f32(),
-        fastrand::f32() - fastrand::f32(),
-        fastrand::f32() - fastrand::f32(),
-    ]);
-    diffs * f32x4::splat(LSB_AT_16BIT_POST_MULT)
+    let mut buf = [0u8; 32];
+    fastrand::fill(&mut buf);
+    tpdf_dither_lanes_16_from_bytes(buf)
 }
 
 /// Convert an f32 sample slice to i32, 4 samples at a time, using `quantize`.
@@ -484,14 +511,13 @@ mod tests {
 
     /// Test-only seeded variant of the TPDF dither generator. The production code
     /// uses `tpdf_dither_lanes_16_threadlocal` (which reads `fastrand`'s thread-local
-    /// state); for deterministic tests we want to control the seed directly.
+    /// state); for deterministic tests we want to control the seed directly. Shares
+    /// `tpdf_dither_lanes_16_from_bytes` with production, so only the entropy source
+    /// (a seeded `Rng` instance vs. the thread-local) differs.
     fn tpdf_dither_lanes_16_seeded(rng: &mut fastrand::Rng) -> f32x4 {
-        f32x4::new([
-            (rng.f32() - rng.f32()) * LSB_AT_16BIT_POST_MULT,
-            (rng.f32() - rng.f32()) * LSB_AT_16BIT_POST_MULT,
-            (rng.f32() - rng.f32()) * LSB_AT_16BIT_POST_MULT,
-            (rng.f32() - rng.f32()) * LSB_AT_16BIT_POST_MULT,
-        ])
+        let mut buf = [0u8; 32];
+        rng.fill(&mut buf);
+        tpdf_dither_lanes_16_from_bytes(buf)
     }
 
     #[test]

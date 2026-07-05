@@ -72,9 +72,9 @@ fn tpdf_dither_scalar_mul() -> f32x4 {
     ])
 }
 
-// Current production approach (mirrors tpdf_dither_lanes_16_threadlocal): pack
-// the raw diffs into an f32x4 first, then multiply the whole register by a
-// splat — one SIMD MULPS instead of four scalar MULSSs.
+// Superseded approach: pack the raw diffs into an f32x4 first, then multiply the
+// whole register by a splat — one SIMD MULPS instead of four scalar MULSSs. Still
+// 8 separate `fastrand::f32()` calls though, each paying its own thread-local dispatch.
 #[inline(always)]
 fn tpdf_dither_simd_mul() -> f32x4 {
     let diffs = f32x4::new([
@@ -83,6 +83,28 @@ fn tpdf_dither_simd_mul() -> f32x4 {
         fastrand::f32() - fastrand::f32(),
         fastrand::f32() - fastrand::f32(),
     ]);
+    diffs * f32x4::splat(65536.0_f32)
+}
+
+// Current production approach (mirrors tpdf_dither_lanes_16_threadlocal / see
+// samples_conv.rs `tpdf_dither_lanes_16_from_bytes`): one `fastrand::fill` call draws
+// 32 bytes (4 WyRand u64s) in a single thread-local dispatch; each u64 is split into
+// two u32 halves and scaled to [0, 1) — 8 draws from one dispatch instead of 8.
+#[inline(always)]
+fn tpdf_dither_batched_fill() -> f32x4 {
+    const MUL: f32 = 1.0 / (1u32 << 31) as f32;
+
+    let mut buf = [0u8; 32];
+    fastrand::fill(&mut buf);
+
+    let mut u = [0.0f32; 8];
+    for (i, w) in buf.chunks_exact(8).enumerate() {
+        let word = u64::from_ne_bytes(w.try_into().unwrap());
+        u[2 * i] = ((word as u32) >> 1) as f32 * MUL;
+        u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32 * MUL;
+    }
+
+    let diffs = f32x4::new([u[0] - u[1], u[2] - u[3], u[4] - u[5], u[6] - u[7]]);
     diffs * f32x4::splat(65536.0_f32)
 }
 
@@ -106,6 +128,16 @@ fn bench_tpdf_dither(c: &mut Criterion) {
             let mut acc = f32x4::splat(0.0_f32);
             for _ in 0..N / 4 {
                 acc += black_box(tpdf_dither_simd_mul());
+            }
+            black_box(acc)
+        })
+    });
+
+    g.bench_function("batched_fill", |b| {
+        b.iter(|| {
+            let mut acc = f32x4::splat(0.0_f32);
+            for _ in 0..N / 4 {
+                acc += black_box(tpdf_dither_batched_fill());
             }
             black_box(acc)
         })

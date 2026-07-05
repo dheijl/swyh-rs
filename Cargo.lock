@@ -2504,4 +2504,4 @@ dependencies = [
 [[package]]
 name = "zmij"
 version = "1.0.21"
-source = "git+https://github.com/dtolnay/zmij#1b96dedd1e2de97f96a0a10ac95db071e2b0540b"
+source = "git+https://github.com/dtolnay/zmij#4fbf0b9a7c9012cc9088b90f0989cdcdf7f9c991"

@@ -520,6 +520,22 @@ mod tests {
         tpdf_dither_lanes_16_from_bytes(buf)
     }
 
+    /// Test-only mirror of `tpdf_dither_lanes_16_from_bytes`'s bit-splitting, returning
+    /// the raw `(u1, u2)` pairs *before* subtraction. Each pair is the low/high 32-bit
+    /// half of a single WyRand `u64` output — used to check whether those halves behave
+    /// as independent draws (see `test_tpdf_dither_halves_are_uncorrelated`).
+    fn tpdf_raw_pairs_from_bytes(buf: [u8; 32]) -> [(f32, f32); 4] {
+        const MUL: f32 = 1.0 / (1u32 << 31) as f32;
+        let mut pairs = [(0.0f32, 0.0f32); 4];
+        for (i, w) in buf.chunks_exact(8).enumerate() {
+            let word = u64::from_ne_bytes(w.try_into().unwrap());
+            let u1 = ((word as u32) >> 1) as f32 * MUL;
+            let u2 = ((word >> 32) as u32 >> 1) as f32 * MUL;
+            pairs[i] = (u1, u2);
+        }
+        pairs
+    }
+
     #[test]
     fn test_f32_to_i32_i16_range() {
         // 16-bit conversion is dithered, so output is a random variable within
@@ -655,6 +671,50 @@ mod tests {
             let b = tpdf_dither_lanes_16_seeded(&mut rng_b).to_array();
             assert_eq!(a, b);
         }
+    }
+
+    #[test]
+    fn test_tpdf_dither_halves_are_uncorrelated() {
+        // Each TPDF dither value is u1 - u2, where u1/u2 come from the low and high
+        // 32-bit halves of a *single* WyRand u64 output (not two independent state
+        // advances, unlike e.g. two `fastrand::f32()` calls). TPDF correctness relies
+        // on u1 and u2 being independent — if they were strongly correlated (in the
+        // limit, identical), u1 - u2 would collapse toward zero and the dither would
+        // do nothing. This measures the Pearson correlation between u1 and u2 across
+        // many samples as an empirical check that WyRand's multiply-and-fold mixing
+        // step decorrelates the two halves well enough for this use.
+        let mut rng = fastrand::Rng::with_seed(0x5EED_F00D);
+        let n = 200_000;
+        let mut u1s = Vec::with_capacity(n * 4);
+        let mut u2s = Vec::with_capacity(n * 4);
+        for _ in 0..n {
+            let mut buf = [0u8; 32];
+            rng.fill(&mut buf);
+            for (u1, u2) in tpdf_raw_pairs_from_bytes(buf) {
+                u1s.push(u1 as f64);
+                u2s.push(u2 as f64);
+            }
+        }
+        let count = u1s.len() as f64;
+        let mean1 = u1s.iter().sum::<f64>() / count;
+        let mean2 = u2s.iter().sum::<f64>() / count;
+        let (mut cov, mut var1, mut var2) = (0.0, 0.0, 0.0);
+        for (a, b) in u1s.iter().zip(u2s.iter()) {
+            let da = a - mean1;
+            let db = b - mean2;
+            cov += da * db;
+            var1 += da * da;
+            var2 += db * db;
+        }
+        let corr = cov / (var1.sqrt() * var2.sqrt());
+        // Under true independence the standard error of the sample correlation is
+        // ~1/sqrt(N) ≈ 0.0011 at N = 800 000. A 0.02 bound is ~18 SE — generous enough
+        // to avoid flakiness from WyRand's non-cryptographic mixing, while still
+        // catching any gross structural correlation between the halves.
+        assert!(
+            corr.abs() < 0.02,
+            "low/high halves of WyRand word are correlated: r = {corr}"
+        );
     }
 
     #[test]

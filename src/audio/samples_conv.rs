@@ -119,12 +119,6 @@ pub fn samples_to_i32(
     }
 }
 
-/// convert 4 contiguous f32 samples to an i32 array (scaled to bitdepth)
-#[inline(always)]
-pub fn f32_chunk_to_i32(bd: BitDepth, samples: &[f32; 4], use_dither: Dither) -> [i32; 4] {
-    f32_to_i32(bd, f32x4::new(*samples), use_dither)
-}
-
 /// Convert 4 f32 samples in an f32x4 to 4 i32 samples (using SIMD), scaled to the
 /// requested bit depth. Steps: clamp ±1.0 → multiply by 2³¹ → add TPDF dither (16-bit
 /// only) → round-to-nearest → arithmetic right-shift.

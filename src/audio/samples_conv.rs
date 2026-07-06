@@ -80,7 +80,8 @@ fn tpdf_dither_lanes_16_from_bytes(buf: [u8; 32]) -> f32x4 {
 /// (confirmed via disassembly: each call is a real `call` through the GOT, re-entering
 /// the thread-local `Cell` take/replace guard every time), so 8 calls pay that dispatch
 /// 8 times; `fill()` pays it once and then just loops the plain `#[inline]` WyRand step
-/// (add + widening multiply + xor) with no further dispatch.
+/// inside `fastrand` itself (add + widening multiply + xor, see `Rng::gen_u64`) with no
+/// further dispatch.
 #[inline(always)]
 fn tpdf_dither_lanes_16_threadlocal() -> f32x4 {
     let mut buf = [0u8; 32];

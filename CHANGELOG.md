@@ -4,6 +4,7 @@
   - sample conversions: instead of relying on LLVM optimizations to hoist the loop invariants out of the loops, use generics instead to dispatch the samples conversions jump-free for the various combinations of 16-bit/24-bit/dithering/endianness, a suggestion made by Claude while considering pulling up the conditions from the inner loops.
   - Rust 1.96.1
   - make better use of the FLTK choice widget, and better event handling
+  - speed-up the TPDF dithering by a factor of ~2.5 by calling fastrand only once with a buffer of 32 bytes instead of 8 times to generate the 8 f32 values needed
 
 - 1.20.4 (Jun 27 2026, dheijl)
   - some refactoring/optimization

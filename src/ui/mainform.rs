@@ -12,8 +12,8 @@ use crate::{
     },
     fl,
     globals::statics::{
-        APP_DATE, APP_VERSION, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, THEMES, get_config,
-        get_config_mut, get_renderers, get_renderers_mut,
+        APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
+        get_config, get_config_mut, get_renderers, get_renderers_mut,
     },
     renderers::rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, i18n, traits::FwSlashPipeEscape, ui_logger::*},
@@ -36,7 +36,7 @@ use fltk::{
 //use fltk_flow::Flow;
 use log::{LevelFilter, debug, info};
 
-use fltk_theme::{ColorMap, ColorTheme, color_themes};
+use fltk_theme::{ColorMap, ColorTheme, SchemeType, WidgetScheme, color_themes};
 
 use std::{cell::Cell, net::IpAddr, rc::Rc, str::FromStr, sync::atomic::Ordering};
 
@@ -758,6 +758,51 @@ impl MainForm {
         app_col.add(&flx_theme);
         app_col.fixed(&flx_theme, ROW_H);
 
+        // Widget style choice
+        // note: unlike the color theme, a widget style change cannot be cleanly
+        // undone at runtime (fltk-theme has no "reset to default box drawing"),
+        // so it's only applied at startup and otherwise requires a restart
+        if let Some(style) = config.widget_scheme {
+            Self::apply_scheme(style.into());
+        }
+        let initial_style_idx = config.widget_scheme.unwrap_or(NSTYLES as u8) as i32;
+        let mut style_button = Choice::new(0, 0, 0, ROW_H, "");
+        for style in STYLES.iter() {
+            style_button.add_choice(style);
+        }
+        style_button.set_value(initial_style_idx);
+        style_button.set_callback({
+            let config_changed = config_changed.clone();
+            let mut sb = status_buf.clone();
+            move |b| {
+                if b.value() < 0 {
+                    return;
+                }
+                let name = STYLES[b.value() as usize];
+                {
+                    let mut conf = get_config_mut();
+                    conf.widget_scheme = Some(b.value() as u8);
+                    let _ = conf.update_config();
+                }
+                ui_log(
+                    LogCategory::Warning,
+                    &fl!("warn-widget-style-changed", "style" = name),
+                );
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        let lbl_style = Frame::default().with_label(&fl!("widget-style-label", "style" = ""));
+        let mut flx_style = Flex::new(0, 0, GW, ROW_H, "");
+        flx_style.set_spacing(5);
+        flx_style.set_type(FlexType::Row);
+        flx_style.end();
+        flx_style.add(&lbl_style);
+        flx_style.fixed(&lbl_style, LABEL_W);
+        flx_style.add(&style_button);
+        app_col.add(&flx_style);
+        app_col.fixed(&flx_style, ROW_H);
+
         // log level choice
         let log_levels = ["Info", "Debug"];
         let initial_ll_idx = if config.log_level == LevelFilter::Debug {
@@ -1097,6 +1142,10 @@ impl MainForm {
             .color_theme
             .and_then(|i| THEMES.get(i as usize).copied())
             .unwrap_or("-");
+        let style = config
+            .widget_scheme
+            .and_then(|i| STYLES.get(i as usize).copied())
+            .unwrap_or("-");
         let log_level = config.log_level;
 
         let mut s = String::with_capacity(512);
@@ -1137,6 +1186,8 @@ impl MainForm {
         s.push_str(&fl!("language-label", "lang" = lang));
         s.push('\n');
         s.push_str(&fl!("color-theme-label", "name" = theme));
+        s.push('\n');
+        s.push_str(&fl!("widget-style-label", "style" = style));
         s.push('\n');
         s.push_str(&fl!("log-level-label", "level" = log_level));
         s.push('\n');
@@ -1332,5 +1383,20 @@ impl MainForm {
             fltk_theme::reset_color_map();
             THEMES[NTHEMES]
         }
+    }
+
+    /// change the widget style (box/frame drawing scheme)
+    ///
+    /// note: fltk-theme provides no way to reset the custom frame-type draw
+    /// callbacks it installs, so unlike `apply_theme` there's no "None" branch
+    /// here that undoes a previous style - that's handled by requiring a restart
+    fn apply_scheme(style_index: usize) -> &'static str {
+        let scheme = match style_index {
+            0 => SchemeType::Fleet1,
+            1 => SchemeType::Fleet2,
+            _ => return STYLES[NSTYLES],
+        };
+        WidgetScheme::new(scheme).apply();
+        STYLES[style_index]
     }
 }

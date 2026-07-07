@@ -5,6 +5,7 @@
   - Rust 1.96.1
   - make better use of the FLTK choice widget, and better event handling
   - speed-up the TPDF dithering by a factor of ~2.5 by calling fastrand only once with a buffer of 32 bytes instead of 8 times to generate the 8 f32 values needed
+  - add the fltk-rs FLEET widget styles as an option (for use with dark themes)
 
 - 1.20.4 (Jun 27 2026, dheijl)
   - some refactoring/optimization

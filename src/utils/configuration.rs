@@ -3,7 +3,7 @@
 
 use crate::{
     enums::streaming::{StreamSize, StreamingFormat},
-    globals::statics::{SERVER_PORT, THEMES},
+    globals::statics::{SERVER_PORT, STYLES, THEMES},
     utils::i18n::available_languages,
 };
 use anyhow::{Context, Result};
@@ -148,6 +148,8 @@ pub struct Configuration {
     pub read_only: bool,
     #[serde(alias = "ColorTheme", default)]
     pub color_theme: Option<u8>,
+    #[serde(alias = "WidgetScheme", default)]
+    pub widget_scheme: Option<u8>,
     #[serde(alias = "Language", default = "CfgDefaults::language")]
     pub language: Option<String>,
     #[serde(alias = "SampleRate", default = "CfgDefaults::sample_rate")]
@@ -194,6 +196,7 @@ impl Configuration {
             config_id: Some(Self::get_config_id().unwrap_or_default()),
             read_only: false,
             color_theme: None,
+            widget_scheme: None,
             language: Some(detect_default_language()),
             sample_rate: None,
             use_dither: Some(true),
@@ -279,6 +282,12 @@ impl Configuration {
             && theme >= THEMES.len() as u8
         {
             config.configuration.color_theme = None;
+            force_update = true;
+        }
+        if let Some(style) = config.configuration.widget_scheme
+            && style >= STYLES.len() as u8
+        {
+            config.configuration.widget_scheme = None;
             force_update = true;
         }
         config.configuration.config_path = configfile.to_path_buf();
@@ -498,6 +507,21 @@ mod tests {
         let f = temp_toml("[configuration]\ncolor_theme = 0\n");
         let cfg = Configuration::read_config_from(f.path()).unwrap();
         assert_eq!(cfg.color_theme, Some(0));
+    }
+
+    #[test]
+    fn out_of_range_widget_scheme_reset_to_none() {
+        let oob = STYLES.len() as u8; // first value >= len
+        let f = temp_toml(&format!("[configuration]\nwidget_scheme = {oob}\n"));
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.widget_scheme, None);
+    }
+
+    #[test]
+    fn valid_widget_scheme_preserved() {
+        let f = temp_toml("[configuration]\nwidget_scheme = 0\n");
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.widget_scheme, Some(0));
     }
 
     #[test]

@@ -36,6 +36,11 @@ pub static THEMES: &[&str] = &["Shake", "Gray", "Tan", "Dark", "Black", "None"];
 /// number of available themes (excluding the last dummy one, "None")
 pub const NTHEMES: usize = THEMES.len() - 1;
 
+/// the list of known fltk widget style (`WidgetScheme`) names
+pub static STYLES: &[&str] = &["Fleet1", "Fleet2", "None"];
+/// number of available styles (excluding the last dummy one, "None")
+pub const NSTYLES: usize = STYLES.len() - 1;
+
 /// streaming clients of the webserver
 static CLIENTS: LazyLock<RwLock<HashMap<EcoString, ChannelStream>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));

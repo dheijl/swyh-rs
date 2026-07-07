@@ -49,7 +49,7 @@ winres = "0.1.12"
 cpal = { version = "0.18.1" }
 anyhow = "1"
 bitflags = "2.13.0"
-crossbeam-channel = "0.5.15"
+crossbeam-channel = "0.5.16"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "6.0.0"

@@ -1217,10 +1217,11 @@ impl MainForm {
         s.push('\n');
         s.push_str(&fl!("language-label", "lang" = lang));
         s.push('\n');
-        s.push_str(&fl!("color-theme-label", "name" = theme));
-        s.push('\n');
-        s.push_str(&fl!("widget-style-label", "style" = style));
-        s.push('\n');
+        s.push_str(&format!(
+            "{}   {}\n",
+            fl!("color-theme-label", "name" = theme),
+            fl!("widget-style-label", "style" = style)
+        ));
         s.push_str(&fl!("log-level-label", "level" = log_level));
         s.push('\n');
         s.push('\n');

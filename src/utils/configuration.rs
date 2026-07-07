@@ -3,7 +3,7 @@
 
 use crate::{
     enums::streaming::{StreamSize, StreamingFormat},
-    globals::statics::{SERVER_PORT, STYLES, THEMES},
+    globals::statics::{DEFAULT_COLOR_THEME, DEFAULT_WIDGET_SCHEME, SERVER_PORT, STYLES, THEMES},
     utils::i18n::available_languages,
 };
 use anyhow::{Context, Result};
@@ -195,8 +195,8 @@ impl Configuration {
             config_path: PathBuf::new(),
             config_id: Some(Self::get_config_id().unwrap_or_default()),
             read_only: false,
-            color_theme: None,
-            widget_scheme: None,
+            color_theme: Some(DEFAULT_COLOR_THEME),
+            widget_scheme: Some(DEFAULT_WIDGET_SCHEME),
             language: Some(detect_default_language()),
             sample_rate: None,
             use_dither: Some(true),

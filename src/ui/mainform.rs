@@ -67,6 +67,38 @@ const THEMES_ARRAY: &[ThemeDesc] = &[
         colormap: color_themes::BLACK_THEME,
         name: THEMES[4],
     },
+    ThemeDesc {
+        colormap: &color_themes::fleet::NORD,
+        name: THEMES[5],
+    },
+    ThemeDesc {
+        colormap: &color_themes::fleet::DRACULA,
+        name: THEMES[6],
+    },
+    ThemeDesc {
+        colormap: &color_themes::fleet::GRUVBOX_DARK,
+        name: THEMES[7],
+    },
+    ThemeDesc {
+        colormap: &color_themes::fleet::SOLARIZED_LIGHT,
+        name: THEMES[8],
+    },
+    ThemeDesc {
+        colormap: &color_themes::fleet::MONOKAI,
+        name: THEMES[9],
+    },
+    ThemeDesc {
+        colormap: &color_themes::fleet::SOLARIZED_DARK,
+        name: THEMES[10],
+    },
+    ThemeDesc {
+        colormap: &color_themes::fleet::OCEANIC_NEXT,
+        name: THEMES[11],
+    },
+    ThemeDesc {
+        colormap: &color_themes::fleet::MINIMALIST,
+        name: THEMES[12],
+    },
 ];
 
 /// the main (and only) form

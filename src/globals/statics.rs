@@ -32,14 +32,33 @@ pub static RUN_RMS_MONITOR: AtomicBool = AtomicBool::new(false);
 pub const SAMPLE_RATES: &[u32] = &[44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000];
 
 /// the list of known fltk theme names
-pub static THEMES: &[&str] = &["Shake", "Gray", "Tan", "Dark", "Black", "None"];
+pub static THEMES: &[&str] = &[
+    "Shake",
+    "Gray",
+    "Tan",
+    "Dark",
+    "Black",
+    "Nord",
+    "Dracula",
+    "Gruvbox Dark",
+    "Solarized Light",
+    "Monokai",
+    "Solarized Dark",
+    "Oceanic Next",
+    "Minimalist",
+    "None",
+];
 /// number of available themes (excluding the last dummy one, "None")
 pub const NTHEMES: usize = THEMES.len() - 1;
+/// default color theme index for new configs (Solarized Light) - keep in sync with THEMES array
+pub const DEFAULT_COLOR_THEME: u8 = 8;
 
 /// the list of known fltk widget style (`WidgetScheme`) names
 pub static STYLES: &[&str] = &["Fleet1", "Fleet2", "None"];
 /// number of available styles (excluding the last dummy one, "None")
 pub const NSTYLES: usize = STYLES.len() - 1;
+/// default widget style index for new configs (Fleet2) - keep in sync with STYLES array
+pub const DEFAULT_WIDGET_SCHEME: u8 = 1;
 
 /// streaming clients of the webserver
 static CLIENTS: LazyLock<RwLock<HashMap<EcoString, ChannelStream>>> =

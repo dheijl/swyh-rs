@@ -6,6 +6,8 @@
   - make better use of the FLTK choice widget, and better event handling
   - speed-up the TPDF dithering by a factor of ~2.5 by calling fastrand only once with a buffer of 32 bytes instead of 8 times to generate the 8 f32 values needed
   - add the fltk-rs FLEET widget styles as an option (for use with dark themes)
+  - add Nord, Dracula, Gruvbox Dark, Solarized Light, Monokai, Solarized Dark, Oceanic Next and Minimalist color themes (from fltk-theme's Fleet color palettes)
+  - new configs now default to the Solarized Light color theme and the Fleet2 widget style
 
 - 1.20.4 (Jun 27 2026, dheijl)
   - some refactoring/optimization

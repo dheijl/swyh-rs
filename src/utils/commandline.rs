@@ -163,12 +163,9 @@ Recognized options:
                 Short('f') | Long("format") => {
                     if let Ok(fmt) = argparser.value() {
                         let streaming_format = fmt.string().unwrap_or_default();
-                        let (format, streamsize) = if streaming_format.contains('+') {
-                            let parts: Vec<&str> = streaming_format.split('+').collect();
-                            (parts[0], parts[1])
-                        } else {
-                            (streaming_format.as_str(), "")
-                        };
+                        let (format, streamsize) = streaming_format
+                            .split_once('+')
+                            .unwrap_or((streaming_format.as_str(), ""));
                         match format.to_ascii_uppercase().as_str() {
                             "WAV" => {
                                 self.streaming_format = Some(StreamingFormat::Wav);

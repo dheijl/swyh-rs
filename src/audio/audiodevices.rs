@@ -480,7 +480,7 @@ fn capture_started() {
 /// and to the RMS monitor thread if needed.
 /// All sample processing threads share the sample chunk through an Arc
 fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
-    let shared_samples = AudioSamples::new(f32_samples.to_vec());
+    let shared_samples = AudioSamples::from(f32_samples);
     get_clients()
         .iter()
         .for_each(|(_, client)| client.write(Arc::clone(&shared_samples)));

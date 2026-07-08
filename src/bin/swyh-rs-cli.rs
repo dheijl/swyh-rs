@@ -15,7 +15,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 #[global_allocator]
@@ -183,9 +183,6 @@ fn main() -> Result<(), i32> {
         config.ssdp_interval_mins = minutes;
     }
 
-    // update config with new args
-    sync_config(&config);
-
     // get the message channel
     let msg_tx = get_msgchannel().0.clone();
     let msg_rx = get_msgchannel().1.clone();
@@ -211,7 +208,7 @@ fn main() -> Result<(), i32> {
 
     // translate player names to IP addresses using SSDP discovery results
     if !serve_only && (args.player_ip.is_some() || config.last_renderer.is_some()) {
-        resolve_player_names(&msg_rx, &mut args);
+        resolve_player_names(&msg_rx, &mut args, config.last_renderer.as_deref());
     }
 
     // set args last_renderer and active players
@@ -229,9 +226,6 @@ fn main() -> Result<(), i32> {
 
     // in serve-only mode: disable auto_reconnect; else it's always on
     config.auto_reconnect = !serve_only;
-
-    // update config with new args
-    sync_config(&config);
 
     let mut player: Option<Renderer> = None;
     if !serve_only {
@@ -309,13 +303,17 @@ fn main() -> Result<(), i32> {
                         let still_streaming = get_clients()
                             .values()
                             .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
-                        if !still_streaming
-                            && autoresume
-                            && let Some(r) = get_renderers_mut()
-                                .iter_mut()
+                        if !still_streaming && autoresume {
+                            // clone the renderer out of the lock before doing any
+                            // (blocking) network I/O, so a slow/unresponsive renderer
+                            // doesn't stall the global RENDERERS lock for other threads
+                            let renderer = get_renderers()
+                                .iter()
                                 .find(|r| r.remote_addr == streamer_feedback.remote_ip)
-                        {
-                            let _ = r.play(&local_addr, streaminfo);
+                                .cloned();
+                            if let Some(mut r) = renderer {
+                                let _ = r.play(&local_addr, streaminfo);
+                            }
                         }
                     }
                 }
@@ -464,12 +462,7 @@ fn select_audio_source_cli(
         }
     } else if !ss_name.is_empty() {
         // args = sound source name; check for duplicate name position syntax "name:pos"
-        let (dupname, duppos) = if ss_name.contains(':') {
-            let parts: Vec<&str> = ss_name.split(':').collect();
-            (parts[0], parts[1])
-        } else {
-            ("", "")
-        };
+        let (dupname, duppos) = ss_name.split_once(':').unwrap_or(("", ""));
         if duppos.is_empty() {
             for (index, adev) in audio_devices.into_iter().enumerate() {
                 let devname = adev.name().to_owned();
@@ -628,26 +621,63 @@ fn apply_streaming_args(args: &Args, config: &mut Configuration) {
     }
 }
 
+/// true once every renderer `resolve_player_names` is waiting for has actually been
+/// discovered: `args.player_ip`/`args.active_players` entries that are already IP
+/// addresses don't need discovery; name-based entries and `last_renderer` (an IP
+/// remembered from a previous run) need a matching entry in the discovered list
+fn wanted_players_discovered(args: &Args, last_renderer: Option<&str>) -> bool {
+    let renderers = get_renderers();
+    let name_resolved = |id: &str| {
+        id.parse::<IpAddr>().is_ok() || renderers.iter().any(|r| r.dev_name.contains(id))
+    };
+    let ip_discovered = |ip: &str| renderers.iter().any(|r| r.remote_addr == ip);
+
+    args.player_ip.as_deref().is_none_or(name_resolved)
+        && args
+            .active_players
+            .as_ref()
+            .is_none_or(|v| v.iter().all(|id| name_resolved(id)))
+        && last_renderer.is_none_or(ip_discovered)
+}
+
 /// wait for SSDP discovery to complete, then translate any player names in `args`
 /// to their IP addresses
-fn resolve_player_names(msg_rx: &Receiver<MessageType>, args: &mut Args) {
-    // give the webserver a chance to start and wait for ssdp to complete
-    thread::sleep(Duration::from_secs(5));
+///
+/// `last_renderer` is the previous run's selected renderer IP (from config), used
+/// only to detect early that discovery has found it, so we don't always have to
+/// block for the full timeout below
+fn resolve_player_names(
+    msg_rx: &Receiver<MessageType>,
+    args: &mut Args,
+    last_renderer: Option<&str>,
+) {
+    // give the webserver a chance to start and wait for ssdp to complete, returning
+    // as soon as every wanted renderer has been found instead of always blocking
+    // for the full timeout
+    const MAX_WAIT: Duration = Duration::from_secs(5);
+    const POLL_INTERVAL: Duration = Duration::from_millis(200);
+    let deadline = Instant::now() + MAX_WAIT;
     let mut n = 0;
-    while let Ok(msg) = msg_rx.try_recv() {
-        if let MessageType::SsdpMessage(newr) = msg {
-            get_renderers_mut().push(*newr.clone());
-            ui_log(
-                LogCategory::Info,
-                &fl!(
-                    "cli-available-renderer",
-                    "n" = n,
-                    "name" = &newr.dev_name,
-                    "addr" = &newr.remote_addr
-                ),
-            );
-            n += 1;
+    loop {
+        while let Ok(msg) = msg_rx.try_recv() {
+            if let MessageType::SsdpMessage(newr) = msg {
+                get_renderers_mut().push(*newr.clone());
+                ui_log(
+                    LogCategory::Info,
+                    &fl!(
+                        "cli-available-renderer",
+                        "n" = n,
+                        "name" = &newr.dev_name,
+                        "addr" = &newr.remote_addr
+                    ),
+                );
+                n += 1;
+            }
         }
+        if wanted_players_discovered(args, last_renderer) || Instant::now() >= deadline {
+            break;
+        }
+        thread::sleep(POLL_INTERVAL);
     }
     // resolve player name to IP address if a name was given instead of an IP
     if let Some(ref pl_ip) = args.player_ip

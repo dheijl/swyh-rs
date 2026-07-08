@@ -302,6 +302,12 @@ pub struct Renderer {
     pub av_control_url: String,
     pub oh_volume_url: String,
     pub av_volume_url: String,
+    // absolute URLs (http://host:port + path), composed once in `parse_url()`
+    // since host/port/path are all fixed after discovery
+    oh_control_full_url: String,
+    av_control_full_url: String,
+    oh_volume_full_url: String,
+    av_volume_full_url: String,
     pub volume: i32,
     pub supported_protocols: SupportedProtocols,
     pub remote_addr: String,
@@ -327,6 +333,10 @@ impl Renderer {
             av_control_url: String::new(),
             oh_volume_url: String::new(),
             av_volume_url: String::new(),
+            oh_control_full_url: String::new(),
+            av_control_full_url: String::new(),
+            oh_volume_full_url: String::new(),
+            av_volume_full_url: String::new(),
             volume: -1,
             supported_protocols: SupportedProtocols::NONE,
             remote_addr: String::new(),
@@ -372,6 +382,18 @@ impl Renderer {
         }
         self.host = host;
         self.port = port;
+        // path fields (oh/av control/volume urls) are already set by the service
+        // discovery XML parsing that runs before parse_url(), so it's safe to
+        // compose and cache the absolute URLs here, once, instead of re-formatting
+        // them on every play/stop/volume call
+        self.oh_control_full_url =
+            format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
+        self.av_control_full_url =
+            format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
+        self.oh_volume_full_url =
+            format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
+        self.av_volume_full_url =
+            format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
     }
 
     /// `oh_soap_request` - send an `OpenHome` SOAP message to a renderer
@@ -519,7 +541,7 @@ impl Renderer {
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
     fn oh_play(&mut self, fmt_vars: &Context) -> Result<(), &str> {
         // stop anything currently playing first, Moode needs it
-        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
+        let url = self.oh_control_full_url.clone();
         self.oh_stop_play(&url);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
         ui_log(
@@ -570,7 +592,7 @@ impl Renderer {
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
     fn av_play(&mut self, fmt_vars: &Context) -> Result<(), &str> {
-        let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
+        let url = self.av_control_full_url.clone();
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
         self.av_stop_play(&url);
@@ -612,13 +634,13 @@ impl Renderer {
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            let url = format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
+            let url = self.oh_control_full_url.clone();
             self.oh_stop_play(&url);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            let url = format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
+            let url = self.av_control_full_url.clone();
             self.av_stop_play(&url);
         } else {
             ui_log(
@@ -670,7 +692,7 @@ impl Renderer {
 
     /// get OpenHome Volume
     fn oh_get_volume(&mut self) -> i32 {
-        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
+        let url = self.oh_volume_full_url.clone();
 
         // get current volume
         let vol_xml = self
@@ -723,7 +745,7 @@ impl Renderer {
 
     /// get AV Volume
     fn av_get_volume(&mut self) -> i32 {
-        let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
+        let url = self.av_volume_full_url.clone();
 
         // get current volume
         let vol_xml = self
@@ -779,7 +801,7 @@ impl Renderer {
     fn oh_set_volume(&mut self) {
         let vol = self.volume;
         let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
-        let url = format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
+        let url = self.oh_volume_full_url.clone();
         ui_log(
             LogCategory::Info,
             &format!(
@@ -802,7 +824,7 @@ impl Renderer {
     fn av_set_volume(&mut self) {
         let vol = self.volume;
         let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
-        let url = format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
+        let url = self.av_volume_full_url.clone();
         ui_log(
             LogCategory::Info,
             &format!(

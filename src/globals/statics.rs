@@ -80,10 +80,13 @@ pub fn get_renderers_mut() -> RwLockWriteGuard<'static, Vec<Renderer>> {
 }
 
 /// the global GUI logger textbox channel used by all threads
-static MSGCHANNEL: LazyLock<RwLock<(Sender<MessageType>, Receiver<MessageType>)>> =
-    LazyLock::new(|| RwLock::new(unbounded()));
-pub fn get_msgchannel() -> RwLockReadGuard<'static, (Sender<MessageType>, Receiver<MessageType>)> {
-    MSGCHANNEL.read().expect("MSGCHANNEL read lock poisoned")
+/// no `RwLock` needed: `Sender`/`Receiver` are already `Send + Sync` on their own
+/// (crossbeam-channel does its own internal synchronization), and this is set once
+/// at startup and never mutated afterwards
+static MSGCHANNEL: LazyLock<(Sender<MessageType>, Receiver<MessageType>)> =
+    LazyLock::new(unbounded);
+pub fn get_msgchannel() -> &'static (Sender<MessageType>, Receiver<MessageType>) {
+    &MSGCHANNEL
 }
 
 /// the global configuration state

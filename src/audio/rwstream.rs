@@ -20,6 +20,7 @@ use crate::{
 use crossbeam_channel::{Receiver, Sender};
 use ecow::EcoString;
 #[cfg(debug_assertions)]
+#[cfg(all(test, debug_assertions))]
 use fastrand::Rng;
 use log::debug;
 use std::{
@@ -33,7 +34,10 @@ use wide::f32x4;
 use super::flacstream::FlacChannel;
 
 /// Shared audio sample buffer passed between capture and streaming threads.
-pub type AudioSamples = Arc<Vec<f32>>;
+/// `Arc<[f32]>` rather than `Arc<Vec<f32>>`: the refcount block and the sample
+/// data live in one allocation instead of two, halving the allocations done per
+/// CPAL capture callback (see `distribute_samples`).
+pub type AudioSamples = Arc<[f32]>;
 
 /// Quantize each 4-sample chunk with `quantize`, then pack the resulting `[i32; 4]`
 /// into the matching output bytes with `pack`. Generic over both so that each call site
@@ -66,7 +70,9 @@ pub struct ChannelStream {
     pub streaming_format: StreamingFormat,
     fifo: VecDeque<f32>,
     flac_fifo: VecDeque<u8>,
-    silence: Vec<f32>,
+    // Arc'd so the derived Clone (one per client connect, see `run_server`) is O(1)
+    // instead of duplicating a buffer that can be sizeable at high sample rates
+    silence: Arc<[f32]>,
     capture_timeout: Duration,
     sending_silence: bool,
     wav_hdr: Vec<u8>,
@@ -113,7 +119,7 @@ impl ChannelStream {
             r: rx,
             fifo: VecDeque::with_capacity(16384),
             flac_fifo: VecDeque::with_capacity(16384),
-            silence: get_silence_buffer(context.sample_rate, capture_timeout / 4),
+            silence: get_silence_buffer(context.sample_rate, capture_timeout / 4).into(),
             capture_timeout: Duration::from_millis(capture_timeout), // silence kicks in after CAPTURE_TIMEOUT seconds
             sending_silence: false,
             remote_ip: context.remote_ip.clone(),
@@ -178,7 +184,9 @@ impl ChannelStream {
     /// `flac_fifo` `VecDeque` for transmission
     fn fill_flac_buffer(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         debug_assert!(self.flac_channel.is_some());
-        let flac_in = self.flac_channel.as_ref().unwrap().flac_in.clone();
+        // borrow instead of clone: `self.flac_channel` and `self.flac_fifo` are
+        // disjoint fields, so this doesn't need its own `Receiver` handle
+        let flac_in = &self.flac_channel.as_ref().unwrap().flac_in;
         // make sure we have enough data for this read buffer
         while self.flac_fifo.len() < buf.len() {
             if let Ok(chunk) = flac_in.recv() {
@@ -412,8 +420,7 @@ fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
 ///
 /// fill the pre-allocated noise buffer with a very faint white noise (-60db)
 ///
-#[cfg(debug_assertions)]
-#[allow(dead_code)]
+#[cfg(all(test, debug_assertions))]
 fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
     // create the random generator for the white noise
     let mut rng = Rng::with_seed(79);
@@ -449,17 +456,7 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     fn test_noise() {
-        // create the random generator for the white noise
-        let mut rng = Rng::with_seed(79);
-        let sample_rate = 44100;
-        let silence_period = 250; //msecs
-        let size = ((sample_rate as u64 * 2 * silence_period) / 1000) as usize;
-        let mut noise = Vec::with_capacity(size);
-        noise.resize(size, 0.0);
-        let amplitude: f32 = 0.001;
-        for sample in &mut noise {
-            *sample = ((rng.f32() * 2.0) - 1.0) * amplitude;
-        }
+        let noise = get_noise_buffer(44100, 250);
         eprintln!("{noise:?}");
     }
 

@@ -203,12 +203,6 @@ impl Configuration {
         }
     }
 
-    #[allow(dead_code)]
-    #[must_use]
-    pub fn config_dir(&self) -> PathBuf {
-        self.config_dir.clone()
-    }
-
     /// Returns the log directory — currently the same as `config_dir`.
     #[allow(dead_code)]
     #[must_use]

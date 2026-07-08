@@ -1,15 +1,16 @@
 # swyh-rs Changelog
 
 - 1.20.5 (unreleased)
-  - sample conversions: instead of relying on LLVM optimizations to hoist the loop invariants out of the loops, use generics instead to dispatch the samples conversions jump-free for the various combinations of 16-bit/24-bit/dithering/endianness, a suggestion made by Claude while considering pulling up the conditions from the inner loops.
-  - Rust 1.96.1
-  - make better use of the FLTK choice widget, and better event handling
-  - speed-up the TPDF dithering by a factor of ~2.5 by calling fastrand only once with a buffer of 32 bytes instead of 8 times to generate the 8 f32 values needed
-  - add the fltk-rs FLEET widget styles as an option (for use with dark themes)
-  - add Nord, Dracula, Gruvbox Dark, Solarized Light, Monokai, Solarized Dark, Oceanic Next and Minimalist color themes (from fltk-theme's Fleet color palettes)
-  - new configs now default to the Solarized Light color theme and the Fleet2 widget style
-  - replace `chunks_exact(SIZE)` where possible with `as_chunks::<SIZE>()`, simplifying code
-  - upgrade figura to V3.0.0 where the templates are now Send+Sync, so I can replace the thread-locals with shared LazyLock<> compiled templates, greatly simplifying the code. Thanks Saverio!
+  - SAMPLES: instead of relying on LLVM optimizations to hoist the loop invariants in sample conversions out of the loops, use generics instead to dispatch the samples conversions jump-free for the various combinations of 16-bit/24-bit/dithering/endianness, a suggestion made by Claude while I was considering pulling up the conditions manually from the inner loops.
+  - SAMPLES: speed-up the TPDF dithering by a factor of ~2.5 by calling fastrand only once with a buffer of 32 bytes instead of 8 times to generate the 8 f32 values needed
+  - SAMPLES: replace `chunks_exact(SIZE)` where possible with `as_chunks::<SIZE>()`, simplifying code
+  - GUI: make better use of the FLTK choice widget, and better event handling
+  - GUI: add the fltk-rs FLEET widget styles as an option (for use with dark themes)
+  - GUI: add Nord, Dracula, Gruvbox Dark, Solarized Light, Monokai, Solarized Dark, Oceanic Next and Minimalist color themes (from fltk-theme's Fleet color palettes)
+  - GUI: new configs now default to the Solarized Light color theme and the Fleet2 widget style
+  - RENDERERS:upgrade figura to V3.0.0 where the (HTML) templates are now Send+Sync, so I can replace the thread-locals with shared global LazyLock<> compiled templates, greatly simplifying the code. Thanks Saverio!
+  - Claude Review: address a (rather large) number of mostly small review items
+  - RUST: 1.96.1
 
 - 1.20.4 (Jun 27 2026, dheijl)
   - some refactoring/optimization

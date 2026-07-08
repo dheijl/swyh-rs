@@ -38,7 +38,7 @@ use log::{LevelFilter, debug, info};
 
 use fltk_theme::{ColorMap, ColorTheme, SchemeType, WidgetScheme, color_themes};
 
-use std::{cell::Cell, net::IpAddr, rc::Rc, str::FromStr, sync::atomic::Ordering};
+use std::{cell::Cell, fmt::Write as _, net::IpAddr, rc::Rc, str::FromStr, sync::atomic::Ordering};
 
 /// fltk themes
 struct ThemeDesc {
@@ -129,6 +129,9 @@ pub struct MainForm {
     local_addr: IpAddr,
     player_index: usize,
     config_changed: Rc<Cell<bool>>,
+    /// running line count of `tb`'s buffer, kept in sync by `add_log_msg`
+    /// instead of rescanning the whole buffer on every log line
+    log_lines: i32,
 }
 
 impl MainForm {
@@ -243,6 +246,10 @@ impl MainForm {
                 let Some(name) = b.choice().map(|n| n.as_str().fw_slash_pipe_unescape()) else {
                     return;
                 };
+                let index = b.value();
+                if get_config().sound_source_index == Some(index) {
+                    return;
+                }
                 ui_log(
                     LogCategory::Info,
                     &fl!("warn-audio-changed", "name" = &name),
@@ -250,7 +257,7 @@ impl MainForm {
                 {
                     let mut conf = get_config_mut();
                     conf.sound_source = Some(name);
-                    conf.sound_source_index = Some(b.value());
+                    conf.sound_source_index = Some(index);
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
@@ -291,11 +298,14 @@ impl MainForm {
                 let Some(format) = b.choice() else {
                     return;
                 };
+                let newformat = StreamingFormat::from_str(&format).unwrap();
+                if get_config().streaming_format == Some(newformat) {
+                    return;
+                }
                 ui_log(
                     LogCategory::Info,
                     &fl!("info-format-changed", "format" = &format),
                 );
-                let newformat = StreamingFormat::from_str(&format).unwrap();
                 {
                     let mut conf = get_config_mut();
                     conf.streaming_format = Some(newformat);
@@ -349,6 +359,18 @@ impl MainForm {
                     return;
                 };
                 let streamsize = StreamSize::from_str(&newsize).unwrap();
+                let current = {
+                    let cfg = get_config();
+                    match cfg.streaming_format.unwrap_or(StreamingFormat::Flac) {
+                        StreamingFormat::Lpcm => cfg.lpcm_stream_size,
+                        StreamingFormat::Wav => cfg.wav_stream_size,
+                        StreamingFormat::Rf64 => cfg.rf64_stream_size,
+                        StreamingFormat::Flac => cfg.flac_stream_size,
+                    }
+                };
+                if current == Some(streamsize) {
+                    return;
+                }
                 let streaming_format = {
                     let mut conf = get_config_mut();
                     match conf.streaming_format.unwrap_or(StreamingFormat::Flac) {
@@ -401,9 +423,13 @@ impl MainForm {
         use_dither.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
+                let is_set = b.is_set();
+                if get_config().use_dither == Some(is_set) {
+                    return;
+                }
                 {
                     let mut conf = get_config_mut();
-                    conf.use_dither = Some(b.is_set());
+                    conf.use_dither = Some(is_set);
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
@@ -413,6 +439,10 @@ impl MainForm {
             let mut sb = status_buf.clone();
             let mut use_dither_ref = use_dither.clone();
             move |b| {
+                let new_bits: u16 = if b.is_set() { 24 } else { 16 };
+                if get_config().bits_per_sample == Some(new_bits) {
+                    return;
+                }
                 {
                     let mut conf = get_config_mut();
                     if b.is_set() {
@@ -453,6 +483,9 @@ impl MainForm {
                 } else {
                     Some(SAMPLE_RATES[c.value() as usize - 1])
                 };
+                if get_config().sample_rate == new_rate {
+                    return;
+                }
                 {
                     let mut conf = get_config_mut();
                     conf.sample_rate = new_rate;
@@ -485,9 +518,13 @@ impl MainForm {
             let config_changed = config_changed.clone();
             let mut sb = status_buf.clone();
             move |b| {
+                let is_set = b.is_set();
+                if get_config().inject_silence == Some(is_set) {
+                    return;
+                }
                 {
                     let mut conf = get_config_mut();
-                    conf.inject_silence = Some(b.is_set());
+                    conf.inject_silence = Some(is_set);
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
@@ -573,6 +610,9 @@ impl MainForm {
                 let Some(name) = b.choice() else {
                     return;
                 };
+                if get_config().last_network.as_deref() == Some(name.as_str()) {
+                    return;
+                }
                 ui_log(
                     LogCategory::Info,
                     &fl!("warn-network-changed", "name" = &name),
@@ -729,6 +769,9 @@ impl MainForm {
                 let Some(lang) = b.choice() else {
                     return;
                 };
+                if get_config().language.as_deref() == Some(lang.as_str()) {
+                    return;
+                }
                 ui_log(
                     LogCategory::Warning,
                     &fl!("warn-language-changed", "lang" = &lang),
@@ -769,11 +812,15 @@ impl MainForm {
                 if b.value() < 0 {
                     return;
                 }
+                let new_theme = b.value() as u8;
+                if get_config().color_theme == Some(new_theme) {
+                    return;
+                }
                 let name = Self::apply_theme(b.value() as usize);
                 debug!("New theme = {name}");
                 {
                     let mut conf = get_config_mut();
-                    conf.color_theme = Some(b.value() as u8);
+                    conf.color_theme = Some(new_theme);
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
@@ -810,10 +857,14 @@ impl MainForm {
                 if b.value() < 0 {
                     return;
                 }
+                let new_style = b.value() as u8;
+                if get_config().widget_scheme == Some(new_style) {
+                    return;
+                }
                 let name = STYLES[b.value() as usize];
                 {
                     let mut conf = get_config_mut();
-                    conf.widget_scheme = Some(b.value() as u8);
+                    conf.widget_scheme = Some(new_style);
                     let _ = conf.update_config();
                 }
                 ui_log(
@@ -855,11 +906,14 @@ impl MainForm {
                     return;
                 }
                 let level = log_levels[b.value() as usize];
+                let loglevel = level.parse().unwrap_or(LevelFilter::Info);
+                if get_config().log_level == loglevel {
+                    return;
+                }
                 ui_log(
                     LogCategory::Warning,
                     &fl!("warn-log-changed", "level" = level),
                 );
-                let loglevel = level.parse().unwrap_or(LevelFilter::Info);
                 {
                     let mut conf = get_config_mut();
                     conf.log_level = loglevel;
@@ -889,9 +943,13 @@ impl MainForm {
         auto_resume.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
+                let is_set = b.is_set();
+                if get_config().auto_resume == is_set {
+                    return;
+                }
                 {
                     let mut conf = get_config_mut();
-                    conf.auto_resume = b.is_set();
+                    conf.auto_resume = is_set;
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
@@ -905,9 +963,13 @@ impl MainForm {
         auto_reconnect.set_callback({
             let mut sb = status_buf.clone();
             move |b| {
+                let is_set = b.is_set();
+                if get_config().auto_reconnect == is_set {
+                    return;
+                }
                 {
                     let mut conf = get_config_mut();
-                    conf.auto_reconnect = b.is_set();
+                    conf.auto_reconnect = is_set;
                     let _ = conf.update_config();
                 }
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
@@ -954,6 +1016,9 @@ impl MainForm {
                 rms_mon_r.set_value(0.0);
                 let run_rms = b.is_set();
                 RUN_RMS_MONITOR.store(run_rms, Ordering::Release);
+                if get_config().monitor_rms == run_rms {
+                    return;
+                }
                 {
                     let mut conf = get_config_mut();
                     conf.monitor_rms = run_rms;
@@ -1054,10 +1119,12 @@ impl MainForm {
                 // event_button() is a plain i32 (3 = right); avoid event_mouse_button(),
                 // which transmutes the raw code and panics on non-button events (Move, Enter, ...)
                 if ev == Event::Push && app::event_button() == 3 {
-                    let mut config = get_config_mut();
-                    config.hidden_renderers.clear();
-                    let _ = config.update_config();
-                    config_changed.set(true);
+                    if !get_config().hidden_renderers.is_empty() {
+                        let mut config = get_config_mut();
+                        config.hidden_renderers.clear();
+                        let _ = config.update_config();
+                        config_changed.set(true);
+                    }
                     true
                 } else {
                     false
@@ -1110,6 +1177,7 @@ impl MainForm {
             default_sample_rate,
             local_addr,
             config_changed: config_changed.clone(),
+            log_lines: 0,
         }
     }
 
@@ -1125,8 +1193,10 @@ impl MainForm {
             }
             let buflen = textbuffer.length();
             self.tb.set_insert_position(buflen);
-            let buflines = self.tb.count_lines(0, buflen, true);
-            self.tb.scroll(buflines, 0);
+            // track the line count incrementally instead of rescanning the whole
+            // buffer with count_lines() on every append (O(n) -> O(n^2) over a session)
+            self.log_lines += msg.matches('\n').count() as i32 + 1;
+            self.tb.scroll(self.log_lines, 0);
         }
     }
 
@@ -1183,57 +1253,61 @@ impl MainForm {
         let mut s = String::with_capacity(512);
         s.push_str(&fl!("audio-source-label", "name" = audio));
         s.push('\n');
-        let dither_suffix = if bits == 16 {
-            format!(
-                "  TPDF dither {}",
-                bool_icon(config.use_dither.unwrap_or(true))
-            )
-        } else {
-            String::new()
-        };
-        s.push_str(&format!(
-            "{}  {} bit  {} Hz{}\n",
+        let _ = write!(
+            s,
+            "{}  {} bit  {} Hz",
             fl!("fmt-label", "format" = &format),
             bits,
             sample_rate,
-            dither_suffix
-        ));
+        );
+        if bits == 16 {
+            let _ = write!(
+                s,
+                "  TPDF dither {}",
+                bool_icon(config.use_dither.unwrap_or(true))
+            );
+        }
+        s.push('\n');
         s.push_str(&fl!("strmsize-label", "size" = streamsize));
-        s.push_str(&format!("   buffer: {} ms\n", buf_ms));
-        s.push_str(&format!(
-            "{}  {}\n",
+        let _ = writeln!(s, "   buffer: {buf_ms} ms");
+        let _ = writeln!(
+            s,
+            "{}  {}",
             fl!("chk-inject-silence"),
             bool_icon(config.inject_silence.unwrap_or(false))
-        ));
+        );
         s.push('\n');
         s.push_str(&fl!("active-network", "addr" = network));
         s.push('\n');
-        s.push_str(&format!(
-            "{}  {}   SSDP: {} min\n",
+        let _ = writeln!(
+            s,
+            "{}  {}   SSDP: {} min",
             fl!("http-port-label"),
             port,
             ssdp
-        ));
+        );
         s.push('\n');
         s.push_str(&fl!("language-label", "lang" = lang));
         s.push('\n');
-        s.push_str(&format!(
-            "{}   {}\n",
+        let _ = writeln!(
+            s,
+            "{}   {}",
             fl!("color-theme-label", "name" = theme),
             fl!("widget-style-label", "style" = style)
-        ));
+        );
         s.push_str(&fl!("log-level-label", "level" = log_level));
         s.push('\n');
         s.push('\n');
-        s.push_str(&format!(
-            "{}  {}   {}  {}   {}  {}\n",
+        let _ = writeln!(
+            s,
+            "{}  {}   {}  {}   {}  {}",
             fl!("chk-autoresume"),
             bool_icon(config.auto_resume),
             fl!("chk-autoreconnect"),
             bool_icon(config.auto_reconnect),
             fl!("chk-rms-monitor"),
             bool_icon(config.monitor_rms),
-        ));
+        );
         s
     }
 

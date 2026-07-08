@@ -97,11 +97,9 @@ pub fn run_rms_monitor(
             Ok(samples) => {
                 // chunk samples, scale to i16, and multiply-accumulate with SIMD f32x4
                 total_samples += samples.len();
-                let chunks = samples.chunks_exact(4);
-                let remainder = chunks.remainder();
-                ch_sum = chunks.fold(ch_sum, |acc, x| {
-                    // chunksize 4 with chunks_exact makes this safe to unwrap
-                    let f4 = f32x4::new(*x.as_array().unwrap());
+                let (chunks, remainder) = samples.as_chunks::<4>();
+                ch_sum = chunks.iter().fold(ch_sum, |acc, x| {
+                    let f4 = f32x4::new(*x);
                     let i4 = f4 * imax;
                     i4.mul_add(i4, acc)
                 });

@@ -8,6 +8,8 @@
   - add the fltk-rs FLEET widget styles as an option (for use with dark themes)
   - add Nord, Dracula, Gruvbox Dark, Solarized Light, Monokai, Solarized Dark, Oceanic Next and Minimalist color themes (from fltk-theme's Fleet color palettes)
   - new configs now default to the Solarized Light color theme and the Fleet2 widget style
+  - replace `chunks_exact(SIZE)` where possible with `as_chunks::<SIZE>()`, simplifying code
+  - upgrade figura to V3.0.0 where the templates are now Send+Sync, so I can replace the thread-locals with shared LazyLock<> compiled templates, greatly simplifying the code. Thanks Saverio!
 
 - 1.20.4 (Jun 27 2026, dheijl)
   - some refactoring/optimization

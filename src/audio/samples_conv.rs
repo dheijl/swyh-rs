@@ -62,9 +62,10 @@ fn tpdf_dither_lanes_16_from_bytes(buf: [u8; 32]) -> f32x4 {
     const MUL: f32 = 1.0 / (1u32 << 31) as f32;
 
     let mut u = [0.0f32; 8];
-    for (i, w) in buf.chunks_exact(8).enumerate() {
-        // chunks are guaranteed to be 8 bytes exactly
-        let word = u64::from_ne_bytes(w.try_into().unwrap());
+    // 32 bytes split into 8-byte words, so the remainder is always empty
+    let (words, _) = buf.as_chunks::<8>();
+    for (i, w) in words.iter().enumerate() {
+        let word = u64::from_ne_bytes(*w);
         u[2 * i] = ((word as u32) >> 1) as f32 * MUL;
         u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32 * MUL;
     }
@@ -105,11 +106,9 @@ fn quantize_chunks<Q: Fn(f32x4) -> [i32; 4]>(
     i32_samples: &mut Vec<i32>,
     quantize: Q,
 ) {
-    let chunks = f32_samples.chunks_exact(4);
-    let remainder = chunks.remainder();
-    chunks.for_each(|chunk| {
-        // chunks are guaranteed to be 4 elements
-        let f32_array = f32x4::new(*chunk.as_array().unwrap());
+    let (chunks, remainder) = f32_samples.as_chunks::<4>();
+    chunks.iter().for_each(|chunk| {
+        let f32_array = f32x4::new(*chunk);
         let i_array = quantize(f32_array);
         i32_samples.extend_from_slice(&i_array);
     });
@@ -442,10 +441,9 @@ pub fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) 
         2 => stereo.extend_from_slice(samples),
         1 => {
             stereo.reserve(samples.len() * 2);
-            let chunks = samples.chunks_exact(4);
-            let remainder = chunks.remainder();
+            let (chunks, remainder) = samples.as_chunks::<4>();
             for chunk in chunks {
-                let v = f32x4::new(*chunk.as_array().unwrap());
+                let v = f32x4::new(*chunk);
                 stereo.extend_from_slice(v.unpack_lo(v).as_array()); // [a,a,b,b]
                 stereo.extend_from_slice(v.unpack_hi(v).as_array()); // [c,c,d,d]
             }
@@ -457,7 +455,7 @@ pub fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) 
         // WAVE 5.1: FL FR FC LFE(drop) BL BR
         6 => {
             stereo.reserve(samples.len() / 3);
-            for frame in samples.chunks_exact(6) {
+            for frame in samples.as_chunks::<6>().0 {
                 let l = (frame[0] + DOWNMIX_ATTEN * (frame[2] + frame[4])).clamp(-1.0, 1.0);
                 let r = (frame[1] + DOWNMIX_ATTEN * (frame[2] + frame[5])).clamp(-1.0, 1.0);
                 stereo.push(l);
@@ -467,7 +465,7 @@ pub fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) 
         // WAVE 7.1: FL FR FC LFE(drop) BL BR SL SR
         8 => {
             stereo.reserve(samples.len() / 4);
-            for frame in samples.chunks_exact(8) {
+            for frame in samples.as_chunks::<8>().0 {
                 let l =
                     (frame[0] + DOWNMIX_ATTEN * (frame[2] + frame[4] + frame[6])).clamp(-1.0, 1.0);
                 let r =

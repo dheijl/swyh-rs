@@ -21,8 +21,8 @@ use hashbrown::{HashMap, HashSet};
 use log::{debug, error, info};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
-    cell::{Cell, OnceCell},
     net::{IpAddr, SocketAddr, UdpSocket},
+    sync::LazyLock,
     time::{Duration, Instant},
 };
 use xml::reader::{EventReader, ParserConfig, XmlEvent};
@@ -181,90 +181,39 @@ xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">\
 /// Bad XML template error
 static BAD_TEMPL: &str = "Error parsing/formatting XML template.";
 
-/// Compiled (thread-local) figura templates.
-/// `CbTemplate` is `!Send` so these live per-thread.
+/// Compiled figura templates, shared across threads.
+/// `Template` is `Send + Sync` as of figura 3.0, so these can live in one
+/// process-wide static instead of being recompiled per thread-local.
 struct CompiledTemplates {
-    flac_prot: OnceCell<CbTemplate>,
-    wav_prot: OnceCell<CbTemplate>,
-    l16_prot: OnceCell<CbTemplate>,
-    l24_prot: OnceCell<CbTemplate>,
-    didl: OnceCell<CbTemplate>,
-    oh_insert_pl: OnceCell<CbTemplate>,
-    av_set_transport_uri: OnceCell<CbTemplate>,
+    flac_prot: CbTemplate,
+    wav_prot: CbTemplate,
+    l16_prot: CbTemplate,
+    l24_prot: CbTemplate,
+    didl: CbTemplate,
+    oh_insert_pl: CbTemplate,
+    av_set_transport_uri: CbTemplate,
 }
 
-impl CompiledTemplates {
-    const fn new() -> Self {
-        Self {
-            flac_prot: OnceCell::new(),
-            wav_prot: OnceCell::new(),
-            l16_prot: OnceCell::new(),
-            l24_prot: OnceCell::new(),
-            didl: OnceCell::new(),
-            oh_insert_pl: OnceCell::new(),
-            av_set_transport_uri: OnceCell::new(),
-        }
-    }
-}
-
-thread_local! {
-    /// The thread locals for the compiled figura templates, as they are `!Send`
-    static TEMPLATES: CompiledTemplates = const { CompiledTemplates::new() };
-    /// Flag for compiling the figura templates only once
-    static COMPILE_TEMPLATES: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Initialize (compile) all thread-localfigura template cells.
-/// Called once per thread before rendering.
-/// But there is actually only one thread using this (the main thread).
-/// Needed because figura templates are not Send so can't live in shared globals
-pub fn init_templates() {
+/// Compiled once, on first use, and shared by all threads.
+static TEMPLATES: LazyLock<CompiledTemplates> = LazyLock::new(|| {
     debug!("Compiling figura HTTP templates");
-    TEMPLATES.with(|t| {
-        t.flac_prot
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))
-                    .expect("static FLAC prot info template is invalid"),
-            )
-            .expect("can not set compiled flac_prot");
-        t.wav_prot
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(WAV_PROT_INFO))
-                    .expect("static WAV prot info template is invalid"),
-            )
-            .expect("can not set compiled wav_prot");
-        t.l16_prot
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(L16_PROT_INFO))
-                    .expect("static L16 prot info template is invalid"),
-            )
-            .expect("can not set compiled l16_prot");
-        t.l24_prot
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(L24_PROT_INFO))
-                    .expect("static L24 prot info template is invalid"),
-            )
-            .expect("can not set compiled l24_prot");
-        t.didl
-            .set(
-                CbTemplate::compile(htmlescape::encode_minimal(DIDL_TEMPLATE))
-                    .expect("static DIDL template is invalid"),
-            )
-            .expect("can not set compiled didl");
-        t.oh_insert_pl
-            .set(
-                CbTemplate::compile(OH_INSERT_PL_TEMPLATE)
-                    .expect("static OH insert playlist template is invalid"),
-            )
-            .expect("can not set compiled oh_insert_pl");
-        t.av_set_transport_uri
-            .set(
-                CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE)
-                    .expect("static AV set transport URI template is invalid"),
-            )
-            .expect("can not set compiled av_set_transport_uri");
-    });
-}
+    CompiledTemplates {
+        flac_prot: CbTemplate::compile(htmlescape::encode_minimal(FLAC_PROT_INFO))
+            .expect("static FLAC prot info template is invalid"),
+        wav_prot: CbTemplate::compile(htmlescape::encode_minimal(WAV_PROT_INFO))
+            .expect("static WAV prot info template is invalid"),
+        l16_prot: CbTemplate::compile(htmlescape::encode_minimal(L16_PROT_INFO))
+            .expect("static L16 prot info template is invalid"),
+        l24_prot: CbTemplate::compile(htmlescape::encode_minimal(L24_PROT_INFO))
+            .expect("static L24 prot info template is invalid"),
+        didl: CbTemplate::compile(htmlescape::encode_minimal(DIDL_TEMPLATE))
+            .expect("static DIDL template is invalid"),
+        oh_insert_pl: CbTemplate::compile(OH_INSERT_PL_TEMPLATE)
+            .expect("static OH insert playlist template is invalid"),
+        av_set_transport_uri: CbTemplate::compile(AV_SET_TRANSPORT_URI_TEMPLATE)
+            .expect("static AV set transport URI template is invalid"),
+    }
+});
 
 /// some captured audio parameters (from CPAL)
 #[derive(Debug, Clone, Copy)]
@@ -490,11 +439,6 @@ impl Renderer {
             );
             return Err("Invalid UPNP/DLNA protocol");
         }
-        // initialize (compile) the thread local templates on the first call (per thread)
-        if !COMPILE_TEMPLATES.get() {
-            COMPILE_TEMPLATES.set(true);
-            init_templates();
-        }
         // build the hashmap with the formatting vars for the OH and AV play templates
         let mut fmt_vars = Context::new();
         let addr = format!("{local_addr}:{}", streaminfo.server_port);
@@ -506,30 +450,14 @@ impl Renderer {
         );
         fmt_vars.insert("sample_rate", Value::Int(streaminfo.sample_rate.into()));
         fmt_vars.insert("duration", Value::static_str("00:00:00"));
-        let didl_tmpl = TEMPLATES.with(|t| match streaminfo.streaming_format {
-            StreamingFormat::Flac => t
-                .flac_prot
-                .get()
-                .expect("templates not initialized")
-                .format(&fmt_vars),
-            StreamingFormat::Rf64 | StreamingFormat::Wav => t
-                .wav_prot
-                .get()
-                .expect("templates not initialized")
-                .format(&fmt_vars),
+        let didl_tmpl = match streaminfo.streaming_format {
+            StreamingFormat::Flac => TEMPLATES.flac_prot.format(&fmt_vars),
+            StreamingFormat::Rf64 | StreamingFormat::Wav => TEMPLATES.wav_prot.format(&fmt_vars),
             StreamingFormat::Lpcm => match streaminfo.bits_per_sample {
-                BitDepth::Bits16 => t
-                    .l16_prot
-                    .get()
-                    .expect("templates not initialized")
-                    .format(&fmt_vars),
-                BitDepth::Bits24 => t
-                    .l24_prot
-                    .get()
-                    .expect("templates not initialized")
-                    .format(&fmt_vars),
+                BitDepth::Bits16 => TEMPLATES.l16_prot.format(&fmt_vars),
+                BitDepth::Bits24 => TEMPLATES.l24_prot.format(&fmt_vars),
             },
-        });
+        };
         let didl_prot = match didl_tmpl {
             Ok(s) => s,
             Err(e) => {
@@ -541,12 +469,7 @@ impl Renderer {
             }
         };
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
-        let formatted_didl = TEMPLATES.with(|t| {
-            t.didl
-                .get()
-                .expect("templates not initialized")
-                .format(&fmt_vars)
-        });
+        let formatted_didl = TEMPLATES.didl.format(&fmt_vars);
         let formatted_didl = match formatted_didl {
             Ok(s) => s,
             Err(e) => {
@@ -606,12 +529,7 @@ impl Renderer {
                 self.dev_name, self.host, self.port
             ),
         );
-        let xmlbody = TEMPLATES.with(|t| {
-            t.oh_insert_pl
-                .get()
-                .expect("templates not initialized")
-                .format(fmt_vars)
-        });
+        let xmlbody = TEMPLATES.oh_insert_pl.format(fmt_vars);
         let xmlbody = match xmlbody {
             Ok(s) => s,
             Err(e) => {
@@ -657,12 +575,7 @@ impl Renderer {
         // it's necessary to send a stop play request first
         self.av_stop_play(&url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let xmlbody = TEMPLATES.with(|t| {
-            t.av_set_transport_uri
-                .get()
-                .expect("templates not initialized")
-                .format(fmt_vars)
-        });
+        let xmlbody = TEMPLATES.av_set_transport_uri.format(fmt_vars);
         let xmlbody = match xmlbody {
             Ok(s) => s,
             Err(e) => {

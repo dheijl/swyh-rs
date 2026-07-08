@@ -43,7 +43,7 @@ pub type AudioSamples = Arc<Vec<f32>>;
 /// body regardless of optimization level.
 #[inline(always)]
 fn quantize_and_pack<'b, 's, Q, P>(
-    chunks_iter: impl Iterator<Item = (&'b mut [u8], &'s [f32])>,
+    chunks_iter: impl Iterator<Item = (&'b mut [u8], &'s [f32; 4])>,
     quantize: Q,
     pack: P,
 ) where
@@ -51,9 +51,7 @@ fn quantize_and_pack<'b, 's, Q, P>(
     P: Fn(&[i32; 4], &mut [u8]),
 {
     chunks_iter.for_each(|(bch, sch)| {
-        // SAFETY: chunks_exact(4) guarantees every chunk is exactly 4 elements
-        let samples = unsafe { sch.as_array().unwrap_unchecked() };
-        pack(&quantize(f32x4::new(*samples)), bch);
+        pack(&quantize(f32x4::new(*sch)), bch);
     });
 }
 
@@ -243,11 +241,11 @@ impl ChannelStream {
         // for 16 bit it seems always contiguous, for 24 bit it is not, but never needs rotating either
         {
             let samples = self.fifo.make_contiguous();
-            let sample_chunks = samples[..samples_needed].chunks_exact(CHUNK_SIZE);
+            // samples_needed is always a multiple of CHUNK_SIZE, so the remainder is empty
+            let (sample_chunks, _) = samples[..samples_needed].as_chunks::<CHUNK_SIZE>();
             // zip the buf in chunks of buf_chunksize with the sample chunks of 4 f32 values
             let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(sample_chunks);
             // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
-            // SAFETY: chunks_exact(4) guarantees every chunk is exactly 4 elements
             //
             // `endianness`/`bd`/`use_dither` pick the match arm once per call (not per
             // chunk); `quantize_and_pack` is generic over the quantizer/packer pair, so

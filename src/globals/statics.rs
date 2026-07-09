@@ -1,13 +1,14 @@
 //! Process-wide static singletons: configuration, active streaming clients,
 //! discovered renderers, the inter-thread message channel, and misc constants.
 
-use std::sync::{LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
+use std::sync::{Arc, LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
 
 use crate::{
     audio::rwstream::ChannelStream, enums::messages::MessageType,
     renderers::rendercontrol::Renderer, utils::configuration::Configuration,
 };
 
+use arc_swap::ArcSwap;
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use ecow::EcoString;
 use hashbrown::HashMap;
@@ -60,14 +61,45 @@ pub const NSTYLES: usize = STYLES.len() - 1;
 /// default widget style index for new configs (Fleet2) - keep in sync with STYLES array
 pub const DEFAULT_WIDGET_SCHEME: u8 = 1;
 
-/// streaming clients of the webserver
-static CLIENTS: LazyLock<RwLock<HashMap<EcoString, ChannelStream>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
-pub fn get_clients() -> RwLockReadGuard<'static, HashMap<EcoString, ChannelStream>> {
-    CLIENTS.read().expect("CLIENTS read lock poisoned")
+/// streaming clients of the webserver.
+///
+/// `ArcSwap` rather than `RwLock`: this is read on every CPAL capture callback
+/// (`distribute_samples`, every ~10-20ms) but only written on client connect/
+/// disconnect (human timescale), so reads should never block on a writer.
+/// A snapshot from `get_clients()` keeps its map (and every entry's
+/// `Sender`/`Receiver`) alive via its own `Arc` for as long as it's held, so a
+/// concurrent removal can never yank an entry out from under an in-progress
+/// iteration — worst case, one extra sample is queued into (or a send fails
+/// harmlessly on, see `ChannelStream::write`) a channel whose receiving end is
+/// already tearing down.
+static CLIENTS: LazyLock<ArcSwap<HashMap<EcoString, ChannelStream>>> =
+    LazyLock::new(|| ArcSwap::from_pointee(HashMap::new()));
+
+/// Wait-free snapshot of the current streaming clients.
+pub fn get_clients() -> Arc<HashMap<EcoString, ChannelStream>> {
+    CLIENTS.load_full()
 }
-pub fn get_clients_mut() -> RwLockWriteGuard<'static, HashMap<EcoString, ChannelStream>> {
-    CLIENTS.write().expect("CLIENTS write lock poisoned")
+
+/// Insert a new streaming client (on connect), returning the resulting client count.
+pub fn insert_client(remote_addr: EcoString, stream: ChannelStream) -> usize {
+    CLIENTS.rcu(|clients| {
+        let mut clients = (**clients).clone();
+        clients.insert(remote_addr.clone(), stream.clone());
+        clients
+    });
+    CLIENTS.load().len()
+}
+
+/// Remove a streaming client (on disconnect), returning the removed client
+/// (if it was still present) and the resulting client count.
+pub fn remove_client(remote_addr: &str) -> (Option<ChannelStream>, usize) {
+    let mut removed = None;
+    CLIENTS.rcu(|clients| {
+        let mut clients = (**clients).clone();
+        removed = clients.remove(remote_addr);
+        clients
+    });
+    (removed, CLIENTS.load().len())
 }
 
 /// all currently known renderers as discovered by SSDP

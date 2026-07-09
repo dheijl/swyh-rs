@@ -432,33 +432,36 @@ fn select_audio_source_cli(
     // use index from config if present and no name arg present
     if ss_index >= 0 {
         config.sound_source_index = Some(ss_index);
-        for (index, adev) in audio_devices.into_iter().enumerate() {
+        let config_sound_source = config.sound_source.clone().unwrap_or_default();
+        // Prefer matching by name over the stored index: PipeWire's device
+        // enumeration order isn't guaranteed stable across process launches, so a
+        // stale index can silently point at a different device than the one it
+        // used to name. The index is only a fallback for when no name match exists.
+        let mut name_match_index = None;
+        for (index, adev) in audio_devices.iter().enumerate() {
             let devname = adev.name().to_owned();
             ui_log(
                 LogCategory::Info,
                 &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
             );
-            if index == ss_index as usize {
-                audio_output_device_opt = Some(adev);
-                config.sound_source = Some(devname.clone());
-                ui_log(
-                    LogCategory::Info,
-                    &fl!(
-                        "cli-selected-audio-source-idx",
-                        "name" = &devname,
-                        "index" = index
-                    ),
-                );
-            } else {
-                let config_sound_source = config.sound_source.clone().unwrap_or_default();
-                if devname == config_sound_source {
-                    audio_output_device_opt = Some(adev);
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!("cli-selected-audio-source", "name" = &devname),
-                    );
-                }
+            if name_match_index.is_none() && devname == config_sound_source {
+                name_match_index = Some(index);
             }
+        }
+        let selected_index = name_match_index.unwrap_or(ss_index as usize);
+        if let Some(adev) = audio_devices.into_iter().nth(selected_index) {
+            let devname = adev.name().to_owned();
+            config.sound_source_index = Some(selected_index as i32);
+            config.sound_source = Some(devname.clone());
+            audio_output_device_opt = Some(adev);
+            ui_log(
+                LogCategory::Info,
+                &fl!(
+                    "cli-selected-audio-source-idx",
+                    "name" = &devname,
+                    "index" = selected_index
+                ),
+            );
         }
     } else if !ss_name.is_empty() {
         // args = sound source name; check for duplicate name position syntax "name:pos"
@@ -622,22 +625,25 @@ fn apply_streaming_args(args: &Args, config: &mut Configuration) {
 }
 
 /// true once every renderer `resolve_player_names` is waiting for has actually been
-/// discovered: `args.player_ip`/`args.active_players` entries that are already IP
-/// addresses don't need discovery; name-based entries and `last_renderer` (an IP
-/// remembered from a previous run) need a matching entry in the discovered list
+/// discovered via SSDP: being a syntactically valid IP is not enough on its own —
+/// `select_primary_renderer`/`player.play()` need the actual discovered `Renderer`
+/// (control URLs, supported protocols, etc.), so every identifier (name substring,
+/// IP already given on the command line, or `last_renderer` from a previous run)
+/// must match a renderer already present in the discovered list.
 fn wanted_players_discovered(args: &Args, last_renderer: Option<&str>) -> bool {
     let renderers = get_renderers();
-    let name_resolved = |id: &str| {
-        id.parse::<IpAddr>().is_ok() || renderers.iter().any(|r| r.dev_name.contains(id))
+    let discovered = |id: &str| {
+        renderers
+            .iter()
+            .any(|r| r.remote_addr == id || r.dev_name.contains(id))
     };
-    let ip_discovered = |ip: &str| renderers.iter().any(|r| r.remote_addr == ip);
 
-    args.player_ip.as_deref().is_none_or(name_resolved)
+    args.player_ip.as_deref().is_none_or(discovered)
         && args
             .active_players
             .as_ref()
-            .is_none_or(|v| v.iter().all(|id| name_resolved(id)))
-        && last_renderer.is_none_or(ip_discovered)
+            .is_none_or(|v| v.iter().all(|id| discovered(id)))
+        && last_renderer.is_none_or(discovered)
 }
 
 /// wait for SSDP discovery to complete, then translate any player names in `args`

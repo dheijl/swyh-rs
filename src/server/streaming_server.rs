@@ -11,7 +11,7 @@ use crate::{
         streaming::{BitDepth, StreamingContext, StreamingFormat, StreamingState},
     },
     fl,
-    globals::statics::{get_clients_mut, get_config},
+    globals::statics::{get_config, insert_client, remove_client},
     renderers::rendercontrol::WavData,
     server::query_params::StreamingParams,
     utils::ui_logger::{LogCategory, ui_log},
@@ -191,11 +191,7 @@ fn streaming_request(
     // create the channelstream that receives the samples and streams them on demand
     let (tx, rx) = unbounded();
     let channel_stream = ChannelStream::new(tx, rx, streaming_ctx, header_offset);
-    let nclients = {
-        let mut clients = get_clients_mut();
-        clients.insert(streaming_ctx.remote_addr.clone(), channel_stream.clone());
-        clients.len()
-    };
+    let nclients = insert_client(streaming_ctx.remote_addr.clone(), channel_stream.clone());
     debug!("Now have {nclients} streaming clients");
 
     feedback_channel
@@ -249,13 +245,10 @@ fn streaming_request(
             ),
         );
     }
-    let nclients = {
-        let mut clients = get_clients_mut();
-        if let Some(chs) = clients.remove(&streaming_ctx.remote_addr) {
-            chs.stop_flac_encoder();
-        };
-        clients.len()
-    };
+    let (removed, nclients) = remove_client(&streaming_ctx.remote_addr);
+    if let Some(chs) = removed {
+        chs.stop_flac_encoder();
+    }
     debug!("Now have {nclients} streaming clients left");
     // inform the main thread that this renderer has finished receiving
     // necessary if the connection close was not caused by our own GUI

@@ -10,7 +10,8 @@
   - GUI: new configs now default to the Solarized Light color theme and the Fleet2 widget style
   - RENDERERS:upgrade figura to V3.0.0 where the (HTML) templates are now Send+Sync, so I can replace the thread-locals with shared global LazyLock<> compiled templates, greatly simplifying the code. Thanks Saverio!
   - Claude Review: address a (rather large) number of mostly small review items
-  - RUST: 1.96.1
+  - 16 bit TPDF dither now defaults to false, same behaviour as before it was introduced. But you should really turn it on.
+  - RUST: 1.97.0
 
 - 1.20.4 (Jun 27 2026, dheijl)
   - some refactoring/optimization

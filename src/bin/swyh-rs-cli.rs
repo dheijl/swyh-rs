@@ -402,6 +402,35 @@ fn setup_logging(config: &Configuration, args_log_level: Option<LevelFilter>) {
 
 /// select the audio output device from args or config;
 /// updates `config.sound_source` / `config.sound_source_index` and returns the chosen device
+/// pick which device index to use given the selection inputs. An index given
+/// explicitly on the command line (`explicit_index`) is authoritative and is
+/// returned as-is, since it must not be second-guessed by a name match against
+/// the (possibly stale) persisted config. Otherwise prefer an unambiguous name
+/// match over the persisted index: a name match is only trusted when exactly
+/// one device has that name; with zero or multiple matches (some setups, seen
+/// on Windows, have two devices sharing an identical name at different
+/// indices), the persisted index is the only way to disambiguate.
+fn resolve_selected_index(
+    device_names: &[String],
+    config_sound_source: &str,
+    ss_index: i32,
+    explicit_index: bool,
+) -> usize {
+    if explicit_index {
+        return ss_index as usize;
+    }
+    let name_matches: Vec<_> = device_names
+        .iter()
+        .enumerate()
+        .filter(|(_, name)| name.as_str() == config_sound_source)
+        .map(|(index, _)| index)
+        .collect();
+    match name_matches.as_slice() {
+        [unique_index] => *unique_index,
+        _ => ss_index as usize,
+    }
+}
+
 fn select_audio_source_cli(
     args: &mut Args,
     config: &mut Configuration,
@@ -410,7 +439,10 @@ fn select_audio_source_cli(
     let audio_devices = get_output_audio_devices();
     let mut audio_output_device_opt = default_device;
 
-    // get the index from args or config
+    // get the index from args or config; an index explicitly given on the
+    // command line is authoritative and must not be second-guessed by a name
+    // match against the (possibly stale) persisted config below
+    let explicit_index = args.sound_source_index.is_some();
     let mut ss_index = {
         if let Some(index) = args.sound_source_index {
             args.sound_source_name = None;
@@ -432,23 +464,23 @@ fn select_audio_source_cli(
     // use index from config if present and no name arg present
     if ss_index >= 0 {
         config.sound_source_index = Some(ss_index);
-        let config_sound_source = config.sound_source.clone().unwrap_or_default();
-        // Prefer matching by name over the stored index: PipeWire's device
-        // enumeration order isn't guaranteed stable across process launches, so a
-        // stale index can silently point at a different device than the one it
-        // used to name. The index is only a fallback for when no name match exists.
-        let mut name_match_index = None;
-        for (index, adev) in audio_devices.iter().enumerate() {
-            let devname = adev.name().to_owned();
+        let device_names: Vec<String> = audio_devices
+            .iter()
+            .map(|adev| adev.name().to_owned())
+            .collect();
+        for (index, devname) in device_names.iter().enumerate() {
             ui_log(
                 LogCategory::Info,
-                &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
+                &fl!("cli-found-audio-source", "index" = index, "name" = devname),
             );
-            if name_match_index.is_none() && devname == config_sound_source {
-                name_match_index = Some(index);
-            }
         }
-        let selected_index = name_match_index.unwrap_or(ss_index as usize);
+        let config_sound_source = config.sound_source.clone().unwrap_or_default();
+        let selected_index = resolve_selected_index(
+            &device_names,
+            &config_sound_source,
+            ss_index,
+            explicit_index,
+        );
         if let Some(adev) = audio_devices.into_iter().nth(selected_index) {
             let devname = adev.name().to_owned();
             config.sound_source_index = Some(selected_index as i32);
@@ -793,5 +825,59 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
         thread::sleep(Duration::from_millis(
             (ssdp_interval_mins * ONE_MINUTE) as u64,
         ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn names(names: &[&str]) -> Vec<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn unique_name_match_wins_over_stale_index() {
+        // enumeration order shifted since the index was persisted, but the name
+        // is still unique, so the name match should be trusted
+        let device_names = names(&["Speakers", "Headphones", "HDMI"]);
+        assert_eq!(resolve_selected_index(&device_names, "HDMI", 0, false), 2);
+    }
+
+    #[test]
+    fn duplicate_name_falls_back_to_persisted_index() {
+        // two devices share the same name at different indices (seen on
+        // Windows) - a name match can't disambiguate, so the persisted index
+        // must be used instead
+        let device_names = names(&["Speakers (Realtek)", "Speakers (Realtek)", "HDMI"]);
+        assert_eq!(
+            resolve_selected_index(&device_names, "Speakers (Realtek)", 1, false),
+            1
+        );
+        assert_eq!(
+            resolve_selected_index(&device_names, "Speakers (Realtek)", 0, false),
+            0
+        );
+    }
+
+    #[test]
+    fn no_name_match_falls_back_to_persisted_index() {
+        // the persisted name no longer exists (device unplugged/renamed), so
+        // the stored index is the only thing left to try
+        let device_names = names(&["Speakers", "HDMI"]);
+        assert_eq!(
+            resolve_selected_index(&device_names, "USB DAC", 1, false),
+            1
+        );
+    }
+
+    #[test]
+    fn explicit_index_arg_overrides_stale_config_name_match() {
+        // regression test: passing e.g. "-s 1" on the command line must select
+        // index 1 even if the persisted config.sound_source name happens to
+        // uniquely match a different device (e.g. index 3, left over from a
+        // previous run) - the explicit arg must not be second-guessed
+        let device_names = names(&["Speakers", "Headphones", "HDMI", "USB DAC"]);
+        assert_eq!(resolve_selected_index(&device_names, "USB DAC", 1, true), 1);
     }
 }

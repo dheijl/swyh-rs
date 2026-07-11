@@ -282,7 +282,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.18.1"
-source = "git+https://github.com/RustAudio/cpal.git#bc101ac6e06dbd99b2d98b60870936d4b3191d77"
+source = "git+https://github.com/RustAudio/cpal.git#e7d920bc19d7d66a8ddc99bc62280374e9b7dd1c"
 dependencies = [
  "alsa",
  "block2",

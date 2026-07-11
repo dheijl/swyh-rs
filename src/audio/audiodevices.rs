@@ -8,7 +8,7 @@ use crate::{
     audio::{rwstream::AudioSamples, samples_conv::downmix_to_stereo},
     enums::messages::MessageType,
     fl,
-    globals::statics::{RUN_RMS_MONITOR, get_clients, get_config, get_msgchannel},
+    globals::statics::{RUN_RMS_MONITOR, get_clients_fast, get_config, get_msgchannel},
     utils::ui_logger::{LogCategory, ui_log},
 };
 use cpal::{
@@ -481,7 +481,7 @@ fn capture_started() {
 /// All sample processing threads share the sample chunk through an Arc
 fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
     let shared_samples = AudioSamples::from(f32_samples);
-    get_clients()
+    get_clients_fast()
         .iter()
         .for_each(|(_, client)| client.write(Arc::clone(&shared_samples)));
     // update RMS channel unless only silence

@@ -8,7 +8,7 @@ use crate::{
     renderers::rendercontrol::Renderer, utils::configuration::Configuration,
 };
 
-use arc_swap::ArcSwap;
+use arc_swap::{ArcSwap, Guard};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use ecow::EcoString;
 use hashbrown::HashMap;
@@ -78,6 +78,15 @@ static CLIENTS: LazyLock<ArcSwap<HashMap<EcoString, ChannelStream>>> =
 /// Wait-free snapshot of the current streaming clients.
 pub fn get_clients() -> Arc<HashMap<EcoString, ChannelStream>> {
     CLIENTS.load_full()
+}
+
+/// Wait-free snapshot for the CPAL capture callback: `load()` avoids the
+/// atomic refcount bump that `load_full()` pays on every call, at the cost
+/// of a borrowed `Guard` instead of an owned `Arc`. Only use this where the
+/// guard's scope is short and never held across a blocking call, or it
+/// delays the writer's reclamation of the previous snapshot.
+pub fn get_clients_fast() -> Guard<Arc<HashMap<EcoString, ChannelStream>>> {
+    CLIENTS.load()
 }
 
 /// Insert a new streaming client (on connect), returning the resulting client count.

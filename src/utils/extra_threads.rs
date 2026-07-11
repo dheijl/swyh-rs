@@ -17,7 +17,7 @@ use crate::{
     audio::rwstream::AudioSamples,
     enums::messages::MessageType,
     globals::statics::{ONE_MINUTE, RUN_RMS_MONITOR},
-    renderers::rendercontrol::{Renderer, WavData, discover},
+    renderers::rendercontrol::{Renderer, WavData, discover, new_agent},
 };
 
 /// run the `ssdp_updater` - thread that periodically runs ssdp discovery
@@ -29,7 +29,7 @@ pub fn run_ssdp_updater(
     ssdp_interval_mins: f64,
     kick_rx: Receiver<()>,
 ) {
-    let agent = ureq::agent();
+    let agent = new_agent();
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
     let mut first_time = true;

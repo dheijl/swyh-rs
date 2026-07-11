@@ -41,7 +41,7 @@ use swyh_rs::{
         APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
     },
-    renderers::rendercontrol::{Renderer, StreamInfo, WavData, discover},
+    renderers::rendercontrol::{Renderer, StreamInfo, WavData, discover, new_agent},
     server::streaming_server::run_server,
     utils::{
         bincommon::run_silence_injector,
@@ -840,7 +840,7 @@ fn shutdown_ctrlc(serve_only: bool, player: Option<&Renderer>, playing: Vec<Rend
 /// and forward new ones to the main thread via `ssdp_tx`
 fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
-    let agent = ureq::agent();
+    let agent = new_agent();
     loop {
         let renderers = discover(&agent, &rmap).unwrap_or_default();
         for r in &renderers {

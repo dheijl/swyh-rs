@@ -325,7 +325,7 @@ fn main() -> Result<(), i32> {
                         capture_retry_count += 1;
                         debug!("Retrying capturing audio #{capture_retry_count}");
                         let audio_devices = get_output_audio_devices();
-                        let config_name: &str = config.sound_source.as_ref().unwrap();
+                        let config_name = config.sound_source.as_deref().unwrap_or_default();
                         // ignore sound index as it may have changed, so duplicate names won't probably work
                         let mut found_audio_device = false;
                         for adev in audio_devices.into_iter() {
@@ -431,6 +431,35 @@ fn resolve_selected_index(
     }
 }
 
+/// outcome of matching one device name against a `-s <name>` argument
+#[derive(Debug, PartialEq, Eq)]
+enum NameMatchAction {
+    /// devname contains ss_name (case-insensitive): a genuine CLI-arg match,
+    /// always selected and always overrides the persisted config
+    Contains,
+    /// devname doesn't match the CLI arg but is the persisted config
+    /// selection: kept only as a fallback if nothing else matches
+    ExactPersisted,
+    None,
+}
+
+/// classify a single device name against the `-s <name>` argument; pure
+/// function over primitives so the None-config-source case (fresh install,
+/// no persisted sound_source) can be exercised without a real cpal::Device
+fn classify_name_match(
+    devname: &str,
+    ss_name: &str,
+    config_sound_source: Option<&str>,
+) -> NameMatchAction {
+    if devname.to_uppercase().contains(&ss_name.to_uppercase()) {
+        NameMatchAction::Contains
+    } else if config_sound_source == Some(devname) {
+        NameMatchAction::ExactPersisted
+    } else {
+        NameMatchAction::None
+    }
+}
+
 fn select_audio_source_cli(
     args: &mut Args,
     config: &mut Configuration,
@@ -505,24 +534,28 @@ fn select_audio_source_cli(
                     LogCategory::Info,
                     &fl!("cli-found-audio-source", "index" = index, "name" = &devname),
                 );
-                if devname.to_uppercase().contains(&ss_name.to_uppercase()) {
-                    audio_output_device_opt = Some(adev);
-                    config.sound_source = Some(devname.clone());
-                    config.sound_source_index = Some(index as i32);
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!(
-                            "cli-selected-audio-source-idx",
-                            "name" = &devname,
-                            "index" = index
-                        ),
-                    );
-                } else if devname == *config.sound_source.as_ref().unwrap() {
-                    audio_output_device_opt = Some(adev);
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!("cli-selected-audio-source", "name" = &devname),
-                    );
+                match classify_name_match(&devname, &ss_name, config.sound_source.as_deref()) {
+                    NameMatchAction::Contains => {
+                        audio_output_device_opt = Some(adev);
+                        config.sound_source = Some(devname.clone());
+                        config.sound_source_index = Some(index as i32);
+                        ui_log(
+                            LogCategory::Info,
+                            &fl!(
+                                "cli-selected-audio-source-idx",
+                                "name" = &devname,
+                                "index" = index
+                            ),
+                        );
+                    }
+                    NameMatchAction::ExactPersisted => {
+                        audio_output_device_opt = Some(adev);
+                        ui_log(
+                            LogCategory::Info,
+                            &fl!("cli-selected-audio-source", "name" = &devname),
+                        );
+                    }
+                    NameMatchAction::None => {}
                 }
             }
         } else if let Ok(pos) = duppos.parse::<usize>() {
@@ -879,5 +912,34 @@ mod tests {
         // previous run) - the explicit arg must not be second-guessed
         let device_names = names(&["Speakers", "Headphones", "HDMI", "USB DAC"]);
         assert_eq!(resolve_selected_index(&device_names, "USB DAC", 1, true), 1);
+    }
+
+    #[test]
+    fn name_arg_contains_match_overrides_persisted_config() {
+        // "-s usb" must win even though a different device is the persisted
+        // config.sound_source and is enumerated after the match
+        assert_eq!(
+            classify_name_match("USB Speakers", "usb", Some("HDMI Output")),
+            NameMatchAction::Contains
+        );
+        assert_eq!(
+            classify_name_match("HDMI Output", "usb", Some("HDMI Output")),
+            NameMatchAction::ExactPersisted
+        );
+    }
+
+    #[test]
+    fn name_arg_no_config_source_does_not_panic() {
+        // regression test: fresh install / no default device at startup means
+        // config.sound_source is None; classify_name_match must not unwrap()
+        // on it and must report no match instead of crashing
+        assert_eq!(
+            classify_name_match("HDMI Output", "usb", None),
+            NameMatchAction::None
+        );
+        assert_eq!(
+            classify_name_match("USB Speakers", "usb", None),
+            NameMatchAction::Contains
+        );
     }
 }

@@ -46,7 +46,7 @@ status-starting-ssdp = Starten SSDP discovery
 status-ssdp-interval-zero = SSDP interval 0 => SSDP discovery wordt overgeslagen
 status-loaded-config = Laden configuratie -c { $id }
 status-serving-started = Server gestart op poort { $port }...
-status-playing-to = Aspelen naar { $name }
+status-playing-to = Afspelen naar { $name }
 status-shutting-down = Stoppen van { $name }
 status-dry-run-exit = dry-run - einde...
 
@@ -121,7 +121,7 @@ cli-selected-audio-source = Geselecteerde audio bron: { $name }
 cli-selected-audio-source-pos = Geselecteerde audio bron: { $name }:{ $pos }
 
 # CLI: network / renderer discovery
-cli-found-network =Netwerk gevonden: { $ip }
+cli-found-network = Netwerk gevonden: { $ip }
 cli-available-renderer = Beschikbare spelers #{ $n }: { $name } op { $addr }
 cli-default-renderer-ip = Standaard speler ip: { $ip } => { $addr }
 cli-active-renderer = Actieve speler: { $name } => { $addr }

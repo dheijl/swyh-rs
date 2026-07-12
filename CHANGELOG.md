@@ -12,6 +12,7 @@
   - Claude Review: address a (rather large) number of mostly small review items
   - 16 bit TPDF dither now defaults to false, same behaviour as before it was introduced. But you should really turn it on for 16 bit.
   - remove all locking from the CPAL audio capture loopback hot path (replace RwLock with ArcSwap)
+  - Fix: Add explicit HTTP timeouts to the renderer discovery/control agent, PR #272 by @Churro (Johannes Feichtner), this prevents a misbehaving renderer blocking SSDP dscovery.
   - RUST: 1.97.0
 
 - 1.20.4 (Jun 27 2026, dheijl)

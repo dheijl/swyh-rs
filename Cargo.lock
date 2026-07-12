@@ -282,7 +282,7 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.18.1"
-source = "git+https://github.com/RustAudio/cpal.git#e7d920bc19d7d66a8ddc99bc62280374e9b7dd1c"
+source = "git+https://github.com/RustAudio/cpal.git#07d31d4ca6ccfc1ca7425966805e6acc18f13e8c"
 dependencies = [
  "alsa",
  "block2",
@@ -2514,4 +2514,4 @@ dependencies = [
 [[package]]
 name = "zmij"
 version = "1.0.21"
-source = "git+https://github.com/dtolnay/zmij#9cf77025cc7c389d93438e2921dcbb119c399b84"
+source = "git+https://github.com/dtolnay/zmij#1c04946718fe0d660b9bda4e513c24ddbf9e221f"

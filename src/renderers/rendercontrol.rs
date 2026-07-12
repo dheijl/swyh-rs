@@ -1019,6 +1019,27 @@ MX: 3\r\n\r\n";
     Some(usable)
 }
 
+/// Build the shared HTTP [`ureq::Agent`] used for renderer discovery and control.
+///
+/// `ureq`'s default configuration leaves every request timeout unset (`connect`,
+/// `recv_response` and `global` are all `None`), so a renderer that accepts the
+/// TCP connection but never sends back a complete response would block the
+/// request forever. Because [`discover`] waits for all per-renderer fetches to
+/// finish before returning, a single such renderer would stall the whole
+/// discovery cycle; and since the renderer control calls (`play`/`stop_play`/
+/// `set_volume`) reuse this same agent, an unresponsive renderer could likewise
+/// block their caller. Setting explicit timeouts bounds every request, so a
+/// stalled renderer is skipped for that cycle and retried on the next one.
+#[must_use]
+pub fn new_agent() -> ureq::Agent {
+    ureq::Agent::new_with_config(
+        ureq::Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(10)))
+            .timeout_connect(Some(Duration::from_secs(4)))
+            .build(),
+    )
+}
+
 //
 // SSDP UPNP service discovery
 //
@@ -1361,5 +1382,45 @@ Location: http://192.168.1.181:33065/dev/e8dbf26b-de8f-4c96-0000-0000002ea642/de
         assert!(!parsed.location.is_empty());
         assert!(parsed.is_av);
         assert!(!parsed.is_oh);
+    }
+
+    #[test]
+    fn new_agent_configures_request_timeouts() {
+        // Fast always-on guard: the shared agent must carry explicit timeouts
+        // so a renderer that accepts a connection but never responds can't block
+        // a request — and therefore the whole discovery cycle — indefinitely.
+        // This asserts the timeouts are *set*; `unresponsive_renderer_request_times_out`
+        // (ignored, ~10s) proves they actually *fire* end-to-end.
+        let timeouts = new_agent().config().timeouts();
+        assert_eq!(timeouts.global, Some(Duration::from_secs(10)));
+        assert_eq!(timeouts.connect, Some(Duration::from_secs(4)));
+    }
+
+    #[test]
+    #[ignore = "~10s: drives the real global request timeout against a stalled peer"]
+    fn unresponsive_renderer_request_times_out() {
+        use std::io::Read;
+        use std::net::TcpListener;
+        use std::time::Instant;
+        // A stand-in "renderer" that accepts the TCP connection, reads the
+        // request, then holds the socket open forever without ever replying —
+        // the exact failure mode that used to hang discovery indefinitely.
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut s = stream.unwrap();
+                let _ = s.read(&mut [0u8; 1024]);
+                std::thread::sleep(Duration::from_secs(3600));
+            }
+        });
+        let start = Instant::now();
+        let result = new_agent().get(format!("http://{addr}/desc.xml")).call();
+        let elapsed = start.elapsed();
+        assert!(result.is_err(), "expected a timeout error, got Ok");
+        assert!(
+            elapsed < Duration::from_secs(20),
+            "request did not time out; it hung for {elapsed:?}"
+        );
     }
 }

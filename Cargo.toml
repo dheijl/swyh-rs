@@ -56,7 +56,10 @@ dirs = "6.0.0"
 ecow = "0.3.0"
 fastrand = "2.4.1"
 fluent-uri = "0.4.1"
-fluent-templates = "0.14.0"
+fluent-templates = { version = "0.14.0", default-features = false, features = [
+    "macros",
+    "walkdir",
+] }
 figura = "3.0.0"
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",
@@ -73,7 +76,7 @@ log = { version = "0.4.33", features = [
 ] }
 mimalloc = { version = "0.1.52" }
 serde = { version = "1.0.228", features = ["derive"] }
-socket2 = "0.6.4"
+socket2 = "0.6.5"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
 tiny_http = "0.12.0"

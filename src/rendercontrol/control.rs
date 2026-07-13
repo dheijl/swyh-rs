@@ -310,15 +310,15 @@ impl Renderer {
         // discovery XML parsing that runs before parse_url(), so it's safe to
         // compose and cache the absolute URLs here, once, instead of re-formatting
         // them on every play/stop/volume call
-        let oh_control_url = self.oh_control_url.clone();
-        let av_control_url = self.av_control_url.clone();
-        let oh_volume_url = self.oh_volume_url.clone();
-        let av_volume_url = self.av_volume_url.clone();
+        let oh_control_full_url = format!("http://{host}:{port}{}", self.oh_control_url);
+        let av_control_full_url = format!("http://{host}:{port}{}", self.av_control_url);
+        let oh_volume_full_url = format!("http://{host}:{port}{}", self.oh_volume_url);
+        let av_volume_full_url = format!("http://{host}:{port}{}", self.av_volume_url);
         let c = Arc::make_mut(&mut self.controller);
-        c.oh_control_full_url = format!("http://{host}:{port}{oh_control_url}");
-        c.av_control_full_url = format!("http://{host}:{port}{av_control_url}");
-        c.oh_volume_full_url = format!("http://{host}:{port}{oh_volume_url}");
-        c.av_volume_full_url = format!("http://{host}:{port}{av_volume_url}");
+        c.oh_control_full_url = oh_control_full_url;
+        c.av_control_full_url = av_control_full_url;
+        c.oh_volume_full_url = oh_volume_full_url;
+        c.av_volume_full_url = av_volume_full_url;
         c.host = host;
         c.port = port;
     }
@@ -572,8 +572,8 @@ impl Controller {
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
     fn oh_play(&self, fmt_vars: &Context) -> Result<(), &'static str> {
         // stop anything currently playing first, Moode needs it
-        let url = self.oh_control_full_url.clone();
-        self.oh_stop_play(&url);
+        let url = &self.oh_control_full_url;
+        self.oh_stop_play(url);
         // Send the InsertPlayList command with metadate(DIDL-Lite)
         ui_log(
             LogCategory::Info,
@@ -595,7 +595,7 @@ impl Controller {
         };
         let _resp = soap_request(
             &self.agent,
-            &url,
+            url,
             "urn:av-openhome-org:service:Playlist:1#Insert",
             &xmlbody,
         )
@@ -610,7 +610,7 @@ impl Controller {
         );
         let _resp = soap_request(
             &self.agent,
-            &url,
+            url,
             "urn:av-openhome-org:service:Playlist:1#Play",
             OH_PLAY_PL_TEMPLATE,
         )
@@ -623,10 +623,10 @@ impl Controller {
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
     fn av_play(&self, fmt_vars: &Context) -> Result<(), &'static str> {
-        let url = self.av_control_full_url.clone();
+        let url = &self.av_control_full_url;
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
-        self.av_stop_play(&url);
+        self.av_stop_play(url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
         let xmlbody = TEMPLATES.av_set_transport_uri.format(fmt_vars);
         let xmlbody = match xmlbody {
@@ -641,7 +641,7 @@ impl Controller {
         };
         let _resp = soap_request(
             &self.agent,
-            &url,
+            url,
             "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
             &xmlbody,
         )
@@ -651,7 +651,7 @@ impl Controller {
         // send play command
         let _resp = soap_request(
             &self.agent,
-            &url,
+            url,
             "urn:schemas-upnp-org:service:AVTransport:1#Play",
             AV_PLAY_TEMPLATE,
         )
@@ -665,14 +665,12 @@ impl Controller {
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
         {
-            let url = self.oh_control_full_url.clone();
-            self.oh_stop_play(&url);
+            self.oh_stop_play(&self.oh_control_full_url);
         } else if self
             .supported_protocols
             .contains(SupportedProtocols::AVTRANSPORT)
         {
-            let url = self.av_control_full_url.clone();
-            self.av_stop_play(&url);
+            self.av_stop_play(&self.av_control_full_url);
         } else {
             ui_log(
                 LogCategory::Error,

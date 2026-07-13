@@ -39,7 +39,7 @@ pub fn run_ssdp_updater(
             rmap.entry(r.location.clone()).or_insert_with(|| {
                 info!(
                     "Found new renderer {} {}  at {}",
-                    r.dev_name, r.dev_model, r.remote_addr
+                    r.controller.dev_name, r.dev_model, r.controller.remote_addr
                 );
                 ssdp_tx
                     .send(MessageType::SsdpMessage(Box::new(r.clone())))

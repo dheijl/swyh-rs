@@ -1330,7 +1330,7 @@ impl MainForm {
     pub fn add_renderer_button(&mut self, new_renderer: &mut Renderer) {
         if get_config()
             .hidden_renderers
-            .contains(&new_renderer.remote_addr)
+            .contains(&new_renderer.controller.remote_addr)
         {
             return;
         }
@@ -1348,7 +1348,7 @@ impl MainForm {
             .with_align(Align::Center | Align::Clip)
             .with_label(&format!(
                 "{} {}",
-                new_renderer.dev_model, new_renderer.dev_name
+                new_renderer.dev_model, new_renderer.controller.dev_name
             ));
         pbut.set_callback({
             let player_index = self.player_index;
@@ -1360,7 +1360,7 @@ impl MainForm {
                     "Pushed renderer #{} {} {}, state = {}",
                     player_index,
                     newr_c.dev_model,
-                    newr_c.dev_name,
+                    newr_c.controller.dev_name,
                     if b.is_on() { "ON" } else { "OFF" },
                 );
                 if b.is_on() {
@@ -1402,7 +1402,10 @@ impl MainForm {
                 let mut this_renderer = new_renderer.clone();
                 move |s| {
                     let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
-                    debug!("Setting new volume for {} to {vol}", this_renderer.dev_name);
+                    debug!(
+                        "Setting new volume for {} to {vol}",
+                        this_renderer.controller.dev_name
+                    );
                     this_renderer.spawn_set_volume(vol);
                     get_renderers_mut()[player_index].volume = vol;
                     if app::is_event_shift() {
@@ -1414,7 +1417,10 @@ impl MainForm {
                             if rend.playing && (this_renderer.player_index != rend.player_index) {
                                 // and it supports setting the volume: sync volume
                                 if let Some(mut slider) = rend.rend_ui.slider.clone() {
-                                    debug!("Setting new volume for {} to {vol}", rend.dev_name);
+                                    debug!(
+                                        "Setting new volume for {} to {vol}",
+                                        rend.controller.dev_name
+                                    );
                                     rend.spawn_set_volume(vol);
                                     // update the original renderer volume value
                                     get_renderers_mut()[index].volume = vol;
@@ -1438,7 +1444,7 @@ impl MainForm {
         pbut.super_handle_first(false);
         pbut.handle({
             let config_changed = self.config_changed.clone();
-            let remote_addr = new_renderer.remote_addr.clone();
+            let remote_addr = new_renderer.controller.remote_addr.clone();
             let mut slider = new_renderer.rend_ui.slider.clone();
             move |b, ev| {
                 // event_button() is a plain i32 (3 = right); avoid event_mouse_button(),
@@ -1472,7 +1478,7 @@ impl MainForm {
         if self.auto_reconnect.is_set() {
             let active_players = get_config().active_renderers.clone();
             info!("AutoReconnect: Active Renderers = {active_players:?}");
-            if active_players.contains(&new_renderer.remote_addr) {
+            if active_players.contains(&new_renderer.controller.remote_addr) {
                 pbut.turn_on(true);
                 pbut.do_callback();
             }

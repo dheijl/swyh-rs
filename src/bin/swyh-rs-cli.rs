@@ -260,7 +260,7 @@ fn main() -> Result<(), i32> {
         for ip in config.active_renderers {
             if let Some(pl) = get_renderers()
                 .iter()
-                .find(|&renderer| renderer.remote_addr == ip)
+                .find(|&renderer| renderer.controller.remote_addr == ip)
             {
                 let mut player = pl.clone();
                 if let Some(vol) = args.volume
@@ -289,8 +289,8 @@ fn main() -> Result<(), i32> {
                             LogCategory::Info,
                             &fl!(
                                 "status-new-renderer",
-                                "name" = &newr.dev_name,
-                                "addr" = &newr.remote_addr
+                                "name" = &newr.controller.dev_name,
+                                "addr" = &newr.controller.remote_addr
                             ),
                         );
                         get_renderers_mut().push(*newr);
@@ -309,7 +309,7 @@ fn main() -> Result<(), i32> {
                             // doesn't stall the global RENDERERS lock for other threads
                             let renderer = get_renderers()
                                 .iter()
-                                .find(|r| r.remote_addr == streamer_feedback.remote_ip)
+                                .find(|r| r.controller.remote_addr == streamer_feedback.remote_ip)
                                 .cloned();
                             if let Some(mut r) = renderer {
                                 let _ = r.play(&local_addr, streaminfo);
@@ -710,7 +710,7 @@ fn wanted_players_discovered(args: &Args, last_renderer: Option<&str>) -> bool {
     let discovered = |id: &str| {
         renderers
             .iter()
-            .any(|r| r.remote_addr == id || r.dev_name.contains(id))
+            .any(|r| r.controller.remote_addr == id || r.controller.dev_name.contains(id))
     };
 
     args.player_ip.as_deref().is_none_or(discovered)
@@ -748,8 +748,8 @@ fn resolve_player_names(
                     &fl!(
                         "cli-available-renderer",
                         "n" = n,
-                        "name" = &newr.dev_name,
-                        "addr" = &newr.remote_addr
+                        "name" = &newr.controller.dev_name,
+                        "addr" = &newr.controller.remote_addr
                     ),
                 );
                 n += 1;
@@ -762,26 +762,35 @@ fn resolve_player_names(
     }
     // resolve player name to IP address if a name was given instead of an IP
     if let Some(ref pl_ip) = args.player_ip
-        && let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(pl_ip))
+        && let Some(r) = get_renderers()
+            .iter()
+            .find(|r| r.controller.dev_name.contains(pl_ip))
     {
         ui_log(
             LogCategory::Info,
             &fl!(
                 "cli-default-renderer-ip",
                 "ip" = pl_ip,
-                "addr" = &r.remote_addr
+                "addr" = &r.controller.remote_addr
             ),
         );
-        args.player_ip = Some(r.remote_addr.clone());
+        args.player_ip = Some(r.controller.remote_addr.clone());
     }
     if let Some(active_players) = &args.active_players {
         let mut ip_players: Vec<String> = Vec::new();
         active_players.iter().for_each(|ap| {
-            if let Some(r) = get_renderers().iter().find(|r| r.dev_name.contains(ap)) {
-                ip_players.push(r.remote_addr.clone());
+            if let Some(r) = get_renderers()
+                .iter()
+                .find(|r| r.controller.dev_name.contains(ap))
+            {
+                ip_players.push(r.controller.remote_addr.clone());
                 ui_log(
                     LogCategory::Info,
-                    &fl!("cli-active-renderer", "name" = ap, "addr" = &r.remote_addr),
+                    &fl!(
+                        "cli-active-renderer",
+                        "name" = ap,
+                        "addr" = &r.controller.remote_addr
+                    ),
                 );
             }
         });
@@ -803,17 +812,20 @@ fn select_primary_renderer(config: &mut Configuration) -> Option<Renderer> {
     // use the configured renderer if present
     if let Some(pl) = get_renderers()
         .iter()
-        .find(|r| r.remote_addr == last_renderer)
+        .find(|r| r.controller.remote_addr == last_renderer)
     {
         player = pl.clone();
     }
     // if specified player ip not found: record which default we're using
-    if last_renderer != player.remote_addr {
-        config.last_renderer = Some(player.remote_addr.clone());
+    if last_renderer != player.controller.remote_addr {
+        config.last_renderer = Some(player.controller.remote_addr.clone());
     }
     ui_log(
         LogCategory::Info,
-        &fl!("cli-default-player-ip", "ip" = &player.remote_addr),
+        &fl!(
+            "cli-default-player-ip",
+            "ip" = &player.controller.remote_addr
+        ),
     );
     Some(player)
 }
@@ -825,9 +837,12 @@ fn shutdown_ctrlc(serve_only: bool, player: Option<&Renderer>, playing: Vec<Rend
         for mut pl in playing {
             if get_clients()
                 .values()
-                .any(|cs| cs.remote_ip == pl.remote_addr)
+                .any(|cs| cs.remote_ip == pl.controller.remote_addr)
             {
-                println!("{}", fl!("cli-ctrlc-stopping", "name" = &pl.dev_name));
+                println!(
+                    "{}",
+                    fl!("cli-ctrlc-stopping", "name" = &pl.controller.dev_name)
+                );
                 pl.stop_play();
             }
         }
@@ -854,16 +869,17 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     loop {
         let renderers = discover(&agent, &rmap).unwrap_or_default();
         for r in &renderers {
-            rmap.entry(r.remote_addr.clone()).or_insert_with(|| {
-                info!(
-                    "Found new renderer {} {}  at {}",
-                    r.dev_name, r.dev_model, r.remote_addr
-                );
-                ssdp_tx
-                    .send(MessageType::SsdpMessage(Box::new(r.clone())))
-                    .expect("Message Channel disconnected.");
-                r.clone()
-            });
+            rmap.entry(r.controller.remote_addr.clone())
+                .or_insert_with(|| {
+                    info!(
+                        "Found new renderer {} {}  at {}",
+                        r.controller.dev_name, r.dev_model, r.controller.remote_addr
+                    );
+                    ssdp_tx
+                        .send(MessageType::SsdpMessage(Box::new(r.clone())))
+                        .expect("Message Channel disconnected.");
+                    r.clone()
+                });
         }
         thread::sleep(Duration::from_millis(
             (ssdp_interval_mins * ONE_MINUTE) as u64,

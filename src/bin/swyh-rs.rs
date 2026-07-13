@@ -222,7 +222,10 @@ fn main() {
                 }
                 // add a new button for each renderer discovered by SSDP
                 MessageType::SsdpMessage(mut newr) => {
-                    debug!("Renderer {} Volume: {}", newr.dev_name, newr.volume);
+                    debug!(
+                        "Renderer {} Volume: {}",
+                        newr.controller.dev_name, newr.volume
+                    );
                     mf.add_renderer_button(&mut newr);
                 }
                 // show a log message in the textbox
@@ -240,7 +243,7 @@ fn main() {
                         update_playstate(&outcome.remote_addr, false);
                         let button = get_renderers()
                             .iter()
-                            .find(|r| r.remote_addr == outcome.remote_addr)
+                            .find(|r| r.controller.remote_addr == outcome.remote_addr)
                             .and_then(|r| r.rend_ui.button.clone());
                         if let Some(mut button) = button {
                             button.set(false);
@@ -297,7 +300,7 @@ fn main() {
 fn update_playstate(remote_addr: &str, playing: bool) {
     if let Some(r) = get_renderers_mut()
         .iter_mut()
-        .find(|r| r.remote_addr == remote_addr)
+        .find(|r| r.controller.remote_addr == remote_addr)
     {
         r.playing = playing;
     }
@@ -479,7 +482,7 @@ fn handle_player_message(
     // check for multiple renderers at same ip address (Bubble UPnP)
     let mut same_ip: Vec<Renderer> = get_renderers()
         .iter()
-        .filter(|r| r.remote_addr == streamer_feedback.remote_ip)
+        .filter(|r| r.controller.remote_addr == streamer_feedback.remote_ip)
         .cloned()
         .collect();
     // the following only works for players with a unique IP address
@@ -529,10 +532,13 @@ fn shutdown_and_exit() {
         {
             ui_log(
                 LogCategory::Info,
-                &fl!("status-shutting-down", "name" = &renderer.dev_name),
+                &fl!(
+                    "status-shutting-down",
+                    "name" = &renderer.controller.dev_name
+                ),
             );
             app::redraw();
-            active_players.push(renderer.remote_addr.clone());
+            active_players.push(renderer.controller.remote_addr.clone());
             renderer.stop_play();
             app::redraw();
         }

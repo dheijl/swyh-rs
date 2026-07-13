@@ -86,13 +86,36 @@ pub struct RendUI {
     pub button: Option<LightButton>,
 }
 
+/// The `Send`-safe subset of a [`Renderer`]'s fields needed to drive
+/// play/stop/volume over the network: no FLTK widget handles, so it can be
+/// moved into a background thread. [`Renderer`] embeds this behind an `Arc`
+/// instead of duplicating these fields itself, so cloning a `Renderer` (e.g.
+/// once per UI widget) or handing a background thread a handle to drive
+/// play/stop/volume is a refcount bump rather than a field-by-field copy.
+/// Its `impl` block lives entirely in [`super::control`], not here.
+#[derive(Debug, Clone)]
+pub struct Controller {
+    pub dev_name: String,
+    pub(super) host: String,
+    pub(super) port: u16,
+    pub remote_addr: String,
+    // absolute URLs (http://host:port + path), composed once in
+    // `Renderer::parse_url()` since host/port/path are all fixed after
+    // discovery
+    pub(super) oh_control_full_url: String,
+    pub(super) av_control_full_url: String,
+    pub(super) oh_volume_full_url: String,
+    pub(super) av_volume_full_url: String,
+    pub supported_protocols: SupportedProtocols,
+    pub(super) agent: ureq::Agent,
+}
+
 /// Renderer struct describers a media renderer,
 /// info is collected from the GetDescription.xml
 /// if GUI is enabled, the renderer tracks it associated UI (a slider and a button)
 #[derive(Debug, Clone)]
 pub struct Renderer {
     pub player_index: usize,
-    pub dev_name: String,
     pub dev_model: String,
     pub dev_type: String,
     pub dev_url: String,
@@ -100,23 +123,16 @@ pub struct Renderer {
     pub av_control_url: String,
     pub oh_volume_url: String,
     pub av_volume_url: String,
-    // absolute URLs (http://host:port + path), composed once in `parse_url()`
-    // since host/port/path are all fixed after discovery
-    pub(super) oh_control_full_url: String,
-    pub(super) av_control_full_url: String,
-    pub(super) oh_volume_full_url: String,
-    pub(super) av_volume_full_url: String,
     pub volume: i32,
-    pub supported_protocols: SupportedProtocols,
-    pub remote_addr: String,
     pub location: String,
     pub services: Vec<AvService>,
     pub playing: bool,
     #[cfg(feature = "gui")]
     pub rend_ui: RendUI,
-    pub(super) host: String,
-    pub(super) port: u16,
-    pub(super) agent: ureq::Agent,
+    /// the network-identity/control fields (`dev_name`, `host`, `port`,
+    /// `remote_addr`, cached full control/volume URLs,
+    /// `supported_protocols`, `agent`), `Arc`-shared for cheap cloning
+    pub controller: Arc<Controller>,
     /// guards against overlapping `spawn_play()` calls for this renderer;
     /// shared (via `Arc`) across every clone made from the same discovered
     /// instance, so a click on any clone sees an in-flight play started from

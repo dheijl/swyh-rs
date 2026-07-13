@@ -13,6 +13,7 @@ use log::{debug, error, info};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     net::{IpAddr, SocketAddr, UdpSocket},
+    sync::Arc,
     time::{Duration, Instant},
 };
 use xml::reader::{EventReader, ParserConfig, XmlEvent};
@@ -262,7 +263,7 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
                     let xml = get_service_description(agent, &location)?;
                     let mut rend = get_renderer(agent, &xml)?;
                     rend.location.clone_from(&location);
-                    rend.remote_addr = from.ip().to_string();
+                    Arc::make_mut(&mut rend.controller).remote_addr = from.ip().to_string();
                     // check for an absent URLBase in the description
                     // or devices like Yamaha WXAD-10 with bad URLBase port number
                     if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {
@@ -293,9 +294,9 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
         for r in &renderers {
             debug!(
                 "Renderer {} {} ip {} at location {} has {} services",
-                r.dev_name,
+                r.controller.dev_name,
                 r.dev_model,
-                r.remote_addr,
+                r.controller.remote_addr,
                 r.location,
                 r.services.len()
             );
@@ -357,13 +358,15 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
                     if id.contains("urn:av-openhome-org:service") {
                         if id.contains("Playlist") {
                             renderer.oh_control_url.clone_from(&service.control_url);
-                            renderer.supported_protocols |= SupportedProtocols::OPENHOME;
+                            Arc::make_mut(&mut renderer.controller).supported_protocols |=
+                                SupportedProtocols::OPENHOME;
                         } else if id.contains("Volume") {
                             renderer.oh_volume_url.clone_from(&service.control_url);
                         }
                     } else if id.contains(":AVTransport") {
                         renderer.av_control_url.clone_from(&service.control_url);
-                        renderer.supported_protocols |= SupportedProtocols::AVTRANSPORT;
+                        Arc::make_mut(&mut renderer.controller).supported_protocols |=
+                            SupportedProtocols::AVTRANSPORT;
                     } else if id.contains(":RenderingControl") {
                         renderer.av_volume_url.clone_from(&service.control_url);
                     }
@@ -375,7 +378,7 @@ fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
                 "serviceType" => service.service_type = value,
                 "serviceId" => service.service_id = value,
                 "modelName" => renderer.dev_model = value,
-                "friendlyName" => renderer.dev_name = value,
+                "friendlyName" => Arc::make_mut(&mut renderer.controller).dev_name = value,
                 "deviceType" => renderer.dev_type = value,
                 "URLBase" => renderer.dev_url = value,
                 "controlURL" => service.control_url = normalize_url(&value),

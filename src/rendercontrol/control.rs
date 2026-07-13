@@ -4,7 +4,7 @@
 
 #[cfg(feature = "gui")]
 use super::types::RendUI;
-use super::types::{Renderer, StreamInfo, SupportedProtocols};
+use super::types::{Controller, Renderer, StreamInfo, SupportedProtocols};
 use crate::{
     enums::{
         messages::MessageType,
@@ -248,7 +248,6 @@ impl Renderer {
     pub(super) fn new(agent: &ureq::Agent) -> Renderer {
         Renderer {
             player_index: 0,
-            dev_name: String::new(),
             dev_model: String::new(),
             dev_url: String::new(),
             dev_type: String::new(),
@@ -256,21 +255,24 @@ impl Renderer {
             av_control_url: String::new(),
             oh_volume_url: String::new(),
             av_volume_url: String::new(),
-            oh_control_full_url: String::new(),
-            av_control_full_url: String::new(),
-            oh_volume_full_url: String::new(),
-            av_volume_full_url: String::new(),
             volume: -1,
-            supported_protocols: SupportedProtocols::NONE,
-            remote_addr: String::new(),
             location: String::new(),
             services: Vec::with_capacity(8),
             playing: false,
             #[cfg(feature = "gui")]
             rend_ui: RendUI::default(),
-            host: String::new(),
-            port: 0,
-            agent: agent.clone(),
+            controller: Arc::new(Controller {
+                dev_name: String::new(),
+                host: String::new(),
+                port: 0,
+                remote_addr: String::new(),
+                oh_control_full_url: String::new(),
+                av_control_full_url: String::new(),
+                oh_volume_full_url: String::new(),
+                av_volume_full_url: String::new(),
+                supported_protocols: SupportedProtocols::NONE,
+                agent: agent.clone(),
+            }),
             play_pending: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -304,36 +306,27 @@ impl Renderer {
                 port = 0;
             }
         }
-        self.host = host;
-        self.port = port;
         // path fields (oh/av control/volume urls) are already set by the service
         // discovery XML parsing that runs before parse_url(), so it's safe to
         // compose and cache the absolute URLs here, once, instead of re-formatting
         // them on every play/stop/volume call
-        self.oh_control_full_url =
-            format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
-        self.av_control_full_url =
-            format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
-        self.oh_volume_full_url =
-            format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
-        self.av_volume_full_url =
-            format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
+        let oh_control_url = self.oh_control_url.clone();
+        let av_control_url = self.av_control_url.clone();
+        let oh_volume_url = self.oh_volume_url.clone();
+        let av_volume_url = self.av_volume_url.clone();
+        let c = Arc::make_mut(&mut self.controller);
+        c.oh_control_full_url = format!("http://{host}:{port}{oh_control_url}");
+        c.av_control_full_url = format!("http://{host}:{port}{av_control_url}");
+        c.oh_volume_full_url = format!("http://{host}:{port}{oh_volume_url}");
+        c.av_volume_full_url = format!("http://{host}:{port}{av_volume_url}");
+        c.host = host;
+        c.port = port;
     }
 
     /// get volume
     pub fn get_volume(&mut self) -> i32 {
-        if self
-            .supported_protocols
-            .contains(SupportedProtocols::OPENHOME)
-        {
-            return self.oh_get_volume();
-        } else if self
-            .supported_protocols
-            .contains(SupportedProtocols::AVTRANSPORT)
-        {
-            return self.av_get_volume();
-        }
-        -1
+        self.volume = self.controller.get_volume();
+        self.volume
     }
 
     /// Runs synchronously on the calling thread and blocks on the SOAP
@@ -341,7 +334,7 @@ impl Renderer {
     /// caller's thread (e.g. the FLTK UI thread) instead.
     pub fn set_volume(&mut self, vol: i32) {
         self.volume = vol;
-        self.get_controller().set_volume(vol);
+        self.controller.set_volume(vol);
     }
 
     /// Set the volume on this renderer on a background thread, mirroring
@@ -352,7 +345,7 @@ impl Renderer {
     /// the message channel, so there's no result to deliver back here.
     pub fn spawn_set_volume(&mut self, vol: i32) {
         self.volume = vol;
-        let handler = self.get_controller();
+        let handler = self.controller.clone();
         let spawned = thread::Builder::new()
             .name("renderer_set_volume".into())
             .stack_size(THREAD_STACK)
@@ -362,26 +355,6 @@ impl Renderer {
                 LogCategory::Error,
                 &format!("set_volume: failed to spawn volume thread: {e}"),
             );
-        }
-    }
-
-    /// Build a [`Controller`] — the `Send`-safe subset of this renderer's
-    /// fields needed to drive play/stop/volume over the network — for use
-    /// on a background thread. Deliberately excludes `rend_ui`: fltk-rs
-    /// widget handles are not `Send`, so a full `Renderer` clone can't cross
-    /// a `thread::spawn`.
-    fn get_controller(&self) -> Controller {
-        Controller {
-            dev_name: self.dev_name.clone(),
-            host: self.host.clone(),
-            port: self.port,
-            remote_addr: self.remote_addr.clone(),
-            oh_control_full_url: self.oh_control_full_url.clone(),
-            av_control_full_url: self.av_control_full_url.clone(),
-            oh_volume_full_url: self.oh_volume_full_url.clone(),
-            av_volume_full_url: self.av_volume_full_url.clone(),
-            supported_protocols: self.supported_protocols,
-            agent: self.agent.clone(),
         }
     }
 
@@ -395,12 +368,12 @@ impl Renderer {
         local_addr: &IpAddr,
         streaminfo: StreamInfo,
     ) -> Result<(), &'static str> {
-        self.get_controller().play(local_addr, streaminfo)
+        self.controller.play(local_addr, streaminfo)
     }
 
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
     pub fn stop_play(&mut self) {
-        self.get_controller().stop_play();
+        self.controller.stop_play();
     }
 
     /// Start playing on this renderer on a background thread, so the caller
@@ -419,11 +392,14 @@ impl Renderer {
         {
             ui_log(
                 LogCategory::Info,
-                &format!("play: {} already starting, ignoring", self.dev_name),
+                &format!(
+                    "play: {} already starting, ignoring",
+                    self.controller.dev_name
+                ),
             );
             return;
         }
-        let handler = self.get_controller();
+        let handler = self.controller.clone();
         let pending = self.play_pending.clone();
         let spawned = thread::Builder::new()
             .name("renderer_play".into())
@@ -434,7 +410,7 @@ impl Renderer {
                 let _ = get_msgchannel()
                     .0
                     .send(MessageType::PlayResult(PlayOutcome {
-                        remote_addr: handler.remote_addr,
+                        remote_addr: handler.remote_addr.clone(),
                         result,
                     }));
                 #[cfg(feature = "gui")]
@@ -467,11 +443,11 @@ impl Renderer {
         {
             ui_log(
                 LogCategory::Info,
-                &format!("stop_play: {} busy, ignoring", self.dev_name),
+                &format!("stop_play: {} busy, ignoring", self.controller.dev_name),
             );
             return;
         }
-        let handler = self.get_controller();
+        let handler = self.controller.clone();
         let pending = self.play_pending.clone();
         let spawned = thread::Builder::new()
             .name("renderer_stop".into())
@@ -488,113 +464,6 @@ impl Renderer {
             );
         }
     }
-
-    /// get OpenHome Volume
-    fn oh_get_volume(&mut self) -> i32 {
-        let url = self.oh_volume_full_url.clone();
-
-        // get current volume
-        let vol_xml = soap_request(
-            &self.agent,
-            &url,
-            "urn:av-openhome-org:service:Volume:1#Volume",
-            OH_GET_VOL_TEMPLATE,
-        )
-        .unwrap_or_else(|| "<Error/>".to_string());
-        // parse response to extract volume
-        debug!("oh_get_volume response: {vol_xml}");
-        let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = EcoString::new();
-        let mut have_vol_response = false;
-        let mut str_volume = EcoString::from("-1".to_string());
-        for e in parser {
-            match e {
-                Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem = EcoString::from(&name.local_name);
-                    if cur_elem == "VolumeResponse" {
-                        have_vol_response = true;
-                    }
-                }
-                Ok(XmlEvent::Characters(value)) if cur_elem == "Value" && have_vol_response => {
-                    str_volume = EcoString::from(value);
-                }
-                Err(e) => {
-                    error!("OH Volume XML parse error: {e}");
-                }
-                _ => {}
-            }
-        }
-        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
-        if self.volume >= 0 {
-            ui_log(
-                LogCategory::Info,
-                &format!(
-                    "OH Get Volume on {} host={} port={} = {}%",
-                    self.dev_name, self.host, self.port, self.volume,
-                ),
-            );
-        } else {
-            ui_log(
-                LogCategory::Info,
-                &format!("OH Get Volume not available for {}.", self.dev_name),
-            );
-        }
-        self.volume
-    }
-
-    /// get AV Volume
-    fn av_get_volume(&mut self) -> i32 {
-        let url = self.av_volume_full_url.clone();
-
-        // get current volume
-        let vol_xml = soap_request(
-            &self.agent,
-            &url,
-            "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
-            AV_GET_VOL_TEMPLATE,
-        )
-        .unwrap_or_else(|| "<Error/>".to_string());
-        debug!("av_get_volume response: {vol_xml}");
-        let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = EcoString::new();
-        let mut have_vol_response = false;
-        let mut str_volume = "-1".to_string();
-        for e in parser {
-            match e {
-                Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem = EcoString::from(name.local_name);
-                    if cur_elem == "GetVolumeResponse" {
-                        have_vol_response = true;
-                    }
-                }
-                Ok(XmlEvent::Characters(value))
-                    if cur_elem == "CurrentVolume" && have_vol_response =>
-                {
-                    str_volume = value;
-                }
-                Err(e) => {
-                    error!("AV Volume XML parse error: {e}");
-                }
-                _ => {}
-            }
-        }
-        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
-        if self.volume >= 0 {
-            ui_log(
-                LogCategory::Info,
-                &format!(
-                    "AV Get Volume on {} host={} port={} = {}%",
-                    self.dev_name, self.host, self.port, self.volume,
-                ),
-            );
-        } else {
-            ui_log(
-                LogCategory::Info,
-                &format!("AV Get Volume not available for {}.", self.dev_name),
-            );
-        }
-        self.volume
-    }
 }
 
 /// Outcome of a `play()` attempt kicked off on a background thread by
@@ -606,27 +475,12 @@ pub struct PlayOutcome {
     pub result: Result<(), &'static str>,
 }
 
-/// The `Send`-safe subset of [`Renderer`] needed to drive play/stop/volume
-/// over the network: no FLTK widget handles, so it can be moved into a
-/// background thread by [`Renderer::spawn_play`], [`Renderer::spawn_stop_play`]
-/// and [`Renderer::spawn_set_volume`]. Mirrors `Renderer`'s play/stop/volume
-/// logic exactly; `Renderer::play`/`Renderer::stop_play`/`Renderer::set_volume`
-/// delegate here so there's a single implementation for both the synchronous
-/// and backgrounded paths.
-#[derive(Debug, Clone)]
-struct Controller {
-    dev_name: String,
-    host: String,
-    port: u16,
-    remote_addr: String,
-    oh_control_full_url: String,
-    av_control_full_url: String,
-    oh_volume_full_url: String,
-    av_volume_full_url: String,
-    supported_protocols: SupportedProtocols,
-    agent: ureq::Agent,
-}
-
+/// [`Controller`]'s `impl` block: `Renderer::play`/`Renderer::stop_play`/
+/// `Renderer::get_volume`/`Renderer::set_volume` all delegate to the methods
+/// here (directly, or via [`Renderer::spawn_play`],
+/// [`Renderer::spawn_stop_play`], [`Renderer::spawn_set_volume`] on a
+/// background thread), so there's a single implementation of the
+/// play/stop/volume logic for both the synchronous and backgrounded paths.
 impl Controller {
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
     fn play(&self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &'static str> {
@@ -867,6 +721,126 @@ impl Controller {
         .unwrap_or_default();
     }
 
+    /// get volume, using Openhome if present, else `AvTransport` (if present)
+    fn get_volume(&self) -> i32 {
+        if self
+            .supported_protocols
+            .contains(SupportedProtocols::OPENHOME)
+        {
+            self.oh_get_volume()
+        } else if self
+            .supported_protocols
+            .contains(SupportedProtocols::AVTRANSPORT)
+        {
+            self.av_get_volume()
+        } else {
+            -1
+        }
+    }
+
+    /// get OpenHome Volume
+    fn oh_get_volume(&self) -> i32 {
+        // get current volume
+        let vol_xml = soap_request(
+            &self.agent,
+            &self.oh_volume_full_url,
+            "urn:av-openhome-org:service:Volume:1#Volume",
+            OH_GET_VOL_TEMPLATE,
+        )
+        .unwrap_or_else(|| "<Error/>".to_string());
+        // parse response to extract volume
+        debug!("oh_get_volume response: {vol_xml}");
+        let parser = EventReader::new(vol_xml.as_bytes());
+        let mut cur_elem = EcoString::new();
+        let mut have_vol_response = false;
+        let mut str_volume = EcoString::from("-1".to_string());
+        for e in parser {
+            match e {
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    cur_elem = EcoString::from(&name.local_name);
+                    if cur_elem == "VolumeResponse" {
+                        have_vol_response = true;
+                    }
+                }
+                Ok(XmlEvent::Characters(value)) if cur_elem == "Value" && have_vol_response => {
+                    str_volume = EcoString::from(value);
+                }
+                Err(e) => {
+                    error!("OH Volume XML parse error: {e}");
+                }
+                _ => {}
+            }
+        }
+        let volume = str_volume.parse::<i32>().unwrap_or(-1);
+        if volume >= 0 {
+            ui_log(
+                LogCategory::Info,
+                &format!(
+                    "OH Get Volume on {} host={} port={} = {volume}%",
+                    self.dev_name, self.host, self.port,
+                ),
+            );
+        } else {
+            ui_log(
+                LogCategory::Info,
+                &format!("OH Get Volume not available for {}.", self.dev_name),
+            );
+        }
+        volume
+    }
+
+    /// get AV Volume
+    fn av_get_volume(&self) -> i32 {
+        // get current volume
+        let vol_xml = soap_request(
+            &self.agent,
+            &self.av_volume_full_url,
+            "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
+            AV_GET_VOL_TEMPLATE,
+        )
+        .unwrap_or_else(|| "<Error/>".to_string());
+        debug!("av_get_volume response: {vol_xml}");
+        let parser = EventReader::new(vol_xml.as_bytes());
+        let mut cur_elem = EcoString::new();
+        let mut have_vol_response = false;
+        let mut str_volume = "-1".to_string();
+        for e in parser {
+            match e {
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    cur_elem = EcoString::from(name.local_name);
+                    if cur_elem == "GetVolumeResponse" {
+                        have_vol_response = true;
+                    }
+                }
+                Ok(XmlEvent::Characters(value))
+                    if cur_elem == "CurrentVolume" && have_vol_response =>
+                {
+                    str_volume = value;
+                }
+                Err(e) => {
+                    error!("AV Volume XML parse error: {e}");
+                }
+                _ => {}
+            }
+        }
+        let volume = str_volume.parse::<i32>().unwrap_or(-1);
+        if volume >= 0 {
+            ui_log(
+                LogCategory::Info,
+                &format!(
+                    "AV Get Volume on {} host={} port={} = {volume}%",
+                    self.dev_name, self.host, self.port,
+                ),
+            );
+        } else {
+            ui_log(
+                LogCategory::Info,
+                &format!("AV Get Volume not available for {}.", self.dev_name),
+            );
+        }
+        volume
+    }
+
     /// set volume, using Openhome if present, else `AvTransport` (if present)
     fn set_volume(&self, vol: i32) {
         if self
@@ -934,12 +908,12 @@ mod tests {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://192.168.1.26:80/".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 80);
+        assert_eq!(rend.controller.host, "192.168.1.26");
+        assert_eq!(rend.controller.port, 80);
         rend.dev_url = "http://192.168.1.26:12345/".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 12345);
+        assert_eq!(rend.controller.host, "192.168.1.26");
+        assert_eq!(rend.controller.port, 12345);
     }
 
     #[test]
@@ -947,8 +921,8 @@ mod tests {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://192.168.1.26/".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 0);
+        assert_eq!(rend.controller.host, "192.168.1.26");
+        assert_eq!(rend.controller.port, 0);
     }
 
     #[test]
@@ -956,8 +930,8 @@ mod tests {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://myrenderer.local:8080/desc.xml".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "myrenderer.local");
-        assert_eq!(rend.port, 8080);
+        assert_eq!(rend.controller.host, "myrenderer.local");
+        assert_eq!(rend.controller.port, 8080);
     }
 
     #[test]
@@ -965,8 +939,8 @@ mod tests {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://myrenderer.local/desc.xml".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "myrenderer.local");
-        assert_eq!(rend.port, 0);
+        assert_eq!(rend.controller.host, "myrenderer.local");
+        assert_eq!(rend.controller.port, 0);
     }
 
     #[test]
@@ -974,8 +948,8 @@ mod tests {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://192.168.0.1:1234/some/path/desc.xml".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "192.168.0.1");
-        assert_eq!(rend.port, 1234);
+        assert_eq!(rend.controller.host, "192.168.0.1");
+        assert_eq!(rend.controller.port, 1234);
     }
 
     #[test]
@@ -983,8 +957,8 @@ mod tests {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "not a url at all".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "0.0.0.0");
-        assert_eq!(rend.port, 0);
+        assert_eq!(rend.controller.host, "0.0.0.0");
+        assert_eq!(rend.controller.port, 0);
     }
 
     #[test]
@@ -993,8 +967,8 @@ mod tests {
         // relative URL has no authority
         rend.dev_url = "/just/a/path".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "0.0.0.0");
-        assert_eq!(rend.port, 0);
+        assert_eq!(rend.controller.host, "0.0.0.0");
+        assert_eq!(rend.controller.port, 0);
     }
 
     #[test]
@@ -1002,11 +976,11 @@ mod tests {
         let mut rend = Renderer::new(&ureq::agent());
         rend.dev_url = "http://192.168.1.26:80/".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 80);
+        assert_eq!(rend.controller.host, "192.168.1.26");
+        assert_eq!(rend.controller.port, 80);
         rend.dev_url = "http://192.168.1.26:12345/".to_string();
         rend.parse_url();
-        assert_eq!(rend.host, "192.168.1.26");
-        assert_eq!(rend.port, 12345);
+        assert_eq!(rend.controller.host, "192.168.1.26");
+        assert_eq!(rend.controller.port, 12345);
     }
 }

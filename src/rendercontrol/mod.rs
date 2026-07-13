@@ -2,10 +2,11 @@
 //!
 //! Handles SSDP discovery ([`discover`], in [`discovery`]), and controls AV
 //! renderers using both the OpenHome Playlist and UPnP AVTransport protocols
-//! ([`control`]). [`Renderer`] and its supporting types live in [`types`];
-//! [`Renderer`] drives play/stop and volume, [`WavData`] carries the audio
-//! format metadata, and [`StreamInfo`] holds the per-stream URL and
-//! bit-depth.
+//! ([`control`]). [`Renderer`] and its supporting types are defined in
+//! [`types`], but [`Renderer`]'s entire `impl` (construction, play/stop,
+//! volume) lives in [`control`] alongside the SOAP mechanics it drives.
+//! [`WavData`] carries the audio format metadata, and [`StreamInfo`] holds
+//! the per-stream URL and bit-depth.
 
 mod control;
 mod discovery;

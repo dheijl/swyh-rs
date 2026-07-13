@@ -1,6 +1,9 @@
-//! SOAP-based play/stop/volume control of a [`Renderer`], driving both the
-//! OpenHome Playlist and UPnP AVTransport protocols.
+//! [`Renderer`]'s full `impl` block: construction/setup (`new`, `parse_url`)
+//! plus SOAP-based play/stop/volume control, driving both the OpenHome
+//! Playlist and UPnP AVTransport protocols.
 
+#[cfg(feature = "gui")]
+use super::types::RendUI;
 use super::types::{Renderer, StreamInfo, SupportedProtocols};
 use crate::{
     enums::{
@@ -14,10 +17,14 @@ use ecow::EcoString;
 use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::app;
+use fluent_uri::Uri;
 use log::{debug, error};
 use std::{
     net::IpAddr,
-    sync::{LazyLock, atomic::Ordering},
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicBool, Ordering},
+    },
     thread,
     time::Duration,
 };
@@ -238,6 +245,81 @@ fn soap_request(agent: &ureq::Agent, url: &str, soap_action: &str, body: &str) -
 }
 
 impl Renderer {
+    pub(super) fn new(agent: &ureq::Agent) -> Renderer {
+        Renderer {
+            player_index: 0,
+            dev_name: String::new(),
+            dev_model: String::new(),
+            dev_url: String::new(),
+            dev_type: String::new(),
+            oh_control_url: String::new(),
+            av_control_url: String::new(),
+            oh_volume_url: String::new(),
+            av_volume_url: String::new(),
+            oh_control_full_url: String::new(),
+            av_control_full_url: String::new(),
+            oh_volume_full_url: String::new(),
+            av_volume_full_url: String::new(),
+            volume: -1,
+            supported_protocols: SupportedProtocols::NONE,
+            remote_addr: String::new(),
+            location: String::new(),
+            services: Vec::with_capacity(8),
+            playing: false,
+            #[cfg(feature = "gui")]
+            rend_ui: RendUI::default(),
+            host: String::new(),
+            port: 0,
+            agent: agent.clone(),
+            play_pending: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// extract host and port from device url
+    pub(super) fn parse_url(&mut self) {
+        let host: String;
+        let port: u16;
+        match Uri::parse(self.dev_url.as_str()) {
+            Ok(url) => {
+                if let Some(auth) = url.authority() {
+                    host = auth.host().to_string();
+                    port = auth
+                        .port()
+                        .and_then(|p| p.as_str().parse::<u16>().ok())
+                        .unwrap_or(0);
+                } else {
+                    host = "0.0.0.0".to_string();
+                    port = 0;
+                }
+            }
+            Err(e) => {
+                ui_log(
+                    LogCategory::Info,
+                    &format!(
+                        "parse_url(): Error '{e}' while parsing base url '{}'",
+                        self.dev_url
+                    ),
+                );
+                host = "0.0.0.0".to_string();
+                port = 0;
+            }
+        }
+        self.host = host;
+        self.port = port;
+        // path fields (oh/av control/volume urls) are already set by the service
+        // discovery XML parsing that runs before parse_url(), so it's safe to
+        // compose and cache the absolute URLs here, once, instead of re-formatting
+        // them on every play/stop/volume call
+        self.oh_control_full_url =
+            format!("http://{}:{}{}", self.host, self.port, self.oh_control_url);
+        self.av_control_full_url =
+            format!("http://{}:{}{}", self.host, self.port, self.av_control_url);
+        self.oh_volume_full_url =
+            format!("http://{}:{}{}", self.host, self.port, self.oh_volume_url);
+        self.av_volume_full_url =
+            format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
+    }
+
     /// get volume
     pub fn get_volume(&mut self) -> i32 {
         if self
@@ -840,5 +922,91 @@ impl Controller {
         )
         .unwrap_or("<Error/>".to_string());
         debug!("av_set_volume response: {vol_xml}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_url_ip_with_port() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.1.26:80/".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.1.26");
+        assert_eq!(rend.port, 80);
+        rend.dev_url = "http://192.168.1.26:12345/".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.1.26");
+        assert_eq!(rend.port, 12345);
+    }
+
+    #[test]
+    fn parse_url_no_port() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.1.26/".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.1.26");
+        assert_eq!(rend.port, 0);
+    }
+
+    #[test]
+    fn parse_url_hostname_with_port() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://myrenderer.local:8080/desc.xml".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "myrenderer.local");
+        assert_eq!(rend.port, 8080);
+    }
+
+    #[test]
+    fn parse_url_hostname_no_port() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://myrenderer.local/desc.xml".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "myrenderer.local");
+        assert_eq!(rend.port, 0);
+    }
+
+    #[test]
+    fn parse_url_with_path() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.0.1:1234/some/path/desc.xml".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.0.1");
+        assert_eq!(rend.port, 1234);
+    }
+
+    #[test]
+    fn parse_url_invalid_url() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "not a url at all".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "0.0.0.0");
+        assert_eq!(rend.port, 0);
+    }
+
+    #[test]
+    fn parse_url_no_authority() {
+        let mut rend = Renderer::new(&ureq::agent());
+        // relative URL has no authority
+        rend.dev_url = "/just/a/path".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "0.0.0.0");
+        assert_eq!(rend.port, 0);
+    }
+
+    #[test]
+    fn renderer() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.1.26:80/".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.1.26");
+        assert_eq!(rend.port, 80);
+        rend.dev_url = "http://192.168.1.26:12345/".to_string();
+        rend.parse_url();
+        assert_eq!(rend.host, "192.168.1.26");
+        assert_eq!(rend.port, 12345);
     }
 }

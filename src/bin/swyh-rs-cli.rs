@@ -41,7 +41,7 @@ use swyh_rs::{
         APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
         get_msgchannel, get_renderers, get_renderers_mut,
     },
-    renderers::rendercontrol::{Renderer, StreamInfo, WavData, discover, new_agent},
+    rendercontrol::{Renderer, StreamInfo, WavData, discover, new_agent},
     server::streaming_server::run_server,
     utils::{
         bincommon::run_silence_injector,

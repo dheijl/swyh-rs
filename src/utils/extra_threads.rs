@@ -17,7 +17,7 @@ use crate::{
     audio::rwstream::AudioSamples,
     enums::messages::MessageType,
     globals::statics::{ONE_MINUTE, RUN_RMS_MONITOR},
-    renderers::rendercontrol::{Renderer, WavData, discover, new_agent},
+    rendercontrol::{Renderer, WavData, discover, new_agent},
 };
 
 /// run the `ssdp_updater` - thread that periodically runs ssdp discovery

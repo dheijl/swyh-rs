@@ -6,7 +6,7 @@
 pub mod audio;
 pub mod enums;
 pub mod globals;
-pub mod renderers;
+pub mod rendercontrol;
 pub mod server;
 pub mod ui;
 pub mod utils;

@@ -12,7 +12,7 @@ use crate::{
     },
     fl,
     globals::statics::{get_config, insert_client, remove_client},
-    renderers::rendercontrol::WavData,
+    rendercontrol::WavData,
     server::query_params::StreamingParams,
     utils::ui_logger::{LogCategory, ui_log},
 };

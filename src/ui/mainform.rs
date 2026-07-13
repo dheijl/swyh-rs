@@ -15,7 +15,7 @@ use crate::{
         APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
         get_config, get_config_mut, get_renderers, get_renderers_mut,
     },
-    renderers::rendercontrol::{Renderer, StreamInfo, WavData},
+    rendercontrol::{Renderer, StreamInfo, WavData},
     utils::{configuration::Configuration, i18n, traits::FwSlashPipeEscape, ui_logger::*},
 };
 use fltk::{

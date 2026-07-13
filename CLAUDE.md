@@ -16,7 +16,7 @@ swyh-rs is a "Stream What You Hear" application: it captures audio from the syst
 
 - **Audio capture**: `src/audio/` — CPAL-based capture, sample conversion, FLAC/WAV/MP3 encoding
 - **HTTP streaming server**: `src/server/` — tiny HTTP server that pushes the audio stream to renderers
-- **Renderer control**: `src/renderers/` — SSDP discovery and UPnP AV/OpenHome renderer control
+- **Renderer control**: `src/rendercontrol/` — SSDP discovery and UPnP AV/OpenHome renderer control
 - **UI**: `src/ui/mainform.rs` — FLTK tabbed GUI (Audio, Network, App, Status tabs)
 - **Config**: `src/utils/configuration.rs` — INI-based persistent config via `serde`
 - **CLI**: `src/bin/swyh-rs-cli.rs`, CLI args parsed with `lexopt`
@@ -71,7 +71,7 @@ swyh-rs/
 │   ├── audio/                 # CPAL capture, sample conversion, encoding
 │   ├── enums/                 # Shared message/streaming enums
 │   ├── globals/               # Static globals and shared state
-│   ├── renderers/             # SSDP discovery, UPnP/OpenHome control
+│   ├── rendercontrol/         # SSDP discovery, UPnP/OpenHome control
 │   ├── server/                # HTTP streaming server
 │   ├── ui/                    # FLTK GUI (mainform.rs)
 │   └── utils/                 # Config, CLI parsing, i18n, logging, etc.

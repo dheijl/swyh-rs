@@ -86,12 +86,12 @@ pub struct RendUI {
     pub button: Option<LightButton>,
 }
 
-/// The `Send`-safe subset of a [`Renderer`]'s fields needed to drive
-/// play/stop/volume over the network: no FLTK widget handles, so it can be
-/// moved into a background thread. [`Renderer`] embeds this behind an `Arc`
-/// instead of duplicating these fields itself, so cloning a `Renderer` (e.g.
-/// once per UI widget) or handing a background thread a handle to drive
-/// play/stop/volume is a refcount bump rather than a field-by-field copy.
+/// The subset of a [`Renderer`]'s fields needed to drive play/stop/volume
+/// over the network.
+/// [`Renderer`] embeds this behind an `Arc` instead of duplicating these
+/// fields itself, so cloning a `Renderer` (e.g. once per UI widget) or handing
+/// a background thread a handle to drive play/stop/volume is a refcount bump
+/// rather than a field-by-field copy.
 /// Its `impl` block lives entirely in [`super::control`], not here.
 #[derive(Debug, Clone)]
 pub struct Controller {
@@ -125,13 +125,25 @@ pub struct Renderer {
     pub av_volume_url: String,
     pub volume: i32,
     pub location: String,
+
     pub services: Vec<AvService>,
     pub playing: bool,
+    /// fltk-rs widgets are actually `Send + Sync` as of this fltk-rs version
+    /// (`unsafe impl` in the `impl_widget_ext!` macro, unless the
+    /// `single-threaded` feature is on), so this field doesn't stop
+    /// `Renderer` itself from being movable to a background thread. It's
+    /// still never touched off the main/UI thread though: FLTK itself isn't
+    /// thread-safe underneath, so calling widget methods concurrently with
+    /// the UI thread is unsound regardless of what the type system allows.
     #[cfg(feature = "gui")]
     pub rend_ui: RendUI,
     /// the network-identity/control fields (`dev_name`, `host`, `port`,
     /// `remote_addr`, cached full control/volume URLs,
-    /// `supported_protocols`, `agent`), `Arc`-shared for cheap cloning
+    /// `supported_protocols`, `agent`), `Arc`-shared for cheap cloning.
+    /// Deliberately excludes `rend_ui` so the play/stop/volume closures
+    /// spawned via [`super::control::Renderer::spawn_play`] etc. are
+    /// structurally incapable of reaching into FLTK from a background
+    /// thread, rather than relying on programmer discipline.
     pub controller: Arc<Controller>,
     /// guards against overlapping `spawn_play()` calls for this renderer;
     /// shared (via `Arc`) across every clone made from the same discovered

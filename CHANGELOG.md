@@ -12,7 +12,9 @@
   - Claude Review: address a (rather large) number of mostly small review items
   - 16 bit TPDF dither now defaults to false, same behaviour as before it was introduced. But you should really turn it on for 16 bit.
   - remove all locking from the CPAL audio capture loopback hot path (replace RwLock with ArcSwap)
-  - Fix: Add explicit HTTP timeouts to the renderer discovery/control agent, PR #272 by @Churro (Johannes Feichtner), this prevents a misbehaving renderer blocking SSDP dscovery.
+  - Fix: Add explicit HTTP timeouts to the renderer discovery/control agent, PR #272 by @Churro (Johannes Feichtner),.This prevents a misbehaving renderer blocking SSDP dscovery.
+  - refactor Renderer: split off from SSDP discovery, and delegate the HTTP DLNA commands to a new Controller struct field that is Send+Sync for use by spawned threads, unlike Renderer with the RendUI fltk-rs widgets.
+  - make the Play/Stop/SetVolume commands non-blocking for the GUI (as suggested by @Churro), CLI not affected
   - RUST: 1.97.0
 
 - 1.20.4 (Jun 27 2026, dheijl)

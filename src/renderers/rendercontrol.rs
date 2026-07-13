@@ -6,23 +6,30 @@
 //! holds the per-stream URL and bit-depth.
 
 use crate::{
-    enums::streaming::{BitDepth, StreamingFormat},
+    enums::{
+        messages::MessageType,
+        streaming::{BitDepth, StreamingFormat},
+    },
     fl,
-    globals::statics::{APP_VERSION, SERVER_PORT, get_config},
+    globals::statics::{APP_VERSION, SERVER_PORT, THREAD_STACK, get_config, get_msgchannel},
     utils::ui_logger::{LogCategory, ui_log},
 };
 use bitflags::bitflags;
 use ecow::EcoString;
 use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
-use fltk::{button::LightButton, valuator::HorNiceSlider};
+use fltk::{app, button::LightButton, valuator::HorNiceSlider};
 use fluent_uri::Uri;
 use hashbrown::{HashMap, HashSet};
 use log::{debug, error, info};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     net::{IpAddr, SocketAddr, UdpSocket},
-    sync::LazyLock,
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
     time::{Duration, Instant},
 };
 use xml::reader::{EventReader, ParserConfig, XmlEvent};
@@ -319,6 +326,37 @@ pub struct Renderer {
     host: String,
     port: u16,
     agent: ureq::Agent,
+    /// guards against overlapping `spawn_play()` calls for this renderer;
+    /// shared (via `Arc`) across every clone made from the same discovered
+    /// instance, so a click on any clone sees an in-flight play started from
+    /// another clone (e.g. the button callback vs. auto-resume)
+    play_pending: Arc<AtomicBool>,
+}
+
+/// `soap_request` - send a SOAP message to a renderer over `agent`
+///
+/// Free function (not a `Renderer`/`PlayHandler` method) since it only ever
+/// needs the `ureq::Agent`, and both types need to call it.
+fn soap_request(agent: &ureq::Agent, url: &str, soap_action: &str, body: &str) -> Option<String> {
+    debug!("url: {url},\r\n=>SOAP Action: {soap_action},\r\n=>SOAP xml: \r\n{body}");
+    match agent
+        .post(url)
+        .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
+        .header("Accept", "*/*")
+        .header("SOAPAction", format!("\"{soap_action}\""))
+        .header("Content-Type", "text/xml; charset=\"utf-8\"")
+        .send(body)
+    {
+        Ok(mut resp) => {
+            let xml = resp.body_mut().read_to_string().unwrap_or_default();
+            debug!("<=SOAP response: {xml}\r\n");
+            Some(xml)
+        }
+        Err(e) => {
+            error!("<= SOAP POST error: {e}\r\n");
+            None
+        }
+    }
 }
 
 impl Renderer {
@@ -348,6 +386,7 @@ impl Renderer {
             host: String::new(),
             port: 0,
             agent: agent.clone(),
+            play_pending: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -396,30 +435,6 @@ impl Renderer {
             format!("http://{}:{}{}", self.host, self.port, self.av_volume_url);
     }
 
-    /// `oh_soap_request` - send an `OpenHome` SOAP message to a renderer
-    fn soap_request(&mut self, url: &str, soap_action: &str, body: &str) -> Option<String> {
-        debug!("url: {url},\r\n=>SOAP Action: {soap_action},\r\n=>SOAP xml: \r\n{body}");
-        match self
-            .agent
-            .post(url)
-            .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
-            .header("Accept", "*/*")
-            .header("SOAPAction", format!("\"{soap_action}\""))
-            .header("Content-Type", "text/xml; charset=\"utf-8\"")
-            .send(body)
-        {
-            Ok(mut resp) => {
-                let xml = resp.body_mut().read_to_string().unwrap_or_default();
-                debug!("<=SOAP response: {xml}\r\n");
-                Some(xml)
-            }
-            Err(e) => {
-                error!("<= SOAP POST error: {e}\r\n");
-                None
-            }
-        }
-    }
-
     /// get volume
     pub fn get_volume(&mut self) -> i32 {
         if self
@@ -451,8 +466,310 @@ impl Renderer {
         }
     }
 
+    /// Build a [`PlayHandler`] — the `Send`-safe subset of this renderer's
+    /// fields needed to drive playback — for use on a background thread.
+    /// Deliberately excludes `rend_ui`: fltk-rs widget handles are not
+    /// `Send`, so a full `Renderer` clone can't cross a `thread::spawn`.
+    fn get_play_handler(&self) -> PlayHandler {
+        PlayHandler {
+            dev_name: self.dev_name.clone(),
+            host: self.host.clone(),
+            port: self.port,
+            remote_addr: self.remote_addr.clone(),
+            oh_control_full_url: self.oh_control_full_url.clone(),
+            av_control_full_url: self.av_control_full_url.clone(),
+            supported_protocols: self.supported_protocols,
+            agent: self.agent.clone(),
+        }
+    }
+
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
-    pub fn play(&mut self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &str> {
+    ///
+    /// Runs synchronously on the calling thread and blocks on the SOAP
+    /// round-trips; use [`Renderer::spawn_play`] to run this off the caller's
+    /// thread (e.g. the FLTK UI thread) instead.
+    pub fn play(
+        &mut self,
+        local_addr: &IpAddr,
+        streaminfo: StreamInfo,
+    ) -> Result<(), &'static str> {
+        self.get_play_handler().play(local_addr, streaminfo)
+    }
+
+    /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
+    pub fn stop_play(&mut self) {
+        self.get_play_handler().stop_play();
+    }
+
+    /// Start playing on this renderer on a background thread, so the caller
+    /// is never blocked on the renderer's SOAP round-trips. A play already in
+    /// flight for this renderer (tracked via `play_pending`, shared across
+    /// every clone made from the same discovered instance) makes this a
+    /// no-op, so overlapping calls (e.g. a double click racing an
+    /// auto-resume) can't interleave `stop`/`SetTransportURI`/`Play` requests
+    /// against the same physical device. The outcome is delivered back on
+    /// the UI thread as `MessageType::PlayResult`.
+    pub fn spawn_play(&self, local_addr: IpAddr, streaminfo: StreamInfo) {
+        if self
+            .play_pending
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            ui_log(
+                LogCategory::Info,
+                &format!("play: {} already starting, ignoring", self.dev_name),
+            );
+            return;
+        }
+        let handler = self.get_play_handler();
+        let pending = self.play_pending.clone();
+        let spawned = thread::Builder::new()
+            .name("renderer_play".into())
+            .stack_size(THREAD_STACK)
+            .spawn(move || {
+                let result = handler.play(&local_addr, streaminfo);
+                pending.store(false, Ordering::Release);
+                let _ = get_msgchannel()
+                    .0
+                    .send(MessageType::PlayResult(PlayOutcome {
+                        remote_addr: handler.remote_addr,
+                        result,
+                    }));
+                #[cfg(feature = "gui")]
+                app::awake();
+            });
+        if let Err(e) = spawned {
+            self.play_pending.store(false, Ordering::Release);
+            ui_log(
+                LogCategory::Error,
+                &format!("play: failed to spawn play thread: {e}"),
+            );
+        }
+    }
+
+    /// Stop playing on this renderer on a background thread, mirroring
+    /// [`Renderer::spawn_play`] so an interactive stop (e.g. the FLTK button
+    /// callback) never blocks its caller on the SOAP round-trips either.
+    /// Shares `play_pending` with `spawn_play`, so a stop can't race a play
+    /// already in flight for this renderer (or vice versa) and is ignored
+    /// (as a no-op) if one is.
+    ///
+    /// For shutdown paths that must guarantee the stop was actually sent
+    /// before the process exits, use the synchronous [`Renderer::stop_play`]
+    /// instead.
+    pub fn spawn_stop_play(&self) {
+        if self
+            .play_pending
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            ui_log(
+                LogCategory::Info,
+                &format!("stop_play: {} busy, ignoring", self.dev_name),
+            );
+            return;
+        }
+        let handler = self.get_play_handler();
+        let pending = self.play_pending.clone();
+        let spawned = thread::Builder::new()
+            .name("renderer_stop".into())
+            .stack_size(THREAD_STACK)
+            .spawn(move || {
+                handler.stop_play();
+                pending.store(false, Ordering::Release);
+            });
+        if let Err(e) = spawned {
+            self.play_pending.store(false, Ordering::Release);
+            ui_log(
+                LogCategory::Error,
+                &format!("stop_play: failed to spawn stop thread: {e}"),
+            );
+        }
+    }
+
+    /// get OpenHome Volume
+    fn oh_get_volume(&mut self) -> i32 {
+        let url = self.oh_volume_full_url.clone();
+
+        // get current volume
+        let vol_xml = soap_request(
+            &self.agent,
+            &url,
+            "urn:av-openhome-org:service:Volume:1#Volume",
+            OH_GET_VOL_TEMPLATE,
+        )
+        .unwrap_or_else(|| "<Error/>".to_string());
+        // parse response to extract volume
+        debug!("oh_get_volume response: {vol_xml}");
+        let parser = EventReader::new(vol_xml.as_bytes());
+        let mut cur_elem = EcoString::new();
+        let mut have_vol_response = false;
+        let mut str_volume = EcoString::from("-1".to_string());
+        for e in parser {
+            match e {
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    cur_elem = EcoString::from(&name.local_name);
+                    if cur_elem == "VolumeResponse" {
+                        have_vol_response = true;
+                    }
+                }
+                Ok(XmlEvent::Characters(value)) if cur_elem == "Value" && have_vol_response => {
+                    str_volume = EcoString::from(value);
+                }
+                Err(e) => {
+                    error!("OH Volume XML parse error: {e}");
+                }
+                _ => {}
+            }
+        }
+        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
+        if self.volume >= 0 {
+            ui_log(
+                LogCategory::Info,
+                &format!(
+                    "OH Get Volume on {} host={} port={} = {}%",
+                    self.dev_name, self.host, self.port, self.volume,
+                ),
+            );
+        } else {
+            ui_log(
+                LogCategory::Info,
+                &format!("OH Get Volume not available for {}.", self.dev_name),
+            );
+        }
+        self.volume
+    }
+
+    /// get AV Volume
+    fn av_get_volume(&mut self) -> i32 {
+        let url = self.av_volume_full_url.clone();
+
+        // get current volume
+        let vol_xml = soap_request(
+            &self.agent,
+            &url,
+            "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
+            AV_GET_VOL_TEMPLATE,
+        )
+        .unwrap_or_else(|| "<Error/>".to_string());
+        debug!("av_get_volume response: {vol_xml}");
+        let parser = EventReader::new(vol_xml.as_bytes());
+        let mut cur_elem = EcoString::new();
+        let mut have_vol_response = false;
+        let mut str_volume = "-1".to_string();
+        for e in parser {
+            match e {
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    cur_elem = EcoString::from(name.local_name);
+                    if cur_elem == "GetVolumeResponse" {
+                        have_vol_response = true;
+                    }
+                }
+                Ok(XmlEvent::Characters(value))
+                    if cur_elem == "CurrentVolume" && have_vol_response =>
+                {
+                    str_volume = value;
+                }
+                Err(e) => {
+                    error!("AV Volume XML parse error: {e}");
+                }
+                _ => {}
+            }
+        }
+        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
+        if self.volume >= 0 {
+            ui_log(
+                LogCategory::Info,
+                &format!(
+                    "AV Get Volume on {} host={} port={} = {}%",
+                    self.dev_name, self.host, self.port, self.volume,
+                ),
+            );
+        } else {
+            ui_log(
+                LogCategory::Info,
+                &format!("AV Get Volume not available for {}.", self.dev_name),
+            );
+        }
+        self.volume
+    }
+
+    /// set Openhome Volume
+    fn oh_set_volume(&mut self) {
+        let vol = self.volume;
+        let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
+        let url = self.oh_volume_full_url.clone();
+        ui_log(
+            LogCategory::Info,
+            &format!(
+                "OH Set New Volume on {} host={} port={} to {vol}%",
+                self.dev_name, self.host, self.port
+            ),
+        );
+        // set new volume
+        let vol_xml = soap_request(
+            &self.agent,
+            &url,
+            "urn:av-openhome-org:service:Volume:1#SetVolume",
+            &tmpl,
+        )
+        .unwrap_or("<Error/>".to_string());
+        debug!("oh_set_volume response: {vol_xml}");
+    }
+
+    /// set AV Volume
+    fn av_set_volume(&mut self) {
+        let vol = self.volume;
+        let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
+        let url = self.av_volume_full_url.clone();
+        ui_log(
+            LogCategory::Info,
+            &format!(
+                "AV Set New Volume on {} host={} port={} to {vol}%",
+                self.dev_name, self.host, self.port
+            ),
+        );
+        // set new volume
+        let vol_xml = soap_request(
+            &self.agent,
+            &url,
+            "urn:schemas-upnp-org:service:RenderingControl:1#SetVolume",
+            &tmpl,
+        )
+        .unwrap_or("<Error/>".to_string());
+        debug!("av_set_volume response: {vol_xml}");
+    }
+}
+
+/// Outcome of a `play()` attempt kicked off on a background thread by
+/// [`Renderer::spawn_play`], delivered back to the UI thread via
+/// `MessageType::PlayResult` once the SOAP round-trips finish.
+#[derive(Debug, Clone)]
+pub struct PlayOutcome {
+    pub remote_addr: String,
+    pub result: Result<(), &'static str>,
+}
+
+/// The `Send`-safe subset of [`Renderer`] needed to drive playback over the
+/// network: no FLTK widget handles, so it can be moved into a background
+/// thread by [`Renderer::spawn_play`]. Mirrors `Renderer`'s play/stop logic
+/// exactly; `Renderer::play`/`Renderer::stop_play` delegate here so there's a
+/// single implementation for both the synchronous and backgrounded paths.
+#[derive(Debug, Clone)]
+struct PlayHandler {
+    dev_name: String,
+    host: String,
+    port: u16,
+    remote_addr: String,
+    oh_control_full_url: String,
+    av_control_full_url: String,
+    supported_protocols: SupportedProtocols,
+    agent: ureq::Agent,
+}
+
+impl PlayHandler {
+    /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
+    fn play(&self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &'static str> {
         // do we support this protocol?
         if !self.supported_protocols.is_valid() {
             ui_log(
@@ -539,7 +856,7 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn oh_play(&mut self, fmt_vars: &Context) -> Result<(), &str> {
+    fn oh_play(&self, fmt_vars: &Context) -> Result<(), &'static str> {
         // stop anything currently playing first, Moode needs it
         let url = self.oh_control_full_url.clone();
         self.oh_stop_play(&url);
@@ -562,13 +879,13 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Playlist:1#Insert",
-                &xmlbody,
-            )
-            .unwrap_or_default();
+        let _resp = soap_request(
+            &self.agent,
+            &url,
+            "urn:av-openhome-org:service:Playlist:1#Insert",
+            &xmlbody,
+        )
+        .unwrap_or_default();
         // send the Play command
         ui_log(
             LogCategory::Info,
@@ -577,13 +894,13 @@ impl Renderer {
                 self.dev_name, self.host, self.port
             ),
         );
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Playlist:1#Play",
-                OH_PLAY_PL_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = soap_request(
+            &self.agent,
+            &url,
+            "urn:av-openhome-org:service:Playlist:1#Play",
+            OH_PLAY_PL_TEMPLATE,
+        )
+        .unwrap_or_default();
         Ok(())
     }
 
@@ -591,7 +908,7 @@ impl Renderer {
     ///
     /// the renderer will then try to get the audio from our built-in webserver
     /// at http://{_`my_ip`_}:`{server_port}/stream/swyh.wav`
-    fn av_play(&mut self, fmt_vars: &Context) -> Result<(), &str> {
+    fn av_play(&self, fmt_vars: &Context) -> Result<(), &'static str> {
         let url = self.av_control_full_url.clone();
         // to prevent error 705 (transport locked) on some devices
         // it's necessary to send a stop play request first
@@ -608,28 +925,28 @@ impl Renderer {
                 return Err(BAD_TEMPL);
             }
         };
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
-                &xmlbody,
-            )
-            .unwrap_or_default();
+        let _resp = soap_request(
+            &self.agent,
+            &url,
+            "urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI",
+            &xmlbody,
+        )
+        .unwrap_or_default();
         // the renderer will now send a head request first, so wait a bit
-        std::thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(100));
         // send play command
-        let _resp = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:AVTransport:1#Play",
-                AV_PLAY_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = soap_request(
+            &self.agent,
+            &url,
+            "urn:schemas-upnp-org:service:AVTransport:1#Play",
+            AV_PLAY_TEMPLATE,
+        )
+        .unwrap_or_default();
         Ok(())
     }
 
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
-    pub fn stop_play(&mut self) {
+    fn stop_play(&self) {
         if self
             .supported_protocols
             .contains(SupportedProtocols::OPENHOME)
@@ -651,7 +968,7 @@ impl Renderer {
     }
 
     /// `oh_stop_play` - delete the playlist on the `OpenHome` renderer, so that it stops playing
-    fn oh_stop_play(&mut self, url: &str) {
+    fn oh_stop_play(&self, url: &str) {
         ui_log(
             LogCategory::Info,
             &format!(
@@ -661,17 +978,17 @@ impl Renderer {
         );
 
         // delete current playlist
-        let _resp = self
-            .soap_request(
-                url,
-                "urn:av-openhome-org:service:Playlist:1#DeleteAll",
-                OH_DELETE_PL_TEMPLATE,
-            )
-            .unwrap_or_default();
+        let _resp = soap_request(
+            &self.agent,
+            url,
+            "urn:av-openhome-org:service:Playlist:1#DeleteAll",
+            OH_DELETE_PL_TEMPLATE,
+        )
+        .unwrap_or_default();
     }
 
     /// `av_stop_play` - stop playing on the AV renderer
-    fn av_stop_play(&mut self, url: &str) {
+    fn av_stop_play(&self, url: &str) {
         ui_log(
             LogCategory::Info,
             &format!(
@@ -681,166 +998,13 @@ impl Renderer {
         );
 
         // Stop play
-        let _resp = self
-            .soap_request(
-                url,
-                "urn:schemas-upnp-org:service:AVTransport:1#Stop",
-                AV_STOP_PLAY_TEMPLATE,
-            )
-            .unwrap_or_default();
-    }
-
-    /// get OpenHome Volume
-    fn oh_get_volume(&mut self) -> i32 {
-        let url = self.oh_volume_full_url.clone();
-
-        // get current volume
-        let vol_xml = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Volume:1#Volume",
-                OH_GET_VOL_TEMPLATE,
-            )
-            .unwrap_or_else(|| "<Error/>".to_string());
-        // parse response to extract volume
-        debug!("oh_get_volume response: {vol_xml}");
-        let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = EcoString::new();
-        let mut have_vol_response = false;
-        let mut str_volume = EcoString::from("-1".to_string());
-        for e in parser {
-            match e {
-                Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem = EcoString::from(&name.local_name);
-                    if cur_elem == "VolumeResponse" {
-                        have_vol_response = true;
-                    }
-                }
-                Ok(XmlEvent::Characters(value)) if cur_elem == "Value" && have_vol_response => {
-                    str_volume = EcoString::from(value);
-                }
-                Err(e) => {
-                    error!("OH Volume XML parse error: {e}");
-                }
-                _ => {}
-            }
-        }
-        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
-        if self.volume >= 0 {
-            ui_log(
-                LogCategory::Info,
-                &format!(
-                    "OH Get Volume on {} host={} port={} = {}%",
-                    self.dev_name, self.host, self.port, self.volume,
-                ),
-            );
-        } else {
-            ui_log(
-                LogCategory::Info,
-                &format!("OH Get Volume not available for {}.", self.dev_name),
-            );
-        }
-        self.volume
-    }
-
-    /// get AV Volume
-    fn av_get_volume(&mut self) -> i32 {
-        let url = self.av_volume_full_url.clone();
-
-        // get current volume
-        let vol_xml = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:RenderingControl:1#GetVolume",
-                AV_GET_VOL_TEMPLATE,
-            )
-            .unwrap_or_else(|| "<Error/>".to_string());
-        debug!("av_get_volume response: {vol_xml}");
-        let parser = EventReader::new(vol_xml.as_bytes());
-        let mut cur_elem = EcoString::new();
-        let mut have_vol_response = false;
-        let mut str_volume = "-1".to_string();
-        for e in parser {
-            match e {
-                Ok(XmlEvent::StartElement { name, .. }) => {
-                    cur_elem = EcoString::from(name.local_name);
-                    if cur_elem == "GetVolumeResponse" {
-                        have_vol_response = true;
-                    }
-                }
-                Ok(XmlEvent::Characters(value))
-                    if cur_elem == "CurrentVolume" && have_vol_response =>
-                {
-                    str_volume = value;
-                }
-                Err(e) => {
-                    error!("AV Volume XML parse error: {e}");
-                }
-                _ => {}
-            }
-        }
-        self.volume = str_volume.parse::<i32>().unwrap_or(-1);
-        if self.volume >= 0 {
-            ui_log(
-                LogCategory::Info,
-                &format!(
-                    "AV Get Volume on {} host={} port={} = {}%",
-                    self.dev_name, self.host, self.port, self.volume,
-                ),
-            );
-        } else {
-            ui_log(
-                LogCategory::Info,
-                &format!("AV Get Volume not available for {}.", self.dev_name),
-            );
-        }
-        self.volume
-    }
-
-    /// set Openhome Volume
-    fn oh_set_volume(&mut self) {
-        let vol = self.volume;
-        let tmpl = OH_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
-        let url = self.oh_volume_full_url.clone();
-        ui_log(
-            LogCategory::Info,
-            &format!(
-                "OH Set New Volume on {} host={} port={} to {vol}%",
-                self.dev_name, self.host, self.port
-            ),
-        );
-        // set new volume
-        let vol_xml = self
-            .soap_request(
-                &url,
-                "urn:av-openhome-org:service:Volume:1#SetVolume",
-                &tmpl,
-            )
-            .unwrap_or("<Error/>".to_string());
-        debug!("oh_set_volume response: {vol_xml}");
-    }
-
-    /// set AV Volume
-    fn av_set_volume(&mut self) {
-        let vol = self.volume;
-        let tmpl = AV_SET_VOL_TEMPLATE.replace("{volume}", &vol.to_string());
-        let url = self.av_volume_full_url.clone();
-        ui_log(
-            LogCategory::Info,
-            &format!(
-                "AV Set New Volume on {} host={} port={} to {vol}%",
-                self.dev_name, self.host, self.port
-            ),
-        );
-        // set new volume
-        let vol_xml = self
-            .soap_request(
-                &url,
-                "urn:schemas-upnp-org:service:RenderingControl:1#SetVolume",
-                &tmpl,
-            )
-            .unwrap_or("<Error/>".to_string());
-        debug!("av_set_volume response: {vol_xml}");
+        let _resp = soap_request(
+            &self.agent,
+            url,
+            "urn:schemas-upnp-org:service:AVTransport:1#Stop",
+            AV_STOP_PLAY_TEMPLATE,
+        )
+        .unwrap_or_default();
     }
 }
 

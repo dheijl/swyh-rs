@@ -229,6 +229,24 @@ fn main() {
                 MessageType::LogMessage(msg) => {
                     mf.add_log_msg(&msg);
                 }
+                // a backgrounded renderer.spawn_play() attempt finished; roll
+                // back the optimistic "playing" state and button on failure
+                MessageType::PlayResult(outcome) => {
+                    if let Err(e) = outcome.result {
+                        ui_log(
+                            LogCategory::Error,
+                            &format!("Failed to start playing on {}: {e}", outcome.remote_addr),
+                        );
+                        update_playstate(&outcome.remote_addr, false);
+                        let button = get_renderers()
+                            .iter()
+                            .find(|r| r.remote_addr == outcome.remote_addr)
+                            .and_then(|r| r.rend_ui.button.clone());
+                        if let Some(mut button) = button {
+                            button.set(false);
+                        }
+                    }
+                }
                 // Audio device disappeared; retry up to 5 times
                 // cause may be an RDP connection, or a Bluetooth disconnect or whatever
                 // by name because the device index may have changed after re-enumeration.
@@ -490,7 +508,7 @@ fn handle_player_message(
                 update_playstate(&streamer_feedback.remote_ip, false);
                 if auto_resume && button.is_set() {
                     let streaminfo = StreamInfo::new(wd.sample_rate);
-                    let _ = renderer.play(local_addr, streaminfo);
+                    renderer.spawn_play(*local_addr, streaminfo);
                     update_playstate(&streamer_feedback.remote_ip, true);
                 } else {
                     button.set(false);

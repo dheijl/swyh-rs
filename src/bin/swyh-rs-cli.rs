@@ -318,6 +318,16 @@ fn main() -> Result<(), i32> {
                     }
                 }
                 MessageType::LogMessage(msg) => ui_log(LogCategory::Info, &msg),
+                // the CLI's own play() calls above are synchronous; this only
+                // fires if `Renderer::spawn_play` is used elsewhere in-process
+                MessageType::PlayResult(outcome) => {
+                    if let Err(e) = outcome.result {
+                        ui_log(
+                            LogCategory::Error,
+                            &format!("Failed to start playing on {}: {e}", outcome.remote_addr),
+                        );
+                    }
+                }
                 MessageType::CaptureAborted => {
                     let mut capture_retry_count = 0i32;
                     while capture_retry_count < 5 {

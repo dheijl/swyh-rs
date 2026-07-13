@@ -1352,7 +1352,7 @@ impl MainForm {
             ));
         pbut.set_callback({
             let player_index = self.player_index;
-            let mut newr_c = new_renderer.clone();
+            let newr_c = new_renderer.clone();
             let local_addr = self.local_addr;
             let wd = self.wd;
             move |b| {
@@ -1370,9 +1370,9 @@ impl MainForm {
                         let _ = conf.update_config();
                     }
                     let streaminfo = StreamInfo::new(wd.sample_rate);
-                    let _ = newr_c.play(&local_addr, streaminfo);
+                    newr_c.spawn_play(local_addr, streaminfo);
                 } else {
-                    newr_c.stop_play();
+                    newr_c.spawn_stop_play();
                 }
                 get_renderers_mut()[player_index].playing = b.is_on();
             }

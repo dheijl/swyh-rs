@@ -1,6 +1,6 @@
 # swyh-rs Changelog
 
-- 1.20.5 (unreleased)
+- 1.20.5 (Jul 14, dheijl)
   - SAMPLES: instead of relying on LLVM optimizations to hoist the loop invariants in sample conversions out of the loops, use generics instead to dispatch the samples conversions jump-free for the various combinations of 16-bit/24-bit/dithering/endianness, a suggestion made by Claude while I was considering pulling up the conditions manually from the inner loops.
   - SAMPLES: speed-up the TPDF dithering by a factor of ~2.5 by calling fastrand only once with a buffer of 32 bytes instead of 8 times to generate the 8 f32 values needed
   - SAMPLES: replace `chunks_exact(SIZE)` where possible with `as_chunks::<SIZE>()`, simplifying code

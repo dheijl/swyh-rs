@@ -73,7 +73,7 @@ impl CfgDefaults {
         None
     }
     fn use_dither() -> Option<bool> {
-        Some(false)
+        Some(true)
     }
 }
 
@@ -199,7 +199,7 @@ impl Configuration {
             widget_scheme: Some(DEFAULT_WIDGET_SCHEME),
             language: Some(detect_default_language()),
             sample_rate: None,
-            use_dither: Some(false),
+            use_dither: Some(true),
         }
     }
 

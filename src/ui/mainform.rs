@@ -413,7 +413,7 @@ impl MainForm {
         // dither checkbox — created before b24_bit's callback so we can clone it in
         let use_dither_lbl = fl!("chk-use-dither");
         let mut use_dither = CheckButton::new(0, 0, 0, 0, use_dither_lbl.as_str());
-        if config.use_dither.unwrap_or(false) {
+        if config.use_dither.unwrap_or(true) {
             use_dither.set(true);
         }
         if config.bits_per_sample.unwrap_or(16) == 24 {
@@ -452,7 +452,7 @@ impl MainForm {
                     } else {
                         conf.bits_per_sample = Some(16);
                         use_dither_ref.activate();
-                        use_dither_ref.set(conf.use_dither.unwrap_or(false));
+                        use_dither_ref.set(conf.use_dither.unwrap_or(true));
                     }
                     let _ = conf.update_config();
                 }
@@ -1264,7 +1264,7 @@ impl MainForm {
             let _ = write!(
                 s,
                 "  TPDF dither {}",
-                bool_icon(config.use_dither.unwrap_or(false))
+                bool_icon(config.use_dither.unwrap_or(true))
             );
         }
         s.push('\n');

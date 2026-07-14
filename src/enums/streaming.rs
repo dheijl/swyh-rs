@@ -260,7 +260,7 @@ impl StreamingContext {
             chunksize,
             streamsize,
             url,
-            use_dither: Dither::from(cfg.use_dither.unwrap_or(false)),
+            use_dither: Dither::from(cfg.use_dither.unwrap_or(true)),
         }
     }
 

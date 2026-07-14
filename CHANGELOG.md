@@ -10,11 +10,12 @@
   - GUI: new configs now default to the Solarized Light color theme and the Fleet2 widget style
   - RENDERERS:upgrade figura to V3.0.0 where the (HTML) templates are now Send+Sync, so I can replace the thread-locals with shared global LazyLock<> compiled templates, greatly simplifying the code. Thanks Saverio!
   - Claude Review: address a (rather large) number of mostly small review items
-  - 16 bit TPDF dither now defaults to false, same behaviour as before it was introduced. But you should really turn it on for 16 bit.
   - remove all locking from the CPAL audio capture loopback hot path (replace RwLock with ArcSwap)
   - Fix: Add explicit HTTP timeouts to the renderer discovery/control agent, PR #272 by @Churro (Johannes Feichtner),.This prevents a misbehaving renderer blocking SSDP dscovery.
   - refactor Renderer: split off from SSDP discovery, and delegate the HTTP DLNA commands to a new Controller struct field that is Send+Sync for use by spawned threads, unlike Renderer with the RendUI fltk-rs widgets.
   - make the Play/Stop/SetVolume commands non-blocking for the GUI (as suggested by @Churro), CLI not affected
+  - 16 bit TPDF dither defaults to true (on by default). You can still disable it in the Audio tab or with `-d/--dither false` on the CLI if you need the lowest possible CPU usage.
+  - trim unused `fluent-templates` default features (keep only `macros`/`walkdir`) to reduce dependencies
   - RUST: 1.97.0
 
 - 1.20.4 (Jun 27 2026, dheijl)

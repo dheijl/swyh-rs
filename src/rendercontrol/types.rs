@@ -129,6 +129,8 @@ pub struct Renderer {
     pub services: Vec<AvService>,
     pub playing: bool,
     #[cfg(feature = "gui")]
+    /// the GUI fields associated with this renderer neede when the streaming
+    /// sends a feedback message to the UI or when syncing volume sliders
     pub rend_ui: RendUI,
     /// the renderer fields needed by the GUI play/stop/volume background threads
     /// grouped in an `Arc`` so very cheap to clone when spawning

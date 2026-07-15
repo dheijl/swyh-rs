@@ -304,7 +304,6 @@ pub fn capture_output_audio(
             "name" = get_device_name(device).expect("Could not get default audio device name")
         ),
     );
-    let audio_cfg = *audio_cfg;
     ui_log(
         LogCategory::Info,
         &fl!("audio-default-config", "cfg" = format!("{audio_cfg:?}")),

@@ -1,7 +1,7 @@
 //! Tools common to both the swyh-rs GUI and CLI.
 
 use cpal::{
-    Error, ErrorKind, Sample, SampleFormat, Stream, StreamConfig,
+    Error, ErrorKind, Sample, SampleFormat, Stream,
     traits::{DeviceTrait, StreamTrait},
 };
 
@@ -32,8 +32,8 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
             &fl!("err-inject-silence-stream", "error" = err.to_string()),
         )
     };
-    let mut config: StreamConfig = (*config).into();
-    config.buffer_size = cpal::BufferSize::Fixed(2048);
+    let mut config = config.config();
+    config.buffer_size = cpal::BufferSize::Fixed(4096);
     let device = device.as_ref();
     let try_stream = match sample_format {
         SampleFormat::F32 => device.build_output_stream(config, write_silence::<f32>, err_fn, None),

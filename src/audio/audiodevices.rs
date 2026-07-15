@@ -12,12 +12,12 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use cpal::{
-    Error, Sample, SampleFormat, SupportedStreamConfig,
+    Error, ErrorKind, Sample, SampleFormat, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait},
 };
 use crossbeam_channel::Sender;
 use dasp_sample::ToSample;
-use log::debug;
+use log::{debug, warn};
 use std::sync::{Arc, Once, atomic::Ordering};
 
 /// A [`cpal::Device`] with either a default input or default output config.
@@ -456,10 +456,14 @@ pub fn capture_output_audio(
 
 /// `capture_err_fn` - called when it's impossible to start/continue streaming
 fn capture_err_fn(err: cpal::Error) {
-    ui_log(
-        LogCategory::Error,
-        &fl!("err-capture-stream", "error" = err.to_string()),
-    );
+    if err.kind() == ErrorKind::Xrun {
+        warn!("Audio capture error: {err}");
+    } else {
+        ui_log(
+            LogCategory::Error,
+            &fl!("err-capture-stream", "error" = err.to_string()),
+        );
+    }
     if err.kind() == cpal::ErrorKind::DeviceNotAvailable {
         get_msgchannel()
             .0

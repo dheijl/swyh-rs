@@ -4,6 +4,7 @@ use cpal::{
     Error, ErrorKind, Sample, SampleFormat, Stream,
     traits::{DeviceTrait, StreamTrait},
 };
+use log::warn;
 
 use crate::{
     audio::audiodevices::Device,
@@ -27,10 +28,14 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
     let config = device.default_config();
     let sample_format = config.sample_format();
     let err_fn = |err: cpal::Error| {
-        ui_log(
-            LogCategory::Error,
-            &fl!("err-inject-silence-stream", "error" = err.to_string()),
-        )
+        if err.kind() == ErrorKind::Xrun {
+            warn!("Inject silence error: {err}");
+        } else {
+            ui_log(
+                LogCategory::Error,
+                &fl!("err-inject-silence-stream", "error" = err.to_string()),
+            )
+        }
     };
     let mut config = config.config();
     config.buffer_size = cpal::BufferSize::Fixed(4096);

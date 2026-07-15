@@ -116,17 +116,12 @@ pub struct Controller {
 /// if GUI is enabled, the renderer tracks it associated UI (a slider and a button)
 #[derive(Debug, Clone)]
 pub struct Renderer {
+    // public identity/state, read directly by the UI and CLI binaries
     pub player_index: usize,
     pub dev_model: String,
-    pub dev_type: String,
     pub dev_url: String,
-    pub oh_control_url: String,
-    pub av_control_url: String,
-    pub oh_volume_url: String,
-    pub av_volume_url: String,
     pub volume: i32,
     pub location: String,
-    pub services: Vec<AvService>,
     pub playing: bool,
     #[cfg(feature = "gui")]
     /// the GUI fields associated with this renderer neede when the streaming
@@ -135,6 +130,14 @@ pub struct Renderer {
     /// the renderer fields needed by the GUI play/stop/volume background threads
     /// grouped in an `Arc`` so very cheap to clone when spawning
     pub controller: Arc<Controller>,
+
+    // internal mod wiring, only ever touched from control.rs/discovery.rs
+    pub(super) dev_type: String,
+    pub(super) oh_control_url: String,
+    pub(super) av_control_url: String,
+    pub(super) oh_volume_url: String,
+    pub(super) av_volume_url: String,
+    pub(super) services: Vec<AvService>,
     /// guards against overlapping `spawn_play()` calls for this renderer;
     /// shared (via `Arc`) across every clone made from the same discovered
     /// instance, so a click on any clone sees an in-flight play started from

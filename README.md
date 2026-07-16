@@ -16,6 +16,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 - [swyh-rs as your local internet radio station](#swyh-rs-as-your-local-internet-radio-station)
 - [Todo](#todo)
 - [Building (Wiki)](https://github.com/dheijl/swyh-rs/wiki)
+- [Hotspot and Internet Connection Sharing with Sonos (Wiki)](https://github.com/dheijl/swyh-rs/wiki#6-using-an-internet-hotspot-and-windows-ics-internet-connection-sharing-with-sonos-by-ebizmarket-kelly-guzman)
 - [Known problems](#known-problems)
 - [Artwork Credits](#artwork-credits)
 - [How does it work](#how-does-it-work)

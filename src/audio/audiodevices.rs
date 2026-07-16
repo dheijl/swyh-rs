@@ -259,13 +259,10 @@ pub fn get_output_audio_devices() -> Vec<Device> {
                 ConfigType::Input,
                 device_index,
             );
-            match Device::from_device(device) {
-                Ok(device) => {
-                    result.push(device);
-                }
-                _ => {
-                    debug!("  Device seems to not support either input or output.");
-                }
+            if let Ok(device) = Device::from_device(device) {
+                result.push(device);
+            } else {
+                debug!("  Device seems to not support either input or output.");
             }
         }
     }

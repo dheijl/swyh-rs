@@ -84,10 +84,8 @@ impl DeviceKind {
 /// get the cpal 0.16.0 compatible device name from the cpal::Device
 ///
 fn get_device_name(device: &cpal::Device) -> Result<String, cpal::Error> {
-    match device.description() {
-        Ok(desc) => Ok(desc.name().to_string() + "-" + desc.driver().unwrap_or("")),
-        Err(e) => Err(e),
-    }
+    let desc = device.description()?;
+    Ok(desc.name().to_string() + "-" + desc.driver().unwrap_or(""))
 }
 
 impl Device {
@@ -214,15 +212,13 @@ pub fn get_output_audio_devices() -> Vec<Device> {
 
     for host_id in available_hosts {
         debug!("{}", host_id.name());
-        let host = match cpal::host_from_id(host_id) {
-            Ok(h) => h,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("Failed to open audio host {}: {e}", host_id.name()),
-                );
-                continue;
-            }
+        let Ok(host) = cpal::host_from_id(host_id).inspect_err(|e| {
+            ui_log(
+                LogCategory::Error,
+                &format!("Failed to open audio host {}: {e}", host_id.name()),
+            );
+        }) else {
+            continue;
         };
 
         let default_out = host
@@ -235,15 +231,13 @@ pub fn get_output_audio_devices() -> Vec<Device> {
             .and_then(|e| get_device_name(&e).ok());
         debug!("  Default Input Device:\n    {default_in:?}");
 
-        let devices = match host.devices() {
-            Ok(d) => d,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("Failed to enumerate devices for {}: {e}", host_id.name()),
-                );
-                continue;
-            }
+        let Ok(devices) = host.devices().inspect_err(|e| {
+            ui_log(
+                LogCategory::Error,
+                &format!("Failed to enumerate devices for {}: {e}", host_id.name()),
+            );
+        }) else {
+            continue;
         };
         debug!("  Devices: ");
         for (device_index, device) in devices.enumerate() {

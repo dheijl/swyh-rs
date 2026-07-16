@@ -511,27 +511,22 @@ impl Controller {
                 BitDepth::Bits24 => TEMPLATES.l24_prot.format(&fmt_vars),
             },
         };
-        let didl_prot = match didl_tmpl {
-            Ok(s) => s,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("Error {e} formatting DIDL template."),
-                );
-                return Err(BAD_TEMPL);
-            }
+        let Ok(didl_prot) = didl_tmpl.inspect_err(|e| {
+            ui_log(
+                LogCategory::Error,
+                &format!("Error {e} formatting DIDL template."),
+            );
+        }) else {
+            return Err(BAD_TEMPL);
         };
         fmt_vars.insert("didl_prot_info", Value::owned_str(didl_prot));
-        let formatted_didl = TEMPLATES.didl.format(&fmt_vars);
-        let formatted_didl = match formatted_didl {
-            Ok(s) => s,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("Error {e} formatting didl_data xml"),
-                );
-                return Err(BAD_TEMPL);
-            }
+        let Ok(formatted_didl) = TEMPLATES.didl.format(&fmt_vars).inspect_err(|e| {
+            ui_log(
+                LogCategory::Error,
+                &format!("Error {e} formatting didl_data xml"),
+            );
+        }) else {
+            return Err(BAD_TEMPL);
         };
         fmt_vars.insert("didl_data", Value::owned_str(formatted_didl));
         // now send the start playing commands
@@ -582,16 +577,13 @@ impl Controller {
                 self.dev_name, self.host, self.port
             ),
         );
-        let xmlbody = TEMPLATES.oh_insert_pl.format(fmt_vars);
-        let xmlbody = match xmlbody {
-            Ok(s) => s,
-            Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &format!("oh_play: error {e} formatting oh playlist xml"),
-                );
-                return Err(BAD_TEMPL);
-            }
+        let Ok(xmlbody) = TEMPLATES.oh_insert_pl.format(fmt_vars).inspect_err(|e| {
+            ui_log(
+                LogCategory::Error,
+                &format!("oh_play: error {e} formatting oh playlist xml"),
+            );
+        }) else {
+            return Err(BAD_TEMPL);
         };
         let _resp = soap_request(
             &self.agent,
@@ -628,16 +620,17 @@ impl Controller {
         // it's necessary to send a stop play request first
         self.av_stop_play(url);
         // now send SetAVTransportURI with metadate(DIDL-Lite) and play requests
-        let xmlbody = TEMPLATES.av_set_transport_uri.format(fmt_vars);
-        let xmlbody = match xmlbody {
-            Ok(s) => s,
-            Err(e) => {
+        let Ok(xmlbody) = TEMPLATES
+            .av_set_transport_uri
+            .format(fmt_vars)
+            .inspect_err(|e| {
                 ui_log(
                     LogCategory::Error,
                     &format!("av_play: error {e} formatting set transport uri"),
                 );
-                return Err(BAD_TEMPL);
-            }
+            })
+        else {
+            return Err(BAD_TEMPL);
         };
         let _resp = soap_request(
             &self.agent,

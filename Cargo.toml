@@ -48,7 +48,7 @@ winres = "0.1.12"
 [dependencies]
 cpal = { version = "0.18.1" }
 anyhow = "1"
-bitflags = "2.13.0"
+bitflags = "2.13.1"
 crossbeam-channel = "0.5.16"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"

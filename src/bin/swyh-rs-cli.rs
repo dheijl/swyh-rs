@@ -152,14 +152,11 @@ fn main() -> Result<(), i32> {
     // capture system audio
     debug!("Try capturing system audio");
     let rms_chan1 = rms_channel.clone();
-    let mut stream: cpal::Stream =
-        match capture_output_audio(&audio_output_device, &audio_cfg, rms_chan1.0) {
-            Some(s) => s,
-            _ => {
-                ui_log(LogCategory::Error, &fl!("err-capture-audio"));
-                return Err(-2);
-            }
-        };
+    let Some(mut stream) = capture_output_audio(&audio_output_device, &audio_cfg, rms_chan1.0)
+    else {
+        ui_log(LogCategory::Error, &fl!("err-capture-audio"));
+        return Err(-2);
+    };
     stream.play().expect("Unable to play audio stream");
 
     // If silence injector is on, create a silence injector stream and keep it alive

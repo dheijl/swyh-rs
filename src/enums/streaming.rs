@@ -222,22 +222,19 @@ pub struct StreamingContext {
 impl StreamingContext {
     /// Build a fully-initialised `StreamingContext` from config, a live request, and its parsed URL params.
     pub fn new(wd: WavData, rq: &Request, params: &StreamingParams) -> StreamingContext {
-        let cfg = get_config();
-
         let url = EcoString::from(rq.url());
         let remote_addr = EcoString::from(rq.remote_addr().unwrap().to_string());
         let mut remote_ip = remote_addr.clone();
         if let Some(i) = remote_addr.find(':') {
             remote_ip.truncate(i);
         }
-
+        let cfg = get_config();
         let streaming_format = params
             .fmt
             .unwrap_or_else(|| cfg.streaming_format.unwrap_or(StreamingFormat::Flac));
         let bits_per_sample = params
             .bd
             .unwrap_or_else(|| BitDepth::from(cfg.bits_per_sample.unwrap_or(16)));
-
         let (streamsize, chunksize) =
             params
                 .ss

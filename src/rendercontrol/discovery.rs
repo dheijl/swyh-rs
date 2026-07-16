@@ -90,9 +90,7 @@ ST: {device_type}\r\n\
 MX: 3\r\n\r\n";
 
     let bind_addr = SocketAddr::new(local_addr, 0);
-    let sock2 = if let Ok(s) = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP)) {
-        s
-    } else {
+    let Ok(sock2) = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP)) else {
         ui_log(LogCategory::Error, &fl!("err-ssdp-bind"));
         return None;
     };
@@ -223,16 +221,12 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
     debug!("SSDP discovery started");
 
     // get the address of the selected interface
-    let ip = if let Some(s) = get_config().last_network.clone() {
-        s
-    } else {
+    let Some(ip) = get_config().last_network.clone() else {
         ui_log(LogCategory::Error, &fl!("err-ssdp-no-network"));
         return None;
     };
     info!("running SSDP on {ip}");
-    let local_addr: IpAddr = if let Ok(addr) = ip.parse() {
-        addr
-    } else {
+    let Ok(local_addr): Result<IpAddr, _> = ip.parse() else {
         ui_log(LogCategory::Error, &fl!("err-ssdp-parse-ip"));
         return None;
     };

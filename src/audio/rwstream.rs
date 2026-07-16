@@ -189,11 +189,10 @@ impl ChannelStream {
         let flac_in = &self.flac_channel.as_ref().unwrap().flac_in;
         // make sure we have enough data for this read buffer
         while self.flac_fifo.len() < buf.len() {
-            if let Ok(chunk) = flac_in.recv() {
-                self.flac_fifo.append(&mut VecDeque::from(chunk));
-            } else {
+            let Ok(chunk) = flac_in.recv() else {
                 return Err(Error::other("FLAC channel receive error."));
-            }
+            };
+            self.flac_fifo.append(&mut VecDeque::from(chunk));
         }
         // fill the buffer with the number of FLAC bytes needed from the fifo
         let (s1, s2) = self.flac_fifo.as_slices();

@@ -49,13 +49,13 @@ impl FlacWriter {
 
 impl Write for FlacWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        match self.flac_out.send(buf.to_vec()) {
-            Ok(()) => Ok(buf.len()),
-            Err(_e) => Err(std::io::Error::new(
+        self.flac_out.send(buf.to_vec()).map_err(|_| {
+            std::io::Error::new(
                 std::io::ErrorKind::ConnectionAborted,
                 "FlacWriter channel SendError",
-            )),
-        }
+            )
+        })?;
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {

@@ -3,6 +3,7 @@
 - 1.21.0 (unreleased)
   - don't report underrun errors in the GUI but log them, they only seem to happen on WasApi, but are never audible because swyh-rs rebuffers anyway
   - use rust-lld linker on Windows
+  - RUST: 1.97.1
 
 - 1.20.5 (Jul 14, dheijl)
   - SAMPLES: instead of relying on LLVM optimizations to hoist the loop invariants in sample conversions out of the loops, use generics instead to dispatch the samples conversions jump-free for the various combinations of 16-bit/24-bit/dithering/endianness, a suggestion made by Claude while I was considering pulling up the conditions manually from the inner loops.

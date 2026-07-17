@@ -265,7 +265,7 @@ impl Renderer {
                 dev_name: String::new(),
                 host: String::new(),
                 port: 0,
-                remote_addr: String::new(),
+                remote_addr: EcoString::new(),
                 oh_control_full_url: String::new(),
                 av_control_full_url: String::new(),
                 oh_volume_full_url: String::new(),
@@ -471,7 +471,7 @@ impl Renderer {
 /// `MessageType::PlayResult` once the SOAP round-trips finish.
 #[derive(Debug, Clone)]
 pub struct PlayOutcome {
-    pub remote_addr: String,
+    pub remote_addr: EcoString,
     pub result: Result<(), &'static str>,
 }
 

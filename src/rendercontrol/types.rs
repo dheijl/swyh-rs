@@ -9,6 +9,7 @@ use crate::{
     globals::statics::{SERVER_PORT, get_config},
 };
 use bitflags::bitflags;
+use ecow::EcoString;
 #[cfg(feature = "gui")]
 use fltk::{button::LightButton, valuator::HorNiceSlider};
 use std::sync::{Arc, atomic::AtomicBool};
@@ -97,7 +98,7 @@ pub struct RendUI {
 pub struct Controller {
     // public identity/state, read directly by the UI and CLI binaries
     pub dev_name: String,
-    pub remote_addr: String,
+    pub remote_addr: EcoString,
     pub supported_protocols: SupportedProtocols,
 
     // internal mod wiring, only ever touched from control.rs/discovery.rs

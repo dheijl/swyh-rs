@@ -771,7 +771,7 @@ fn resolve_player_names(
                 "addr" = &r.controller.remote_addr
             ),
         );
-        args.player_ip = Some(r.controller.remote_addr.clone());
+        args.player_ip = Some(r.controller.remote_addr.to_string());
     }
     if let Some(active_players) = &args.active_players {
         let mut ip_players: Vec<String> = Vec::new();
@@ -780,7 +780,7 @@ fn resolve_player_names(
                 .iter()
                 .find(|r| r.controller.dev_name.contains(ap))
             {
-                ip_players.push(r.controller.remote_addr.clone());
+                ip_players.push(r.controller.remote_addr.to_string());
                 ui_log(
                     LogCategory::Info,
                     &fl!(
@@ -815,7 +815,7 @@ fn select_primary_renderer(config: &mut Configuration) -> Option<Renderer> {
     }
     // if specified player ip not found: record which default we're using
     if last_renderer != player.controller.remote_addr {
-        config.last_renderer = Some(player.controller.remote_addr.clone());
+        config.last_renderer = Some(player.controller.remote_addr.to_string());
     }
     ui_log(
         LogCategory::Info,
@@ -866,7 +866,7 @@ fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
     loop {
         let renderers = discover(&agent, &rmap).unwrap_or_default();
         for r in &renderers {
-            rmap.entry(r.controller.remote_addr.clone())
+            rmap.entry(r.controller.remote_addr.to_string())
                 .or_insert_with(|| {
                     info!(
                         "Found new renderer {} {}  at {}",

@@ -1324,13 +1324,14 @@ impl MainForm {
         String::from_utf8(style).unwrap()
     }
 
-    /// show a new renderer button for a new enderer discovered by ssdp
+    /// show a new renderer button for a new renderer discovered by ssdp
     /// add the associated UI button and slider to the renderer
     /// add the new renderer to the global renderer list
     pub fn add_renderer_button(&mut self, new_renderer: &mut Renderer) {
         if get_config()
             .hidden_renderers
-            .contains(&new_renderer.controller.remote_addr)
+            .iter()
+            .any(|hidden| hidden == &new_renderer.controller.remote_addr)
         {
             return;
         }
@@ -1456,7 +1457,7 @@ impl MainForm {
                             sl.hide();
                         }
                         let mut config = get_config_mut();
-                        config.hidden_renderers.push(remote_addr.clone());
+                        config.hidden_renderers.push(remote_addr.to_string());
                         let _ = config.update_config();
                         config_changed.set(true);
                         true
@@ -1478,7 +1479,10 @@ impl MainForm {
         if self.auto_reconnect.is_set() {
             let active_players = get_config().active_renderers.clone();
             info!("AutoReconnect: Active Renderers = {active_players:?}");
-            if active_players.contains(&new_renderer.controller.remote_addr) {
+            if active_players
+                .iter()
+                .any(|active| active == &new_renderer.controller.remote_addr)
+            {
                 pbut.turn_on(true);
                 pbut.do_callback();
             }

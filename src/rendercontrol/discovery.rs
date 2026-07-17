@@ -7,7 +7,7 @@ use crate::{
     globals::statics::{APP_VERSION, get_config},
     utils::ui_logger::{LogCategory, ui_log},
 };
-use ecow::EcoString;
+use ecow::{EcoString, eco_format};
 use hashbrown::{HashMap, HashSet};
 use log::{debug, error, info};
 use socket2::{Domain, Protocol, Socket, Type};
@@ -257,7 +257,7 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
                     let xml = get_service_description(agent, &location)?;
                     let mut rend = get_renderer(agent, &xml)?;
                     rend.location.clone_from(&location);
-                    Arc::make_mut(&mut rend.controller).remote_addr = from.ip().to_string();
+                    Arc::make_mut(&mut rend.controller).remote_addr = eco_format!("{}", from.ip());
                     // check for an absent URLBase in the description
                     // or devices like Yamaha WXAD-10 with bad URLBase port number
                     if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {

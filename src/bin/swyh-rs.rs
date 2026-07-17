@@ -538,7 +538,7 @@ fn shutdown_and_exit() {
                 ),
             );
             app::redraw();
-            active_players.push(renderer.controller.remote_addr.clone());
+            active_players.push(renderer.controller.remote_addr.to_string());
             renderer.stop_play();
             app::redraw();
         }

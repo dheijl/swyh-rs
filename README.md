@@ -189,7 +189,8 @@ Since version 1.20.3-RC4, thanks to contributions by @Churro:
 
 A diagram showing the flow of the audio samples:
 
-<img width="1024" height="928" alt="audio_flow" src="https://github.com/user-attachments/assets/cfb0c5be-49d6-4873-a14b-306190717ddb" />
+<img width="1104" height="1001" alt="audio_flow" src="https://github.com/user-attachments/assets/a66c14e9-2df9-4a78-a2a1-dd185ac223b0" />
+
 
 The **configuration UI** is organised into four tabs:
 

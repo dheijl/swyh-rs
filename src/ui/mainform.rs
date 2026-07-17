@@ -1438,7 +1438,7 @@ impl MainForm {
         } else {
             new_renderer.rend_ui.slider = None;
         }
-        // right-click hides this renderer's button (and slider, if any).
+        // right-click hides this renderer's button (and slider, if any)
         // fltk-rs runs the widget's built-in handle() first by default and ORs in
         // our result, which would fire the button's own play/stop callback on
         // FL_RELEASE before we ever get to swallow the event — flip that order.

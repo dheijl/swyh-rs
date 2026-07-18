@@ -4,7 +4,7 @@
 //! [`Endian`], and [`StreamingState`], plus [`StreamingContext`] which aggregates
 //! all per-connection streaming parameters.
 
-use ecow::EcoString;
+use ecow::{EcoString, eco_format};
 use serde::{Deserialize, Serialize};
 use std::{convert::From, fmt, str::FromStr};
 use tiny_http::Request;
@@ -223,7 +223,7 @@ impl StreamingContext {
     /// Build a fully-initialised `StreamingContext` from config, a live request, and its parsed URL params.
     pub fn new(wd: WavData, rq: &Request, params: &StreamingParams) -> StreamingContext {
         let url = EcoString::from(rq.url());
-        let remote_addr = EcoString::from(rq.remote_addr().unwrap().to_string());
+        let remote_addr = eco_format!("{}", rq.remote_addr().unwrap());
         let mut remote_ip = remote_addr.clone();
         if let Some(i) = remote_addr.find(':') {
             remote_ip.truncate(i);

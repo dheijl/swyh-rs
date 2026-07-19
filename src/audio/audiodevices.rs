@@ -12,7 +12,7 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use cpal::{
-    Error, ErrorKind, Sample, SampleFormat, SupportedStreamConfig,
+    Error, ErrorKind, InputCallbackInfo, Sample, SampleFormat, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait},
 };
 use crossbeam_channel::Sender;
@@ -312,7 +312,9 @@ pub fn capture_output_audio(
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             audio_cfg.config(),
-            move |data, _: &_| wave_reader_f32(data, channels, &mut stereo_samples, &rms_sender),
+            move |data, info: &InputCallbackInfo| {
+                wave_reader_f32(data, channels, &mut stereo_samples, &rms_sender, info)
+            },
             capture_err_fn,
             None,
         ) {
@@ -338,13 +340,14 @@ pub fn capture_output_audio(
         cpal::SampleFormat::I16 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, _: &_| {
+                move |data, info: &InputCallbackInfo| {
                     wave_reader::<i16>(
                         data,
                         channels,
                         &mut f32_samples,
                         &mut stereo_samples,
                         &rms_sender,
+                        info,
                     )
                 },
                 capture_err_fn,
@@ -373,13 +376,14 @@ pub fn capture_output_audio(
         cpal::SampleFormat::U16 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, _: &_| {
+                move |data, info: &InputCallbackInfo| {
                     wave_reader::<u16>(
                         data,
                         channels,
                         &mut f32_samples,
                         &mut stereo_samples,
                         &rms_sender,
+                        info,
                     )
                 },
                 capture_err_fn,
@@ -408,13 +412,14 @@ pub fn capture_output_audio(
         cpal::SampleFormat::I32 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, _: &_| {
+                move |data, info: &InputCallbackInfo| {
                     wave_reader::<i32>(
                         data,
                         channels,
                         &mut f32_samples,
                         &mut stereo_samples,
                         &rms_sender,
+                        info,
                     )
                 },
                 capture_err_fn,
@@ -495,6 +500,7 @@ fn wave_reader<T>(
     f32_samples: &mut Vec<f32>,
     stereo_samples: &mut Vec<f32>,
     rms_sender: &Sender<AudioSamples>,
+    _info: &InputCallbackInfo,
 ) where
     T: Sample + ToSample<f32>,
 {
@@ -516,6 +522,7 @@ fn wave_reader_f32(
     channels: u16,
     stereo_samples: &mut Vec<f32>,
     rms_sender: &Sender<AudioSamples>,
+    _info: &InputCallbackInfo,
 ) {
     ONFIRSTCALL.call_once(capture_started);
     if channels == 2 {

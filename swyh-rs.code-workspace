@@ -12,6 +12,8 @@
             ".flatpak-builder",
             "vendor",
             "repo"
-        ]
+        ],
+        "terminal.integrated.gpuAcceleration": "off",
+        "editor.experimentalGpuAcceleration": "off"
     },
 }

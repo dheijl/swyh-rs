@@ -54,7 +54,7 @@ ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "6.0.0"
 ecow = "0.3.0"
-fastrand = "2.4.1"
+fastrand = "2.5.0"
 fluent-uri = "0.4.1"
 fluent-templates = { version = "0.14.0", default-features = false, features = [
     "macros",
@@ -64,7 +64,11 @@ figura = "3.0.0"
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",
 ] }
-hashbrown = "0.17.1"
+hashbrown = { version = "0.17.1", default-features = false, features = [
+    "default-hasher",
+    "inline-more",
+    "equivalent",
+] }
 htmlescape = "0.3.1"
 if-addrs = "0.15.0"
 lexopt = "0.3.2"
@@ -75,7 +79,7 @@ log = { version = "0.4.33", features = [
     "serde",
 ] }
 mimalloc = { version = "0.1.52" }
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
 socket2 = "0.6.5"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
@@ -105,7 +109,7 @@ rustix = { version = "1.1.4", default-features = false, features = ["process"] }
 [dev-dependencies]
 tempfile = "3"
 criterion = { version = "0.8.2", features = ["html_reports"] }
-fastrand = "2.4.1"
+fastrand = "2.5.0"
 
 [[bench]]
 name = "samples_conv"

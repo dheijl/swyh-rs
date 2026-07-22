@@ -19,8 +19,8 @@ use crate::{
 pub fn run_silence_injector(device: &Device) -> Option<Stream> {
     // CPAL 0.15 switched to dasp_sample:
     // see https://github.com/RustAudio/cpal/commit/85d773d59f1725b25002c6f04aa2eb9b43a75b76#diff-babb62f9985b4798a655658e440a565984ce15b25e63a82fc4b3cc0b54fd2a02
-    fn write_silence<T: Sample>(data: &mut [T], _info: &cpal::CallbackInfo) {
-        if _info.xrun() {
+    fn write_silence<T: Sample>(data: &mut [T], info: &cpal::CallbackInfo) {
+        if info.xrun() {
             warn!("Inject silence xrun error");
         }
         for sample in &mut *data {

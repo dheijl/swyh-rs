@@ -521,10 +521,10 @@ fn wave_reader_f32(
     channels: u16,
     stereo_samples: &mut Vec<f32>,
     rms_sender: &Sender<AudioSamples>,
-    _info: &CallbackInfo,
+    info: &CallbackInfo,
 ) {
     ONFIRSTCALL.call_once(capture_started);
-    if _info.xrun() {
+    if info.xrun() {
         warn!("Audio capture xrun error");
     }
     if channels == 2 {

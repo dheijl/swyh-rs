@@ -19,7 +19,10 @@ use crate::{
 pub fn run_silence_injector(device: &Device) -> Option<Stream> {
     // CPAL 0.15 switched to dasp_sample:
     // see https://github.com/RustAudio/cpal/commit/85d773d59f1725b25002c6f04aa2eb9b43a75b76#diff-babb62f9985b4798a655658e440a565984ce15b25e63a82fc4b3cc0b54fd2a02
-    fn write_silence<T: Sample>(data: &mut [T], _info: &cpal::OutputCallbackInfo) {
+    fn write_silence<T: Sample>(data: &mut [T], _info: &cpal::CallbackInfo) {
+        if _info.xrun() {
+            warn!("Inject silence xrun error");
+        }
         for sample in &mut *data {
             *sample = Sample::EQUILIBRIUM;
         }
@@ -28,14 +31,10 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
     let config = device.default_config();
     let sample_format = config.sample_format();
     let err_fn = |err: cpal::Error| {
-        if err.kind() == ErrorKind::Xrun {
-            warn!("Inject silence error: {err}");
-        } else {
-            ui_log(
-                LogCategory::Error,
-                &fl!("err-inject-silence-stream", "error" = err.to_string()),
-            )
-        }
+        ui_log(
+            LogCategory::Error,
+            &fl!("err-inject-silence-stream", "error" = err.to_string()),
+        )
     };
     let mut config = config.config();
     config.buffer_size = cpal::BufferSize::Fixed(4096);
@@ -59,7 +58,7 @@ pub fn run_silence_injector(device: &Device) -> Option<Stream> {
     };
     match try_stream {
         Ok(stream) => {
-            if stream.play().is_ok() {
+            if stream.start().is_ok() {
                 Some(stream)
             } else {
                 ui_log(LogCategory::Error, &fl!("err-inject-silence-play"));

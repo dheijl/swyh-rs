@@ -134,7 +134,26 @@ pub struct MainForm {
     log_lines: i32,
 }
 
+/// shared width/height for the `label: widget` rows built by [`MainForm::add_labeled_row`]
+const GW: i32 = 640;
+const ROW_H: i32 = 25;
+
 impl MainForm {
+    /// Adds a `label: widget` row (fixed-width label, flexed widget) to `col`.
+    /// Factors out the row shape repeated across most config tab entries.
+    fn add_labeled_row(col: &mut Flex, label: &str, label_w: i32, widget: &impl WidgetExt) {
+        let lbl = Frame::default().with_label(label);
+        let mut row = Flex::new(0, 0, GW, ROW_H, "");
+        row.set_spacing(5);
+        row.set_type(FlexType::Row);
+        row.end();
+        row.add(&lbl);
+        row.fixed(&lbl, label_w);
+        row.add(widget);
+        col.add(&row);
+        col.fixed(&row, ROW_H);
+    }
+
     /// Builds the entire main window in one function.
     /// Splitting it into per-tab helpers would require passing `status_buf` (the
     /// TextBuffer backing the Status tab) into every builder, plus a return struct
@@ -149,7 +168,6 @@ impl MainForm {
         ssdp_kick_tx: crossbeam_channel::Sender<()>,
     ) -> MainForm {
         let default_sample_rate = wd.default_sample_rate;
-        const GW: i32 = 640;
         const FW: i32 = 640;
         const XPOS: i32 = 30;
         const YPOS: i32 = 5;
@@ -211,7 +229,6 @@ impl MainForm {
         const TAB_H: i32 = 250;
         const TAB_BAR_H: i32 = 30;
         const INNER_H: i32 = TAB_H - TAB_BAR_H;
-        const ROW_H: i32 = 25;
         const ROW_SPACING: i32 = 5;
         const MARGIN: i32 = 5;
         const LABEL_W: i32 = 130;
@@ -264,16 +281,12 @@ impl MainForm {
                 config_changed.set(true);
             }
         });
-        let lbl_ausrc = Frame::default().with_label(&fl!("audio-source-label", "name" = ""));
-        let mut flx_ausrc = Flex::new(0, 0, GW, ROW_H, "");
-        flx_ausrc.set_spacing(5);
-        flx_ausrc.set_type(FlexType::Row);
-        flx_ausrc.end();
-        flx_ausrc.add(&lbl_ausrc);
-        flx_ausrc.fixed(&lbl_ausrc, LABEL_W);
-        flx_ausrc.add(&choose_audio_source_but);
-        audio_col.add(&flx_ausrc);
-        audio_col.fixed(&flx_ausrc, ROW_H);
+        Self::add_labeled_row(
+            &mut audio_col,
+            &fl!("audio-source-label", "name" = ""),
+            LABEL_W,
+            &choose_audio_source_but,
+        );
 
         // streaming format
         let formats = vec![
@@ -314,16 +327,12 @@ impl MainForm {
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
-        let lbl_fmt = Frame::default().with_label(&fl!("fmt-label", "format" = ""));
-        let mut flx_fmt = Flex::new(0, 0, GW, ROW_H, "");
-        flx_fmt.set_spacing(5);
-        flx_fmt.set_type(FlexType::Row);
-        flx_fmt.end();
-        flx_fmt.add(&lbl_fmt);
-        flx_fmt.fixed(&lbl_fmt, LABEL_W);
-        flx_fmt.add(&fmt_choice);
-        audio_col.add(&flx_fmt);
-        audio_col.fixed(&flx_fmt, ROW_H);
+        Self::add_labeled_row(
+            &mut audio_col,
+            &fl!("fmt-label", "format" = ""),
+            LABEL_W,
+            &fmt_choice,
+        );
 
         // streaming content length / chunking
         let streamsize = if let Some(fmt) = config.streaming_format {
@@ -393,16 +402,12 @@ impl MainForm {
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
-        let lbl_ss = Frame::default().with_label(&fl!("strmsize-label", "size" = ""));
-        let mut flx_ss = Flex::new(0, 0, GW, ROW_H, "");
-        flx_ss.set_spacing(5);
-        flx_ss.set_type(FlexType::Row);
-        flx_ss.end();
-        flx_ss.add(&lbl_ss);
-        flx_ss.fixed(&lbl_ss, LABEL_W);
-        flx_ss.add(&ss_choice);
-        audio_col.add(&flx_ss);
-        audio_col.fixed(&flx_ss, ROW_H);
+        Self::add_labeled_row(
+            &mut audio_col,
+            &fl!("strmsize-label", "size" = ""),
+            LABEL_W,
+            &ss_choice,
+        );
 
         // 24-bit checkbox
         let b24_bit_lbl = fl!("chk-24bit");
@@ -626,16 +631,12 @@ impl MainForm {
                 config_changed.set(true);
             }
         });
-        let lbl_nw = Frame::default().with_label(&fl!("active-network", "addr" = ""));
-        let mut flx_netwrk = Flex::new(0, 0, GW, ROW_H, "");
-        flx_netwrk.set_spacing(5);
-        flx_netwrk.set_type(FlexType::Row);
-        flx_netwrk.end();
-        flx_netwrk.add(&lbl_nw);
-        flx_netwrk.fixed(&lbl_nw, LABEL_W_NET);
-        flx_netwrk.add(&choose_network_but);
-        network_col.add(&flx_netwrk);
-        network_col.fixed(&flx_netwrk, ROW_H);
+        Self::add_labeled_row(
+            &mut network_col,
+            &fl!("active-network", "addr" = ""),
+            LABEL_W_NET,
+            &choose_network_but,
+        );
 
         // HTTP server listen port
         let mut listen_port = IntInput::new(0, 0, 0, 0, "");
@@ -661,16 +662,12 @@ impl MainForm {
                 }
             }
         });
-        let lbl_port = Frame::default().with_label(&fl!("http-port-label"));
-        let mut flx_port = Flex::new(0, 0, GW, ROW_H, "");
-        flx_port.set_spacing(5);
-        flx_port.set_type(FlexType::Row);
-        flx_port.end();
-        flx_port.add(&lbl_port);
-        flx_port.fixed(&lbl_port, LABEL_W_NET);
-        flx_port.add(&listen_port);
-        network_col.add(&flx_port);
-        network_col.fixed(&flx_port, ROW_H);
+        Self::add_labeled_row(
+            &mut network_col,
+            &fl!("http-port-label"),
+            LABEL_W_NET,
+            &listen_port,
+        );
 
         // SSDP interval
         let mut ssdp_interval = Counter::new(0, 0, 0, 0, "");
@@ -711,16 +708,12 @@ impl MainForm {
                 }
             }
         });
-        let lbl_ssdp = Frame::default().with_label(&fl!("ssdp-interval-label"));
-        let mut flx_ssdp = Flex::new(0, 0, GW, ROW_H, "");
-        flx_ssdp.set_spacing(5);
-        flx_ssdp.set_type(FlexType::Row);
-        flx_ssdp.end();
-        flx_ssdp.add(&lbl_ssdp);
-        flx_ssdp.fixed(&lbl_ssdp, LABEL_W_NET);
-        flx_ssdp.add(&ssdp_interval);
-        network_col.add(&flx_ssdp);
-        network_col.fixed(&flx_ssdp, ROW_H);
+        Self::add_labeled_row(
+            &mut network_col,
+            &fl!("ssdp-interval-label"),
+            LABEL_W_NET,
+            &ssdp_interval,
+        );
 
         // "Run SSDP discovery now" button — disabled when SSDP interval is 0 (thread not running)
         let mut ssdp_now_btn = Button::new(0, 0, 0, ROW_H, "");
@@ -785,16 +778,12 @@ impl MainForm {
                 config_changed.set(true);
             }
         });
-        let lbl_lang = Frame::default().with_label(&fl!("language-label", "lang" = ""));
-        let mut flx_lang = Flex::new(0, 0, GW, ROW_H, "");
-        flx_lang.set_spacing(5);
-        flx_lang.set_type(FlexType::Row);
-        flx_lang.end();
-        flx_lang.add(&lbl_lang);
-        flx_lang.fixed(&lbl_lang, LABEL_W);
-        flx_lang.add(&lang_button);
-        app_col.add(&flx_lang);
-        app_col.fixed(&flx_lang, ROW_H);
+        Self::add_labeled_row(
+            &mut app_col,
+            &fl!("language-label", "lang" = ""),
+            LABEL_W,
+            &lang_button,
+        );
 
         // Theme choice
         if let Some(theme) = config.color_theme {
@@ -826,16 +815,12 @@ impl MainForm {
                 sb.set_text(&MainForm::format_config_status(default_sample_rate));
             }
         });
-        let lbl_theme = Frame::default().with_label(&fl!("color-theme-label", "name" = ""));
-        let mut flx_theme = Flex::new(0, 0, GW, ROW_H, "");
-        flx_theme.set_spacing(5);
-        flx_theme.set_type(FlexType::Row);
-        flx_theme.end();
-        flx_theme.add(&lbl_theme);
-        flx_theme.fixed(&lbl_theme, LABEL_W);
-        flx_theme.add(&theme_button);
-        app_col.add(&flx_theme);
-        app_col.fixed(&flx_theme, ROW_H);
+        Self::add_labeled_row(
+            &mut app_col,
+            &fl!("color-theme-label", "name" = ""),
+            LABEL_W,
+            &theme_button,
+        );
 
         // Widget style choice
         // note: unlike the color theme, a widget style change cannot be cleanly
@@ -875,16 +860,12 @@ impl MainForm {
                 config_changed.set(true);
             }
         });
-        let lbl_style = Frame::default().with_label(&fl!("widget-style-label", "style" = ""));
-        let mut flx_style = Flex::new(0, 0, GW, ROW_H, "");
-        flx_style.set_spacing(5);
-        flx_style.set_type(FlexType::Row);
-        flx_style.end();
-        flx_style.add(&lbl_style);
-        flx_style.fixed(&lbl_style, LABEL_W);
-        flx_style.add(&style_button);
-        app_col.add(&flx_style);
-        app_col.fixed(&flx_style, ROW_H);
+        Self::add_labeled_row(
+            &mut app_col,
+            &fl!("widget-style-label", "style" = ""),
+            LABEL_W,
+            &style_button,
+        );
 
         // log level choice
         let log_levels = ["Info", "Debug"];
@@ -923,16 +904,12 @@ impl MainForm {
                 config_changed.set(true);
             }
         });
-        let lbl_ll = Frame::default().with_label(&fl!("log-level-label", "level" = ""));
-        let mut flx_loglvl = Flex::new(0, 0, GW, ROW_H, "");
-        flx_loglvl.set_spacing(5);
-        flx_loglvl.set_type(FlexType::Row);
-        flx_loglvl.end();
-        flx_loglvl.add(&lbl_ll);
-        flx_loglvl.fixed(&lbl_ll, LABEL_W);
-        flx_loglvl.add(&log_level_choice);
-        app_col.add(&flx_loglvl);
-        app_col.fixed(&flx_loglvl, ROW_H);
+        Self::add_labeled_row(
+            &mut app_col,
+            &fl!("log-level-label", "level" = ""),
+            LABEL_W,
+            &log_level_choice,
+        );
 
         // auto_resume + auto_reconnect row
         let auto_resume_lbl = fl!("chk-autoresume");

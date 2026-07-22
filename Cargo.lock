@@ -28,9 +28,9 @@ dependencies = [
 
 [[package]]
 name = "alsa"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "812947049edcd670a82cd5c73c3661d2e58468577ba8489de58e1a73c04cbd5d"
+checksum = "028c6c5c84085c8cca7486f62d004f538e63eeb8c7f9c27fe735559ef4cb39fa"
 dependencies = [
  "alsa-sys",
  "bitflags",
@@ -40,10 +40,11 @@ dependencies = [
 
 [[package]]
 name = "alsa-sys"
-version = "0.4.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad7569085a265dd3f607ebecce7458eaab2132a84393534c95b18dcbc3f31e04"
+checksum = "23ddaba18811a1d08b70bc74fe310fa090e0a3f1dfe59a86c8680f735ccda37b"
 dependencies = [
+ "cc",
  "libc",
  "pkg-config",
 ]
@@ -265,8 +266,8 @@ dependencies = [
 
 [[package]]
 name = "cpal"
-version = "0.18.1"
-source = "git+https://github.com/RustAudio/cpal.git#ff96c499acd759816bc88f26292c9afac9907d3f"
+version = "0.19.0"
+source = "git+https://github.com/RustAudio/cpal.git?branch=develop#9a10de629a14b70cb091345b956c02277df6f842"
 dependencies = [
  "alsa",
  "block2",

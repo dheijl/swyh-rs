@@ -12,7 +12,7 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use cpal::{
-    Error, ErrorKind, InputCallbackInfo, Sample, SampleFormat, SupportedStreamConfig,
+    CallbackInfo, Error, Sample, SampleFormat, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait},
 };
 use crossbeam_channel::Sender;
@@ -312,7 +312,7 @@ pub fn capture_output_audio(
     match audio_cfg.sample_format() {
         cpal::SampleFormat::F32 => match device.build_input_stream(
             audio_cfg.config(),
-            move |data, info: &InputCallbackInfo| {
+            move |data, info: &CallbackInfo| {
                 wave_reader_f32(data, channels, &mut stereo_samples, &rms_sender, info)
             },
             capture_err_fn,
@@ -340,7 +340,7 @@ pub fn capture_output_audio(
         cpal::SampleFormat::I16 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, info: &InputCallbackInfo| {
+                move |data, info: &CallbackInfo| {
                     wave_reader::<i16>(
                         data,
                         channels,
@@ -376,7 +376,7 @@ pub fn capture_output_audio(
         cpal::SampleFormat::U16 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, info: &InputCallbackInfo| {
+                move |data, info: &CallbackInfo| {
                     wave_reader::<u16>(
                         data,
                         channels,
@@ -412,7 +412,7 @@ pub fn capture_output_audio(
         cpal::SampleFormat::I32 => {
             match device.build_input_stream(
                 audio_cfg.config(),
-                move |data, info: &InputCallbackInfo| {
+                move |data, info: &CallbackInfo| {
                     wave_reader::<i32>(
                         data,
                         channels,
@@ -451,14 +451,10 @@ pub fn capture_output_audio(
 
 /// `capture_err_fn` - called when it's impossible to start/continue streaming
 fn capture_err_fn(err: cpal::Error) {
-    if err.kind() == ErrorKind::Xrun {
-        warn!("Audio capture error: {err}");
-    } else {
-        ui_log(
-            LogCategory::Error,
-            &fl!("err-capture-stream", "error" = err.to_string()),
-        );
-    }
+    ui_log(
+        LogCategory::Error,
+        &fl!("err-capture-stream", "error" = err.to_string()),
+    );
     if err.kind() == cpal::ErrorKind::DeviceNotAvailable {
         get_msgchannel()
             .0
@@ -500,11 +496,14 @@ fn wave_reader<T>(
     f32_samples: &mut Vec<f32>,
     stereo_samples: &mut Vec<f32>,
     rms_sender: &Sender<AudioSamples>,
-    _info: &InputCallbackInfo,
+    info: &CallbackInfo,
 ) where
     T: Sample + ToSample<f32>,
 {
     ONFIRSTCALL.call_once(capture_started);
+    if info.xrun() {
+        warn!("Audio capture xrun error");
+    }
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
     if channels == 2 {
@@ -522,9 +521,12 @@ fn wave_reader_f32(
     channels: u16,
     stereo_samples: &mut Vec<f32>,
     rms_sender: &Sender<AudioSamples>,
-    _info: &InputCallbackInfo,
+    _info: &CallbackInfo,
 ) {
     ONFIRSTCALL.call_once(capture_started);
+    if _info.xrun() {
+        warn!("Audio capture xrun error");
+    }
     if channels == 2 {
         distribute_samples(samples, rms_sender);
     } else {

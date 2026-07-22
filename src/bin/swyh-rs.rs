@@ -147,7 +147,7 @@ fn main() {
         }
     }
     if let Some(ref s) = stream
-        && s.play().is_err()
+        && s.start().is_err()
     {
         ui_log(LogCategory::Error, &fl!("err-play-stream"));
     }
@@ -284,7 +284,7 @@ fn main() {
                         }
                     }
                     if let Some(ref s) = stream
-                        && s.play().is_err()
+                        && s.start().is_err()
                     {
                         ui_log(LogCategory::Error, &fl!("err-play-stream"));
                     }

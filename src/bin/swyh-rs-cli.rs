@@ -157,7 +157,7 @@ fn main() -> Result<(), i32> {
         ui_log(LogCategory::Error, &fl!("err-capture-audio"));
         return Err(-2);
     };
-    stream.play().expect("Unable to play audio stream");
+    stream.start().expect("Unable to play audio stream");
 
     // If silence injector is on, create a silence injector stream and keep it alive
     let _silence_stream = {
@@ -349,7 +349,7 @@ fn main() -> Result<(), i32> {
                                 capture_output_audio(&audio_output_device, &audio_cfg, rms_chan2.0)
                             {
                                 stream = s;
-                                stream.play().expect("Unable to play audio stream");
+                                stream.start().expect("Unable to play audio stream");
                                 info!("Audio capture resumed.");
                                 break;
                             }

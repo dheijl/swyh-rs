@@ -29,13 +29,7 @@ use swyh_rs::{
     audio::audiodevices::{
         Device, capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
     },
-    enums::{
-        messages::MessageType,
-        streaming::{
-            StreamingFormat::{Flac, Lpcm, Rf64, Wav},
-            StreamingState,
-        },
-    },
+    enums::{messages::MessageType, streaming::StreamingState},
     fl,
     globals::statics::{
         APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
@@ -680,15 +674,10 @@ fn apply_streaming_args(args: &Args, config: &mut Configuration) {
     if args.bits_per_sample.is_some() {
         config.bits_per_sample = args.bits_per_sample;
     }
-    if let Some(ref sf) = args.streaming_format {
+    if let Some(sf) = args.streaming_format {
         config.streaming_format = args.streaming_format;
-        if args.stream_size.is_some() {
-            match sf {
-                Lpcm => config.lpcm_stream_size = args.stream_size,
-                Wav => config.wav_stream_size = args.stream_size,
-                Flac => config.flac_stream_size = args.stream_size,
-                Rf64 => config.rf64_stream_size = args.stream_size,
-            }
+        if let Some(size) = args.stream_size {
+            config.set_stream_size_for(sf, size);
         }
     }
     if args.upfront_buffer.is_some() {

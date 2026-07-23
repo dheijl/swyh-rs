@@ -210,6 +210,27 @@ impl Configuration {
         self.config_dir.clone()
     }
 
+    /// Returns the configured `StreamSize` for the given streaming format.
+    #[must_use]
+    pub fn stream_size_for(&self, format: StreamingFormat) -> Option<StreamSize> {
+        match format {
+            StreamingFormat::Lpcm => self.lpcm_stream_size,
+            StreamingFormat::Wav => self.wav_stream_size,
+            StreamingFormat::Rf64 => self.rf64_stream_size,
+            StreamingFormat::Flac => self.flac_stream_size,
+        }
+    }
+
+    /// Sets the `StreamSize` for the given streaming format.
+    pub fn set_stream_size_for(&mut self, format: StreamingFormat, size: StreamSize) {
+        match format {
+            StreamingFormat::Lpcm => self.lpcm_stream_size = Some(size),
+            StreamingFormat::Wav => self.wav_stream_size = Some(size),
+            StreamingFormat::Rf64 => self.rf64_stream_size = Some(size),
+            StreamingFormat::Flac => self.flac_stream_size = Some(size),
+        }
+    }
+
     /// Resolves the config path (honouring CLI overrides) and loads it, creating a default file if absent.
     pub fn read_config() -> Result<Configuration> {
         let configfile = Self::choose_config_path()?;

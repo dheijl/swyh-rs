@@ -134,30 +134,923 @@ pub struct MainForm {
     log_lines: i32,
 }
 
-/// shared width/height for the `label: widget` rows built by [`MainForm::add_labeled_row`]
+/// shared width/height for the `label: widget` rows built by [`add_labeled_row`]
 const GW: i32 = 640;
 const ROW_H: i32 = 25;
+// config tab geometry, shared by every per-tab builder below
+const TAB_H: i32 = 250;
+const TAB_BAR_H: i32 = 30;
+const INNER_H: i32 = TAB_H - TAB_BAR_H;
+const ROW_SPACING: i32 = 5;
+const MARGIN: i32 = 5;
+const LABEL_W: i32 = 130;
+const LABEL_W_NET: i32 = 179;
+
+/// Adds a `label: widget` row (fixed-width label, flexed widget) to `col`.
+/// Factors out the row shape repeated across most config tab entries.
+fn add_labeled_row(col: &mut Flex, label: &str, label_w: i32, widget: &impl WidgetExt) {
+    let lbl = Frame::default().with_label(label);
+    let mut row = Flex::new(0, 0, GW, ROW_H, "");
+    row.set_spacing(5);
+    row.set_type(FlexType::Row);
+    row.end();
+    row.add(&lbl);
+    row.fixed(&lbl, label_w);
+    row.add(widget);
+    col.add(&row);
+    col.fixed(&row, ROW_H);
+}
+
+/// Shared inputs every tab builder needs: the config being edited, the shared
+/// "needs restart" flag, the Status tab's live text buffer (cloned handles to
+/// the same underlying buffer), and the default sample rate to show when none
+/// is explicitly configured.
+struct TabCtx<'a> {
+    config: &'a Configuration,
+    config_changed: Rc<Cell<bool>>,
+    status_buf: TextBuffer,
+    default_sample_rate: u32,
+}
+
+/// Audio tab: source/format/bit-depth/sample-rate/buffering controls.
+struct AudioTab {
+    group: Group,
+    choose_audio_source_but: Choice,
+    fmt_choice: Choice,
+    ss_choice: Choice,
+    sr_choice: Choice,
+    b24_bit: CheckButton,
+    use_dither: CheckButton,
+}
+
+/// Network tab: network selector, HTTP port, SSDP interval + manual discovery.
+struct NetworkTab {
+    group: Group,
+    ssdp_interval: Counter,
+}
+
+/// App tab: language/theme/style, log level, auto-resume/reconnect, RMS monitor toggle.
+struct AppTab {
+    group: Group,
+    log_level_choice: Choice,
+    auto_resume: CheckButton,
+    auto_reconnect: CheckButton,
+    show_rms: CheckButton,
+    rms_mon_l: Progress,
+    rms_mon_r: Progress,
+}
+
+/// Status tab: read-only live summary of the current config.
+struct StatusTab {
+    group: Group,
+}
+
+impl AudioTab {
+    fn new(ctx: &TabCtx, audio_sources: &[String]) -> AudioTab {
+        let config = ctx.config;
+        let default_sample_rate = ctx.default_sample_rate;
+
+        let mut group = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
+        group.set_label(&fl!("tab-audio"));
+        group.end();
+        let mut audio_col = Flex::new(0, TAB_BAR_H, GW, INNER_H, "");
+        audio_col.set_type(FlexType::Column);
+        audio_col.set_spacing(ROW_SPACING);
+        audio_col.set_margin(MARGIN);
+        audio_col.end();
+
+        // setup audio source choice
+        ui_log(LogCategory::Info, &fl!("status-setup-audio"));
+        let mut choose_audio_source_but = Choice::new(0, 0, 0, ROW_H, "");
+        for name in audio_sources {
+            choose_audio_source_but.add_choice(&name.as_str().fw_slash_pipe_escape());
+        }
+        choose_audio_source_but.set_value(config.sound_source_index.unwrap_or(0));
+        choose_audio_source_but.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let Some(name) = b.choice().map(|n| n.as_str().fw_slash_pipe_unescape()) else {
+                    return;
+                };
+                let index = b.value();
+                if get_config().sound_source_index == Some(index) {
+                    return;
+                }
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("warn-audio-changed", "name" = &name),
+                );
+                {
+                    let mut conf = get_config_mut();
+                    conf.sound_source = Some(name);
+                    conf.sound_source_index = Some(index);
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        add_labeled_row(
+            &mut audio_col,
+            &fl!("audio-source-label", "name" = ""),
+            LABEL_W,
+            &choose_audio_source_but,
+        );
+
+        // streaming format
+        let formats = StreamingFormat::ALL.map(StreamingFormat::as_str);
+        let initial_fmt = config
+            .streaming_format
+            .unwrap_or(StreamingFormat::Lpcm)
+            .as_str();
+        let initial_fmt_idx = formats.iter().position(|f| *f == initial_fmt).unwrap_or(0) as i32;
+        let mut fmt_choice = Choice::new(0, 0, 0, ROW_H, "");
+        for fmt in formats {
+            fmt_choice.add_choice(fmt);
+        }
+        fmt_choice.set_value(initial_fmt_idx);
+        fmt_choice.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let Some(format) = b.choice() else {
+                    return;
+                };
+                let newformat = StreamingFormat::from_str(&format).unwrap();
+                if get_config().streaming_format == Some(newformat) {
+                    return;
+                }
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("info-format-changed", "format" = &format),
+                );
+                {
+                    let mut conf = get_config_mut();
+                    conf.streaming_format = Some(newformat);
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
+        add_labeled_row(
+            &mut audio_col,
+            &fl!("fmt-label", "format" = ""),
+            LABEL_W,
+            &fmt_choice,
+        );
+
+        // streaming content length / chunking
+        let streamsize = config
+            .streaming_format
+            .map_or(StreamSize::U64maxNotChunked, |fmt| {
+                config
+                    .stream_size_for(fmt)
+                    .unwrap_or(StreamSize::NoneChunked)
+            });
+        let streamsizes = StreamSize::ALL.map(StreamSize::as_str);
+        let streamsize_str = streamsize.as_str();
+        let initial_ss_idx = streamsizes
+            .iter()
+            .position(|s| *s == streamsize_str)
+            .unwrap_or(0) as i32;
+        let mut ss_choice = Choice::new(0, 0, 0, ROW_H, "");
+        for s in streamsizes {
+            ss_choice.add_choice(s);
+        }
+        ss_choice.set_value(initial_ss_idx);
+        ss_choice.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let Some(newsize) = b.choice() else {
+                    return;
+                };
+                let streamsize = StreamSize::from_str(&newsize).unwrap();
+                let current = {
+                    let cfg = get_config();
+                    cfg.stream_size_for(cfg.streaming_format.unwrap_or(StreamingFormat::Flac))
+                };
+                if current == Some(streamsize) {
+                    return;
+                }
+                let streaming_format = {
+                    let mut conf = get_config_mut();
+                    let fmt = conf.streaming_format.unwrap_or(StreamingFormat::Flac);
+                    conf.set_stream_size_for(fmt, streamsize);
+                    let _ = conf.update_config();
+                    conf.streaming_format.unwrap()
+                };
+                ui_log(
+                    LogCategory::Info,
+                    &fl!(
+                        "info-streamsize-changed",
+                        "format" = streaming_format,
+                        "size" = &newsize
+                    ),
+                );
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
+        add_labeled_row(
+            &mut audio_col,
+            &fl!("strmsize-label", "size" = ""),
+            LABEL_W,
+            &ss_choice,
+        );
+
+        // 24-bit checkbox
+        let b24_bit_lbl = fl!("chk-24bit");
+        let mut b24_bit = CheckButton::new(0, 0, 0, 0, b24_bit_lbl.as_str());
+        if config.bits_per_sample.unwrap_or(16) == 24 {
+            b24_bit.set(true);
+        }
+        // dither checkbox — created before b24_bit's callback so we can clone it in
+        let use_dither_lbl = fl!("chk-use-dither");
+        let mut use_dither = CheckButton::new(0, 0, 0, 0, use_dither_lbl.as_str());
+        if config.use_dither.unwrap_or(true) {
+            use_dither.set(true);
+        }
+        if config.bits_per_sample.unwrap_or(16) == 24 {
+            use_dither.set(false);
+            use_dither.deactivate();
+        }
+        use_dither.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let is_set = b.is_set();
+                if get_config().use_dither == Some(is_set) {
+                    return;
+                }
+                {
+                    let mut conf = get_config_mut();
+                    conf.use_dither = Some(is_set);
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
+        b24_bit.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            let mut use_dither_ref = use_dither.clone();
+            move |b| {
+                let new_bits: u16 = if b.is_set() { 24 } else { 16 };
+                if get_config().bits_per_sample == Some(new_bits) {
+                    return;
+                }
+                {
+                    let mut conf = get_config_mut();
+                    if b.is_set() {
+                        conf.bits_per_sample = Some(24);
+                        use_dither_ref.set(false);
+                        use_dither_ref.deactivate();
+                    } else {
+                        conf.bits_per_sample = Some(16);
+                        use_dither_ref.activate();
+                        use_dither_ref.set(conf.use_dither.unwrap_or(true));
+                    }
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
+        // sample rate choice — index 0 is "System Default", indices 1+ are fixed rates
+        let initial_sr_idx = match config.sample_rate {
+            None => 0,
+            Some(rate) => SAMPLE_RATES
+                .iter()
+                .position(|&r| r == rate)
+                .map(|i| i + 1)
+                .unwrap_or(0) as i32,
+        };
+        let mut sr_choice = Choice::new(0, 0, 0, ROW_H, "");
+        sr_choice.add_choice(&fl!("sr-system-default", "rate" = default_sample_rate));
+        for rate in SAMPLE_RATES {
+            sr_choice.add_choice(&rate.to_string());
+        }
+        sr_choice.set_value(initial_sr_idx);
+        sr_choice.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |c| {
+                let new_rate = if c.value() == 0 {
+                    None
+                } else {
+                    Some(SAMPLE_RATES[c.value() as usize - 1])
+                };
+                if get_config().sample_rate == new_rate {
+                    return;
+                }
+                {
+                    let mut conf = get_config_mut();
+                    conf.sample_rate = new_rate;
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        let lbl_sr = Frame::default().with_label(&fl!("sample-rate-label"));
+        let mut flx_b24 = Flex::new(0, 0, GW, ROW_H, "");
+        flx_b24.set_spacing(5);
+        flx_b24.set_type(FlexType::Row);
+        flx_b24.end();
+        flx_b24.add(&b24_bit);
+        flx_b24.fixed(&b24_bit, 80);
+        flx_b24.add(&lbl_sr);
+        flx_b24.fixed(&lbl_sr, LABEL_W);
+        flx_b24.add(&sr_choice);
+        audio_col.add(&flx_b24);
+        audio_col.fixed(&flx_b24, ROW_H);
+
+        // inject silence checkbox
+        let inj_silence_lbl = fl!("chk-inject-silence");
+        let mut inj_silence = CheckButton::new(0, 0, 0, 0, inj_silence_lbl.as_str());
+        if config.inject_silence.unwrap_or(false) {
+            inj_silence.set(true);
+        }
+        inj_silence.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let is_set = b.is_set();
+                if get_config().inject_silence == Some(is_set) {
+                    return;
+                }
+                {
+                    let mut conf = get_config_mut();
+                    conf.inject_silence = Some(is_set);
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        let mut flx_inj = Flex::new(0, 0, GW, ROW_H, "");
+        flx_inj.set_type(FlexType::Row);
+        flx_inj.end();
+        flx_inj.add(&inj_silence);
+        flx_inj.add(&use_dither);
+        audio_col.add(&flx_inj);
+        audio_col.fixed(&flx_inj, ROW_H);
+
+        // initial buffer
+        let label_ms = Frame::default()
+            .with_label(&fl!("buffer-label"))
+            .with_align(Align::Left | Align::Inside);
+        let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
+        upfront_buffer_ms.set_maximum_size(5);
+        let b_config = config.buffering_delay_msec.unwrap_or_default();
+        upfront_buffer_ms.set_value(&b_config.to_string());
+        upfront_buffer_ms.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |i| {
+                let mut b: i32 = i.value().parse().unwrap_or(0);
+                if b < 0 {
+                    i.set_value(&0i32.to_string());
+                    return;
+                }
+                if b > 5_000 {
+                    i.set_value(&5_000i32.to_string());
+                    b = 5_000;
+                }
+                if b as u32 != b_config {
+                    {
+                        let mut conf = get_config_mut();
+                        conf.buffering_delay_msec = Some(b as u32);
+                        let _ = conf.update_config();
+                    }
+                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                }
+            }
+        });
+        let mut flx_buf = Flex::new(0, 0, GW, ROW_H, "");
+        flx_buf.set_spacing(10);
+        flx_buf.set_type(FlexType::Row);
+        flx_buf.end();
+        flx_buf.add(&label_ms);
+        flx_buf.add(&upfront_buffer_ms);
+        flx_buf.fixed(&upfront_buffer_ms, 50);
+        audio_col.add(&flx_buf);
+        audio_col.fixed(&flx_buf, ROW_H);
+
+        group.add(&audio_col);
+
+        AudioTab {
+            group,
+            choose_audio_source_but,
+            fmt_choice,
+            ss_choice,
+            sr_choice,
+            b24_bit,
+            use_dither,
+        }
+    }
+}
+
+impl NetworkTab {
+    fn new(
+        ctx: &TabCtx,
+        networks: &[String],
+        ssdp_kick_tx: crossbeam_channel::Sender<()>,
+    ) -> NetworkTab {
+        let config = ctx.config;
+        let default_sample_rate = ctx.default_sample_rate;
+
+        let mut group = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
+        group.set_label(&fl!("tab-network"));
+        group.end();
+        let mut network_col = Flex::new(0, TAB_BAR_H, GW, INNER_H, "");
+        network_col.set_type(FlexType::Column);
+        network_col.set_spacing(ROW_SPACING);
+        network_col.set_margin(MARGIN);
+        network_col.end();
+
+        // network selection
+        let initial_nw_idx = config
+            .last_network
+            .as_ref()
+            .and_then(|nw| networks.iter().position(|n| n == nw))
+            .unwrap_or(0) as i32;
+        let mut choose_network_but = Choice::new(0, 0, 0, ROW_H, "");
+        for name in networks {
+            choose_network_but.add_choice(name);
+        }
+        choose_network_but.set_value(initial_nw_idx);
+        choose_network_but.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let Some(name) = b.choice() else {
+                    return;
+                };
+                if get_config().last_network.as_deref() == Some(name.as_str()) {
+                    return;
+                }
+                ui_log(
+                    LogCategory::Info,
+                    &fl!("warn-network-changed", "name" = &name),
+                );
+                {
+                    let mut conf = get_config_mut();
+                    conf.last_network = Some(name);
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        add_labeled_row(
+            &mut network_col,
+            &fl!("active-network", "addr" = ""),
+            LABEL_W_NET,
+            &choose_network_but,
+        );
+
+        // HTTP server listen port
+        let mut listen_port = IntInput::new(0, 0, 0, 0, "");
+        listen_port.set_value(&get_config().server_port.unwrap_or_default().to_string());
+        listen_port.set_maximum_size(5);
+        listen_port.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |lp| {
+                let new_value: u32 = lp.value().parse().unwrap_or(0);
+                if new_value > 65535 {
+                    lp.set_value(&get_config().server_port.unwrap_or_default().to_string());
+                    return;
+                }
+                if new_value as u16 != get_config().server_port.unwrap_or_default() {
+                    {
+                        let mut conf = get_config_mut();
+                        conf.server_port = Some(new_value as u16);
+                        let _ = conf.update_config();
+                    }
+                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                    config_changed.set(true);
+                }
+            }
+        });
+        add_labeled_row(
+            &mut network_col,
+            &fl!("http-port-label"),
+            LABEL_W_NET,
+            &listen_port,
+        );
+
+        // SSDP interval
+        let mut ssdp_interval = Counter::new(0, 0, 0, 0, "");
+        ssdp_interval.set_value(config.ssdp_interval_mins);
+        ssdp_interval.handle({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b, ev| {
+                // zero = no ssdp, else minimum ssdp discovery interval is 0,5 minutes
+                match ev {
+                    Event::Leave | Event::Enter | Event::Unfocus => {
+                        let v = match b.value() {
+                            ..=0.0 => 0.0,
+                            0.01..=1.0 => 1.0,
+                            _ => b.value(),
+                        };
+                        b.set_value(v);
+                        let mut ssdp_interval_mins: f64 = -1.0;
+                        {
+                            let mut conf = get_config_mut();
+                            if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
+                                conf.ssdp_interval_mins = b.value();
+                                ssdp_interval_mins = conf.ssdp_interval_mins;
+                                let _ = conf.update_config();
+                            }
+                        }
+                        if ssdp_interval_mins >= 0.0 {
+                            ui_log(
+                                LogCategory::Warning,
+                                &fl!("warn-ssdp-changed", "interval" = ssdp_interval_mins),
+                            );
+                            sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                            config_changed.set(true);
+                        }
+                        true
+                    }
+                    _ => false,
+                }
+            }
+        });
+        add_labeled_row(
+            &mut network_col,
+            &fl!("ssdp-interval-label"),
+            LABEL_W_NET,
+            &ssdp_interval,
+        );
+
+        // "Run SSDP discovery now" button — disabled when SSDP interval is 0 (thread not running)
+        let mut ssdp_now_btn = Button::new(0, 0, 0, ROW_H, "");
+        ssdp_now_btn.set_label(&fl!("btn-ssdp-discover"));
+        if config.ssdp_interval_mins <= 0.0 {
+            ssdp_now_btn.deactivate();
+        }
+        ssdp_now_btn.set_callback(move |_| {
+            let _ = ssdp_kick_tx.send(());
+        });
+        network_col.add(&ssdp_now_btn);
+        network_col.fixed(&ssdp_now_btn, ROW_H);
+
+        group.add(&network_col);
+
+        NetworkTab {
+            group,
+            ssdp_interval,
+        }
+    }
+}
+
+impl AppTab {
+    fn new(ctx: &TabCtx) -> AppTab {
+        let config = ctx.config;
+        let default_sample_rate = ctx.default_sample_rate;
+
+        let mut group = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
+        group.set_label(&fl!("tab-app"));
+        group.end();
+        let mut app_col = Flex::new(0, TAB_BAR_H, GW, INNER_H, "");
+        app_col.set_type(FlexType::Column);
+        app_col.set_spacing(ROW_SPACING);
+        app_col.set_margin(MARGIN);
+        app_col.end();
+
+        // Language choice
+        let available_langs = i18n::available_languages();
+        let cur_lang = config
+            .language
+            .clone()
+            .unwrap_or_else(|| "en-US".to_string());
+        let initial_lang_idx = available_langs
+            .iter()
+            .position(|l| l == &cur_lang)
+            .unwrap_or(0) as i32;
+        let mut lang_button = Choice::new(0, 0, 0, ROW_H, "");
+        for lang in &available_langs {
+            lang_button.add_choice(lang);
+        }
+        lang_button.set_value(initial_lang_idx);
+        lang_button.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let Some(lang) = b.choice() else {
+                    return;
+                };
+                if get_config().language.as_deref() == Some(lang.as_str()) {
+                    return;
+                }
+                ui_log(
+                    LogCategory::Warning,
+                    &fl!("warn-language-changed", "lang" = &lang),
+                );
+                {
+                    let mut conf = get_config_mut();
+                    conf.language = Some(lang);
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        add_labeled_row(
+            &mut app_col,
+            &fl!("language-label", "lang" = ""),
+            LABEL_W,
+            &lang_button,
+        );
+
+        // Theme choice
+        if let Some(theme) = config.color_theme {
+            MainForm::apply_theme(theme.into());
+        }
+        let initial_theme_idx = config.color_theme.unwrap_or(0) as i32;
+        let mut theme_button = Choice::new(0, 0, 0, ROW_H, "");
+        for theme in THEMES.iter() {
+            theme_button.add_choice(theme);
+        }
+        theme_button.set_value(initial_theme_idx);
+        theme_button.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                if b.value() < 0 {
+                    return;
+                }
+                let new_theme = b.value() as u8;
+                if get_config().color_theme == Some(new_theme) {
+                    return;
+                }
+                let name = MainForm::apply_theme(b.value() as usize);
+                debug!("New theme = {name}");
+                {
+                    let mut conf = get_config_mut();
+                    conf.color_theme = Some(new_theme);
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
+        add_labeled_row(
+            &mut app_col,
+            &fl!("color-theme-label", "name" = ""),
+            LABEL_W,
+            &theme_button,
+        );
+
+        // Widget style choice
+        // note: unlike the color theme, a widget style change cannot be cleanly
+        // undone at runtime (fltk-theme has no "reset to default box drawing"),
+        // so it's only applied at startup and otherwise requires a restart
+        if let Some(style) = config.widget_scheme {
+            MainForm::apply_scheme(style.into());
+        }
+        let initial_style_idx = config.widget_scheme.unwrap_or(NSTYLES as u8) as i32;
+        let mut style_button = Choice::new(0, 0, 0, ROW_H, "");
+        for style in STYLES.iter() {
+            style_button.add_choice(style);
+        }
+        style_button.set_value(initial_style_idx);
+        style_button.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                if b.value() < 0 {
+                    return;
+                }
+                let new_style = b.value() as u8;
+                if get_config().widget_scheme == Some(new_style) {
+                    return;
+                }
+                let name = STYLES[b.value() as usize];
+                {
+                    let mut conf = get_config_mut();
+                    conf.widget_scheme = Some(new_style);
+                    let _ = conf.update_config();
+                }
+                ui_log(
+                    LogCategory::Warning,
+                    &fl!("warn-widget-style-changed", "style" = name),
+                );
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        add_labeled_row(
+            &mut app_col,
+            &fl!("widget-style-label", "style" = ""),
+            LABEL_W,
+            &style_button,
+        );
+
+        // log level choice
+        let log_levels = ["Info", "Debug"];
+        let initial_ll_idx = if config.log_level == LevelFilter::Debug {
+            1i32
+        } else {
+            0i32
+        };
+        let mut log_level_choice = Choice::new(0, 0, 0, ROW_H, "");
+        for ll in &log_levels {
+            log_level_choice.add_choice(ll);
+        }
+        log_level_choice.set_value(initial_ll_idx);
+        log_level_choice.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                if b.value() < 0 {
+                    return;
+                }
+                let level = log_levels[b.value() as usize];
+                let loglevel = level.parse().unwrap_or(LevelFilter::Info);
+                if get_config().log_level == loglevel {
+                    return;
+                }
+                ui_log(
+                    LogCategory::Warning,
+                    &fl!("warn-log-changed", "level" = level),
+                );
+                {
+                    let mut conf = get_config_mut();
+                    conf.log_level = loglevel;
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        add_labeled_row(
+            &mut app_col,
+            &fl!("log-level-label", "level" = ""),
+            LABEL_W,
+            &log_level_choice,
+        );
+
+        // auto_resume + auto_reconnect row
+        let auto_resume_lbl = fl!("chk-autoresume");
+        let mut auto_resume = CheckButton::new(0, 0, 0, 0, auto_resume_lbl.as_str());
+        if config.auto_resume {
+            auto_resume.set(true);
+        }
+        auto_resume.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let is_set = b.is_set();
+                if get_config().auto_resume == is_set {
+                    return;
+                }
+                {
+                    let mut conf = get_config_mut();
+                    conf.auto_resume = is_set;
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
+        let auto_reconnect_lbl = fl!("chk-autoreconnect");
+        let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, auto_reconnect_lbl.as_str());
+        if config.auto_reconnect {
+            auto_reconnect.set(true);
+        }
+        auto_reconnect.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let is_set = b.is_set();
+                if get_config().auto_reconnect == is_set {
+                    return;
+                }
+                {
+                    let mut conf = get_config_mut();
+                    conf.auto_reconnect = is_set;
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
+        let mut flx_autoresume = Flex::new(0, 0, GW, ROW_H, "");
+        flx_autoresume.set_type(FlexType::Row);
+        flx_autoresume.end();
+        flx_autoresume.add(&auto_resume);
+        app_col.add(&flx_autoresume);
+        app_col.fixed(&flx_autoresume, ROW_H);
+
+        let mut flx_autoreconnect = Flex::new(0, 0, GW, ROW_H, "");
+        flx_autoreconnect.set_type(FlexType::Row);
+        flx_autoreconnect.end();
+        flx_autoreconnect.add(&auto_reconnect);
+        app_col.add(&flx_autoreconnect);
+        app_col.fixed(&flx_autoreconnect, ROW_H);
+
+        // RMS animation enable + meters
+        let show_rms_lbl = fl!("chk-rms-monitor");
+        let mut show_rms = CheckButton::new(0, 0, 0, 0, show_rms_lbl.as_str());
+        if config.monitor_rms {
+            show_rms.set(true);
+        }
+        let mut rms_mon_l = Progress::new(0, 0, 0, 0, "");
+        let mut rms_mon_r = Progress::new(0, 0, 0, 0, "");
+        rms_mon_l.set_minimum(0.0);
+        rms_mon_l.set_maximum(16384.0);
+        rms_mon_l.set_value(0.0);
+        rms_mon_l.set_color(Color::White);
+        rms_mon_l.set_selection_color(Color::Green);
+        rms_mon_r.set_minimum(0.0);
+        rms_mon_r.set_maximum(16384.0);
+        rms_mon_r.set_value(0.0);
+        rms_mon_r.set_color(Color::White);
+        rms_mon_r.set_selection_color(Color::Green);
+        show_rms.set_callback({
+            let mut rms_mon_l = rms_mon_l.clone();
+            let mut rms_mon_r = rms_mon_r.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                rms_mon_l.set_value(0.0);
+                rms_mon_r.set_value(0.0);
+                let run_rms = b.is_set();
+                RUN_RMS_MONITOR.store(run_rms, Ordering::Release);
+                if get_config().monitor_rms == run_rms {
+                    return;
+                }
+                {
+                    let mut conf = get_config_mut();
+                    conf.monitor_rms = run_rms;
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+            }
+        });
+        let mut flx_rms = Flex::new(0, 0, GW, ROW_H, "");
+        flx_rms.set_type(FlexType::Row);
+        flx_rms.end();
+        flx_rms.add(&show_rms);
+        app_col.add(&flx_rms);
+        app_col.fixed(&flx_rms, ROW_H);
+
+        group.add(&app_col);
+
+        AppTab {
+            group,
+            log_level_choice,
+            auto_resume,
+            auto_reconnect,
+            show_rms,
+            rms_mon_l,
+            rms_mon_r,
+        }
+    }
+}
+
+impl StatusTab {
+    fn new(ctx: &TabCtx) -> StatusTab {
+        let mut status_buf = ctx.status_buf.clone();
+        let default_sample_rate = ctx.default_sample_rate;
+
+        let mut group = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
+        group.set_label(&fl!("tab-status"));
+        group.end();
+        let mut status_display = TextDisplay::new(0, TAB_BAR_H, GW, INNER_H, "");
+        status_display.set_buffer(status_buf.clone());
+        status_display.set_text_font(enums::Font::Courier);
+        status_display.set_text_size(12);
+        status_display.set_scrollbar_size(8);
+        let status_style_buf = TextBuffer::default();
+        let normal_color = status_display.text_color();
+        let styles = vec![
+            StyleTableEntry {
+                color: normal_color,
+                font: enums::Font::Courier,
+                size: 12,
+            },
+            StyleTableEntry {
+                color: Color::Green,
+                font: enums::Font::Courier,
+                size: 12,
+            },
+            StyleTableEntry {
+                color: Color::Red,
+                font: enums::Font::Courier,
+                size: 12,
+            },
+        ];
+        status_display.set_highlight_data(status_style_buf.clone(), styles);
+        {
+            let mut ssb = status_style_buf.clone();
+            let sb_ref = status_buf.clone();
+            status_buf.add_modify_callback(move |_, _, _, _, _| {
+                ssb.set_text(&MainForm::build_status_style(&sb_ref.text()));
+            });
+        }
+        status_buf.set_text(&MainForm::format_config_status(default_sample_rate));
+        group.add(&status_display);
+
+        StatusTab { group }
+    }
+}
 
 impl MainForm {
-    /// Adds a `label: widget` row (fixed-width label, flexed widget) to `col`.
-    /// Factors out the row shape repeated across most config tab entries.
-    fn add_labeled_row(col: &mut Flex, label: &str, label_w: i32, widget: &impl WidgetExt) {
-        let lbl = Frame::default().with_label(label);
-        let mut row = Flex::new(0, 0, GW, ROW_H, "");
-        row.set_spacing(5);
-        row.set_type(FlexType::Row);
-        row.end();
-        row.add(&lbl);
-        row.fixed(&lbl, label_w);
-        row.add(widget);
-        col.add(&row);
-        col.fixed(&row, ROW_H);
-    }
-
-    /// Builds the entire main window in one function.
-    /// Splitting it into per-tab helpers would require passing `status_buf` (the
-    /// TextBuffer backing the Status tab) into every builder, plus a return struct
-    /// per tab to hand back the widgets stored in `MainForm` — more churn than gain.
+    /// Builds the entire main window.
     pub fn create(
         config: &Configuration,
         config_changed: &Rc<Cell<bool>>,
@@ -225,824 +1118,42 @@ impl MainForm {
         flx_title.add(&opt_frame);
         vpack.add(&flx_title);
 
-        // show config option widgets in tabs
-        const TAB_H: i32 = 250;
-        const TAB_BAR_H: i32 = 30;
-        const INNER_H: i32 = TAB_H - TAB_BAR_H;
-        const ROW_SPACING: i32 = 5;
-        const MARGIN: i32 = 5;
-        const LABEL_W: i32 = 130;
-        const LABEL_W_NET: i32 = 179;
-
-        let mut status_buf = TextBuffer::default();
+        // show config option widgets in tabs, one struct per visible tab
+        let status_buf = TextBuffer::default();
 
         let mut tabs = Tabs::new(0, 0, GW, TAB_H, "");
         tabs.end();
 
-        // ====== AUDIO TAB ======
-        let mut g_audio = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
-        g_audio.set_label(&fl!("tab-audio"));
-        g_audio.end();
-        let mut audio_col = Flex::new(0, TAB_BAR_H, GW, INNER_H, "");
-        audio_col.set_type(FlexType::Column);
-        audio_col.set_spacing(ROW_SPACING);
-        audio_col.set_margin(MARGIN);
-        audio_col.end();
-
-        // setup audio source choice
-        ui_log(LogCategory::Info, &fl!("status-setup-audio"));
-        let mut choose_audio_source_but = Choice::new(0, 0, 0, ROW_H, "");
-        for name in audio_sources {
-            choose_audio_source_but.add_choice(&name.as_str().fw_slash_pipe_escape());
-        }
-        choose_audio_source_but.set_value(config.sound_source_index.unwrap_or(0));
-        choose_audio_source_but.set_callback({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |b| {
-                let Some(name) = b.choice().map(|n| n.as_str().fw_slash_pipe_unescape()) else {
-                    return;
-                };
-                let index = b.value();
-                if get_config().sound_source_index == Some(index) {
-                    return;
-                }
-                ui_log(
-                    LogCategory::Info,
-                    &fl!("warn-audio-changed", "name" = &name),
-                );
-                {
-                    let mut conf = get_config_mut();
-                    conf.sound_source = Some(name);
-                    conf.sound_source_index = Some(index);
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                config_changed.set(true);
-            }
-        });
-        Self::add_labeled_row(
-            &mut audio_col,
-            &fl!("audio-source-label", "name" = ""),
-            LABEL_W,
-            &choose_audio_source_but,
-        );
-
-        // streaming format
-        let formats = StreamingFormat::ALL.map(StreamingFormat::as_str);
-        let initial_fmt = config
-            .streaming_format
-            .unwrap_or(StreamingFormat::Lpcm)
-            .as_str();
-        let initial_fmt_idx = formats.iter().position(|f| *f == initial_fmt).unwrap_or(0) as i32;
-        let mut fmt_choice = Choice::new(0, 0, 0, ROW_H, "");
-        for fmt in formats {
-            fmt_choice.add_choice(fmt);
-        }
-        fmt_choice.set_value(initial_fmt_idx);
-        fmt_choice.set_callback({
-            let mut sb = status_buf.clone();
-            move |b| {
-                let Some(format) = b.choice() else {
-                    return;
-                };
-                let newformat = StreamingFormat::from_str(&format).unwrap();
-                if get_config().streaming_format == Some(newformat) {
-                    return;
-                }
-                ui_log(
-                    LogCategory::Info,
-                    &fl!("info-format-changed", "format" = &format),
-                );
-                {
-                    let mut conf = get_config_mut();
-                    conf.streaming_format = Some(newformat);
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-            }
-        });
-        Self::add_labeled_row(
-            &mut audio_col,
-            &fl!("fmt-label", "format" = ""),
-            LABEL_W,
-            &fmt_choice,
-        );
-
-        // streaming content length / chunking
-        let streamsize = config
-            .streaming_format
-            .map_or(StreamSize::U64maxNotChunked, |fmt| {
-                config
-                    .stream_size_for(fmt)
-                    .unwrap_or(StreamSize::NoneChunked)
-            });
-        let streamsizes = StreamSize::ALL.map(StreamSize::as_str);
-        let streamsize_str = streamsize.as_str();
-        let initial_ss_idx = streamsizes
-            .iter()
-            .position(|s| *s == streamsize_str)
-            .unwrap_or(0) as i32;
-        let mut ss_choice = Choice::new(0, 0, 0, ROW_H, "");
-        for s in streamsizes {
-            ss_choice.add_choice(s);
-        }
-        ss_choice.set_value(initial_ss_idx);
-        ss_choice.set_callback({
-            let mut sb = status_buf.clone();
-            move |b| {
-                let Some(newsize) = b.choice() else {
-                    return;
-                };
-                let streamsize = StreamSize::from_str(&newsize).unwrap();
-                let current = {
-                    let cfg = get_config();
-                    cfg.stream_size_for(cfg.streaming_format.unwrap_or(StreamingFormat::Flac))
-                };
-                if current == Some(streamsize) {
-                    return;
-                }
-                let streaming_format = {
-                    let mut conf = get_config_mut();
-                    let fmt = conf.streaming_format.unwrap_or(StreamingFormat::Flac);
-                    conf.set_stream_size_for(fmt, streamsize);
-                    let _ = conf.update_config();
-                    conf.streaming_format.unwrap()
-                };
-                ui_log(
-                    LogCategory::Info,
-                    &fl!(
-                        "info-streamsize-changed",
-                        "format" = streaming_format,
-                        "size" = &newsize
-                    ),
-                );
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-            }
-        });
-        Self::add_labeled_row(
-            &mut audio_col,
-            &fl!("strmsize-label", "size" = ""),
-            LABEL_W,
-            &ss_choice,
-        );
-
-        // 24-bit checkbox
-        let b24_bit_lbl = fl!("chk-24bit");
-        let mut b24_bit = CheckButton::new(0, 0, 0, 0, b24_bit_lbl.as_str());
-        if config.bits_per_sample.unwrap_or(16) == 24 {
-            b24_bit.set(true);
-        }
-        // dither checkbox — created before b24_bit's callback so we can clone it in
-        let use_dither_lbl = fl!("chk-use-dither");
-        let mut use_dither = CheckButton::new(0, 0, 0, 0, use_dither_lbl.as_str());
-        if config.use_dither.unwrap_or(true) {
-            use_dither.set(true);
-        }
-        if config.bits_per_sample.unwrap_or(16) == 24 {
-            use_dither.set(false);
-            use_dither.deactivate();
-        }
-        use_dither.set_callback({
-            let mut sb = status_buf.clone();
-            move |b| {
-                let is_set = b.is_set();
-                if get_config().use_dither == Some(is_set) {
-                    return;
-                }
-                {
-                    let mut conf = get_config_mut();
-                    conf.use_dither = Some(is_set);
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-            }
-        });
-        b24_bit.set_callback({
-            let mut sb = status_buf.clone();
-            let mut use_dither_ref = use_dither.clone();
-            move |b| {
-                let new_bits: u16 = if b.is_set() { 24 } else { 16 };
-                if get_config().bits_per_sample == Some(new_bits) {
-                    return;
-                }
-                {
-                    let mut conf = get_config_mut();
-                    if b.is_set() {
-                        conf.bits_per_sample = Some(24);
-                        use_dither_ref.set(false);
-                        use_dither_ref.deactivate();
-                    } else {
-                        conf.bits_per_sample = Some(16);
-                        use_dither_ref.activate();
-                        use_dither_ref.set(conf.use_dither.unwrap_or(true));
-                    }
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-            }
-        });
-        // sample rate choice — index 0 is "System Default", indices 1+ are fixed rates
-        let initial_sr_idx = match config.sample_rate {
-            None => 0,
-            Some(rate) => SAMPLE_RATES
-                .iter()
-                .position(|&r| r == rate)
-                .map(|i| i + 1)
-                .unwrap_or(0) as i32,
+        let ctx = TabCtx {
+            config,
+            config_changed: config_changed.clone(),
+            status_buf: status_buf.clone(),
+            default_sample_rate,
         };
-        let mut sr_choice = Choice::new(0, 0, 0, ROW_H, "");
-        sr_choice.add_choice(&fl!("sr-system-default", "rate" = default_sample_rate));
-        for rate in SAMPLE_RATES {
-            sr_choice.add_choice(&rate.to_string());
-        }
-        sr_choice.set_value(initial_sr_idx);
-        sr_choice.set_callback({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |c| {
-                let new_rate = if c.value() == 0 {
-                    None
-                } else {
-                    Some(SAMPLE_RATES[c.value() as usize - 1])
-                };
-                if get_config().sample_rate == new_rate {
-                    return;
-                }
-                {
-                    let mut conf = get_config_mut();
-                    conf.sample_rate = new_rate;
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                config_changed.set(true);
-            }
-        });
-        let lbl_sr = Frame::default().with_label(&fl!("sample-rate-label"));
-        let mut flx_b24 = Flex::new(0, 0, GW, ROW_H, "");
-        flx_b24.set_spacing(5);
-        flx_b24.set_type(FlexType::Row);
-        flx_b24.end();
-        flx_b24.add(&b24_bit);
-        flx_b24.fixed(&b24_bit, 80);
-        flx_b24.add(&lbl_sr);
-        flx_b24.fixed(&lbl_sr, LABEL_W);
-        flx_b24.add(&sr_choice);
-        audio_col.add(&flx_b24);
-        audio_col.fixed(&flx_b24, ROW_H);
 
-        // inject silence checkbox
-        let inj_silence_lbl = fl!("chk-inject-silence");
-        let mut inj_silence = CheckButton::new(0, 0, 0, 0, inj_silence_lbl.as_str());
-        if config.inject_silence.unwrap_or(false) {
-            inj_silence.set(true);
-        }
-        inj_silence.set_callback({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |b| {
-                let is_set = b.is_set();
-                if get_config().inject_silence == Some(is_set) {
-                    return;
-                }
-                {
-                    let mut conf = get_config_mut();
-                    conf.inject_silence = Some(is_set);
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                config_changed.set(true);
-            }
-        });
-        let mut flx_inj = Flex::new(0, 0, GW, ROW_H, "");
-        flx_inj.set_type(FlexType::Row);
-        flx_inj.end();
-        flx_inj.add(&inj_silence);
-        flx_inj.add(&use_dither);
-        audio_col.add(&flx_inj);
-        audio_col.fixed(&flx_inj, ROW_H);
+        let audio_tab = AudioTab::new(&ctx, audio_sources);
+        tabs.add(&audio_tab.group);
 
-        // initial buffer
-        let label_ms = Frame::default()
-            .with_label(&fl!("buffer-label"))
-            .with_align(Align::Left | Align::Inside);
-        let mut upfront_buffer_ms = IntInput::new(0, 0, 50, 0, "");
-        upfront_buffer_ms.set_maximum_size(5);
-        let b_config = config.buffering_delay_msec.unwrap_or_default();
-        upfront_buffer_ms.set_value(&b_config.to_string());
-        upfront_buffer_ms.set_callback({
-            let mut sb = status_buf.clone();
-            move |i| {
-                let mut b: i32 = i.value().parse().unwrap_or(0);
-                if b < 0 {
-                    i.set_value(&0i32.to_string());
-                    return;
-                }
-                if b > 5_000 {
-                    i.set_value(&5_000i32.to_string());
-                    b = 5_000;
-                }
-                if b as u32 != b_config {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.buffering_delay_msec = Some(b as u32);
-                        let _ = conf.update_config();
-                    }
-                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                }
-            }
-        });
-        let mut flx_buf = Flex::new(0, 0, GW, ROW_H, "");
-        flx_buf.set_spacing(10);
-        flx_buf.set_type(FlexType::Row);
-        flx_buf.end();
-        flx_buf.add(&label_ms);
-        flx_buf.add(&upfront_buffer_ms);
-        flx_buf.fixed(&upfront_buffer_ms, 50);
-        audio_col.add(&flx_buf);
-        audio_col.fixed(&flx_buf, ROW_H);
+        let network_tab = NetworkTab::new(&ctx, networks, ssdp_kick_tx);
+        tabs.add(&network_tab.group);
 
-        g_audio.add(&audio_col);
-        tabs.add(&g_audio);
+        let app_tab = AppTab::new(&ctx);
+        tabs.add(&app_tab.group);
 
-        // ====== NETWORK TAB ======
-        let mut g_network = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
-        g_network.set_label(&fl!("tab-network"));
-        g_network.end();
-        let mut network_col = Flex::new(0, TAB_BAR_H, GW, INNER_H, "");
-        network_col.set_type(FlexType::Column);
-        network_col.set_spacing(ROW_SPACING);
-        network_col.set_margin(MARGIN);
-        network_col.end();
-
-        // network selection
-        let initial_nw_idx = config
-            .last_network
-            .as_ref()
-            .and_then(|nw| networks.iter().position(|n| n == nw))
-            .unwrap_or(0) as i32;
-        let mut choose_network_but = Choice::new(0, 0, 0, ROW_H, "");
-        for name in networks {
-            choose_network_but.add_choice(name);
-        }
-        choose_network_but.set_value(initial_nw_idx);
-        choose_network_but.set_callback({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |b| {
-                let Some(name) = b.choice() else {
-                    return;
-                };
-                if get_config().last_network.as_deref() == Some(name.as_str()) {
-                    return;
-                }
-                ui_log(
-                    LogCategory::Info,
-                    &fl!("warn-network-changed", "name" = &name),
-                );
-                {
-                    let mut conf = get_config_mut();
-                    conf.last_network = Some(name);
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                config_changed.set(true);
-            }
-        });
-        Self::add_labeled_row(
-            &mut network_col,
-            &fl!("active-network", "addr" = ""),
-            LABEL_W_NET,
-            &choose_network_but,
-        );
-
-        // HTTP server listen port
-        let mut listen_port = IntInput::new(0, 0, 0, 0, "");
-        listen_port.set_value(&get_config().server_port.unwrap_or_default().to_string());
-        listen_port.set_maximum_size(5);
-        listen_port.set_callback({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |lp| {
-                let new_value: u32 = lp.value().parse().unwrap_or(0);
-                if new_value > 65535 {
-                    lp.set_value(&get_config().server_port.unwrap_or_default().to_string());
-                    return;
-                }
-                if new_value as u16 != get_config().server_port.unwrap_or_default() {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.server_port = Some(new_value as u16);
-                        let _ = conf.update_config();
-                    }
-                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                    config_changed.set(true);
-                }
-            }
-        });
-        Self::add_labeled_row(
-            &mut network_col,
-            &fl!("http-port-label"),
-            LABEL_W_NET,
-            &listen_port,
-        );
-
-        // SSDP interval
-        let mut ssdp_interval = Counter::new(0, 0, 0, 0, "");
-        ssdp_interval.set_value(config.ssdp_interval_mins);
-        ssdp_interval.handle({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |b, ev| {
-                // zero = no ssdp, else minimum ssdp discovery interval is 0,5 minutes
-                match ev {
-                    Event::Leave | Event::Enter | Event::Unfocus => {
-                        let v = match b.value() {
-                            ..=0.0 => 0.0,
-                            0.01..=1.0 => 1.0,
-                            _ => b.value(),
-                        };
-                        b.set_value(v);
-                        let mut ssdp_interval_mins: f64 = -1.0;
-                        {
-                            let mut conf = get_config_mut();
-                            if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
-                                conf.ssdp_interval_mins = b.value();
-                                ssdp_interval_mins = conf.ssdp_interval_mins;
-                                let _ = conf.update_config();
-                            }
-                        }
-                        if ssdp_interval_mins >= 0.0 {
-                            ui_log(
-                                LogCategory::Warning,
-                                &fl!("warn-ssdp-changed", "interval" = ssdp_interval_mins),
-                            );
-                            sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                            config_changed.set(true);
-                        }
-                        true
-                    }
-                    _ => false,
-                }
-            }
-        });
-        Self::add_labeled_row(
-            &mut network_col,
-            &fl!("ssdp-interval-label"),
-            LABEL_W_NET,
-            &ssdp_interval,
-        );
-
-        // "Run SSDP discovery now" button — disabled when SSDP interval is 0 (thread not running)
-        let mut ssdp_now_btn = Button::new(0, 0, 0, ROW_H, "");
-        ssdp_now_btn.set_label(&fl!("btn-ssdp-discover"));
-        if config.ssdp_interval_mins <= 0.0 {
-            ssdp_now_btn.deactivate();
-        }
-        ssdp_now_btn.set_callback(move |_| {
-            let _ = ssdp_kick_tx.send(());
-        });
-        network_col.add(&ssdp_now_btn);
-        network_col.fixed(&ssdp_now_btn, ROW_H);
-
-        g_network.add(&network_col);
-        tabs.add(&g_network);
-
-        // ====== APP TAB ======
-        let mut g_app = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
-        g_app.set_label(&fl!("tab-app"));
-        g_app.end();
-        let mut app_col = Flex::new(0, TAB_BAR_H, GW, INNER_H, "");
-        app_col.set_type(FlexType::Column);
-        app_col.set_spacing(ROW_SPACING);
-        app_col.set_margin(MARGIN);
-        app_col.end();
-
-        // Language choice
-        let available_langs = i18n::available_languages();
-        let cur_lang = config
-            .language
-            .clone()
-            .unwrap_or_else(|| "en-US".to_string());
-        let initial_lang_idx = available_langs
-            .iter()
-            .position(|l| l == &cur_lang)
-            .unwrap_or(0) as i32;
-        let mut lang_button = Choice::new(0, 0, 0, ROW_H, "");
-        for lang in &available_langs {
-            lang_button.add_choice(lang);
-        }
-        lang_button.set_value(initial_lang_idx);
-        lang_button.set_callback({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |b| {
-                let Some(lang) = b.choice() else {
-                    return;
-                };
-                if get_config().language.as_deref() == Some(lang.as_str()) {
-                    return;
-                }
-                ui_log(
-                    LogCategory::Warning,
-                    &fl!("warn-language-changed", "lang" = &lang),
-                );
-                {
-                    let mut conf = get_config_mut();
-                    conf.language = Some(lang);
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                config_changed.set(true);
-            }
-        });
-        Self::add_labeled_row(
-            &mut app_col,
-            &fl!("language-label", "lang" = ""),
-            LABEL_W,
-            &lang_button,
-        );
-
-        // Theme choice
-        if let Some(theme) = config.color_theme {
-            Self::apply_theme(theme.into());
-        }
-        let initial_theme_idx = config.color_theme.unwrap_or(0) as i32;
-        let mut theme_button = Choice::new(0, 0, 0, ROW_H, "");
-        for theme in THEMES.iter() {
-            theme_button.add_choice(theme);
-        }
-        theme_button.set_value(initial_theme_idx);
-        theme_button.set_callback({
-            let mut sb = status_buf.clone();
-            move |b| {
-                if b.value() < 0 {
-                    return;
-                }
-                let new_theme = b.value() as u8;
-                if get_config().color_theme == Some(new_theme) {
-                    return;
-                }
-                let name = Self::apply_theme(b.value() as usize);
-                debug!("New theme = {name}");
-                {
-                    let mut conf = get_config_mut();
-                    conf.color_theme = Some(new_theme);
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-            }
-        });
-        Self::add_labeled_row(
-            &mut app_col,
-            &fl!("color-theme-label", "name" = ""),
-            LABEL_W,
-            &theme_button,
-        );
-
-        // Widget style choice
-        // note: unlike the color theme, a widget style change cannot be cleanly
-        // undone at runtime (fltk-theme has no "reset to default box drawing"),
-        // so it's only applied at startup and otherwise requires a restart
-        if let Some(style) = config.widget_scheme {
-            Self::apply_scheme(style.into());
-        }
-        let initial_style_idx = config.widget_scheme.unwrap_or(NSTYLES as u8) as i32;
-        let mut style_button = Choice::new(0, 0, 0, ROW_H, "");
-        for style in STYLES.iter() {
-            style_button.add_choice(style);
-        }
-        style_button.set_value(initial_style_idx);
-        style_button.set_callback({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |b| {
-                if b.value() < 0 {
-                    return;
-                }
-                let new_style = b.value() as u8;
-                if get_config().widget_scheme == Some(new_style) {
-                    return;
-                }
-                let name = STYLES[b.value() as usize];
-                {
-                    let mut conf = get_config_mut();
-                    conf.widget_scheme = Some(new_style);
-                    let _ = conf.update_config();
-                }
-                ui_log(
-                    LogCategory::Warning,
-                    &fl!("warn-widget-style-changed", "style" = name),
-                );
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                config_changed.set(true);
-            }
-        });
-        Self::add_labeled_row(
-            &mut app_col,
-            &fl!("widget-style-label", "style" = ""),
-            LABEL_W,
-            &style_button,
-        );
-
-        // log level choice
-        let log_levels = ["Info", "Debug"];
-        let initial_ll_idx = if config.log_level == LevelFilter::Debug {
-            1i32
-        } else {
-            0i32
-        };
-        let mut log_level_choice = Choice::new(0, 0, 0, ROW_H, "");
-        for ll in &log_levels {
-            log_level_choice.add_choice(ll);
-        }
-        log_level_choice.set_value(initial_ll_idx);
-        log_level_choice.set_callback({
-            let config_changed = config_changed.clone();
-            let mut sb = status_buf.clone();
-            move |b| {
-                if b.value() < 0 {
-                    return;
-                }
-                let level = log_levels[b.value() as usize];
-                let loglevel = level.parse().unwrap_or(LevelFilter::Info);
-                if get_config().log_level == loglevel {
-                    return;
-                }
-                ui_log(
-                    LogCategory::Warning,
-                    &fl!("warn-log-changed", "level" = level),
-                );
-                {
-                    let mut conf = get_config_mut();
-                    conf.log_level = loglevel;
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-                config_changed.set(true);
-            }
-        });
-        Self::add_labeled_row(
-            &mut app_col,
-            &fl!("log-level-label", "level" = ""),
-            LABEL_W,
-            &log_level_choice,
-        );
-
-        // auto_resume + auto_reconnect row
-        let auto_resume_lbl = fl!("chk-autoresume");
-        let mut auto_resume = CheckButton::new(0, 0, 0, 0, auto_resume_lbl.as_str());
-        if config.auto_resume {
-            auto_resume.set(true);
-        }
-        auto_resume.set_callback({
-            let mut sb = status_buf.clone();
-            move |b| {
-                let is_set = b.is_set();
-                if get_config().auto_resume == is_set {
-                    return;
-                }
-                {
-                    let mut conf = get_config_mut();
-                    conf.auto_resume = is_set;
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-            }
-        });
-        let auto_reconnect_lbl = fl!("chk-autoreconnect");
-        let mut auto_reconnect = CheckButton::new(0, 0, 0, 0, auto_reconnect_lbl.as_str());
-        if config.auto_reconnect {
-            auto_reconnect.set(true);
-        }
-        auto_reconnect.set_callback({
-            let mut sb = status_buf.clone();
-            move |b| {
-                let is_set = b.is_set();
-                if get_config().auto_reconnect == is_set {
-                    return;
-                }
-                {
-                    let mut conf = get_config_mut();
-                    conf.auto_reconnect = is_set;
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-            }
-        });
-        let mut flx_autoresume = Flex::new(0, 0, GW, ROW_H, "");
-        flx_autoresume.set_type(FlexType::Row);
-        flx_autoresume.end();
-        flx_autoresume.add(&auto_resume);
-        app_col.add(&flx_autoresume);
-        app_col.fixed(&flx_autoresume, ROW_H);
-
-        let mut flx_autoreconnect = Flex::new(0, 0, GW, ROW_H, "");
-        flx_autoreconnect.set_type(FlexType::Row);
-        flx_autoreconnect.end();
-        flx_autoreconnect.add(&auto_reconnect);
-        app_col.add(&flx_autoreconnect);
-        app_col.fixed(&flx_autoreconnect, ROW_H);
-
-        // RMS animation enable + meters
-        let show_rms_lbl = fl!("chk-rms-monitor");
-        let mut show_rms = CheckButton::new(0, 0, 0, 0, show_rms_lbl.as_str());
-        if config.monitor_rms {
-            show_rms.set(true);
-        }
-        let mut rms_mon_l = Progress::new(0, 0, 0, 0, "");
-        let mut rms_mon_r = Progress::new(0, 0, 0, 0, "");
-        rms_mon_l.set_minimum(0.0);
-        rms_mon_l.set_maximum(16384.0);
-        rms_mon_l.set_value(0.0);
-        rms_mon_l.set_color(Color::White);
-        rms_mon_l.set_selection_color(Color::Green);
-        rms_mon_r.set_minimum(0.0);
-        rms_mon_r.set_maximum(16384.0);
-        rms_mon_r.set_value(0.0);
-        rms_mon_r.set_color(Color::White);
-        rms_mon_r.set_selection_color(Color::Green);
-        show_rms.set_callback({
-            let mut rms_mon_l = rms_mon_l.clone();
-            let mut rms_mon_r = rms_mon_r.clone();
-            let mut sb = status_buf.clone();
-            move |b| {
-                rms_mon_l.set_value(0.0);
-                rms_mon_r.set_value(0.0);
-                let run_rms = b.is_set();
-                RUN_RMS_MONITOR.store(run_rms, Ordering::Release);
-                if get_config().monitor_rms == run_rms {
-                    return;
-                }
-                {
-                    let mut conf = get_config_mut();
-                    conf.monitor_rms = run_rms;
-                    let _ = conf.update_config();
-                }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
-            }
-        });
-        let mut flx_rms = Flex::new(0, 0, GW, ROW_H, "");
-        flx_rms.set_type(FlexType::Row);
-        flx_rms.end();
-        flx_rms.add(&show_rms);
-        app_col.add(&flx_rms);
-        app_col.fixed(&flx_rms, ROW_H);
-
-        g_app.add(&app_col);
-        tabs.add(&g_app);
-
-        // ====== STATUS TAB ======
-        let mut g_status = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
-        g_status.set_label(&fl!("tab-status"));
-        g_status.end();
-        let mut status_display = TextDisplay::new(0, TAB_BAR_H, GW, INNER_H, "");
-        status_display.set_buffer(status_buf.clone());
-        status_display.set_text_font(enums::Font::Courier);
-        status_display.set_text_size(12);
-        status_display.set_scrollbar_size(8);
-        let status_style_buf = TextBuffer::default();
-        let normal_color = status_display.text_color();
-        let styles = vec![
-            StyleTableEntry {
-                color: normal_color,
-                font: enums::Font::Courier,
-                size: 12,
-            },
-            StyleTableEntry {
-                color: Color::Green,
-                font: enums::Font::Courier,
-                size: 12,
-            },
-            StyleTableEntry {
-                color: Color::Red,
-                font: enums::Font::Courier,
-                size: 12,
-            },
-        ];
-        status_display.set_highlight_data(status_style_buf.clone(), styles);
-        {
-            let mut ssb = status_style_buf.clone();
-            let sb_ref = status_buf.clone();
-            status_buf.add_modify_callback(move |_, _, _, _, _| {
-                ssb.set_text(&MainForm::build_status_style(&sb_ref.text()));
-            });
-        }
-        status_buf.set_text(&MainForm::format_config_status(default_sample_rate));
-        g_status.add(&status_display);
-        tabs.add(&g_status);
+        let status_tab = StatusTab::new(&ctx);
+        tabs.add(&status_tab.group);
 
         tabs.end();
         vpack.add(&tabs);
-        let _ = tabs.set_value(&g_status);
+        let _ = tabs.set_value(&status_tab.group);
 
         // RMS level meters always visible below the tabs
         let mut flx_rms_v = Flex::new(0, 0, GW, 20, "");
         flx_rms_v.set_spacing(4);
         flx_rms_v.set_type(FlexType::Column);
         flx_rms_v.end();
-        flx_rms_v.add(&rms_mon_l);
-        flx_rms_v.add(&rms_mon_r);
+        flx_rms_v.add(&app_tab.rms_mon_l);
+        flx_rms_v.add(&app_tab.rms_mon_r);
         vpack.add(&flx_rms_v);
 
         // hidden restart button
@@ -1110,19 +1221,19 @@ impl MainForm {
             wind,
             vpack,
             restartbutton: flx_restart,
-            auto_resume,
-            auto_reconnect,
-            ssdp_interval,
-            log_level_choice,
-            fmt_choice,
-            ss_choice,
-            sr_choice,
-            b24_bit,
-            use_dither,
-            show_rms,
-            rms_mon_l,
-            rms_mon_r,
-            choose_audio_source_but,
+            auto_resume: app_tab.auto_resume,
+            auto_reconnect: app_tab.auto_reconnect,
+            ssdp_interval: network_tab.ssdp_interval,
+            log_level_choice: app_tab.log_level_choice,
+            fmt_choice: audio_tab.fmt_choice,
+            ss_choice: audio_tab.ss_choice,
+            sr_choice: audio_tab.sr_choice,
+            b24_bit: audio_tab.b24_bit,
+            use_dither: audio_tab.use_dither,
+            show_rms: app_tab.show_rms,
+            rms_mon_l: app_tab.rms_mon_l,
+            rms_mon_r: app_tab.rms_mon_r,
+            choose_audio_source_but: audio_tab.choose_audio_source_but,
             tb,
             status_buf,
             btn_index: btn_insert_index,

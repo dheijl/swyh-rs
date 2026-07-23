@@ -104,26 +104,25 @@ const THEMES_ARRAY: &[ThemeDesc] = &[
 /// the main (and only) form
 pub struct MainForm {
     pub wind: DoubleWindow,
-    pub auto_resume: CheckButton,
-    pub auto_reconnect: CheckButton,
-    pub ssdp_interval: Counter,
-    pub log_level_choice: Choice,
+    pub choose_audio_source_but: Choice,
     pub fmt_choice: Choice,
     pub ss_choice: Choice,
     pub sr_choice: Choice,
     pub b24_bit: CheckButton,
     pub use_dither: CheckButton,
+    pub ssdp_interval: Counter,
+    pub log_level_choice: Choice,
+    pub auto_resume: CheckButton,
+    pub auto_reconnect: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
-    pub choose_audio_source_but: Choice,
     pub tb: TextDisplay,
     status_buf: TextBuffer,
-    vpack: Pack,
     restartbutton: Flex,
     bwidth: i32,
     bheight: i32,
-    btn_index: i32,
+    renderer_pack: Pack,
     wd: WavData,
     default_sample_rate: u32,
     local_addr: IpAddr,
@@ -1172,8 +1171,8 @@ impl MainForm {
         vpack.add(&flx_restart);
 
         // show renderer buttons title with our local ip address
-        let mut flx_buttons = Flex::new(0, 0, GW, 25, "");
-        flx_buttons.end();
+        let mut flx_buttons_title = Flex::new(0, 0, GW, 25, "");
+        flx_buttons_title.end();
         let mut frame = Frame::new(0, 0, FW, 25, "").with_align(Align::Center);
         frame.set_frame(FrameType::BorderBox);
         frame.set_label(&fl!("upnp-devices", "addr" = local_addr));
@@ -1197,11 +1196,17 @@ impl MainForm {
                 }
             }
         });
-        flx_buttons.add(&frame);
-        vpack.add(&flx_buttons);
+        flx_buttons_title.add(&frame);
+        vpack.add(&flx_buttons_title);
 
-        // ssdp discovered renderer buttons go here
-        let btn_insert_index = vpack.children();
+        // ssdp discovered renderer buttons go here, stacked in their own nested pack
+        // so new buttons can just be inserted/removed from it directly, without any
+        // index bookkeeping relative to unrelated siblings in vpack
+        let mut renderer_pack = Pack::new(0, 0, GW, 0, "");
+        renderer_pack.set_type(PackType::Vertical);
+        renderer_pack.set_spacing(15);
+        renderer_pack.end();
+        vpack.add(&renderer_pack);
 
         // setup feedback textbox at the bottom
         let mut flx_feedback = Flex::new(0, 0, GW, 156, "");
@@ -1219,24 +1224,23 @@ impl MainForm {
         MainForm {
             player_index: 0,
             wind,
-            vpack,
-            restartbutton: flx_restart,
-            auto_resume: app_tab.auto_resume,
-            auto_reconnect: app_tab.auto_reconnect,
-            ssdp_interval: network_tab.ssdp_interval,
-            log_level_choice: app_tab.log_level_choice,
+            choose_audio_source_but: audio_tab.choose_audio_source_but,
             fmt_choice: audio_tab.fmt_choice,
             ss_choice: audio_tab.ss_choice,
             sr_choice: audio_tab.sr_choice,
             b24_bit: audio_tab.b24_bit,
             use_dither: audio_tab.use_dither,
+            ssdp_interval: network_tab.ssdp_interval,
+            log_level_choice: app_tab.log_level_choice,
+            auto_resume: app_tab.auto_resume,
+            auto_reconnect: app_tab.auto_reconnect,
             show_rms: app_tab.show_rms,
             rms_mon_l: app_tab.rms_mon_l,
             rms_mon_r: app_tab.rms_mon_r,
-            choose_audio_source_but: audio_tab.choose_audio_source_but,
             tb,
             status_buf,
-            btn_index: btn_insert_index,
+            restartbutton: flx_restart,
+            renderer_pack,
             bwidth: frame.width(),
             bheight: frame.height(),
             wd: *wd,
@@ -1535,7 +1539,7 @@ impl MainForm {
         new_renderer.rend_ui.button = Some(pbut.clone());
         // add the new renderer to the global list of renderers
         get_renderers_mut().push(new_renderer.clone());
-        self.vpack.insert(&flx_button, self.btn_index);
+        self.renderer_pack.insert(&flx_button, 0);
         app::redraw();
         // now add the new player to the global list of renderers
         // check if autoreconnect is set for this renderer

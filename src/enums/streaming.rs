@@ -262,16 +262,10 @@ impl StreamingContext {
         let bits_per_sample = params
             .bd
             .unwrap_or_else(|| BitDepth::from(cfg.bits_per_sample.unwrap_or(16)));
-        let (streamsize, chunksize) =
-            params
-                .ss
-                .map(|ss| ss.values())
-                .unwrap_or_else(|| match streaming_format {
-                    StreamingFormat::Lpcm => cfg.lpcm_stream_size.unwrap().values(),
-                    StreamingFormat::Wav => cfg.wav_stream_size.unwrap().values(),
-                    StreamingFormat::Rf64 => cfg.rf64_stream_size.unwrap().values(),
-                    StreamingFormat::Flac => cfg.flac_stream_size.unwrap().values(),
-                });
+        let (streamsize, chunksize) = params
+            .ss
+            .map(|ss| ss.values())
+            .unwrap_or_else(|| cfg.stream_size_for(streaming_format).unwrap().values());
 
         StreamingContext {
             sample_rate: wd.sample_rate,

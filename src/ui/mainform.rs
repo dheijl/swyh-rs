@@ -330,16 +330,13 @@ impl MainForm {
         );
 
         // streaming content length / chunking
-        let streamsize = if let Some(fmt) = config.streaming_format {
-            match fmt {
-                StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Wav => config.wav_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Rf64 => config.rf64_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Flac => config.flac_stream_size.unwrap_or(StreamSize::NoneChunked),
-            }
-        } else {
-            StreamSize::U64maxNotChunked
-        };
+        let streamsize = config
+            .streaming_format
+            .map_or(StreamSize::U64maxNotChunked, |fmt| {
+                config
+                    .stream_size_for(fmt)
+                    .unwrap_or(StreamSize::NoneChunked)
+            });
         let streamsizes = StreamSize::ALL.map(StreamSize::as_str);
         let streamsize_str = streamsize.as_str();
         let initial_ss_idx = streamsizes
@@ -360,24 +357,15 @@ impl MainForm {
                 let streamsize = StreamSize::from_str(&newsize).unwrap();
                 let current = {
                     let cfg = get_config();
-                    match cfg.streaming_format.unwrap_or(StreamingFormat::Flac) {
-                        StreamingFormat::Lpcm => cfg.lpcm_stream_size,
-                        StreamingFormat::Wav => cfg.wav_stream_size,
-                        StreamingFormat::Rf64 => cfg.rf64_stream_size,
-                        StreamingFormat::Flac => cfg.flac_stream_size,
-                    }
+                    cfg.stream_size_for(cfg.streaming_format.unwrap_or(StreamingFormat::Flac))
                 };
                 if current == Some(streamsize) {
                     return;
                 }
                 let streaming_format = {
                     let mut conf = get_config_mut();
-                    match conf.streaming_format.unwrap_or(StreamingFormat::Flac) {
-                        StreamingFormat::Lpcm => conf.lpcm_stream_size = Some(streamsize),
-                        StreamingFormat::Wav => conf.wav_stream_size = Some(streamsize),
-                        StreamingFormat::Rf64 => conf.rf64_stream_size = Some(streamsize),
-                        StreamingFormat::Flac => conf.flac_stream_size = Some(streamsize),
-                    }
+                    let fmt = conf.streaming_format.unwrap_or(StreamingFormat::Flac);
+                    conf.set_stream_size_for(fmt, streamsize);
                     let _ = conf.update_config();
                     conf.streaming_format.unwrap()
                 };
@@ -1192,16 +1180,13 @@ impl MainForm {
             .map_or("lpcm".to_string(), |f| f.to_string());
         let bits = config.bits_per_sample.unwrap_or(16);
         let sample_rate = config.sample_rate.unwrap_or(default_sample_rate);
-        let streamsize = if let Some(fmt) = config.streaming_format {
-            match fmt {
-                StreamingFormat::Lpcm => config.lpcm_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Wav => config.wav_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Rf64 => config.rf64_stream_size.unwrap_or(StreamSize::NoneChunked),
-                StreamingFormat::Flac => config.flac_stream_size.unwrap_or(StreamSize::NoneChunked),
-            }
-        } else {
-            StreamSize::U64maxNotChunked
-        };
+        let streamsize = config
+            .streaming_format
+            .map_or(StreamSize::U64maxNotChunked, |fmt| {
+                config
+                    .stream_size_for(fmt)
+                    .unwrap_or(StreamSize::NoneChunked)
+            });
         let buf_ms = config.buffering_delay_msec.unwrap_or(0);
         let network = config.last_network.as_deref().unwrap_or("-");
         let port = config.server_port.unwrap_or_default();

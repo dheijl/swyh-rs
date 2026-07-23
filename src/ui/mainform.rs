@@ -289,20 +289,15 @@ impl MainForm {
         );
 
         // streaming format
-        let formats = vec![
-            StreamingFormat::Lpcm.to_string(),
-            StreamingFormat::Wav.to_string(),
-            StreamingFormat::Flac.to_string(),
-            StreamingFormat::Rf64.to_string(),
-        ];
+        let formats = StreamingFormat::ALL.map(StreamingFormat::as_str);
         let initial_fmt = config
             .streaming_format
             .unwrap_or(StreamingFormat::Lpcm)
-            .to_string();
-        let initial_fmt_idx = formats.iter().position(|f| f == &initial_fmt).unwrap_or(0) as i32;
+            .as_str();
+        let initial_fmt_idx = formats.iter().position(|f| *f == initial_fmt).unwrap_or(0) as i32;
         let mut fmt_choice = Choice::new(0, 0, 0, ROW_H, "");
-        for fmt in &formats {
-            fmt_choice.add_choice(fmt.as_str());
+        for fmt in formats {
+            fmt_choice.add_choice(fmt);
         }
         fmt_choice.set_value(initial_fmt_idx);
         fmt_choice.set_callback({
@@ -345,20 +340,15 @@ impl MainForm {
         } else {
             StreamSize::U64maxNotChunked
         };
-        let streamsizes = vec![
-            StreamSize::U64maxNotChunked.to_string(),
-            StreamSize::NoneChunked.to_string(),
-            StreamSize::U64maxChunked.to_string(),
-            StreamSize::U32maxNotChunked.to_string(),
-            StreamSize::U32maxChunked.to_string(),
-        ];
+        let streamsizes = StreamSize::ALL.map(StreamSize::as_str);
+        let streamsize_str = streamsize.as_str();
         let initial_ss_idx = streamsizes
             .iter()
-            .position(|s| s == &streamsize.to_string())
+            .position(|s| *s == streamsize_str)
             .unwrap_or(0) as i32;
         let mut ss_choice = Choice::new(0, 0, 0, ROW_H, "");
-        for s in &streamsizes {
-            ss_choice.add_choice(s.as_str());
+        for s in streamsizes {
+            ss_choice.add_choice(s);
         }
         ss_choice.set_value(initial_ss_idx);
         ss_choice.set_callback({

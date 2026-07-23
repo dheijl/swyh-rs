@@ -28,14 +28,27 @@ pub enum StreamingFormat {
     Rf64,
 }
 
+impl StreamingFormat {
+    pub const ALL: [StreamingFormat; 4] = [
+        StreamingFormat::Lpcm,
+        StreamingFormat::Wav,
+        StreamingFormat::Flac,
+        StreamingFormat::Rf64,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            StreamingFormat::Lpcm => "lpcm",
+            StreamingFormat::Wav => "wav",
+            StreamingFormat::Flac => "flac",
+            StreamingFormat::Rf64 => "rf64",
+        }
+    }
+}
+
 impl fmt::Display for StreamingFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            StreamingFormat::Lpcm => f.write_str("lpcm"),
-            StreamingFormat::Wav => f.write_str("wav"),
-            StreamingFormat::Flac => f.write_str("flac"),
-            StreamingFormat::Rf64 => f.write_str("rf64"),
-        }
+        f.write_str(self.as_str())
     }
 }
 
@@ -106,15 +119,29 @@ impl StreamSize {
     }
 }
 
+impl StreamSize {
+    pub const ALL: [StreamSize; 5] = [
+        StreamSize::U64maxNotChunked,
+        StreamSize::NoneChunked,
+        StreamSize::U64maxChunked,
+        StreamSize::U32maxNotChunked,
+        StreamSize::U32maxChunked,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            StreamSize::NoneChunked => "NoneChunked",
+            StreamSize::U32maxChunked => "U32maxChunked",
+            StreamSize::U32maxNotChunked => "U32maxNotChunked",
+            StreamSize::U64maxChunked => "U64maxChunked",
+            StreamSize::U64maxNotChunked => "U64maxNotChunked",
+        }
+    }
+}
+
 impl fmt::Display for StreamSize {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            StreamSize::NoneChunked => f.write_str("NoneChunked"),
-            StreamSize::U32maxChunked => f.write_str("U32maxChunked"),
-            StreamSize::U32maxNotChunked => f.write_str("U32maxNotChunked"),
-            StreamSize::U64maxChunked => f.write_str("U64maxChunked"),
-            StreamSize::U64maxNotChunked => f.write_str("U64maxNotChunked"),
-        }
+        f.write_str(self.as_str())
     }
 }
 

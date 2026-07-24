@@ -12,7 +12,7 @@ use crate::{
     utils::ui_logger::{LogCategory, ui_log},
 };
 use cpal::{
-    CallbackInfo, Error, Sample, SampleFormat, SupportedStreamConfig,
+    CallbackInfo, Error, Sample, SampleFormat, SizedSample, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait},
 };
 use crossbeam_channel::Sender;
@@ -299,7 +299,7 @@ pub fn capture_output_audio(
         LogCategory::Info,
         &fl!("audio-default-config", "cfg" = format!("{audio_cfg:?}")),
     );
-    let mut f32_samples: Vec<f32> = Vec::with_capacity(16384);
+    let f32_samples: Vec<f32> = Vec::with_capacity(16384);
     let mut stereo_samples: Vec<f32> = Vec::with_capacity(16384);
     let channels = audio_cfg.channels();
     if channels != 2 {
@@ -310,143 +310,100 @@ pub fn capture_output_audio(
         );
     }
     match audio_cfg.sample_format() {
-        cpal::SampleFormat::F32 => match device.build_input_stream(
+        cpal::SampleFormat::F32 => {
+            let result = device.build_input_stream(
+                audio_cfg.config(),
+                move |data, info: &CallbackInfo| {
+                    wave_reader_f32(data, channels, &mut stereo_samples, &rms_sender, info)
+                },
+                capture_err_fn,
+                None,
+            );
+            log_stream_result(result, "F32")
+        }
+        cpal::SampleFormat::I16 => build_typed_input_stream::<i16>(
+            device,
             audio_cfg.config(),
-            move |data, info: &CallbackInfo| {
-                wave_reader_f32(data, channels, &mut stereo_samples, &rms_sender, info)
-            },
-            capture_err_fn,
-            None,
-        ) {
-            Ok(stream) => {
-                ui_log(
-                    LogCategory::Info,
-                    &fl!("audio-capture-format", "fmt" = "F32"),
-                );
-                Some(stream)
-            }
-            Err(e) => {
-                ui_log(
-                    LogCategory::Error,
-                    &fl!(
-                        "err-capture-format-stream",
-                        "fmt" = "f32",
-                        "error" = e.to_string()
-                    ),
-                );
-                None
-            }
-        },
-        cpal::SampleFormat::I16 => {
-            match device.build_input_stream(
-                audio_cfg.config(),
-                move |data, info: &CallbackInfo| {
-                    wave_reader::<i16>(
-                        data,
-                        channels,
-                        &mut f32_samples,
-                        &mut stereo_samples,
-                        &rms_sender,
-                        info,
-                    )
-                },
-                capture_err_fn,
-                None,
-            ) {
-                Ok(stream) => {
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!("audio-capture-format", "fmt" = "I16"),
-                    );
-                    Some(stream)
-                }
-                Err(e) => {
-                    ui_log(
-                        LogCategory::Error,
-                        &fl!(
-                            "err-capture-format-stream",
-                            "fmt" = "i16",
-                            "error" = e.to_string()
-                        ),
-                    );
-                    None
-                }
-            }
-        }
-        cpal::SampleFormat::U16 => {
-            match device.build_input_stream(
-                audio_cfg.config(),
-                move |data, info: &CallbackInfo| {
-                    wave_reader::<u16>(
-                        data,
-                        channels,
-                        &mut f32_samples,
-                        &mut stereo_samples,
-                        &rms_sender,
-                        info,
-                    )
-                },
-                capture_err_fn,
-                None,
-            ) {
-                Ok(stream) => {
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!("audio-capture-format", "fmt" = "U16"),
-                    );
-                    Some(stream)
-                }
-                Err(e) => {
-                    ui_log(
-                        LogCategory::Error,
-                        &fl!(
-                            "err-capture-format-stream",
-                            "fmt" = "u16",
-                            "error" = e.to_string()
-                        ),
-                    );
-                    None
-                }
-            }
-        }
-        cpal::SampleFormat::I32 => {
-            match device.build_input_stream(
-                audio_cfg.config(),
-                move |data, info: &CallbackInfo| {
-                    wave_reader::<i32>(
-                        data,
-                        channels,
-                        &mut f32_samples,
-                        &mut stereo_samples,
-                        &rms_sender,
-                        info,
-                    )
-                },
-                capture_err_fn,
-                None,
-            ) {
-                Ok(stream) => {
-                    ui_log(
-                        LogCategory::Info,
-                        &fl!("audio-capture-format", "fmt" = "I32"),
-                    );
-                    Some(stream)
-                }
-                Err(e) => {
-                    ui_log(
-                        LogCategory::Error,
-                        &fl!(
-                            "err-capture-format-stream",
-                            "fmt" = "i32",
-                            "error" = e.to_string()
-                        ),
-                    );
-                    None
-                }
-            }
-        }
+            channels,
+            f32_samples,
+            stereo_samples,
+            rms_sender,
+            "I16",
+        ),
+        cpal::SampleFormat::U16 => build_typed_input_stream::<u16>(
+            device,
+            audio_cfg.config(),
+            channels,
+            f32_samples,
+            stereo_samples,
+            rms_sender,
+            "U16",
+        ),
+        cpal::SampleFormat::I32 => build_typed_input_stream::<i32>(
+            device,
+            audio_cfg.config(),
+            channels,
+            f32_samples,
+            stereo_samples,
+            rms_sender,
+            "I32",
+        ),
         _ => None,
     }
+}
+
+/// Logs the outcome of a `build_input_stream` call under the given format label
+/// and collapses it to the `Option<Stream>` the caller returns.
+fn log_stream_result(result: Result<cpal::Stream, Error>, fmt: &str) -> Option<cpal::Stream> {
+    match result {
+        Ok(stream) => {
+            ui_log(LogCategory::Info, &fl!("audio-capture-format", "fmt" = fmt));
+            Some(stream)
+        }
+        Err(e) => {
+            ui_log(
+                LogCategory::Error,
+                &fl!(
+                    "err-capture-format-stream",
+                    "fmt" = fmt,
+                    "error" = e.to_string()
+                ),
+            );
+            None
+        }
+    }
+}
+
+/// Builds an input stream for any sample format handled by the generic [`wave_reader`]
+/// (i.e. every format except the specially-optimized F32 path).
+fn build_typed_input_stream<T>(
+    device: &cpal::Device,
+    config: cpal::StreamConfig,
+    channels: u16,
+    mut f32_samples: Vec<f32>,
+    mut stereo_samples: Vec<f32>,
+    rms_sender: Sender<AudioSamples>,
+    fmt: &str,
+) -> Option<cpal::Stream>
+where
+    T: SizedSample + ToSample<f32>,
+{
+    let result = device.build_input_stream(
+        config,
+        move |data: &[T], info: &CallbackInfo| {
+            wave_reader::<T>(
+                data,
+                channels,
+                &mut f32_samples,
+                &mut stereo_samples,
+                &rms_sender,
+                info,
+            )
+        },
+        capture_err_fn,
+        None,
+    );
+    log_stream_result(result, fmt)
 }
 
 /// `capture_err_fn` - called when it's impossible to start/continue streaming

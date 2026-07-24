@@ -118,6 +118,7 @@ pub struct MainForm {
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
     pub tb: TextDisplay,
+    flx_feedback: Flex,
     status_buf: TextBuffer,
     restartbutton: Flex,
     bwidth: i32,
@@ -142,6 +143,12 @@ const TAB_BAR_H: i32 = 30;
 const INNER_H: i32 = TAB_H - TAB_BAR_H;
 const ROW_SPACING: i32 = 5;
 const MARGIN: i32 = 5;
+/// floor for the feedback log box height once [`MainForm::clamp_feedback_height`]
+/// starts shrinking it to keep it inside the window
+const MIN_FEEDBACK_H: i32 = 60;
+/// height the feedback log box is constructed with, and the ceiling
+/// [`MainForm::clamp_feedback_height`] grows it back to when there's room
+const PREFERRED_FEEDBACK_H: i32 = 296;
 const LABEL_W: i32 = 130;
 const LABEL_W_NET: i32 = 179;
 
@@ -1048,6 +1055,16 @@ impl StatusTab {
     }
 }
 
+/// ideal height for the feedback log box: fills all remaining space below the
+/// rest of `vpack`'s content, down to a floor of `MIN_FEEDBACK_H`. Uncapped
+/// above `PREFERRED_FEEDBACK_H` on purpose - that constant is only the size the
+/// box is constructed with at the window's default height, not a ceiling, so
+/// enlarging the window keeps growing the log box instead of leaving the extra
+/// space unused.
+fn feedback_target_height(window_h: i32, feedback_y: i32) -> i32 {
+    (window_h - feedback_y).max(MIN_FEEDBACK_H)
+}
+
 impl MainForm {
     /// Builds the entire main window.
     pub fn create(
@@ -1086,19 +1103,6 @@ impl MainForm {
 
         wind.end();
         wind.show();
-
-        wind.handle(move |_, _ev| {
-            // Event::Hide fires before Event::Close, hiding the Window and preventing the Close handler being called
-            // debug!("_ev = {:?}, app_event = {:?}", _ev, app::event());
-            match app::event() {
-                Event::Close => {
-                    app.quit();
-                    //std::process::exit(0);
-                    true
-                }
-                _ => false,
-            }
-        });
 
         let mut vpack: Pack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
         vpack.make_resizable(true);
@@ -1209,17 +1213,54 @@ impl MainForm {
         vpack.add(&renderer_pack);
 
         // setup feedback textbox at the bottom
-        let mut flx_feedback = Flex::new(0, 0, GW, 156, "");
+        let mut flx_feedback = Flex::new(0, 0, GW, PREFERRED_FEEDBACK_H, "");
         flx_feedback.end();
         let buf = TextBuffer::default();
-        let mut tb = TextDisplay::new(0, 0, 0, 150, "").with_align(Align::Left);
+        let mut tb = TextDisplay::new(0, 0, 0, PREFERRED_FEEDBACK_H, "").with_align(Align::Left);
         tb.set_text_size(12);
         tb.set_selection_color(enums::Color::DarkYellow);
         tb.set_buffer(Some(buf));
         flx_feedback.add(&tb);
         flx_feedback.resizable(&tb);
         vpack.add(&flx_feedback);
-        vpack.resizable(&flx_feedback);
+        //vpack.resizable(&flx_feedback);
+
+        // Close and Resize both live on the same handle() callback, since a widget
+        // only keeps the last handler registered - Event::Hide fires before
+        // Event::Close, hiding the Window and preventing the Close handler being called.
+        wind.handle({
+            let mut flx_feedback = flx_feedback.clone();
+            move |w, ev| match ev {
+                Event::Close => {
+                    app.quit();
+                    true
+                }
+                // vpack is an Fl_Pack: it auto-fits its own height to its children's
+                // total height on every draw, ignoring the window's height, so it
+                // never grows/shrinks flx_feedback itself when the window is resized.
+                // Do that ourselves: recompute the feedback box height against the
+                // new window height and only touch it if it actually needs to change.
+                Event::Resize => {
+                    let target = feedback_target_height(w.h(), flx_feedback.y());
+                    if target != flx_feedback.h() {
+                        flx_feedback.resize(
+                            flx_feedback.x(),
+                            flx_feedback.y(),
+                            flx_feedback.w(),
+                            target,
+                        );
+                        // tb (a TextDisplay) only recomputes its scrollbars on its
+                        // own next draw(); resize() just flags it and schedules a
+                        // redraw. Force that draw now instead of leaving it as
+                        // pending damage that may not get flushed until whatever
+                        // event happens to pump the loop next.
+                        app::flush();
+                    }
+                    false
+                }
+                _ => false,
+            }
+        });
 
         MainForm {
             player_index: 0,
@@ -1238,6 +1279,7 @@ impl MainForm {
             rms_mon_l: app_tab.rms_mon_l,
             rms_mon_r: app_tab.rms_mon_r,
             tb,
+            flx_feedback,
             status_buf,
             restartbutton: flx_restart,
             renderer_pack,
@@ -1275,7 +1317,29 @@ impl MainForm {
     pub fn show_restart_button(&mut self) {
         self.restartbutton.show();
         self.refresh_status();
+        self.clamp_feedback_height();
         app::redraw();
+    }
+
+    /// `vpack` is an `Fl_Pack`, which auto-grows to fit the total height of its
+    /// (visible) children on every draw, regardless of the window's own height
+    /// (see `Fl_Pack::draw()` in cfltk). So showing the restart button or
+    /// inserting a renderer button can push `flx_feedback` (the trailing
+    /// feedback log) below the visible window.
+    ///
+    fn clamp_feedback_height(&mut self) {
+        app::redraw();
+        app::flush();
+        let target = feedback_target_height(self.wind.h(), self.flx_feedback.y());
+        if target != self.flx_feedback.h() {
+            self.flx_feedback.resize(
+                self.flx_feedback.x(),
+                self.flx_feedback.y(),
+                self.flx_feedback.w(),
+                target,
+            );
+            //app::flush();
+        }
     }
 
     /// refresh the status tab content from the current config
@@ -1540,6 +1604,7 @@ impl MainForm {
         // add the new renderer to the global list of renderers
         get_renderers_mut().push(new_renderer.clone());
         self.renderer_pack.insert(&flx_button, 0);
+        self.clamp_feedback_height();
         app::redraw();
         // now add the new player to the global list of renderers
         // check if autoreconnect is set for this renderer
@@ -1582,5 +1647,30 @@ impl MainForm {
         };
         WidgetScheme::new(scheme).apply();
         STYLES[style_index]
+    }
+}
+
+#[cfg(test)]
+mod feedback_height_tests {
+    use super::*;
+
+    #[test]
+    fn shrinks_when_content_above_overflows_the_window() {
+        // vpack content above flx_feedback already reaches y=700 in a 740px window:
+        // only 40px are left, below MIN_FEEDBACK_H, so clamp to the floor
+        assert_eq!(feedback_target_height(740, 700), MIN_FEEDBACK_H);
+    }
+
+    #[test]
+    fn shrinks_to_exactly_the_available_space() {
+        // 100px available, between the floor and the constructed height
+        assert_eq!(feedback_target_height(740, 640), 100);
+    }
+
+    #[test]
+    fn grows_uncapped_past_the_constructed_height_when_window_is_enlarged() {
+        // 800px available, well past PREFERRED_FEEDBACK_H (296): should fill it
+        // all rather than getting capped back down to the construction-time size
+        assert_eq!(feedback_target_height(1200, 400), 800);
     }
 }

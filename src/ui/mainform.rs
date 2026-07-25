@@ -1102,7 +1102,6 @@ impl MainForm {
         }
 
         wind.end();
-        wind.show();
 
         let mut vpack: Pack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
         vpack.make_resizable(true);
@@ -1261,6 +1260,8 @@ impl MainForm {
                 _ => false,
             }
         });
+        wind.show();
+        wind.flush();
 
         MainForm {
             player_index: 0,

@@ -1055,12 +1055,7 @@ impl StatusTab {
     }
 }
 
-/// ideal height for the feedback log box: fills all remaining space below the
-/// rest of `vpack`'s content, down to a floor of `MIN_FEEDBACK_H`. Uncapped
-/// above `PREFERRED_FEEDBACK_H` on purpose - that constant is only the size the
-/// box is constructed with at the window's default height, not a ceiling, so
-/// enlarging the window keeps growing the log box instead of leaving the extra
-/// space unused.
+/// compute optimum height for the feedback log box on windows resize
 fn feedback_target_height(window_h: i32, feedback_y: i32) -> i32 {
     (window_h - feedback_y).max(MIN_FEEDBACK_H)
 }
@@ -1203,8 +1198,7 @@ impl MainForm {
         vpack.add(&flx_buttons_title);
 
         // ssdp discovered renderer buttons go here, stacked in their own nested pack
-        // so new buttons can just be inserted/removed from it directly, without any
-        // index bookkeeping relative to unrelated siblings in vpack
+        // so new buttons can just be inserted/removed from it directly
         let mut renderer_pack = Pack::new(0, 0, GW, 0, "");
         renderer_pack.set_type(PackType::Vertical);
         renderer_pack.set_spacing(15);
@@ -1229,17 +1223,16 @@ impl MainForm {
         // Event::Close, hiding the Window and preventing the Close handler being called.
         wind.handle({
             let mut flx_feedback = flx_feedback.clone();
+            let mut wind= wind.clone();
             move |w, ev| match ev {
                 Event::Close => {
                     app.quit();
                     true
                 }
-                // vpack is an Fl_Pack: it auto-fits its own height to its children's
-                // total height on every draw, ignoring the window's height, so it
-                // never grows/shrinks flx_feedback itself when the window is resized.
-                // Do that ourselves: recompute the feedback box height against the
-                // new window height and only touch it if it actually needs to change.
                 Event::Resize => {
+                    // resize flx_feedback to the available space after button insertions
+                    // recompute the feedback box height against the new window height
+                    // and only touch it if it actually needs to change.
                     let target = feedback_target_height(w.h(), flx_feedback.y());
                     if target != flx_feedback.h() {
                         flx_feedback.resize(
@@ -1248,18 +1241,16 @@ impl MainForm {
                             flx_feedback.w(),
                             target,
                         );
-                        // tb (a TextDisplay) only recomputes its scrollbars on its
-                        // own next draw(); resize() just flags it and schedules a
-                        // redraw. Force that draw now instead of leaving it as
-                        // pending damage that may not get flushed until whatever
-                        // event happens to pump the loop next.
-                        app::flush();
+                        // force a redraw of the textdisplay tb
+                        wind.flush();
                     }
                     false
                 }
                 _ => false,
             }
         });
+        // on Linux this makes the horizontal scrollbar appear immediately
+        // in the log textdisplay, on Windows it does not (why ?)
         wind.show();
         wind.flush();
 

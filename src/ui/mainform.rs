@@ -1223,7 +1223,7 @@ impl MainForm {
         // Event::Close, hiding the Window and preventing the Close handler being called.
         wind.handle({
             let mut flx_feedback = flx_feedback.clone();
-            let mut wind= wind.clone();
+            let mut wind = wind.clone();
             move |w, ev| match ev {
                 Event::Close => {
                     app.quit();

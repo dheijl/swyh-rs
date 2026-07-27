@@ -4,7 +4,9 @@
   - don't report underrun errors in the GUI but log them
   - use rust-lld linker on Windows
   - RUST: 1.97.1
-  - split off a builder function per tab from the mainform Create function
+  - GUI: insert the renderer buttons in their own pack, much cleaner
+  - GUI: split off a builder function per tab from the mainform Create function
+  - GUI: properly resize the log textbox on renderer button insert
 
 - 1.20.5 (Jul 14, dheijl)
   - SAMPLES: instead of relying on LLVM optimizations to hoist the loop invariants in sample conversions out of the loops, use generics instead to dispatch the samples conversions jump-free for the various combinations of 16-bit/24-bit/dithering/endianness, a suggestion made by Claude while I was considering pulling up the conditions manually from the inner loops.

@@ -130,7 +130,6 @@ pub struct MainForm {
     player_index: usize,
     config_changed: Rc<Cell<bool>>,
     /// running line count of `tb`'s buffer, kept in sync by `add_log_msg`
-    /// instead of rescanning the whole buffer on every log line
     log_lines: i32,
 }
 
@@ -1223,7 +1222,7 @@ impl MainForm {
         // Event::Close, hiding the Window and preventing the Close handler being called.
         wind.handle({
             let mut flx_feedback = flx_feedback.clone();
-            let mut wind= wind.clone();
+            let mut wind = wind.clone();
             move |w, ev| match ev {
                 Event::Close => {
                     app.quit();
@@ -1249,12 +1248,11 @@ impl MainForm {
                 _ => false,
             }
         });
-        // on Linux this makes the horizontal scrollbar appear immediately
-        // in the log textdisplay, on Windows it does not (why ?)
+        // calculate widget sizes etc...
         wind.show();
         wind.flush();
 
-        MainForm {
+        let mut mf = MainForm {
             player_index: 0,
             wind,
             choose_audio_source_but: audio_tab.choose_audio_source_but,
@@ -1282,7 +1280,10 @@ impl MainForm {
             local_addr,
             config_changed: config_changed.clone(),
             log_lines: 0,
-        }
+        };
+        // fix the hor scrollbar problem on first show
+        mf.clamp_feedback_height();
+        mf
     }
 
     /// show a log message in the text box
@@ -1297,8 +1298,7 @@ impl MainForm {
             }
             let buflen = textbuffer.length();
             self.tb.set_insert_position(buflen);
-            // track the line count incrementally instead of rescanning the whole
-            // buffer with count_lines() on every append (O(n) -> O(n^2) over a session)
+            // track the line count
             self.log_lines += msg.matches('\n').count() as i32 + 1;
             self.tb.scroll(self.log_lines, 0);
         }

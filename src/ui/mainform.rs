@@ -130,7 +130,6 @@ pub struct MainForm {
     player_index: usize,
     config_changed: Rc<Cell<bool>>,
     /// running line count of `tb`'s buffer, kept in sync by `add_log_msg`
-    /// instead of rescanning the whole buffer on every log line
     log_lines: i32,
 }
 
@@ -1299,8 +1298,7 @@ impl MainForm {
             }
             let buflen = textbuffer.length();
             self.tb.set_insert_position(buflen);
-            // track the line count incrementally instead of rescanning the whole
-            // buffer with count_lines() on every append (O(n) -> O(n^2) over a session)
+            // track the line count
             self.log_lines += msg.matches('\n').count() as i32 + 1;
             self.tb.scroll(self.log_lines, 0);
         }

@@ -1249,12 +1249,11 @@ impl MainForm {
                 _ => false,
             }
         });
-        // on Linux this makes the horizontal scrollbar appear immediately
-        // in the log textdisplay, on Windows it does not (why ?)
+        // calculate widget sizes etc...
         wind.show();
         wind.flush();
 
-        MainForm {
+        let mut mf = MainForm {
             player_index: 0,
             wind,
             choose_audio_source_but: audio_tab.choose_audio_source_but,
@@ -1282,7 +1281,10 @@ impl MainForm {
             local_addr,
             config_changed: config_changed.clone(),
             log_lines: 0,
-        }
+        };
+        // fix the hor scrollbar problem on first show
+        mf.clamp_feedback_height();
+        mf
     }
 
     /// show a log message in the text box

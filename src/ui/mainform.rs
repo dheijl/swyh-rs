@@ -1299,7 +1299,11 @@ impl MainForm {
             let buflen = textbuffer.length();
             self.tb.set_insert_position(buflen);
             // track the line count
-            self.log_lines += msg.matches('\n').count() as i32 + 1;
+            self.log_lines += msg
+                .as_bytes()
+                .iter()
+                .fold(0, |acc, &b| acc + (b == b'\n') as i32)
+                + 1;
             self.tb.scroll(self.log_lines, 0);
         }
     }

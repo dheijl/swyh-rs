@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "cargo fmt --quiet 2>/dev/null; cargo check --all-features --message-format short 2>&1 | tail -20" }
+        ]
+      }
+    ]
+  }
+}

@@ -4,6 +4,25 @@
 
 This is a Rust project. Always consider Rust-specific idioms: always validate suggestions against Rust's ownership/borrowing rules before recommending removal of .clone(), .to_string(), or similar patterns, verify numeric types and bit widths before flagging values as errors, and suggest running `cargo clippy` when unsure about a suggestion.
 
+## GUI Testing
+
+Never launch or interact with the FLTK GUI to verify changes. Make the code change, verify it compiles (`cargo build`, `cargo clippy`, `cargo fmt`), then stop and let me test the GUI myself.
+
+## Version Control
+
+Do not run `git add`, `git commit`, or `git push`. I stage and commit manually via GitHub Desktop. Instead, print a suggested commit message at the end of the change and stop.
+
+## Verification (run after every code change)
+
+```sh
+cargo fmt
+cargo build --all-features
+cargo clippy --all-targets -- -D warnings
+cargo test
+```
+
+Also build the CLI-only and GUI-only feature sets when touching code behind feature flags. Note: some clippy lints referenced in this project are nightly-only — ask which toolchain before chasing a warning.
+
 ## Code Review
 
 When asked to review a file, review the file directly by reading it. Do NOT attempt to use `gh` CLI, PR numbers, or any PR-based review workflow. Just read the file and provide a code review.
@@ -156,6 +175,10 @@ mod tests {
     }
 }
 ```
+
+#### Regression Safety
+
+When optimizing or refactoring behavior-carrying logic (CLI arg parsing, device selection, stream config), extract a pure function and add unit tests covering the existing behavior before changing it.
 
 ## Platform-Specific Considerations
 

@@ -311,26 +311,20 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
 /// get the upnp service description xml for a media renderer
 fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String> {
     debug!("Get service description for {location}");
-    match agent
+    let mut resp = agent
         .get(location)
         .header("User-Agent", format!("swyh-rs/{APP_VERSION}"))
         .header("Content-Type", "text/xml")
         .call()
-    {
-        Ok(mut resp) => {
-            let descr_xml = resp.body_mut().read_to_string().unwrap_or_default();
-            debug!("Service description:");
-            debug!("{descr_xml}");
-            if descr_xml.is_empty() {
-                None
-            } else {
-                Some(descr_xml)
-            }
-        }
-        Err(e) => {
-            error!("Error {e} getting service description for {location}");
-            None
-        }
+        .inspect_err(|e| error!("Error {e} getting service description for {location}"))
+        .ok()?;
+    let descr_xml = resp.body_mut().read_to_string().unwrap_or_default();
+    debug!("Service description:");
+    debug!("{descr_xml}");
+    if descr_xml.is_empty() {
+        None
+    } else {
+        Some(descr_xml)
     }
 }
 

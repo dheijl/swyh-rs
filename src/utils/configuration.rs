@@ -27,18 +27,19 @@ fn detect_default_language() -> String {
     let supported = available_languages();
     let locale = sys_locale::get_locale();
     println!("Detected locale: {locale:?}");
-    if let Some(l) = locale {
-        if supported.contains(&l) {
-            println!("Used locale: {l}");
-            return l;
-        }
-        let base_locale = &l[..2];
-        if let Some(locale) = supported.into_iter().find(|s| s.contains(base_locale)) {
-            println!("Used fallback locale: {locale}");
-            return locale;
-        }
+    let Some(l) = locale else {
+        return "en-US".to_string();
+    };
+    if supported.contains(&l) {
+        println!("Used locale: {l}");
+        return l;
     }
-    "en-US".to_string()
+    let base_locale = &l[..2];
+    let Some(locale) = supported.into_iter().find(|s| s.contains(base_locale)) else {
+        return "en-US".to_string();
+    };
+    println!("Used fallback locale: {locale}");
+    locale
 }
 
 // default values for Serde
@@ -346,9 +347,7 @@ impl Configuration {
 
     /// Returns the effective config path: `-C`/`--configfile` arg overrides the standard location; creates the file with defaults if it doesn't exist yet.
     fn choose_config_path() -> Result<PathBuf> {
-        if let Some(path) = Self::get_arg_config_path()? {
-            Ok(path)
-        } else {
+        let Some(path) = Self::get_arg_config_path()? else {
             let configfile = Self::get_config_path(CONFIGFILE)?;
             if !Path::new(&configfile).exists() {
                 println!("Creating a new default config {}", configfile.display());
@@ -369,8 +368,9 @@ impl Configuration {
                     format!("failed to flush config file: {}", configfile.display())
                 })?;
             }
-            Ok(configfile)
-        }
+            return Ok(configfile);
+        };
+        Ok(path)
     }
 
     /// Returns `~/.swyh-rs[…]`, creating it if absent.

@@ -93,7 +93,7 @@ impl ChannelStream {
             Some(FlacChannel::new(
                 rx.clone(),
                 context.sample_rate,
-                context.bits_per_sample as u32,
+                context.bits_per_sample,
                 2,
                 context.use_dither,
             ))

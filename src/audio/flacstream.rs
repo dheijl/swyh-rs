@@ -73,8 +73,8 @@ pub(crate) struct FlacChannel {
     active: Arc<AtomicBool>,
     writer: FlacWriter,
     sample_rate: u32,
-    bits_per_sample: u32,
-    channels: u32,
+    bits_per_sample: BitDepth,
+    channels: u16,
     use_dither: Dither,
 }
 
@@ -83,8 +83,8 @@ impl FlacChannel {
     pub(crate) fn new(
         samples_chan: Receiver<AudioSamples>,
         sample_rate: u32,
-        bits_per_sample: u32,
-        channels: u32,
+        bits_per_sample: BitDepth,
+        channels: u16,
         use_dither: Dither,
     ) -> FlacChannel {
         let (flac_out, flac_in): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = unbounded();
@@ -110,7 +110,7 @@ impl FlacChannel {
         let samples_rdr = self.samples_rcvr.clone();
         let mut writer = self.writer.clone();
         let ch = self.channels;
-        let bps = self.bits_per_sample;
+        let bd = self.bits_per_sample;
         let sr = self.sample_rate;
         let use_dither = self.use_dither;
         let l_active = self.active.clone();
@@ -128,8 +128,8 @@ impl FlacChannel {
                         ui_log(LogCategory::Error, &msg);
                         panic!("{msg}");
                     })
-                    .channels(ch)
-                    .bits_per_sample(bps)
+                    .channels(ch as u32)
+                    .bits_per_sample(bd as u32)
                     .sample_rate(sr)
                     .compression_level(1)
                     .set_limit_min_bitrate(true)
@@ -139,13 +139,11 @@ impl FlacChannel {
                         ui_log(LogCategory::Error, &msg);
                         panic!("{msg}");
                     });
-                // read captured samples and encode
-                let bd = BitDepth::from(bps as u16);
                 // create the random generator for the white noise
                 let mut rng = fastrand::Rng::with_seed(79);
                 // init NOISE feature and preallocate the noise buffer
                 const DIVISOR: u64 = 1000 / NOISE_PERIOD_MS;
-                let noise_bufsize = ((sr * ch) / DIVISOR as u32) as usize;
+                let noise_bufsize = ((sr * u32::from(ch)) / DIVISOR as u32) as usize;
                 let mut noise_buf: Vec<i32> = vec![0; noise_bufsize];
                 // read and FLAC encode samples
                 let mut time_out = Duration::from_millis(NOISE_PERIOD_MS);

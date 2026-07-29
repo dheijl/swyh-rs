@@ -322,23 +322,12 @@ pad byte	    0 or 1	Padding byte if M*Nc*Ns is odd
 */
 fn create_wav_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let mut hdr = [0u8; 44];
-    let channels: u16 = 2;
-    let bytes_per_sample: u16 = bits_per_sample / 8;
-    let block_align: u16 = channels * bytes_per_sample;
-    let byte_rate: u32 = sample_rate * u32::from(block_align);
     hdr[0..4].copy_from_slice(b"RIFF"); //ChunkId, little endian WAV
     let riffchunksize: u32 = u32::MAX; // RIFF chunksize
     let datachunksize: u32 = riffchunksize - 36; // data chunksize
     hdr[4..8].copy_from_slice(&riffchunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format
-    hdr[12..16].copy_from_slice(b"fmt "); // SubChunk = Format
-    hdr[16..20].copy_from_slice(&16u32.to_le_bytes()); // fmt chunksize for PCM
-    hdr[20..22].copy_from_slice(&1u16.to_le_bytes()); // AudioFormat: uncompressed PCM
-    hdr[22..24].copy_from_slice(&channels.to_le_bytes()); // numchannels 2
-    hdr[24..28].copy_from_slice(&sample_rate.to_le_bytes()); // SampleRate
-    hdr[28..32].copy_from_slice(&byte_rate.to_le_bytes()); // ByteRate (Bps)
-    hdr[32..34].copy_from_slice(&block_align.to_le_bytes()); // BlockAlign
-    hdr[34..36].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
+    write_fmt_chunk(&mut hdr[12..36], sample_rate, bits_per_sample); // SubChunk = Format
     hdr[36..40].copy_from_slice(b"data"); // SubChunk = "data"
     hdr[40..44].copy_from_slice(&datachunksize.to_le_bytes()); // data SubChunkSize
     debug!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
@@ -374,8 +363,6 @@ fn create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let mut hdr = [0u8; 80];
     let channels: u16 = 2;
     let bytes_per_sample: u16 = bits_per_sample / 8;
-    let block_align: u16 = channels * bytes_per_sample;
-    let byte_rate: u32 = sample_rate * u32::from(block_align);
     hdr[0..4].copy_from_slice(b"RF64"); //ChunkId, little endian WAV
     let rf64chunksize: u32 = 0xffff_ffff; // dummy RIFF chunksize
     let datachunksize: u32 = 0xffff_ffff; // dummy data chunksize
@@ -393,19 +380,30 @@ fn create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     hdr[28..36].copy_from_slice(&ds64datasize.to_le_bytes());
     hdr[36..44].copy_from_slice(&ds64nsamples.to_le_bytes());
     hdr[44..48].copy_from_slice(&ds64tablelength.to_le_bytes());
-    hdr[48..52].copy_from_slice(b"fmt "); // SubChunk = Format
-    hdr[52..56].copy_from_slice(&16u32.to_le_bytes()); // fmt chunksize for PCM
-    hdr[56..58].copy_from_slice(&1u16.to_le_bytes()); // AudioFormat: uncompressed PCM
-    hdr[58..60].copy_from_slice(&channels.to_le_bytes()); // numchannels 2
-    hdr[60..64].copy_from_slice(&sample_rate.to_le_bytes()); // SampleRate
-    hdr[64..68].copy_from_slice(&byte_rate.to_le_bytes()); // ByteRate (Bps)
-    hdr[68..70].copy_from_slice(&block_align.to_le_bytes()); // BlockAlign
-    hdr[70..72].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
+    write_fmt_chunk(&mut hdr[48..72], sample_rate, bits_per_sample); // SubChunk = Format
     hdr[72..76].copy_from_slice(b"data"); // SubChunk = "data"
     hdr[76..80].copy_from_slice(&datachunksize.to_le_bytes()); // data SubChunkSize
     debug!("RF64 Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
 
     hdr.to_vec()
+}
+
+/// Write the 24-byte PCM "fmt " subchunk (ckID + cksize + the 16-byte PCM format
+/// fields) shared bbetween the WAV and RF64 headers, at different offsets
+fn write_fmt_chunk(buf: &mut [u8], sample_rate: u32, bits_per_sample: u16) {
+    debug_assert_eq!(buf.len(), 24);
+    let channels: u16 = 2;
+    let bytes_per_sample: u16 = bits_per_sample / 8;
+    let block_align: u16 = channels * bytes_per_sample;
+    let byte_rate: u32 = sample_rate * u32::from(block_align);
+    buf[0..4].copy_from_slice(b"fmt "); // SubChunk = Format
+    buf[4..8].copy_from_slice(&16u32.to_le_bytes()); // fmt chunksize for PCM
+    buf[8..10].copy_from_slice(&1u16.to_le_bytes()); // AudioFormat: uncompressed PCM
+    buf[10..12].copy_from_slice(&channels.to_le_bytes()); // numchannels 2
+    buf[12..16].copy_from_slice(&sample_rate.to_le_bytes()); // SampleRate
+    buf[16..20].copy_from_slice(&byte_rate.to_le_bytes()); // ByteRate (Bps)
+    buf[20..22].copy_from_slice(&block_align.to_le_bytes()); // BlockAlign
+    buf[22..24].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
 }
 
 fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {

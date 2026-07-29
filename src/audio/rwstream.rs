@@ -434,13 +434,90 @@ fn get_noise_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
 #[cfg(test)]
 mod tests {
     use crate::audio::rwstream::*;
-    #[test]
+    fn u16le(buf: &[u8], off: usize) -> u16 {
+        u16::from_le_bytes(buf[off..off + 2].try_into().unwrap())
+    }
+    fn u32le(buf: &[u8], off: usize) -> u32 {
+        u32::from_le_bytes(buf[off..off + 4].try_into().unwrap())
+    }
+    fn u64le(buf: &[u8], off: usize) -> u64 {
+        u64::from_le_bytes(buf[off..off + 8].try_into().unwrap())
+    }
 
+    /// Assert the 24-byte PCM "fmt " subchunk at `off` matches values derived
+    /// independently from the WAV spec, not by re-calling production code.
+    fn assert_fmt_chunk(hdr: &[u8], off: usize, sample_rate: u32, bits_per_sample: u16) {
+        let channels: u16 = 2;
+        let bytes_per_sample = bits_per_sample / 8;
+        let expected_block_align = channels * bytes_per_sample;
+        let expected_byte_rate = sample_rate * u32::from(expected_block_align);
+
+        assert_eq!(&hdr[off..off + 4], b"fmt ");
+        assert_eq!(u32le(hdr, off + 4), 16, "fmt chunksize must be 16 for PCM");
+        assert_eq!(u16le(hdr, off + 8), 1, "AudioFormat must be PCM (1)");
+        assert_eq!(u16le(hdr, off + 10), channels);
+        assert_eq!(u32le(hdr, off + 12), sample_rate);
+        assert_eq!(u32le(hdr, off + 16), expected_byte_rate);
+        assert_eq!(u16le(hdr, off + 20), expected_block_align);
+        assert_eq!(u16le(hdr, off + 22), bits_per_sample);
+    }
+
+    #[test]
     fn test_wav_hdr() {
-        let _hdr = create_wav_hdr(44100, 24);
-        //eprintln!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
-        let _hdr = create_wav_hdr(44100, 16);
-        //eprintln!("WAV Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
+        for &sample_rate in crate::globals::statics::SAMPLE_RATES {
+            for &bits_per_sample in &[16u16, 24] {
+                let hdr = create_wav_hdr(sample_rate, bits_per_sample);
+                assert_eq!(hdr.len(), 44);
+
+                assert_eq!(&hdr[0..4], b"RIFF");
+                let riffchunksize = u32le(&hdr, 4);
+                assert_eq!(riffchunksize, u32::MAX, "streamed WAV declares max size");
+                assert_eq!(&hdr[8..12], b"WAVE");
+
+                assert_fmt_chunk(&hdr, 12, sample_rate, bits_per_sample);
+
+                assert_eq!(&hdr[36..40], b"data");
+                let datachunksize = u32le(&hdr, 40);
+                assert_eq!(datachunksize, riffchunksize - 36);
+            }
+        }
+    }
+
+    #[test]
+    fn test_rf64_hdr() {
+        for &sample_rate in crate::globals::statics::SAMPLE_RATES {
+            for &bits_per_sample in &[16u16, 24] {
+                let hdr = create_rf64_hdr(sample_rate, bits_per_sample);
+                assert_eq!(hdr.len(), 80);
+
+                let channels: u64 = 2;
+                let bytes_per_sample = u64::from(bits_per_sample / 8);
+                let frame_size = bytes_per_sample * channels;
+
+                assert_eq!(&hdr[0..4], b"RF64");
+                assert_eq!(u32le(&hdr, 4), 0xffff_ffff, "dummy RIFF chunksize");
+                assert_eq!(&hdr[8..12], b"WAVE");
+
+                assert_eq!(&hdr[12..16], b"ds64");
+                assert_eq!(u32le(&hdr, 16), 28, "ds64 chunksize");
+                let ds64riffsize = u64le(&hdr, 20);
+                let ds64datasize = u64le(&hdr, 28);
+                let ds64nsamples = u64le(&hdr, 36);
+                assert_eq!(u32le(&hdr, 44), 0, "table length unused");
+
+                // datasize must be an exact multiple of the frame size, and
+                // riffsize must equal datasize plus the fixed header overhead
+                // (WAVE(4) + ds64(36) + fmt(24) + data-subchunk-header(8) = 72)
+                assert_eq!(ds64datasize % frame_size, 0);
+                assert_eq!(ds64datasize, ds64nsamples * frame_size);
+                assert_eq!(ds64riffsize, ds64datasize + 72);
+
+                assert_fmt_chunk(&hdr, 48, sample_rate, bits_per_sample);
+
+                assert_eq!(&hdr[72..76], b"data");
+                assert_eq!(u32le(&hdr, 76), 0xffff_ffff, "dummy data chunksize");
+            }
+        }
     }
 
     #[test]

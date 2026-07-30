@@ -383,11 +383,7 @@ impl Renderer {
     /// Runs synchronously on the calling thread and blocks on the SOAP
     /// round-trips; use [`Renderer::spawn_play`] to run this off the caller's
     /// thread (e.g. the FLTK UI thread) instead.
-    pub fn play(
-        &mut self,
-        local_addr: &IpAddr,
-        streaminfo: StreamInfo,
-    ) -> Result<(), &'static str> {
+    pub fn play(&mut self, local_addr: IpAddr, streaminfo: StreamInfo) -> Result<(), &'static str> {
         self.controller.play(local_addr, streaminfo)
     }
 
@@ -425,7 +421,7 @@ impl Renderer {
             .name("renderer_play".into())
             .stack_size(THREAD_STACK)
             .spawn(move || {
-                let result = handler.play(&local_addr, streaminfo);
+                let result = handler.play(local_addr, streaminfo);
                 pending.store(false, Ordering::Release);
                 let _ = get_msgchannel()
                     .0
@@ -503,7 +499,7 @@ pub struct PlayOutcome {
 /// play/stop/volume logic for both the synchronous and backgrounded paths.
 impl Controller {
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
-    fn play(&self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &'static str> {
+    fn play(&self, local_addr: IpAddr, streaminfo: StreamInfo) -> Result<(), &'static str> {
         // do we support this protocol?
         if !self.supported_protocols.is_valid() {
             ui_log(

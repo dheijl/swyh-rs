@@ -259,7 +259,7 @@ fn main() -> Result<(), i32> {
                 {
                     player.set_volume(vol.into());
                 }
-                let _ = player.play(&local_addr, streaminfo);
+                let _ = player.play(local_addr, streaminfo);
                 let pl_name = &player.dev_url;
                 ui_log(
                     LogCategory::Info,
@@ -303,7 +303,7 @@ fn main() -> Result<(), i32> {
                                 .find(|r| r.controller.remote_addr == streamer_feedback.remote_ip)
                                 .cloned();
                             if let Some(mut r) = renderer {
-                                let _ = r.play(&local_addr, streaminfo);
+                                let _ = r.play(local_addr, streaminfo);
                             }
                         }
                     }

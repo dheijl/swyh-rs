@@ -13,7 +13,7 @@ use crate::{
     globals::statics::{APP_VERSION, THREAD_STACK, get_msgchannel},
     utils::ui_logger::{LogCategory, ui_log},
 };
-use ecow::EcoString;
+use ecow::{EcoString, eco_format};
 use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::app;
@@ -277,6 +277,26 @@ impl Renderer {
         }
     }
 
+    /// Set the discovery-derived location and remote address, falling back to
+    /// a `dev_url` built from the SSDP location for renderers with an absent
+    /// or bad `URLBase` (e.g. Yamaha WXAD-10 reports a wrong port).
+    pub(super) fn set_location(&mut self, location: &str, remote_ip: IpAddr) {
+        self.location = location.to_string();
+        Arc::make_mut(&mut self.controller).remote_addr = eco_format!("{remote_ip}");
+        if self.dev_url.is_empty() || !location.contains(&self.dev_url) {
+            let mut url_base = location;
+            if let Some(stripped) = url_base.strip_prefix("http://") {
+                url_base = stripped;
+            }
+            if let Some(pos) = url_base.find('/')
+                && pos > 0
+            {
+                url_base = &url_base[..pos];
+            }
+            self.dev_url = format!("http://{url_base}/");
+        }
+    }
+
     /// extract host and port from device url
     pub(super) fn parse_url(&mut self) {
         let host: String;
@@ -363,11 +383,7 @@ impl Renderer {
     /// Runs synchronously on the calling thread and blocks on the SOAP
     /// round-trips; use [`Renderer::spawn_play`] to run this off the caller's
     /// thread (e.g. the FLTK UI thread) instead.
-    pub fn play(
-        &mut self,
-        local_addr: &IpAddr,
-        streaminfo: StreamInfo,
-    ) -> Result<(), &'static str> {
+    pub fn play(&mut self, local_addr: IpAddr, streaminfo: StreamInfo) -> Result<(), &'static str> {
         self.controller.play(local_addr, streaminfo)
     }
 
@@ -405,7 +421,7 @@ impl Renderer {
             .name("renderer_play".into())
             .stack_size(THREAD_STACK)
             .spawn(move || {
-                let result = handler.play(&local_addr, streaminfo);
+                let result = handler.play(local_addr, streaminfo);
                 pending.store(false, Ordering::Release);
                 let _ = get_msgchannel()
                     .0
@@ -483,7 +499,7 @@ pub struct PlayOutcome {
 /// play/stop/volume logic for both the synchronous and backgrounded paths.
 impl Controller {
     /// play - start play on this renderer, using Openhome if present, else `AvTransport` (if present)
-    fn play(&self, local_addr: &IpAddr, streaminfo: StreamInfo) -> Result<(), &'static str> {
+    fn play(&self, local_addr: IpAddr, streaminfo: StreamInfo) -> Result<(), &'static str> {
         // do we support this protocol?
         if !self.supported_protocols.is_valid() {
             ui_log(
@@ -960,6 +976,43 @@ mod tests {
         rend.parse_url();
         assert_eq!(rend.controller.host, "0.0.0.0");
         assert_eq!(rend.controller.port, 0);
+    }
+
+    #[test]
+    fn set_location_keeps_dev_url_when_it_matches_location() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.1.26:80/".to_string();
+        rend.set_location(
+            "http://192.168.1.26:80/desc.xml",
+            IpAddr::from([192, 168, 1, 26]),
+        );
+        assert_eq!(rend.location, "http://192.168.1.26:80/desc.xml");
+        assert_eq!(rend.dev_url, "http://192.168.1.26:80/");
+        assert_eq!(rend.controller.remote_addr, "192.168.1.26");
+    }
+
+    #[test]
+    fn set_location_builds_dev_url_when_urlbase_absent() {
+        let mut rend = Renderer::new(&ureq::agent());
+        // no URLBase found in the description xml
+        rend.dev_url = String::new();
+        rend.set_location(
+            "http://192.168.1.181:33065/dev/e8dbf26b/desc.xml",
+            IpAddr::from([192, 168, 1, 181]),
+        );
+        assert_eq!(rend.dev_url, "http://192.168.1.181:33065/");
+    }
+
+    #[test]
+    fn set_location_falls_back_when_urlbase_port_is_wrong() {
+        let mut rend = Renderer::new(&ureq::agent());
+        // e.g. Yamaha WXAD-10: description xml reports the wrong port
+        rend.dev_url = "http://192.168.1.50:49152/".to_string();
+        rend.set_location(
+            "http://192.168.1.50:80/desc.xml",
+            IpAddr::from([192, 168, 1, 50]),
+        );
+        assert_eq!(rend.dev_url, "http://192.168.1.50:80/");
     }
 
     #[test]

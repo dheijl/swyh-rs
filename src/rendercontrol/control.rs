@@ -13,7 +13,7 @@ use crate::{
     globals::statics::{APP_VERSION, THREAD_STACK, get_msgchannel},
     utils::ui_logger::{LogCategory, ui_log},
 };
-use ecow::EcoString;
+use ecow::{EcoString, eco_format};
 use figura::{Context, Template, Value};
 #[cfg(feature = "gui")]
 use fltk::app;
@@ -274,6 +274,26 @@ impl Renderer {
                 agent: agent.clone(),
             }),
             play_pending: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Set the discovery-derived location and remote address, falling back to
+    /// a `dev_url` built from the SSDP location for renderers with an absent
+    /// or bad `URLBase` (e.g. Yamaha WXAD-10 reports a wrong port).
+    pub(super) fn set_location(&mut self, location: &str, remote_ip: IpAddr) {
+        self.location = location.to_string();
+        Arc::make_mut(&mut self.controller).remote_addr = eco_format!("{remote_ip}");
+        if self.dev_url.is_empty() || !location.contains(&self.dev_url) {
+            let mut url_base = location;
+            if let Some(stripped) = url_base.strip_prefix("http://") {
+                url_base = stripped;
+            }
+            if let Some(pos) = url_base.find('/')
+                && pos > 0
+            {
+                url_base = &url_base[..pos];
+            }
+            self.dev_url = format!("http://{url_base}/");
         }
     }
 
@@ -960,6 +980,43 @@ mod tests {
         rend.parse_url();
         assert_eq!(rend.controller.host, "0.0.0.0");
         assert_eq!(rend.controller.port, 0);
+    }
+
+    #[test]
+    fn set_location_keeps_dev_url_when_it_matches_location() {
+        let mut rend = Renderer::new(&ureq::agent());
+        rend.dev_url = "http://192.168.1.26:80/".to_string();
+        rend.set_location(
+            "http://192.168.1.26:80/desc.xml",
+            IpAddr::from([192, 168, 1, 26]),
+        );
+        assert_eq!(rend.location, "http://192.168.1.26:80/desc.xml");
+        assert_eq!(rend.dev_url, "http://192.168.1.26:80/");
+        assert_eq!(rend.controller.remote_addr, "192.168.1.26");
+    }
+
+    #[test]
+    fn set_location_builds_dev_url_when_urlbase_absent() {
+        let mut rend = Renderer::new(&ureq::agent());
+        // no URLBase found in the description xml
+        rend.dev_url = String::new();
+        rend.set_location(
+            "http://192.168.1.181:33065/dev/e8dbf26b/desc.xml",
+            IpAddr::from([192, 168, 1, 181]),
+        );
+        assert_eq!(rend.dev_url, "http://192.168.1.181:33065/");
+    }
+
+    #[test]
+    fn set_location_falls_back_when_urlbase_port_is_wrong() {
+        let mut rend = Renderer::new(&ureq::agent());
+        // e.g. Yamaha WXAD-10: description xml reports the wrong port
+        rend.dev_url = "http://192.168.1.50:49152/".to_string();
+        rend.set_location(
+            "http://192.168.1.50:80/desc.xml",
+            IpAddr::from([192, 168, 1, 50]),
+        );
+        assert_eq!(rend.dev_url, "http://192.168.1.50:80/");
     }
 
     #[test]

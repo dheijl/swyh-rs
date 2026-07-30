@@ -7,7 +7,7 @@ use crate::{
     globals::statics::{APP_VERSION, get_config},
     utils::ui_logger::{LogCategory, ui_log},
 };
-use ecow::{EcoString, eco_format};
+use ecow::EcoString;
 use hashbrown::{HashMap, HashSet};
 use log::{debug, error, info};
 use socket2::{Domain, Protocol, Socket, Type};
@@ -256,21 +256,7 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
                 scope.spawn(move || {
                     let xml = get_service_description(agent, &location)?;
                     let mut rend = get_renderer(agent, &xml)?;
-                    rend.location.clone_from(&location);
-                    Arc::make_mut(&mut rend.controller).remote_addr = eco_format!("{}", from.ip());
-                    // check for an absent URLBase in the description
-                    // or devices like Yamaha WXAD-10 with bad URLBase port number
-                    if rend.dev_url.is_empty() || !location.contains(&rend.dev_url) {
-                        let mut url_base = location;
-                        if url_base.contains("http://") {
-                            url_base = url_base["http://".to_string().len()..].to_string();
-                            let pos = url_base.find('/').unwrap_or_default();
-                            if pos > 0 {
-                                url_base = url_base[0..pos].to_string();
-                            }
-                        }
-                        rend.dev_url = format!("http://{url_base}/");
-                    }
+                    rend.set_location(&location, from.ip());
                     rend.parse_url();
                     rend.get_volume();
                     Some(rend)
@@ -432,6 +418,35 @@ Location: http://192.168.1.181:33065/dev/e8dbf26b-de8f-4c96-0000-0000002ea642/de
         assert!(!parsed.location.is_empty());
         assert!(parsed.is_av);
         assert!(!parsed.is_oh);
+    }
+
+    #[test]
+    fn yamaha_x_urlbase_is_not_recognized_and_falls_back_via_location() {
+        // Real-world trigger for the URLBase fallback: Yamaha WXAD-10 (and
+        // similar) report their base URL under a vendor-namespaced tag
+        // (<yamaha:X_URLBase>) instead of the standard <URLBase>, so
+        // get_renderer() never populates dev_url from it; set_location()'s
+        // fallback must then rebuild dev_url from the SSDP location.
+        static YAMAHA_DESCRIPTION: &str = r#"<?xml version="1.0"?>
+<root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:yamaha="urn:schemas-yamaha-com:device-1-0">
+  <device>
+    <deviceType>urn:schemas-upnp-org:device:MediaRenderer:1</deviceType>
+    <friendlyName>Yamaha WXAD-10</friendlyName>
+    <yamaha:X_URLBase>http://192.168.1.23:80/</yamaha:X_URLBase>
+  </device>
+</root>"#;
+        let agent = new_agent();
+        let mut rend =
+            get_renderer(&agent, YAMAHA_DESCRIPTION).expect("well-formed xml should parse");
+        assert!(
+            rend.dev_url.is_empty(),
+            "vendor-namespaced X_URLBase should not populate dev_url"
+        );
+        rend.set_location(
+            "http://192.168.1.23:80/desc.xml",
+            IpAddr::from([192, 168, 1, 23]),
+        );
+        assert_eq!(rend.dev_url, "http://192.168.1.23:80/");
     }
 
     #[test]

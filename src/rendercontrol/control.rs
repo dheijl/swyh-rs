@@ -299,21 +299,18 @@ impl Renderer {
 
     /// extract host and port from device url
     pub(super) fn parse_url(&mut self) {
-        let host: String;
-        let port: u16;
-        match Uri::parse(self.dev_url.as_str()) {
-            Ok(url) => {
-                if let Some(auth) = url.authority() {
-                    host = auth.host().to_string();
-                    port = auth
+        let (host, port) = match Uri::parse(self.dev_url.as_str()) {
+            Ok(url) => url
+                .authority()
+                .map(|auth| {
+                    let host = auth.host().to_string();
+                    let port = auth
                         .port()
                         .and_then(|p| p.as_str().parse::<u16>().ok())
                         .unwrap_or(0);
-                } else {
-                    host = "0.0.0.0".to_string();
-                    port = 0;
-                }
-            }
+                    (host, port)
+                })
+                .unwrap_or_else(|| ("0.0.0.0".to_string(), 0)),
             Err(e) => {
                 ui_log(
                     LogCategory::Info,
@@ -322,10 +319,9 @@ impl Renderer {
                         self.dev_url
                     ),
                 );
-                host = "0.0.0.0".to_string();
-                port = 0;
+                ("0.0.0.0".to_string(), 0)
             }
-        }
+        };
         // path fields (oh/av control/volume urls) are already set by the service
         // discovery XML parsing that runs before parse_url(), so it's safe to
         // compose and cache the absolute URLs here, once, instead of re-formatting

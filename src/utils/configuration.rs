@@ -78,7 +78,7 @@ impl CfgDefaults {
     }
 }
 
-// the configuration struct, read from and saved in config.ini
+/// the configuration struct, read from and saved in config.ini
 #[derive(Deserialize, Serialize, Clone, Debug)]
 struct Config {
     #[serde(alias = "Configuration")]

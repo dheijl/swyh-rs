@@ -33,8 +33,8 @@ use crate::{
 
 const NOISE_PERIOD_MS: u64 = 250; // milliseconds
 
-// the flacwriter receives the data from the encoder
-// and writes them to the flac output channel
+/// the flacwriter receives the data from the encoder
+/// and writes them to the flac output channel
 #[derive(Clone)]
 pub(crate) struct FlacWriter {
     flac_out: Sender<Vec<u8>>,
@@ -63,9 +63,9 @@ impl Write for FlacWriter {
     }
 }
 
-// a FlacChannel is set up by the channelstream
-// the ChannelStream writes the captured f32 samples
-// to the samples_in channel for encoding
+/// a FlacChannel is set up by the channelstream
+/// the ChannelStream writes the captured f32 samples
+/// to the samples_in channel for encoding
 #[derive(Clone)]
 pub(crate) struct FlacChannel {
     samples_rcvr: Receiver<AudioSamples>,

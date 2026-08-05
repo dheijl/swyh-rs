@@ -361,31 +361,38 @@ sampled data    ... 80
 */
 fn create_rf64_hdr(sample_rate: u32, bits_per_sample: u16) -> Vec<u8> {
     let mut hdr = [0u8; 80];
-    let channels: u16 = 2;
-    let bytes_per_sample: u16 = bits_per_sample / 8;
     hdr[0..4].copy_from_slice(b"RF64"); //ChunkId, little endian WAV
     let rf64chunksize: u32 = 0xffff_ffff; // dummy RIFF chunksize
     let datachunksize: u32 = 0xffff_ffff; // dummy data chunksize
-    let ds64chunksize: u32 = 28;
-    let frame_size: u64 = u64::from(bytes_per_sample) * u64::from(channels);
-    let ds64nsamples: u64 = ((i64::MAX / 8) as u64 - 72) / frame_size;
-    let ds64datasize: u64 = ds64nsamples * frame_size; // exact multiple of frame_size
-    let ds64riffsize: u64 = ds64datasize + 72; // header overhead: WAVE(4)+ds64(36)+fmt(24)+data_hdr(8)
-    let ds64tablelength = 0u32;
     hdr[4..8].copy_from_slice(&rf64chunksize.to_le_bytes()); // RIFF ChunkSize
     hdr[8..12].copy_from_slice(b"WAVE"); // File Format
-    hdr[12..16].copy_from_slice(b"ds64"); // SubChunk = ds64
-    hdr[16..20].copy_from_slice(&ds64chunksize.to_le_bytes());
-    hdr[20..28].copy_from_slice(&ds64riffsize.to_le_bytes());
-    hdr[28..36].copy_from_slice(&ds64datasize.to_le_bytes());
-    hdr[36..44].copy_from_slice(&ds64nsamples.to_le_bytes());
-    hdr[44..48].copy_from_slice(&ds64tablelength.to_le_bytes());
+    write_ds64_chunk(&mut hdr[12..48], bits_per_sample); // SubChunk = ds64
     write_fmt_chunk(&mut hdr[48..72], sample_rate, bits_per_sample); // SubChunk = Format
     hdr[72..76].copy_from_slice(b"data"); // SubChunk = "data"
     hdr[76..80].copy_from_slice(&datachunksize.to_le_bytes()); // data SubChunkSize
     debug!("RF64 Header (l={}): \r\n{:02x?}", hdr.len(), hdr);
 
     hdr.to_vec()
+}
+
+/// Write the 36-byte 'ds64' subchunk (ckID + cksize + the 28-byte RIFF64
+/// size fields) used by the RF64 header to carry 64-bit sizes.
+fn write_ds64_chunk(buf: &mut [u8], bits_per_sample: u16) {
+    debug_assert_eq!(buf.len(), 36);
+    let channels: u16 = 2;
+    let bytes_per_sample: u16 = bits_per_sample / 8;
+    let ds64chunksize: u32 = 28;
+    let frame_size: u64 = u64::from(bytes_per_sample) * u64::from(channels);
+    let ds64nsamples: u64 = ((i64::MAX / 8) as u64 - 72) / frame_size;
+    let ds64datasize: u64 = ds64nsamples * frame_size; // exact multiple of frame_size
+    let ds64riffsize: u64 = ds64datasize + 72; // header overhead: WAVE(4)+ds64(36)+fmt(24)+data_hdr(8)
+    let ds64tablelength = 0u32;
+    buf[0..4].copy_from_slice(b"ds64"); // SubChunk = ds64
+    buf[4..8].copy_from_slice(&ds64chunksize.to_le_bytes());
+    buf[8..16].copy_from_slice(&ds64riffsize.to_le_bytes());
+    buf[16..24].copy_from_slice(&ds64datasize.to_le_bytes());
+    buf[24..32].copy_from_slice(&ds64nsamples.to_le_bytes());
+    buf[32..36].copy_from_slice(&ds64tablelength.to_le_bytes());
 }
 
 /// Write the 24-byte PCM "fmt " subchunk (ckID + cksize + the 16-byte PCM format

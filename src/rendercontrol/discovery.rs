@@ -212,11 +212,11 @@ pub fn new_agent() -> ureq::Agent {
     )
 }
 
-//
-// SSDP UPNP service discovery
-//
-// returns a list of all AVTransport DLNA and Openhome rendering devices
-//
+///
+/// SSDP UPNP service discovery
+///
+/// returns a list of all AVTransport DLNA and Openhome rendering devices
+///
 pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
     debug!("SSDP discovery started");
 

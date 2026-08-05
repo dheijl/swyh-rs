@@ -322,10 +322,7 @@ impl Renderer {
                 ("0.0.0.0".to_string(), 0)
             }
         };
-        // path fields (oh/av control/volume urls) are already set by the service
-        // discovery XML parsing that runs before parse_url(), so it's safe to
-        // compose and cache the absolute URLs here, once, instead of re-formatting
-        // them on every play/stop/volume call
+        // compose and cache the absolute URLs here for later reuse
         let oh_control_full_url = format!("http://{host}:{port}{}", self.oh_control_url);
         let av_control_full_url = format!("http://{host}:{port}{}", self.av_control_url);
         let oh_volume_full_url = format!("http://{host}:{port}{}", self.oh_volume_url);

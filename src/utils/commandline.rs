@@ -41,7 +41,7 @@ pub struct Args {
 }
 
 impl Args {
-    // print usage & bail out
+    /// Print usage & bail out.
     pub fn usage(&self) {
         // note: -C is handled in Configuration.read_config(), not here
         println!(
@@ -73,8 +73,7 @@ Recognized options:
         println!("{self:?}");
     }
 
-    // parse commandline arguments
-
+    /// Parse commandline arguments.
     pub fn parse(&mut self) -> Result<(), Vec<String>> {
         self.parse_from(Parser::from_env())
     }

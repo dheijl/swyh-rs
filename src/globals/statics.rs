@@ -92,7 +92,7 @@ pub fn get_clients_fast() -> Guard<Arc<HashMap<EcoString, ChannelStream>>> {
 /// Insert a new streaming client (on connect), returning the resulting client count.
 pub fn insert_client(remote_addr: EcoString, stream: ChannelStream) -> usize {
     CLIENTS.rcu(|clients| {
-        let mut clients = (**clients).clone();
+        let mut clients = HashMap::clone(clients);
         clients.insert(remote_addr.clone(), stream.clone());
         clients
     });
@@ -104,7 +104,7 @@ pub fn insert_client(remote_addr: EcoString, stream: ChannelStream) -> usize {
 pub fn remove_client(remote_addr: &str) -> (Option<ChannelStream>, usize) {
     let mut removed = None;
     CLIENTS.rcu(|clients| {
-        let mut clients = (**clients).clone();
+        let mut clients = HashMap::clone(clients);
         removed = clients.remove(remote_addr);
         clients
     });

@@ -451,6 +451,30 @@ mod tests {
         u64::from_le_bytes(buf[off..off + 8].try_into().unwrap())
     }
 
+    /// Assert the 36-byte 'ds64' subchunk at `off` satisfies the RF64 spec
+    /// invariants: datasize is an exact multiple of the frame size, riffsize
+    /// equals datasize plus the fixed header overhead, and the (unused) table
+    /// length is 0.
+    fn assert_ds64_chunk(hdr: &[u8], off: usize, bits_per_sample: u16) {
+        let channels: u64 = 2;
+        let bytes_per_sample = u64::from(bits_per_sample / 8);
+        let frame_size = bytes_per_sample * channels;
+
+        assert_eq!(&hdr[off..off + 4], b"ds64");
+        assert_eq!(u32le(hdr, off + 4), 28, "ds64 chunksize");
+        let ds64riffsize = u64le(hdr, off + 8);
+        let ds64datasize = u64le(hdr, off + 16);
+        let ds64nsamples = u64le(hdr, off + 24);
+        assert_eq!(u32le(hdr, off + 32), 0, "table length unused");
+
+        // datasize must be an exact multiple of the frame size, and
+        // riffsize must equal datasize plus the fixed header overhead
+        // (WAVE(4) + ds64(36) + fmt(24) + data-subchunk-header(8) = 72)
+        assert_eq!(ds64datasize % frame_size, 0);
+        assert_eq!(ds64datasize, ds64nsamples * frame_size);
+        assert_eq!(ds64riffsize, ds64datasize + 72);
+    }
+
     /// Assert the 24-byte PCM "fmt " subchunk at `off` matches values derived
     /// independently from the WAV spec, not by re-calling production code.
     fn assert_fmt_chunk(hdr: &[u8], off: usize, sample_rate: u32, bits_per_sample: u16) {
@@ -467,6 +491,17 @@ mod tests {
         assert_eq!(u32le(hdr, off + 16), expected_byte_rate);
         assert_eq!(u16le(hdr, off + 20), expected_block_align);
         assert_eq!(u16le(hdr, off + 22), bits_per_sample);
+    }
+
+    #[test]
+    fn test_fmt_chunk() {
+        for &sample_rate in crate::globals::statics::SAMPLE_RATES {
+            for &bits_per_sample in &[16u16, 24] {
+                let mut buf = [0u8; 24];
+                write_fmt_chunk(&mut buf, sample_rate, bits_per_sample);
+                assert_fmt_chunk(&buf, 0, sample_rate, bits_per_sample);
+            }
+        }
     }
 
     #[test]
@@ -497,33 +532,26 @@ mod tests {
                 let hdr = create_rf64_hdr(sample_rate, bits_per_sample);
                 assert_eq!(hdr.len(), 80);
 
-                let channels: u64 = 2;
-                let bytes_per_sample = u64::from(bits_per_sample / 8);
-                let frame_size = bytes_per_sample * channels;
-
                 assert_eq!(&hdr[0..4], b"RF64");
                 assert_eq!(u32le(&hdr, 4), 0xffff_ffff, "dummy RIFF chunksize");
                 assert_eq!(&hdr[8..12], b"WAVE");
 
-                assert_eq!(&hdr[12..16], b"ds64");
-                assert_eq!(u32le(&hdr, 16), 28, "ds64 chunksize");
-                let ds64riffsize = u64le(&hdr, 20);
-                let ds64datasize = u64le(&hdr, 28);
-                let ds64nsamples = u64le(&hdr, 36);
-                assert_eq!(u32le(&hdr, 44), 0, "table length unused");
-
-                // datasize must be an exact multiple of the frame size, and
-                // riffsize must equal datasize plus the fixed header overhead
-                // (WAVE(4) + ds64(36) + fmt(24) + data-subchunk-header(8) = 72)
-                assert_eq!(ds64datasize % frame_size, 0);
-                assert_eq!(ds64datasize, ds64nsamples * frame_size);
-                assert_eq!(ds64riffsize, ds64datasize + 72);
+                assert_ds64_chunk(&hdr, 12, bits_per_sample);
 
                 assert_fmt_chunk(&hdr, 48, sample_rate, bits_per_sample);
 
                 assert_eq!(&hdr[72..76], b"data");
                 assert_eq!(u32le(&hdr, 76), 0xffff_ffff, "dummy data chunksize");
             }
+        }
+    }
+
+    #[test]
+    fn test_ds64_chunk() {
+        for &bits_per_sample in &[16u16, 24] {
+            let mut buf = [0u8; 36];
+            write_ds64_chunk(&mut buf, bits_per_sample);
+            assert_ds64_chunk(&buf, 0, bits_per_sample);
         }
     }
 

@@ -90,7 +90,7 @@ ureq = { version = "3.3.0", default-features = false, features = [
     "gzip",
 ] }
 wide = "1.6.0"
-xml = "1.3.0"
+xml = "1.4.0"
 arc-swap = "1.9.2"
 
 [target.'cfg(windows)'.dependencies]

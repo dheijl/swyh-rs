@@ -32,7 +32,7 @@ pub fn run_ssdp_updater(
     let agent = new_agent();
     // the hashmap used to detect new renderers
     let mut rmap: HashMap<String, Renderer> = HashMap::new();
-    let mut first_time = true;
+    let mut first_discovery = true;
     loop {
         let renderers = discover(&agent, &rmap).unwrap_or_default();
         for r in &renderers {
@@ -49,14 +49,14 @@ pub fn run_ssdp_updater(
             });
         }
         // the first ssdp discovery sometimes fails on Linux, so run it twice in a row
-        if first_time {
-            thread::sleep(Duration::from_millis(1000_u64));
-            first_time = false;
-        } else {
+        if !first_discovery {
             // wait for the interval OR wake early if a kick is received
             let _ = kick_rx.recv_timeout(Duration::from_millis(
                 (ssdp_interval_mins * ONE_MINUTE) as u64,
             ));
+        } else {
+            thread::sleep(Duration::from_millis(100_u64));
+            first_discovery = false;
         }
     }
 }
@@ -114,7 +114,7 @@ pub fn run_rms_monitor(
             Err(RecvTimeoutError::Timeout) => {
                 ch_sum = f32x4::splat(0f32);
                 total_samples = 0;
-                if !(rms_frame_l.value() == 0f64 && rms_frame_r.value() == 0f64) {
+                if rms_frame_l.value() != 0f64 || rms_frame_r.value() != 0f64 {
                     rms_frame_l.set_value(0f64);
                     rms_frame_r.set_value(0f64);
                     app::awake();

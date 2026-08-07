@@ -215,7 +215,7 @@ pub fn new_agent() -> ureq::Agent {
 ///
 /// SSDP UPNP service discovery
 ///
-/// returns a list of all AVTransport DLNA and Openhome rendering devices
+/// returns a list of all (new) AVTransport/Openhome DLNA rendering devices
 ///
 pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
     debug!("SSDP discovery started");
@@ -245,9 +245,22 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
             }
         })
         .collect();
+    if devices.is_empty() {
+        return None;
+    }
+    // now build the new renderers from their description xml
+    let renderers = fetch_renderer_descriptions(agent, devices);
+    debug!("SSDP discovery complete");
+    // return the newly discovered renderers
+    Some(renderers)
+}
 
-    // now get the new renderers description xml, fetched concurrently since each
-    // is an independent blocking HTTP round-trip to a different renderer
+/// build a Vec<Renderer> from the description xml of each discovered renderer
+/// fetch the description xml for each device concurrently
+fn fetch_renderer_descriptions(
+    agent: &ureq::Agent,
+    devices: Vec<(String, SocketAddr)>,
+) -> Vec<Renderer> {
     debug!("Getting new renderer descriptions");
     let renderers: Vec<Renderer> = std::thread::scope(|scope| {
         let handles: Vec<_> = devices
@@ -268,29 +281,31 @@ pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option
             .filter_map(|h| h.join().unwrap_or(None))
             .collect()
     });
-
     #[cfg(debug_assertions)]
-    {
-        for r in &renderers {
-            debug!(
-                "Renderer {} {} ip {} at location {} has {} services",
-                r.controller.dev_name,
-                r.dev_model,
-                r.controller.remote_addr,
-                r.location,
-                r.services.len()
-            );
-            debug!(
-                "  => OpenHome Playlist control url: '{}', AvTransport url: '{}'",
-                r.oh_control_url, r.av_control_url
-            );
-            for s in &r.services {
-                debug!(".. {} {} {}", s.service_type, s.service_id, s.control_url);
-            }
+    log_discovered_renderers(&renderers);
+    // return the new renderers
+    renderers
+}
+
+#[cfg(debug_assertions)]
+fn log_discovered_renderers(renderers: &[Renderer]) {
+    for r in renderers {
+        debug!(
+            "Renderer {} {} ip {} at location {} has {} services",
+            r.controller.dev_name,
+            r.dev_model,
+            r.controller.remote_addr,
+            r.location,
+            r.services.len()
+        );
+        debug!(
+            "  => OpenHome Playlist control url: '{}', AvTransport url: '{}'",
+            r.oh_control_url, r.av_control_url
+        );
+        for s in &r.services {
+            debug!(".. {} {} {}", s.service_type, s.service_id, s.control_url);
         }
-        debug!("SSDP discovery complete");
     }
-    Some(renderers)
 }
 
 /// `get_service_description`

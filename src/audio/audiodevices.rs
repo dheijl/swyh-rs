@@ -440,8 +440,8 @@ fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
     get_clients_fast()
         .iter()
         .for_each(|(_, client)| client.write(Arc::clone(&shared_samples)));
-    // update RMS channel unless only silence
-    if RUN_RMS_MONITOR.load(Ordering::Relaxed) && shared_samples.iter().any(|s| *s != 0.0) {
+    // update RMS channel
+    if RUN_RMS_MONITOR.load(Ordering::Relaxed) {
         rms_sender.send(Arc::clone(&shared_samples)).unwrap();
     }
 }

@@ -89,7 +89,7 @@ ureq = { version = "3.3.0", default-features = false, features = [
     "charset",
     "gzip",
 ] }
-wide = "1.6.0"
+wide = "1.6.1"
 xml = "1.4.0"
 arc-swap = "1.9.2"
 

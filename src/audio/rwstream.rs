@@ -215,7 +215,6 @@ impl ChannelStream {
     }
 
     /// Fill the HTTP read buffer with LPCM/WAV/RF64 data from the f32 samples `VecDeque` fifo.
-    ///
     /// The f32 samples are read from the f32 input channel and buffered in the`VecDeque` fifo.
     /// The VecDeque is then read for conversion to LPCM/WAV/RF64 data and
     /// stored in the HTTP transmission buffer as needed
@@ -253,13 +252,9 @@ impl ChannelStream {
             // zip the buf in chunks of buf_chunksize with the sample chunks of 4 f32 values
             let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(sample_chunks);
             // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
-            //
-            // `endianness`/`bd`/`use_dither` pick the match arm once per call (not per
-            // chunk); `quantize_and_pack` is generic over the quantizer/packer pair, so
+            // `quantize_and_pack` is generic over the quantizer/packer pair, so
             // each arm below monomorphizes its own branch-free copy of the loop with a
-            // specific function pair baked in — guaranteed by the language's
-            // monomorphization model rather than relying on the optimizer to hoist an
-            // invariant branch out on its own.
+            // specific function pair baked in
             let use_dither = self.use_dither;
             match (endianness, bd, use_dither) {
                 (Little, Bits16, Dither) => {

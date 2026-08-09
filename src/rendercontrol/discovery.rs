@@ -268,10 +268,12 @@ fn fetch_renderer_descriptions(
             .map(|(location, from)| {
                 scope.spawn(move || {
                     let xml = get_service_description(agent, &location)?;
-                    let mut rend = get_renderer(agent, &xml)?;
+                    let mut rend = build_renderer(agent, &xml)?;
+                    // now derive the remaining renderer fields
                     rend.set_location(&location, from.ip());
                     rend.parse_url();
                     rend.get_volume();
+                    // and return the new renderer
                     Some(rend)
                 })
             })
@@ -330,7 +332,7 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
 }
 
 /// build a renderer struct by (roughly) parsing the GetDescription.xml
-fn get_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
+fn build_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
     let parser =
         EventReader::new_with_config(xml.as_bytes(), ParserConfig::new().trim_whitespace(true));
     let mut cur_elem = EcoString::new();
@@ -452,7 +454,7 @@ Location: http://192.168.1.181:33065/dev/e8dbf26b-de8f-4c96-0000-0000002ea642/de
 </root>"#;
         let agent = new_agent();
         let mut rend =
-            get_renderer(&agent, YAMAHA_DESCRIPTION).expect("well-formed xml should parse");
+            build_renderer(&agent, YAMAHA_DESCRIPTION).expect("well-formed xml should parse");
         assert!(
             rend.dev_url.is_empty(),
             "vendor-namespaced X_URLBase should not populate dev_url"

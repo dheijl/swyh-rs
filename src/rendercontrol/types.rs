@@ -8,7 +8,6 @@ use crate::{
     enums::streaming::{BitDepth, StreamingFormat},
     globals::statics::{SERVER_PORT, get_config},
 };
-use bitflags::bitflags;
 use ecow::EcoString;
 #[cfg(feature = "gui")]
 use fltk::{button::LightButton, valuator::HorNiceSlider};
@@ -62,20 +61,16 @@ impl AvService {
     }
 }
 
-bitflags! {
 /// supported UPNP/DLNA protocols
-#[derive(Debug, Clone, Copy)]
-pub struct SupportedProtocols: u32 {
-        const NONE        = 0b0000;
-        const OPENHOME    = 0b0001;
-        const AVTRANSPORT = 0b0010;
-        const ALL = Self::OPENHOME.bits() | Self::AVTRANSPORT.bits();
-    }
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SupportedProtocols {
+    pub openhome: bool,
+    pub avtransport: bool,
 }
 
 impl SupportedProtocols {
     pub fn is_valid(&self) -> bool {
-        (self.bits() & SupportedProtocols::ALL.bits()) != 0
+        self.openhome || self.avtransport
     }
 }
 
@@ -176,10 +171,27 @@ mod tests {
 
     #[test]
     fn test_supported_protocols_is_valid() {
-        assert!(!SupportedProtocols::NONE.is_valid());
-        assert!(SupportedProtocols::OPENHOME.is_valid());
-        assert!(SupportedProtocols::AVTRANSPORT.is_valid());
-        assert!((SupportedProtocols::OPENHOME | SupportedProtocols::AVTRANSPORT).is_valid());
-        assert!(SupportedProtocols::ALL.is_valid());
+        assert!(!SupportedProtocols::default().is_valid());
+        assert!(
+            SupportedProtocols {
+                openhome: true,
+                avtransport: false,
+            }
+            .is_valid()
+        );
+        assert!(
+            SupportedProtocols {
+                openhome: false,
+                avtransport: true,
+            }
+            .is_valid()
+        );
+        assert!(
+            SupportedProtocols {
+                openhome: true,
+                avtransport: true,
+            }
+            .is_valid()
+        );
     }
 }

@@ -1,7 +1,7 @@
 //! SSDP discovery of DLNA/OpenHome renderers on the network, and parsing of
 //! their UPnP `GetDescription.xml` into [`Renderer`] values.
 
-use super::types::{AvService, Renderer, SupportedProtocols};
+use super::types::{AvService, Renderer};
 use crate::{
     fl,
     globals::statics::{APP_VERSION, get_config},
@@ -23,12 +23,19 @@ static AV_DEVICE: &str = AV_SCHEMA;
 static OH_SCHEMA: &str = "urn:av-openhome-org:service:Product:1";
 static OH_DEVICE: &str = OH_SCHEMA;
 
+/// the renderer protocol advertised by an SSDP `ST` header
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DlnaProtocol {
+    Av,
+    Oh,
+    Unknown,
+}
+
 /// the relevant info extracted from an SSDP response
 struct SsdpResponse {
     status_code: u32,
     location: String,
-    is_av: bool,
-    is_oh: bool,
+    protocol: DlnaProtocol,
 }
 
 /// parse the the relevant headers from the SSDP HTTP response
@@ -45,8 +52,7 @@ fn parse_ssdp_response(resp: &str) -> SsdpResponse {
         .parse::<u32>()
         .unwrap_or(0);
     let mut location = String::new();
-    let mut is_av = false;
-    let mut is_oh = false;
+    let mut protocol = DlnaProtocol::Unknown;
     lines
         .filter_map(|l| {
             let mut split = l.splitn(2, ':');
@@ -60,9 +66,9 @@ fn parse_ssdp_response(resp: &str) -> SsdpResponse {
                 "LOCATION" => location = value.to_string(),
                 "ST" => {
                     if value.contains(AV_SCHEMA) {
-                        is_av = true;
+                        protocol = DlnaProtocol::Av;
                     } else if value.contains(OH_SCHEMA) {
-                        is_oh = true;
+                        protocol = DlnaProtocol::Oh;
                     }
                 }
                 _ => (),
@@ -71,8 +77,7 @@ fn parse_ssdp_response(resp: &str) -> SsdpResponse {
     SsdpResponse {
         status_code,
         location,
-        is_av,
-        is_oh,
+        protocol,
     }
 }
 
@@ -151,12 +156,16 @@ MX: 3\r\n\r\n";
                     continue;
                 }
                 if !parsed.location.is_empty() {
-                    if parsed.is_av {
-                        av_devices.push((parsed.location.clone(), from));
-                        debug!("SSDP Discovery: AV renderer: {}", parsed.location);
-                    } else if parsed.is_oh {
-                        oh_devices.push((parsed.location.clone(), from));
-                        debug!("SSDP Discovery: OH renderer: {}", parsed.location);
+                    match parsed.protocol {
+                        DlnaProtocol::Av => {
+                            av_devices.push((parsed.location.clone(), from));
+                            debug!("SSDP Discovery: AV renderer: {}", parsed.location);
+                        }
+                        DlnaProtocol::Oh => {
+                            oh_devices.push((parsed.location.clone(), from));
+                            debug!("SSDP Discovery: OH renderer: {}", parsed.location);
+                        }
+                        DlnaProtocol::Unknown => {}
                     }
                 }
             }
@@ -349,15 +358,17 @@ fn build_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
                     if id.contains("urn:av-openhome-org:service") {
                         if id.contains("Playlist") {
                             renderer.oh_control_url.clone_from(&service.control_url);
-                            Arc::make_mut(&mut renderer.controller).supported_protocols |=
-                                SupportedProtocols::OPENHOME;
+                            Arc::make_mut(&mut renderer.controller)
+                                .supported_protocols
+                                .openhome = true;
                         } else if id.contains("Volume") {
                             renderer.oh_volume_url.clone_from(&service.control_url);
                         }
                     } else if id.contains(":AVTransport") {
                         renderer.av_control_url.clone_from(&service.control_url);
-                        Arc::make_mut(&mut renderer.controller).supported_protocols |=
-                            SupportedProtocols::AVTRANSPORT;
+                        Arc::make_mut(&mut renderer.controller)
+                            .supported_protocols
+                            .avtransport = true;
                     } else if id.contains(":RenderingControl") {
                         renderer.av_volume_url.clone_from(&service.control_url);
                     }
@@ -433,8 +444,7 @@ Location: http://192.168.1.181:33065/dev/e8dbf26b-de8f-4c96-0000-0000002ea642/de
         let parsed = parse_ssdp_response(BUBBLE_SSDP);
         assert_eq!(parsed.status_code, 200);
         assert!(!parsed.location.is_empty());
-        assert!(parsed.is_av);
-        assert!(!parsed.is_oh);
+        assert_eq!(parsed.protocol, DlnaProtocol::Av);
     }
 
     #[test]

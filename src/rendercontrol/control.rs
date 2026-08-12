@@ -270,7 +270,7 @@ impl Renderer {
                 av_control_full_url: String::new(),
                 oh_volume_full_url: String::new(),
                 av_volume_full_url: String::new(),
-                supported_protocols: SupportedProtocols::NONE,
+                supported_protocols: SupportedProtocols::default(),
                 agent: agent.clone(),
             }),
             play_pending: Arc::new(AtomicBool::new(false)),
@@ -539,10 +539,7 @@ impl Controller {
         };
         fmt_vars.insert("didl_data", Value::owned_str(formatted_didl));
         // now send the start playing commands
-        if self
-            .supported_protocols
-            .contains(SupportedProtocols::OPENHOME)
-        {
+        if self.supported_protocols.openhome {
             ui_log(
                 LogCategory::Info,
                 &format!(
@@ -551,10 +548,7 @@ impl Controller {
                 ),
             );
             self.oh_play(&fmt_vars)
-        } else if self
-            .supported_protocols
-            .contains(SupportedProtocols::AVTRANSPORT)
-        {
+        } else if self.supported_protocols.avtransport {
             ui_log(
                 LogCategory::Info,
                 &format!(
@@ -663,15 +657,9 @@ impl Controller {
 
     /// `stop_play` - stop playing on this renderer (`OpenHome` or `AvTransport`)
     fn stop_play(&self) {
-        if self
-            .supported_protocols
-            .contains(SupportedProtocols::OPENHOME)
-        {
+        if self.supported_protocols.openhome {
             self.oh_stop_play(&self.oh_control_full_url);
-        } else if self
-            .supported_protocols
-            .contains(SupportedProtocols::AVTRANSPORT)
-        {
+        } else if self.supported_protocols.avtransport {
             self.av_stop_play(&self.av_control_full_url);
         } else {
             ui_log(
@@ -723,15 +711,9 @@ impl Controller {
 
     /// get volume, using Openhome if present, else `AvTransport` (if present)
     fn get_volume(&self) -> i32 {
-        if self
-            .supported_protocols
-            .contains(SupportedProtocols::OPENHOME)
-        {
+        if self.supported_protocols.openhome {
             self.oh_get_volume()
-        } else if self
-            .supported_protocols
-            .contains(SupportedProtocols::AVTRANSPORT)
-        {
+        } else if self.supported_protocols.avtransport {
             self.av_get_volume()
         } else {
             -1
@@ -843,15 +825,9 @@ impl Controller {
 
     /// set volume, using Openhome if present, else `AvTransport` (if present)
     fn set_volume(&self, vol: i32) {
-        if self
-            .supported_protocols
-            .contains(SupportedProtocols::OPENHOME)
-        {
+        if self.supported_protocols.openhome {
             self.oh_set_volume(vol);
-        } else if self
-            .supported_protocols
-            .contains(SupportedProtocols::AVTRANSPORT)
-        {
+        } else if self.supported_protocols.avtransport {
             self.av_set_volume(vol);
         }
     }

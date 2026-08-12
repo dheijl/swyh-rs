@@ -48,7 +48,6 @@ winres = "0.1.12"
 [dependencies]
 cpal = { version = "0.19.0" }
 anyhow = "1"
-bitflags = "2.13.1"
 crossbeam-channel = "0.5.16"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
@@ -85,7 +84,7 @@ simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
 tiny_http = "0.12.0"
 toml = "1.1.4"
-ureq = { version = "3.3.0", default-features = false, features = [
+ureq = { version = "3.4.0", default-features = false, features = [
     "charset",
     "gzip",
 ] }

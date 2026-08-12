@@ -330,7 +330,12 @@ fn get_service_description(agent: &ureq::Agent, location: &str) -> Option<String
         .call()
         .inspect_err(|e| error!("Error {e} getting service description for {location}"))
         .ok()?;
-    let descr_xml = resp.body_mut().read_to_string().unwrap_or_default();
+    let descr_xml = resp
+        .body_mut()
+        .with_config()
+        .limit(2 * 1024 * 1024)
+        .read_to_string()
+        .unwrap_or_default();
     debug!("Service description:");
     debug!("{descr_xml}");
     if descr_xml.is_empty() {

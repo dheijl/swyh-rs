@@ -113,12 +113,8 @@ fn main() -> Result<(), i32> {
     info!("Commandline args: {args:?}");
     info!("Current config: {config:?}");
 
-    if args.inject_silence.is_some() {
-        config.inject_silence = args.inject_silence;
-    }
-    if args.use_dither.is_some() {
-        config.use_dither = args.use_dither;
-    }
+    config.inject_silence = args.inject_silence.or(config.inject_silence);
+    config.use_dither = args.use_dither.or(config.use_dither);
 
     let mut audio_output_device =
         select_audio_source_cli(&mut args, &mut config, audio_output_device_opt)
@@ -203,9 +199,7 @@ fn main() -> Result<(), i32> {
     }
 
     // set args last_renderer and active players
-    if args.player_ip.is_some() {
-        config.last_renderer = args.player_ip;
-    }
+    config.last_renderer = args.player_ip.or(config.last_renderer);
     if let Some(ref active_players) = args.active_players {
         config.active_renderers.clone_from(active_players);
     }
@@ -668,21 +662,15 @@ fn spawn_cli_webserver(
 /// apply streaming-related args (format, bit depth, buffer, etc.) to config
 fn apply_streaming_args(args: &Args, config: &mut Configuration) {
     config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
-    if args.server_port.is_some() {
-        config.server_port = args.server_port;
-    }
-    if args.bits_per_sample.is_some() {
-        config.bits_per_sample = args.bits_per_sample;
-    }
+    config.server_port = args.server_port.or(config.server_port);
+    config.bits_per_sample = args.bits_per_sample.or(config.bits_per_sample);
     if let Some(sf) = args.streaming_format {
         config.streaming_format = args.streaming_format;
         if let Some(size) = args.stream_size {
             config.set_stream_size_for(sf, size);
         }
     }
-    if args.upfront_buffer.is_some() {
-        config.buffering_delay_msec = args.upfront_buffer;
-    }
+    config.buffering_delay_msec = args.upfront_buffer.or(config.buffering_delay_msec);
 }
 
 /// true once every renderer `resolve_player_names` is waiting for has actually been

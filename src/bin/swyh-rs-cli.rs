@@ -38,10 +38,10 @@ use swyh_rs::{
     rendercontrol::{Renderer, StreamInfo, WavData, discover, new_agent},
     server::streaming_server::run_server,
     utils::{
-        bincommon::run_silence_injector,
         commandline::Args,
         configuration::Configuration,
         i18n,
+        inject_silence::run_silence_injector,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::*,

@@ -233,7 +233,12 @@ fn soap_request(agent: &ureq::Agent, url: &str, soap_action: &str, body: &str) -
         .send(body)
     {
         Ok(mut resp) => {
-            let xml = resp.body_mut().read_to_string().unwrap_or_default();
+            let xml = resp
+                .body_mut()
+                .with_config()
+                .limit(2 * 1024 * 1024)
+                .read_to_string()
+                .unwrap_or_default();
             debug!("<=SOAP response: {xml}\r\n");
             Some(xml)
         }

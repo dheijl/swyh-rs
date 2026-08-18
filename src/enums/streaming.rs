@@ -258,10 +258,11 @@ impl StreamingContext {
         let cfg = get_config();
         let streaming_format = params
             .fmt
-            .unwrap_or_else(|| cfg.streaming_format.unwrap_or(StreamingFormat::Flac));
+            .or(cfg.streaming_format)
+            .unwrap_or(StreamingFormat::Flac);
         let bits_per_sample = params
             .bd
-            .unwrap_or_else(|| BitDepth::from(cfg.bits_per_sample.unwrap_or(16)));
+            .unwrap_or(BitDepth::from(cfg.bits_per_sample.unwrap_or(16)));
         let (streamsize, chunksize) = params
             .ss
             .map(|ss| ss.values())

@@ -12,6 +12,10 @@ Never launch or interact with the FLTK GUI to verify changes. Make the code chan
 
 Do not run `git add`, `git commit`, or `git push`. I stage and commit manually via GitHub Desktop. Instead, print a suggested commit message at the end of the change and stop.
 
+## Permission Mode
+
+Permission mode always starts out manual (ask-before-acting) at the beginning of each session, regardless of how a prior session ended. Do not assume standing approval for risky or state-changing actions carries over between sessions.
+
 ## Verification (run after every code change)
 
 ```sh

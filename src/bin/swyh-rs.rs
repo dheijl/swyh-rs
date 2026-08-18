@@ -25,10 +25,10 @@ use swyh_rs::{
     server::streaming_server::{StreamerFeedBack, run_server},
     ui::{fatal_error::fatal_error, mainform::MainForm},
     utils::{
-        bincommon::run_silence_injector,
         configuration::Configuration,
         extra_threads::{run_rms_monitor, run_ssdp_updater},
         i18n,
+        inject_silence::run_silence_injector,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::*,

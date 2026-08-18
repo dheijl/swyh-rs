@@ -20,7 +20,7 @@ use crossbeam_channel::{Sender, unbounded};
 use ecow::EcoString;
 use log::debug;
 use std::{io, net::IpAddr, sync::Arc, thread, time::Duration};
-use tiny_http::{Header, Method, Response, Server};
+use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 /// streaming state feedback for a client
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -133,7 +133,7 @@ fn dump_resp_headers(response: &Response<ChannelStream>) {
 
 /// dump the request headers
 #[cfg(debug_assertions)]
-fn dump_rq_headers(rq: &tiny_http::Request) {
+fn dump_rq_headers(rq: &Request) {
     for hdr in rq.headers() {
         debug!(" <== Request {hdr:?}");
     }
@@ -143,7 +143,7 @@ fn dump_rq_headers(rq: &tiny_http::Request) {
 fn streaming_request(
     streaming_ctx: &StreamingContext,
     feedback_channel: &Sender<MessageType>,
-    request: tiny_http::Request,
+    request: Request,
     range: Option<RangeSpec>,
 ) {
     // Determine HTTP status code and how many header bytes to skip based on the Range request.
@@ -225,7 +225,7 @@ fn streaming_request(
         ),
     );
     let response = Response::new(
-        tiny_http::StatusCode(status_code),
+        StatusCode(status_code),
         headers,
         channel_stream,
         streaming_ctx.streamsize,
@@ -272,11 +272,7 @@ fn streaming_request(
 }
 
 /// HEAD METHOD request
-fn head_request(
-    streaming_ctx: &StreamingContext,
-    rq: tiny_http::Request,
-    range: Option<RangeSpec>,
-) {
+fn head_request(streaming_ctx: &StreamingContext, rq: Request, range: Option<RangeSpec>) {
     debug!("HEAD rq from {}", streaming_ctx.remote_addr);
     let (status_code, header_offset) = match &range {
         None => (200u16, 0usize),
@@ -299,13 +295,7 @@ fn head_request(
         let cr = streaming_ctx.content_range_value(header_offset);
         headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
     }
-    let response = Response::new(
-        tiny_http::StatusCode(status_code),
-        headers,
-        io::empty(),
-        Some(0),
-        None,
-    );
+    let response = Response::new(StatusCode(status_code), headers, io::empty(), Some(0), None);
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
@@ -319,7 +309,7 @@ fn head_request(
 }
 
 /// invalid METHOD request
-fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
+fn invalid_request(streaming_ctx: &StreamingContext, rq: Request) {
     ui_log(
         LogCategory::Error,
         &fl!(
@@ -329,13 +319,7 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
         ),
     );
     let headers = get_std_headers();
-    let response = Response::new(
-        tiny_http::StatusCode(405),
-        headers,
-        io::empty(),
-        Some(0),
-        None,
-    );
+    let response = Response::new(StatusCode(405), headers, io::empty(), Some(0), None);
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
@@ -349,20 +333,14 @@ fn invalid_request(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
 }
 
 /// this request is not recognised, reject with 404
-fn bad_request(rq: tiny_http::Request) {
+fn bad_request(rq: Request) {
     let remote_addr = rq.remote_addr().map(|a| a.to_string()).unwrap_or_default();
     ui_log(
         LogCategory::Warning,
         &fl!("srv-bad-request", "url" = rq.url(), "addr" = remote_addr),
     );
     let headers = get_std_headers();
-    let response = Response::new(
-        tiny_http::StatusCode(404),
-        headers,
-        io::empty(),
-        Some(0),
-        None,
-    );
+    let response = Response::new(StatusCode(404), headers, io::empty(), Some(0), None);
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,
@@ -416,7 +394,7 @@ enum RangeSpec {
 }
 
 /// Parse the first `Range: bytes=…` header present in `headers`, if any.
-fn parse_range_header(headers: &[tiny_http::Header]) -> Option<RangeSpec> {
+fn parse_range_header(headers: &[Header]) -> Option<RangeSpec> {
     let h = headers.iter().find(|h| h.field.equiv("range"))?;
     let rest = h.value.as_str().strip_prefix("bytes=")?;
     let (start_str, end_str) = rest.split_once('-')?;
@@ -429,7 +407,7 @@ fn parse_range_header(headers: &[tiny_http::Header]) -> Option<RangeSpec> {
 }
 
 /// Respond 416 Range Not Satisfiable.
-fn range_not_satisfiable(streaming_ctx: &StreamingContext, rq: tiny_http::Request) {
+fn range_not_satisfiable(streaming_ctx: &StreamingContext, rq: Request) {
     ui_log(
         LogCategory::Warning,
         &fl!(
@@ -444,13 +422,7 @@ fn range_not_satisfiable(streaming_ctx: &StreamingContext, rq: tiny_http::Reques
         None => "bytes */*".to_string(),
     };
     headers.push(Header::from_bytes(&b"Content-Range"[..], cr.as_bytes()).unwrap());
-    let response = Response::new(
-        tiny_http::StatusCode(416),
-        headers,
-        io::empty(),
-        Some(0),
-        None,
-    );
+    let response = Response::new(StatusCode(416), headers, io::empty(), Some(0), None);
     if let Err(e) = rq.respond(response) {
         ui_log(
             LogCategory::Error,

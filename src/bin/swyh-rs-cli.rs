@@ -288,6 +288,8 @@ fn main() -> Result<(), i32> {
                 MessageType::SlimHelo(newr) => {
                     get_slim_renderers_mut().push(*newr);
                 }
+                // same rationale as the `SlimHelo` arm above
+                MessageType::SlimDisconnected { .. } => {}
                 MessageType::PlayerMessage(streamer_feedback) => {
                     if let StreamingState::Ended = streamer_feedback.streaming_state
                         && !serve_only

@@ -12,8 +12,9 @@ use crate::{
     },
     fl,
     globals::statics::{
-        APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
-        get_config, get_config_mut, get_renderers, get_renderers_mut, get_slim_renderers_mut,
+        APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, SERVER_PORT,
+        STYLES, THEMES, get_config, get_config_mut, get_renderers, get_renderers_mut,
+        get_slim_renderers_mut,
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
     slimproto::types::SlimRenderer,
@@ -1626,10 +1627,8 @@ impl MainForm {
     /// SlimProto analogue of [`Self::add_renderer_button`]: builds a toggle
     /// button for a squeezelite client that just sent `HELO`. Unlike UPnP
     /// renderers there's no volume slider (`HELO` carries no volume —
-    /// SlimProto volume needs a separate `AUDG` command), and the button
-    /// doesn't yet send `STRM` to control playback: that needs a
-    /// per-connection outbound command channel that hasn't been built yet,
-    /// so toggling it only updates local state and logs.
+    /// SlimProto volume needs a separate `AUDG` command). Playback control
+    /// is FLAC-only for now (see `SlimRenderer::send_strm_start`).
     pub fn add_slim_renderer_button(&mut self, new_renderer: &mut SlimRenderer) {
         if get_config()
             .hidden_renderers
@@ -1650,14 +1649,29 @@ impl MainForm {
             ));
         pbut.set_callback({
             let player_index = self.slim_player_index;
-            let remote_addr = new_renderer.remote_addr.clone();
+            let renderer = new_renderer.clone();
+            let local_addr = self.local_addr;
             move |b| {
                 info!(
-                    "Pushed SlimProto renderer #{player_index} {remote_addr}, state = {}",
+                    "Pushed SlimProto renderer #{player_index} {}, state = {}",
+                    renderer.remote_addr,
                     if b.is_on() { "ON" } else { "OFF" },
                 );
                 if b.is_on() {
-                    info!("SlimProto playback control not implemented yet for {remote_addr}");
+                    if let IpAddr::V4(server_ip) = local_addr {
+                        let server_port = get_config().server_port.unwrap_or(SERVER_PORT);
+                        renderer.spawn_strm_start(server_ip, server_port);
+                    } else {
+                        ui_log(
+                            LogCategory::Error,
+                            &format!(
+                                "SlimProto: {} needs an IPv4 local address, got {local_addr}",
+                                renderer.remote_addr
+                            ),
+                        );
+                    }
+                } else {
+                    renderer.spawn_strm_stop();
                 }
                 get_slim_renderers_mut()[player_index].playing = b.is_on();
             }

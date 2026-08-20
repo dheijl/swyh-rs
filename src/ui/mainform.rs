@@ -13,9 +13,10 @@ use crate::{
     fl,
     globals::statics::{
         APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
-        get_config, get_config_mut, get_renderers, get_renderers_mut,
+        get_config, get_config_mut, get_renderers, get_renderers_mut, get_slim_renderers_mut,
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
+    slimproto::types::SlimRenderer,
     utils::{configuration::Configuration, i18n, traits::FwSlashPipeEscape, ui_logger::*},
 };
 use fltk::{
@@ -128,6 +129,7 @@ pub struct MainForm {
     default_sample_rate: u32,
     local_addr: IpAddr,
     player_index: usize,
+    slim_player_index: usize,
     config_changed: Rc<Cell<bool>>,
     /// running line count of `tb`'s buffer, kept in sync by `add_log_msg`
     log_lines: i32,
@@ -1254,6 +1256,7 @@ impl MainForm {
 
         let mut mf = MainForm {
             player_index: 0,
+            slim_player_index: 0,
             wind,
             choose_audio_source_but: audio_tab.choose_audio_source_but,
             fmt_choice: audio_tab.fmt_choice,
@@ -1618,6 +1621,92 @@ impl MainForm {
         }
         // bump player_index
         self.player_index += 1;
+    }
+
+    /// SlimProto analogue of [`Self::add_renderer_button`]: builds a toggle
+    /// button for a squeezelite client that just sent `HELO`. Unlike UPnP
+    /// renderers there's no volume slider (`HELO` carries no volume —
+    /// SlimProto volume needs a separate `AUDG` command), and the button
+    /// doesn't yet send `STRM` to control playback: that needs a
+    /// per-connection outbound command channel that hasn't been built yet,
+    /// so toggling it only updates local state and logs.
+    pub fn add_slim_renderer_button(&mut self, new_renderer: &mut SlimRenderer) {
+        if get_config()
+            .hidden_renderers
+            .iter()
+            .any(|hidden| hidden == &new_renderer.remote_addr)
+        {
+            return;
+        }
+        new_renderer.player_index = self.slim_player_index;
+        let mut pbut = LightButton::default()
+            .with_size(self.bwidth, self.bheight)
+            .with_pos(0, 0)
+            .with_align(Align::Center | Align::Clip)
+            .with_label(&format!(
+                "{} {}",
+                new_renderer.model(),
+                new_renderer.remote_addr
+            ));
+        pbut.set_callback({
+            let player_index = self.slim_player_index;
+            let remote_addr = new_renderer.remote_addr.clone();
+            move |b| {
+                info!(
+                    "Pushed SlimProto renderer #{player_index} {remote_addr}, state = {}",
+                    if b.is_on() { "ON" } else { "OFF" },
+                );
+                if b.is_on() {
+                    info!("SlimProto playback control not implemented yet for {remote_addr}");
+                }
+                get_slim_renderers_mut()[player_index].playing = b.is_on();
+            }
+        });
+        // the flex for the new button
+        let mut flx_button = Flex::new(0, 0, self.bwidth, self.bheight, "");
+        flx_button.set_spacing(5);
+        flx_button.set_type(FlexType::Row);
+        flx_button.end();
+        flx_button.add(&pbut);
+        // right-click hides this renderer's button (see add_renderer_button for
+        // why super_handle_first(false) is needed)
+        pbut.super_handle_first(false);
+        pbut.handle({
+            let config_changed = self.config_changed.clone();
+            let remote_addr = new_renderer.remote_addr.clone();
+            move |b, ev| match ev {
+                Event::Push if app::event_button() == 3 => {
+                    b.hide();
+                    let mut config = get_config_mut();
+                    config.hidden_renderers.push(remote_addr.to_string());
+                    let _ = config.update_config();
+                    config_changed.set(true);
+                    true
+                }
+                Event::Released | Event::Drag if app::event_button() == 3 => true,
+                _ => false,
+            }
+        });
+        new_renderer.rend_ui.button = Some(pbut.clone());
+        // add the new renderer to the global list of SlimProto renderers
+        get_slim_renderers_mut().push(new_renderer.clone());
+        self.renderer_pack.insert(&flx_button, 0);
+        self.clamp_feedback_height();
+        app::redraw();
+        // check if autoreconnect is set for this renderer
+        if self.auto_reconnect.is_set() {
+            let active_players = get_config().active_renderers.clone();
+            info!("AutoReconnect: Active SlimProto Renderers = {active_players:?}");
+            if active_players
+                .iter()
+                .any(|active| active == &new_renderer.remote_addr)
+            {
+                pbut.turn_on(true);
+                pbut.do_callback();
+            }
+        }
+        // bump slim_player_index
+        self.slim_player_index += 1;
     }
 
     /// change the theme

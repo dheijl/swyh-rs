@@ -1,4 +1,7 @@
 pub mod discovery;
+pub mod frames;
+pub mod server;
+pub mod types;
 
 /// UDP/TCP port used by SlimProto (squeezelite / Squeezebox) clients.
-pub const SLIM_DISCOVERY_PORT: u16 = 3483;
+pub const SLIM_PORT: u16 = 3483;

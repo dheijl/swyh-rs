@@ -179,8 +179,10 @@ fn main() {
         ui_log(LogCategory::Info, &fl!("status-ssdp-interval-zero"));
     }
 
-    // start the SlimProto (squeezelite) discovery responder thread
+    // start the SlimProto (squeezelite) discovery responder and TCP control threads
+    ui_log(LogCategory::Info, &fl!("status-starting-slimproto"));
     spawn_slim_discovery();
+    spawn_slim_server(local_addr);
 
     // start the RMS monitor thread
     spawn_rms_monitor(
@@ -230,6 +232,14 @@ fn main() {
                         newr.controller.dev_name, newr.volume
                     );
                     mf.add_renderer_button(&mut newr);
+                }
+                // add a new button for each SlimProto (squeezelite) client that connects
+                MessageType::SlimHelo(mut newr) => {
+                    debug!(
+                        "SlimProto client {} mac={:02x?}",
+                        newr.remote_addr, newr.mac
+                    );
+                    mf.add_slim_renderer_button(&mut newr);
                 }
                 // show a log message in the textbox
                 MessageType::LogMessage(msg) => {
@@ -442,14 +452,31 @@ fn spawn_slim_discovery() {
         .name("slim_discovery".into())
         .stack_size(THREAD_STACK)
         .spawn(|| {
-            if let Err(e) = swyh_rs::slimproto::discovery::run_discovery(
-                swyh_rs::slimproto::SLIM_DISCOVERY_PORT,
-            ) {
+            if let Err(e) =
+                swyh_rs::slimproto::discovery::run_discovery(swyh_rs::slimproto::SLIM_PORT)
+            {
                 log::error!("SlimProto discovery thread failed to start: {e}");
             }
         });
     if let Err(e) = jh {
         log::error!("Unable to spawn SlimProto discovery thread: {e:?}");
+    }
+}
+
+/// spawn the SlimProto (squeezelite) TCP control connection accept-loop thread
+fn spawn_slim_server(local_addr: IpAddr) {
+    let jh = thread::Builder::new()
+        .name("slim_server".into())
+        .stack_size(THREAD_STACK)
+        .spawn(move || {
+            if let Err(e) =
+                swyh_rs::slimproto::server::run_server(local_addr, swyh_rs::slimproto::SLIM_PORT)
+            {
+                log::error!("SlimProto TCP server thread failed to start: {e}");
+            }
+        });
+    if let Err(e) = jh {
+        log::error!("Unable to spawn SlimProto TCP server thread: {e:?}");
     }
 }
 

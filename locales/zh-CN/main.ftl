@@ -44,6 +44,7 @@ status-setup-audio = 配置音频源
 status-injecting-silence = 正在向输出流注入静音
 status-starting-ssdp = 正在启动 SSDP 发现
 status-ssdp-interval-zero = SSDP 间隔为 0 => 跳过 SSDP 发现
+status-starting-slimproto = 正在启动 SlimProto 发现
 status-loaded-config = 已加载配置 -c { $id }
 status-serving-started = 已在端口 { $port } 上启动服务...
 status-playing-to = 正在播放到 { $name }

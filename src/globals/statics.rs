@@ -5,7 +5,7 @@ use std::sync::{Arc, LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic
 
 use crate::{
     audio::rwstream::ChannelStream, enums::messages::MessageType, rendercontrol::Renderer,
-    utils::configuration::Configuration,
+    slimproto::types::SlimRenderer, utils::configuration::Configuration,
 };
 
 use arc_swap::{ArcSwap, Guard};
@@ -118,6 +118,20 @@ pub fn get_renderers() -> RwLockReadGuard<'static, Vec<Renderer>> {
 }
 pub fn get_renderers_mut() -> RwLockWriteGuard<'static, Vec<Renderer>> {
     RENDERERS.write().expect("RENDERERS write lock poisoned")
+}
+
+/// all currently known SlimProto (squeezelite) renderers, added on `HELO`
+static SLIM_RENDERERS: LazyLock<RwLock<Vec<SlimRenderer>>> =
+    LazyLock::new(|| RwLock::new(Vec::new()));
+pub fn get_slim_renderers() -> RwLockReadGuard<'static, Vec<SlimRenderer>> {
+    SLIM_RENDERERS
+        .read()
+        .expect("SLIM_RENDERERS read lock poisoned")
+}
+pub fn get_slim_renderers_mut() -> RwLockWriteGuard<'static, Vec<SlimRenderer>> {
+    SLIM_RENDERERS
+        .write()
+        .expect("SLIM_RENDERERS write lock poisoned")
 }
 
 /// the global GUI logger textbox channel used by all threads

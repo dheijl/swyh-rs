@@ -44,6 +44,7 @@ status-setup-audio = Configuration des sources audio
 status-injecting-silence = Injection de silence dans le flux de sortie
 status-starting-ssdp = Démarrage de la découverte SSDP
 status-ssdp-interval-zero = Intervalle SSDP 0 => Découverte SSDP ignorée
+status-starting-slimproto = Démarrage de la découverte SlimProto
 status-loaded-config = Configuration chargée -c { $id }
 status-serving-started = Serveur démarré sur le port { $port }...
 status-playing-to = Lecture vers { $name }

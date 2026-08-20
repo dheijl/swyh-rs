@@ -179,6 +179,9 @@ fn main() {
         ui_log(LogCategory::Info, &fl!("status-ssdp-interval-zero"));
     }
 
+    // start the SlimProto (squeezelite) discovery responder thread
+    spawn_slim_discovery();
+
     // start the RMS monitor thread
     spawn_rms_monitor(
         wd,
@@ -430,6 +433,23 @@ fn spawn_ssdp_updater(ssdp_tx: Sender<MessageType>, ssdp_int: f64, ssdp_kick_rx:
             LogCategory::Error,
             &fl!("err-ssdp-spawn", "error" = format!("{e:?}")),
         );
+    }
+}
+
+/// spawn the SlimProto (squeezelite) UDP discovery responder thread
+fn spawn_slim_discovery() {
+    let jh = thread::Builder::new()
+        .name("slim_discovery".into())
+        .stack_size(THREAD_STACK)
+        .spawn(|| {
+            if let Err(e) = swyh_rs::slimproto::discovery::run_discovery(
+                swyh_rs::slimproto::SLIM_DISCOVERY_PORT,
+            ) {
+                log::error!("SlimProto discovery thread failed to start: {e}");
+            }
+        });
+    if let Err(e) = jh {
+        log::error!("Unable to spawn SlimProto discovery thread: {e:?}");
     }
 }
 

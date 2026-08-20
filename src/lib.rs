@@ -8,5 +8,6 @@ pub mod enums;
 pub mod globals;
 pub mod rendercontrol;
 pub mod server;
+pub mod slimproto;
 pub mod ui;
 pub mod utils;

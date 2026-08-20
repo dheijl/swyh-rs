@@ -44,6 +44,7 @@ status-setup-audio = Audioquellen werden eingerichtet
 status-injecting-silence = Stille wird in den Ausgabestrom eingespeist
 status-starting-ssdp = SSDP-Erkennung wird gestartet
 status-ssdp-interval-zero = SSDP-Intervall 0 => SSDP-Erkennung wird übersprungen
+status-starting-slimproto = SlimProto-Erkennung wird gestartet
 status-loaded-config = Konfiguration geladen -c { $id }
 status-serving-started = Server gestartet auf Port { $port }...
 status-playing-to = Wiedergabe auf { $name }

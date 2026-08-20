@@ -3,6 +3,7 @@
 use crate::{
     rendercontrol::{PlayOutcome, Renderer},
     server::streaming_server::StreamerFeedBack,
+    slimproto::types::SlimRenderer,
 };
 
 #[derive(Debug, Clone)]
@@ -13,4 +14,6 @@ pub enum MessageType {
     PlayResult(PlayOutcome),
     LogMessage(String),
     CaptureAborted,
+    /// a SlimProto (squeezelite) client sent its `HELO` handshake
+    SlimHelo(Box<SlimRenderer>), // boxed to reduce enum size
 }

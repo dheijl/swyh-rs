@@ -44,6 +44,7 @@ status-setup-audio = オーディオソースを設定中
 status-injecting-silence = 出力ストリームに無音を挿入中
 status-starting-ssdp = SSDP 探索を開始中
 status-ssdp-interval-zero = SSDP 間隔が 0 => SSDP 探索をスキップ
+status-starting-slimproto = SlimProto 探索を開始中
 status-loaded-config = 設定を読み込みました -c { $id }
 status-serving-started = ポート { $port } でサービスを開始しました...
 status-playing-to = { $name } に再生中

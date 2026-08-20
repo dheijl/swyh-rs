@@ -44,6 +44,7 @@ status-setup-audio = Setup audio sources
 status-injecting-silence = Injecting silence into the output stream
 status-starting-ssdp = Starting SSDP discovery
 status-ssdp-interval-zero = SSDP interval 0 => Skipping SSDP discovery
+status-starting-slimproto = Starting SlimProto discovery
 status-loaded-config = Loaded configuration -c { $id }
 status-serving-started = Serving started on port { $port }...
 status-playing-to = Playing to { $name }

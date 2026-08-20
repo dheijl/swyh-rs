@@ -33,7 +33,7 @@ use swyh_rs::{
     fl,
     globals::statics::{
         APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
-        get_msgchannel, get_renderers, get_renderers_mut,
+        get_msgchannel, get_renderers, get_renderers_mut, get_slim_renderers_mut,
     },
     rendercontrol::{Renderer, StreamInfo, WavData, discover, new_agent},
     server::streaming_server::run_server,
@@ -280,6 +280,13 @@ fn main() -> Result<(), i32> {
                         );
                         get_renderers_mut().push(*newr);
                     }
+                }
+                // the CLI binary doesn't spawn the SlimProto discovery/TCP
+                // threads yet, so this never fires in practice today; kept
+                // only so this match stays exhaustive until CLI parity for
+                // SlimProto is a deliberate, separate step
+                MessageType::SlimHelo(newr) => {
+                    get_slim_renderers_mut().push(*newr);
                 }
                 MessageType::PlayerMessage(streamer_feedback) => {
                     if let StreamingState::Ended = streamer_feedback.streaming_state

@@ -26,7 +26,10 @@ use log::debug;
 use std::{
     collections::VecDeque,
     io::{Error, Read, Result as IoResult},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 use wide::f32x4;
@@ -80,6 +83,15 @@ pub struct ChannelStream {
     bits_per_sample: u16,
     use_dither: Dither,
     flac_channel: Option<FlacChannel>,
+    /// Set by [`Self::request_stop`] to make `Read::read` return EOF on the
+    /// next call, ending the HTTP response even if the client itself never
+    /// closes its end of the connection (e.g. a SlimProto client that stops
+    /// decoding on `strm 'q'` but leaves the TCP connection open) — without
+    /// this, a stalled write to that socket can block the streaming thread
+    /// indefinitely, leaking a `CLIENTS` entry forever. `Arc`'d so every
+    /// clone (the `CLIENTS` map's copy and the one actually being read by
+    /// the streaming thread, see `run_server`) shares the same flag.
+    stop: Arc<AtomicBool>,
 }
 
 impl ChannelStream {
@@ -129,6 +141,7 @@ impl ChannelStream {
             use_dither: context.use_dither,
             streaming_format: context.streaming_format,
             flac_channel,
+            stop: Arc::new(AtomicBool::new(false)),
         };
         if context.streaming_format == StreamingFormat::Flac {
             chs.start_flac_encoder();
@@ -148,6 +161,13 @@ impl ChannelStream {
         if let Some(flac_channel) = &self.flac_channel {
             flac_channel.stop();
         }
+    }
+
+    /// Force this client's HTTP response to end on its next `read()` call,
+    /// regardless of whether the client itself ever closes the connection.
+    /// See the `stop` field's doc comment for why this exists.
+    pub fn request_stop(&self) {
+        self.stop.store(true, Ordering::Release);
     }
 
     /// called by the `wave_reader`s to write the f32 samples to our input channel
@@ -286,6 +306,9 @@ impl ChannelStream {
 /// filling the read buffer with FLAC or LPCM/WAV/RF64 data
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        if self.stop.load(Ordering::Acquire) {
+            return Ok(0); // EOF: ends the HTTP response on this read
+        }
         if self.flac_channel.is_some() {
             self.fill_flac_buffer(buf)
         } else {

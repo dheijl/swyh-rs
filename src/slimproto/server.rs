@@ -1,10 +1,11 @@
 use crate::enums::messages::MessageType;
-use crate::globals::statics::{THREAD_STACK, get_msgchannel, get_slim_renderers};
+use crate::globals::statics::{THREAD_STACK, get_msgchannel, get_slim_renderers_mut};
 use crate::slimproto::frames::{self, Frame};
 use crate::slimproto::types::SlimRenderer;
 use anyhow::{Context, Result};
-use ecow::eco_format;
-use std::net::{IpAddr, TcpListener, TcpStream};
+use ecow::{EcoString, eco_format};
+use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 /// Bind the SlimProto TCP control port and accept client connections forever,
@@ -45,6 +46,14 @@ fn handle_connection(mut stream: TcpStream) {
         .peer_addr()
         .map(|a| a.to_string())
         .unwrap_or_else(|_| "<unknown>".into());
+    // Resolved once here instead of per-frame: stable for the life of the
+    // connection. `remote_addr` is IP only, matching
+    // `SlimRenderer::remote_addr`'s convention; `peer_port` is the
+    // connection's source port, which a reconnect from the same IP gets
+    // fresh — see `SlimRenderer::peer_port` for why that matters.
+    let peer_addr: Option<SocketAddr> = stream.peer_addr().ok();
+    let remote_addr: Option<EcoString> = peer_addr.map(|a| eco_format!("{}", a.ip()));
+    let peer_port: u16 = peer_addr.map(|a| a.port()).unwrap_or_default();
     log::info!("SlimProto client connected from {peer}");
     loop {
         match frames::read_frame(&mut stream) {
@@ -56,19 +65,37 @@ fn handle_connection(mut stream: TcpStream) {
                     helo.mac,
                     helo.capabilities
                 );
-                let Ok(addr) = stream.peer_addr() else {
+                let Some(remote_addr) = remote_addr.clone() else {
                     log::warn!("SlimProto {peer}: dropping HELO, peer address unavailable");
                     continue;
                 };
-                let remote_addr = eco_format!("{}", addr.ip());
-                let already_known = get_slim_renderers()
-                    .iter()
-                    .any(|r| r.remote_addr == remote_addr);
-                if already_known {
-                    log::debug!("SlimProto {peer}: renderer already known, not re-adding");
-                    continue;
+                let write_stream = match stream.try_clone() {
+                    Ok(s) => Arc::new(Mutex::new(s)),
+                    Err(e) => {
+                        log::warn!(
+                            "SlimProto {peer}: dropping HELO, failed to clone stream for writes: {e}"
+                        );
+                        continue;
+                    }
+                };
+                // a reconnect from an already-known client: refresh its
+                // write handle and peer_port in place instead of silently
+                // dropping the HELO, so playback commands sent after a
+                // reconnect land on the live connection instead of a dead one
+                {
+                    let mut renderers = get_slim_renderers_mut();
+                    if let Some(existing) =
+                        renderers.iter_mut().find(|r| r.remote_addr == remote_addr)
+                    {
+                        log::info!(
+                            "SlimProto {peer}: renderer {remote_addr} reconnected, refreshing write handle"
+                        );
+                        existing.write_stream = write_stream;
+                        existing.peer_port = peer_port;
+                        continue;
+                    }
                 }
-                let renderer = SlimRenderer::from_helo(&helo, remote_addr);
+                let renderer = SlimRenderer::from_helo(&helo, remote_addr, peer_port, write_stream);
                 if let Err(e) = get_msgchannel()
                     .0
                     .send(MessageType::SlimHelo(Box::new(renderer)))
@@ -84,6 +111,14 @@ fn handle_connection(mut stream: TcpStream) {
             }
             Err(e) => {
                 log::info!("SlimProto client {peer} disconnected: {e}");
+                if let Some(remote_addr) = remote_addr
+                    && let Err(e) = get_msgchannel().0.send(MessageType::SlimDisconnected {
+                        remote_addr,
+                        peer_port,
+                    })
+                {
+                    log::error!("SlimProto {peer}: failed to send SlimDisconnected message: {e}");
+                }
                 return;
             }
         }

@@ -1,10 +1,16 @@
 //! [`SlimRenderer`]: a connected SlimProto (squeezelite) client, built from
 //! its `HELO` handshake.
 
+use crate::globals::statics::{THREAD_STACK, stop_clients_by_ip};
 use crate::slimproto::frames::SlimHelo;
+use crate::slimproto::strm;
 use ecow::EcoString;
 #[cfg(feature = "gui")]
 use fltk::button::LightButton;
+use std::io::{self, Write};
+use std::net::{Ipv4Addr, TcpStream};
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 #[cfg(feature = "gui")]
 #[derive(Debug, Clone, Default)]
@@ -13,34 +19,115 @@ pub struct SlimRendUI {
     pub button: Option<LightButton>,
 }
 
-/// A connected SlimProto client. Unlike [`crate::rendercontrol::Renderer`],
-/// there's no network client embedded here yet — sending playback commands
-/// back to this specific client needs a per-connection outbound channel that
-/// hasn't been added yet.
+/// A connected SlimProto client, built from its `HELO` handshake.
+/// `write_stream` is a clone of the write half of the client's single
+/// long-lived TCP connection (the read half stays owned by
+/// `server::handle_connection`'s read loop) — it's how playback commands
+/// (`strm`) get sent back to this specific client.
 #[derive(Debug, Clone)]
 pub struct SlimRenderer {
     pub player_index: usize,
     /// IP only, no port — same convention as `Controller::remote_addr`.
     pub remote_addr: EcoString,
+    /// Source port of the current TCP connection's `peer_addr
+    /// uniquely identifies a streaming connection
+    pub peer_port: u16,
     pub mac: [u8; 6],
     pub device_id: u8,
     pub capabilities: String,
     pub playing: bool,
+    pub write_stream: Arc<Mutex<TcpStream>>,
     #[cfg(feature = "gui")]
     pub rend_ui: SlimRendUI,
 }
 
 impl SlimRenderer {
-    pub fn from_helo(helo: &SlimHelo, remote_addr: EcoString) -> Self {
+    pub fn from_helo(
+        helo: &SlimHelo,
+        remote_addr: EcoString,
+        peer_port: u16,
+        write_stream: Arc<Mutex<TcpStream>>,
+    ) -> Self {
         Self {
             player_index: 0,
             remote_addr,
+            peer_port,
             mac: helo.mac,
             device_id: helo.device_id,
             capabilities: helo.capabilities.clone(),
             playing: false,
+            write_stream,
             #[cfg(feature = "gui")]
             rend_ui: SlimRendUI::default(),
+        }
+    }
+
+    /// Tell this client to open an HTTP connection back to
+    /// `server_ip:server_port` and start decoding a FLAC stream. Runs
+    /// synchronously (blocks on the mutex + a socket write) — call from a
+    /// background thread, never the UI thread.
+    pub fn send_strm_start(&self, server_ip: Ipv4Addr, server_port: u16) -> io::Result<()> {
+        let frame = strm::build_strm_start(server_ip, server_port);
+        self.write_stream
+            .lock()
+            .expect("SlimRenderer write_stream mutex poisoned")
+            .write_all(&frame)
+    }
+
+    /// Tell this client to stop playback immediately, and force-drop its
+    /// HTTP streaming connection on our own server rather than waiting for
+    /// the client to close it (it may not, promptly or ever — see
+    /// [`crate::globals::statics::stop_clients_by_ip`]). See
+    /// [`Self::send_strm_start`] for threading notes.
+    pub fn send_strm_stop(&self) -> io::Result<()> {
+        let frame = strm::build_strm_stop();
+        let result = self
+            .write_stream
+            .lock()
+            .expect("SlimRenderer write_stream mutex poisoned")
+            .write_all(&frame);
+        stop_clients_by_ip(&self.remote_addr);
+        result
+    }
+
+    /// [`Self::send_strm_start`] on a background thread, so the caller (the
+    /// FLTK button callback) is never blocked on the socket write. Mirrors
+    /// [`crate::rendercontrol::Renderer::spawn_play`].
+    pub fn spawn_strm_start(&self, server_ip: Ipv4Addr, server_port: u16) {
+        let renderer = self.clone();
+        let spawned = thread::Builder::new()
+            .name("slim_strm_start".into())
+            .stack_size(THREAD_STACK)
+            .spawn(move || {
+                if let Err(e) = renderer.send_strm_start(server_ip, server_port) {
+                    log::error!(
+                        "SlimProto: failed to start playback on {}: {e}",
+                        renderer.remote_addr
+                    );
+                }
+            });
+        if let Err(e) = spawned {
+            log::error!("SlimProto: failed to spawn strm-start thread: {e}");
+        }
+    }
+
+    /// [`Self::send_strm_stop`] on a background thread. See
+    /// [`Self::spawn_strm_start`] for why.
+    pub fn spawn_strm_stop(&self) {
+        let renderer = self.clone();
+        let spawned = thread::Builder::new()
+            .name("slim_strm_stop".into())
+            .stack_size(THREAD_STACK)
+            .spawn(move || {
+                if let Err(e) = renderer.send_strm_stop() {
+                    log::error!(
+                        "SlimProto: failed to stop playback on {}: {e}",
+                        renderer.remote_addr
+                    );
+                }
+            });
+        if let Err(e) = spawned {
+            log::error!("SlimProto: failed to spawn strm-stop thread: {e}");
         }
     }
 
@@ -58,6 +145,7 @@ impl SlimRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::TcpListener;
 
     fn helo(capabilities: &str) -> SlimHelo {
         SlimHelo {
@@ -70,18 +158,35 @@ mod tests {
         }
     }
 
+    /// A connected loopback `TcpStream`, just to satisfy `SlimRenderer`'s
+    /// `write_stream` field in tests that don't exercise actual IO.
+    fn dummy_stream() -> Arc<Mutex<TcpStream>> {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback listener");
+        let addr = listener.local_addr().expect("local_addr");
+        Arc::new(Mutex::new(
+            TcpStream::connect(addr).expect("connect loopback stream"),
+        ))
+    }
+
     #[test]
     fn model_parses_model_capability() {
         let r = SlimRenderer::from_helo(
             &helo("Model=squeezelite,AccuratePlayPoints=1,Firmware=v1.0"),
             "192.168.1.50".into(),
+            12345,
+            dummy_stream(),
         );
         assert_eq!(r.model(), "squeezelite");
     }
 
     #[test]
     fn model_falls_back_when_absent() {
-        let r = SlimRenderer::from_helo(&helo("AccuratePlayPoints=1"), "192.168.1.50".into());
+        let r = SlimRenderer::from_helo(
+            &helo("AccuratePlayPoints=1"),
+            "192.168.1.50".into(),
+            12345,
+            dummy_stream(),
+        );
         assert_eq!(r.model(), "SlimProto");
     }
 }

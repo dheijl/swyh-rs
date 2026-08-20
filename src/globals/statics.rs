@@ -111,6 +111,20 @@ pub fn remove_client(remote_addr: &str) -> (Option<ChannelStream>, usize) {
     (removed, CLIENTS.load().len())
 }
 
+/// Force-stop every currently active streaming client whose `remote_ip`
+/// matches `ip` (see [`ChannelStream::request_stop`]), instead of waiting —
+/// possibly forever — for the client to close its own connection. Used when
+/// a SlimProto renderer is told to stop or its control connection drops:
+/// unlike a UPnP renderer, there's no guarantee the client actually closes
+/// the HTTP data connection on its own.
+pub fn stop_clients_by_ip(ip: &str) {
+    for client in CLIENTS.load().values() {
+        if client.remote_ip == ip {
+            client.request_stop();
+        }
+    }
+}
+
 /// all currently known renderers as discovered by SSDP
 static RENDERERS: LazyLock<RwLock<Vec<Renderer>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 pub fn get_renderers() -> RwLockReadGuard<'static, Vec<Renderer>> {

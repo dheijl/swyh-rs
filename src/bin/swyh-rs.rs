@@ -19,7 +19,8 @@ use swyh_rs::{
     fl,
     globals::statics::{
         APP_DATE, APP_VERSION, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
-        get_msgchannel, get_renderers, get_renderers_mut,
+        get_msgchannel, get_renderers, get_renderers_mut, get_slim_renderers,
+        get_slim_renderers_mut, stop_clients_by_ip,
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
     server::streaming_server::{StreamerFeedBack, run_server},
@@ -240,6 +241,36 @@ fn main() {
                         newr.remote_addr, newr.mac
                     );
                     mf.add_slim_renderer_button(&mut newr);
+                }
+                // a SlimProto client's TCP connection dropped; there's no
+                // control socket left to send a strm stop over, but the
+                // client's separate HTTP data connection (if any) may well
+                // still be open on our side, so force-drop it same as a
+                // normal strm stop would (see SlimRenderer::send_strm_stop)
+                MessageType::SlimDisconnected {
+                    remote_addr,
+                    peer_port,
+                } => {
+                    ui_log(
+                        LogCategory::Info,
+                        &format!("SlimProto client {remote_addr} disconnected"),
+                    );
+                    stop_clients_by_ip(&remote_addr);
+                    // guard against a reconnect having already refreshed
+                    // this renderer's peer_port before this (necessarily
+                    // racy) message got processed — a stale notification
+                    // for the old, now-superseded connection must not clear
+                    // state that belongs to the new one
+                    let button = get_slim_renderers_mut()
+                        .iter_mut()
+                        .find(|r| r.remote_addr == remote_addr && r.peer_port == peer_port)
+                        .map(|r| {
+                            r.playing = false;
+                            r.rend_ui.button.clone()
+                        });
+                    if let Some(Some(mut button)) = button {
+                        button.set(false);
+                    }
                 }
                 // show a log message in the textbox
                 MessageType::LogMessage(msg) => {
@@ -526,6 +557,20 @@ fn handle_player_message(
     wd: WavData,
     local_addr: &IpAddr,
 ) {
+    // A device that exposes both a UPnP renderer and a SlimProto client at
+    // the same IP (e.g. MoOde) can trigger this feedback via either path:
+    // a SlimProto-driven /stream/swyh.* fetch shares `remote_ip` with the
+    // UPnP renderer's own SOAP-triggered fetch, and streaming_server.rs
+    // can't tell them apart. If a SlimProto renderer at this IP is
+    // currently playing, this feedback almost certainly belongs to that
+    // session — don't let it light up or auto-resume the wrong (UPnP)
+    // button.
+    let slim_playing_here = get_slim_renderers()
+        .iter()
+        .any(|r| r.remote_addr == streamer_feedback.remote_ip && r.playing);
+    if slim_playing_here {
+        return;
+    }
     // check for multiple renderers at same ip address (Bubble UPnP)
     let mut same_ip: Vec<Renderer> = get_renderers()
         .iter()
@@ -587,6 +632,29 @@ fn shutdown_and_exit() {
             app::redraw();
             active_players.push(renderer.controller.remote_addr.to_string());
             renderer.stop_play();
+            app::redraw();
+        }
+    }
+    let slim_renderers = get_slim_renderers().clone();
+    for renderer in slim_renderers {
+        if let Some(button) = renderer.rend_ui.button.as_ref()
+            && button.is_set()
+        {
+            ui_log(
+                LogCategory::Info,
+                &format!("Shutting down SlimProto renderer {}", renderer.remote_addr),
+            );
+            app::redraw();
+            active_players.push(renderer.remote_addr.to_string());
+            if let Err(e) = renderer.send_strm_stop() {
+                ui_log(
+                    LogCategory::Error,
+                    &format!(
+                        "SlimProto: failed to stop playback on {}: {e}",
+                        renderer.remote_addr
+                    ),
+                );
+            }
             app::redraw();
         }
     }

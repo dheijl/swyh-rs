@@ -67,6 +67,7 @@ fn handle_connection(mut stream: TcpStream) {
     // line instead of one per frame; logs again as soon as a different
     // opcode is seen.
     let mut last_ignored_opcode: Option<[u8; 4]> = None;
+    let mut logged_first_stat = false;
     loop {
         match frames::read_frame(&mut stream) {
             Ok(Frame::Helo(helo)) => {
@@ -117,13 +118,25 @@ fn handle_connection(mut stream: TcpStream) {
                     log::error!("SlimProto {peer}: failed to send SlimHelo message: {e}");
                 }
             }
-            Ok(Frame::Other { opcode, .. }) => {
-                if last_ignored_opcode != Some(opcode) {
-                    log::debug!(
-                        "SlimProto {peer}: ignoring {:?} frames",
-                        String::from_utf8_lossy(&opcode)
-                    );
-                    last_ignored_opcode = Some(opcode);
+            Ok(Frame::Other { opcode, payload }) => {
+                if &opcode == b"STAT" {
+                    // STAT is sent very frequently (every heartbeat tick at
+                    // minimum) and we don't act on its contents (it has no
+                    // volume/gain field to read — verified against
+                    // squeezelite's actual STAT_packet struct), so only the
+                    // very first one per connection gets logged in full;
+                    // every one after that collapses into a single summary
+                    // line instead of one per frame like everything below.
+                    if !logged_first_stat {
+                        log_frame_detail(&peer, &opcode, &payload);
+                        logged_first_stat = true;
+                    } else if last_ignored_opcode != Some(opcode) {
+                        log::debug!("SlimProto {peer}: ignoring \"STAT\" frames");
+                        last_ignored_opcode = Some(opcode);
+                    }
+                } else {
+                    log_frame_detail(&peer, &opcode, &payload);
+                    last_ignored_opcode = None;
                 }
             }
             Err(e) => {
@@ -140,6 +153,15 @@ fn handle_connection(mut stream: TcpStream) {
             }
         }
     }
+}
+
+/// Debug-log an unhandled frame's opcode and full payload, hex-dumped.
+fn log_frame_detail(peer: &str, opcode: &[u8; 4], payload: &[u8]) {
+    log::debug!(
+        "SlimProto {peer}: {:?} frame ({} bytes): {payload:02x?}",
+        String::from_utf8_lossy(opcode),
+        payload.len(),
+    );
 }
 
 /// Periodically send a `strm 't'` heartbeat on `renderer`'s control

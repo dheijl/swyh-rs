@@ -1,3 +1,4 @@
+pub mod audg;
 pub mod discovery;
 pub mod frames;
 pub mod server;

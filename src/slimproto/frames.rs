@@ -19,11 +19,11 @@ pub struct SlimHelo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Frame {
     Helo(SlimHelo),
-    /// Any frame whose opcode we don't act on yet (`STAT`, `DSCO`, ...).
-    /// The payload has already been consumed from the stream.
+    /// Any frame whose opcode we don't act on yet (`STAT`, `DSCO`, ...),
+    /// with its payload intact so the caller can debug-log its content.
     Other {
         opcode: [u8; 4],
-        length: u32,
+        payload: Vec<u8>,
     },
 }
 
@@ -41,8 +41,9 @@ const MAX_FRAME_PAYLOAD_LEN: u32 = 8 * 1024;
 /// Read one SlimProto frame from `stream`: an 8-byte `opcode`+`length`
 /// header (length is big-endian, payload-only), followed by `length` bytes
 /// of payload. `HELO` frames are parsed into [`SlimHelo`]; anything else is
-/// returned as [`Frame::Other`] with its payload already drained from the
-/// stream, so the caller can keep reading subsequent frames.
+/// returned as [`Frame::Other`] with its payload drained from the stream
+/// (so the caller can keep reading subsequent frames) and handed back
+/// intact, so the caller can debug-log it.
 pub fn read_frame(stream: &mut impl Read) -> io::Result<Frame> {
     let mut header = [0u8; 8];
     stream.read_exact(&mut header)?;
@@ -63,7 +64,7 @@ pub fn read_frame(stream: &mut impl Read) -> io::Result<Frame> {
     if &opcode == b"HELO" {
         Ok(Frame::Helo(parse_helo(&payload)?))
     } else {
-        Ok(Frame::Other { opcode, length })
+        Ok(Frame::Other { opcode, payload })
     }
 }
 
@@ -159,7 +160,7 @@ mod tests {
             first,
             Frame::Other {
                 opcode: *b"STAT",
-                length: 5
+                payload: b"junk!".to_vec()
             }
         );
 

@@ -3,11 +3,14 @@
 
 use crate::globals::statics::{THREAD_STACK, stop_clients_by_ip};
 use crate::rendercontrol::StreamInfo;
+use crate::slimproto::audg;
 use crate::slimproto::frames::SlimHelo;
 use crate::slimproto::strm;
 use ecow::EcoString;
 #[cfg(feature = "gui")]
 use fltk::button::LightButton;
+#[cfg(feature = "gui")]
+use fltk::valuator::HorNiceSlider;
 use std::io::{self, Write};
 use std::net::{Ipv4Addr, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -18,6 +21,7 @@ use std::thread;
 /// The UI elements associated with a SlimProto renderer.
 pub struct SlimRendUI {
     pub button: Option<LightButton>,
+    pub slider: Option<HorNiceSlider>,
 }
 
 /// A connected SlimProto client, built from its `HELO` handshake.
@@ -42,6 +46,12 @@ pub struct SlimRenderer {
     pub device_id: u8,
     pub capabilities: String,
     pub playing: bool,
+    /// The slider's starting *display* position only — unlike UPnP's
+    /// `GetVolume`, squeezelite exposes no "what's your current volume"
+    /// query at `HELO` time, so this is just a guess (100%, i.e. unity
+    /// gain). Nothing is sent to the client until the user actually moves
+    /// the slider, so a fresh connection's real volume is left untouched.
+    pub volume: i32,
     pub write_stream: Arc<Mutex<TcpStream>>,
     #[cfg(feature = "gui")]
     pub rend_ui: SlimRendUI,
@@ -62,6 +72,7 @@ impl SlimRenderer {
             device_id: helo.device_id,
             capabilities: helo.capabilities.clone(),
             playing: false,
+            volume: 100,
             write_stream,
             #[cfg(feature = "gui")]
             rend_ui: SlimRendUI::default(),
@@ -147,6 +158,36 @@ impl SlimRenderer {
             });
         if let Err(e) = spawned {
             log::error!("SlimProto: failed to spawn strm-stop thread: {e}");
+        }
+    }
+
+    /// Send an `audg` (audio gain) frame setting this client's volume to
+    /// `volume_percent`. See [`Self::send_strm_start`] for threading notes.
+    pub fn send_set_volume(&self, volume_percent: i32) -> io::Result<()> {
+        let frame = audg::build_audg(volume_percent);
+        self.write_stream
+            .lock()
+            .expect("SlimRenderer write_stream mutex poisoned")
+            .write_all(&frame)
+    }
+
+    /// [`Self::send_set_volume`] on a background thread. See
+    /// [`Self::spawn_strm_start`] for why.
+    pub fn spawn_set_volume(&self, volume_percent: i32) {
+        let renderer = self.clone();
+        let spawned = thread::Builder::new()
+            .name("slim_set_volume".into())
+            .stack_size(THREAD_STACK)
+            .spawn(move || {
+                if let Err(e) = renderer.send_set_volume(volume_percent) {
+                    log::error!(
+                        "SlimProto: failed to set volume on {}: {e}",
+                        renderer.remote_addr
+                    );
+                }
+            });
+        if let Err(e) = spawned {
+            log::error!("SlimProto: failed to spawn set-volume thread: {e}");
         }
     }
 

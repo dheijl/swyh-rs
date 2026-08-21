@@ -126,7 +126,7 @@ pub fn build_strm_start(
     payload.extend_from_slice(request_line.as_bytes());
     debug_assert_eq!(payload.len(), 24 + request_line.len());
 
-    Ok(build_frame_envelope(&payload))
+    Ok(build_frame_envelope(b"strm", &payload))
 }
 
 /// Build a `strm` "stop" frame telling the client to halt playback
@@ -153,16 +153,18 @@ pub fn build_strm_status() -> Vec<u8> {
 fn build_control_frame(command: u8) -> Vec<u8> {
     let mut payload = vec![0u8; 24];
     payload[0] = command;
-    build_frame_envelope(&payload)
+    build_frame_envelope(b"strm", &payload)
 }
 
-/// Wrap a strm payload in its frame envelope: `length(BE u16, covers
-/// opcode+payload) + opcode[4] + payload`.
-fn build_frame_envelope(payload: &[u8]) -> Vec<u8> {
+/// Wrap a payload in its SlimProto server -> client frame envelope:
+/// `length(BE u16, covers opcode+payload) + opcode[4] + payload`. Shared
+/// with `audg::build_audg` — this envelope shape applies to every
+/// server -> client opcode, not just `strm`.
+pub(crate) fn build_frame_envelope(opcode: &[u8; 4], payload: &[u8]) -> Vec<u8> {
     let body_len = 4 + payload.len();
     let mut frame = Vec::with_capacity(2 + body_len);
     frame.extend_from_slice(&(body_len as u16).to_be_bytes());
-    frame.extend_from_slice(b"strm");
+    frame.extend_from_slice(opcode);
     frame.extend_from_slice(payload);
     frame
 }

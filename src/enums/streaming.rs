@@ -244,6 +244,9 @@ pub struct StreamingContext {
     pub streamsize: Option<usize>,
     pub url: EcoString,
     pub use_dither: Dither,
+    /// See `StreamingParams::slim` — this connection is a SlimProto
+    /// client's own `strm`-triggered fetch.
+    pub slim: bool,
 }
 
 impl StreamingContext {
@@ -294,6 +297,7 @@ impl StreamingContext {
             streamsize,
             url,
             use_dither: Dither::from(cfg.use_dither.unwrap_or(true)),
+            slim: params.slim,
         }
     }
 

@@ -21,6 +21,12 @@ pub struct StreamingParams {
     pub bd: Option<BitDepth>,
     pub ss: Option<StreamSize>,
     pub fmt: Option<StreamingFormat>,
+    /// `?slim=1`: this request is a SlimProto client's own `strm`-triggered
+    /// fetch (see `slimproto::strm`), not a UPnP renderer's. Only ever set
+    /// by requests swyh-rs itself generates via `strm`, so it's a precise
+    /// marker rather than the IP-based heuristics used elsewhere for the
+    /// same purpose.
+    pub slim: bool,
 }
 
 impl StreamingParams {
@@ -35,6 +41,7 @@ impl StreamingParams {
             bd: None,
             ss: None,
             fmt: None,
+            slim: false,
         };
         // split path from optional query string without a full URI parse
         let (path_part, query_part) = url.split_once('?').unwrap_or((url, ""));
@@ -56,6 +63,7 @@ impl StreamingParams {
                     "ss" => {
                         params.ss = Some(StreamSize::from_str(v).unwrap_or(StreamSize::NoneChunked))
                     }
+                    "slim" => params.slim = true,
                     _ => (),
                 });
         }

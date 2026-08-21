@@ -12,9 +12,8 @@ use crate::{
     },
     fl,
     globals::statics::{
-        APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, SERVER_PORT,
-        STYLES, THEMES, get_config, get_config_mut, get_renderers, get_renderers_mut,
-        get_slim_renderers_mut,
+        APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
+        get_config, get_config_mut, get_renderers, get_renderers_mut, get_slim_renderers_mut,
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
     slimproto::types::SlimRenderer,
@@ -1628,7 +1627,9 @@ impl MainForm {
     /// button for a squeezelite client that just sent `HELO`. Unlike UPnP
     /// renderers there's no volume slider (`HELO` carries no volume —
     /// SlimProto volume needs a separate `AUDG` command). Playback control
-    /// is FLAC-only for now (see `SlimRenderer::send_strm_start`).
+    /// follows the app's configured streaming format, same as UPnP (see
+    /// `SlimRenderer::send_strm_start`) — Lpcm/Wav/Rf64 are sent headerless
+    /// to squeezelite regardless, see `slimproto::strm`'s doc comment.
     pub fn add_slim_renderer_button(&mut self, new_renderer: &mut SlimRenderer) {
         if get_config()
             .hidden_renderers
@@ -1651,6 +1652,7 @@ impl MainForm {
             let player_index = self.slim_player_index;
             let renderer = new_renderer.clone();
             let local_addr = self.local_addr;
+            let wd = self.wd;
             move |b| {
                 info!(
                     "Pushed SlimProto renderer #{player_index} {}, state = {}",
@@ -1659,8 +1661,8 @@ impl MainForm {
                 );
                 if b.is_on() {
                     if let IpAddr::V4(server_ip) = local_addr {
-                        let server_port = get_config().server_port.unwrap_or(SERVER_PORT);
-                        renderer.spawn_strm_start(server_ip, server_port);
+                        let streaminfo = StreamInfo::new(wd.sample_rate);
+                        renderer.spawn_strm_start(server_ip, streaminfo);
                     } else {
                         ui_log(
                             LogCategory::Error,

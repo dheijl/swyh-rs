@@ -98,8 +98,8 @@ fn tpdf_dither_batched_fill() -> f32x4 {
     fastrand::fill(&mut buf);
 
     let mut u = [0.0f32; 8];
-    for (i, w) in buf.chunks_exact(8).enumerate() {
-        let word = u64::from_ne_bytes(w.try_into().unwrap());
+    for (i, w) in buf.as_chunks::<8>().0.iter().enumerate() {
+        let word = u64::from_ne_bytes(*w);
         u[2 * i] = ((word as u32) >> 1) as f32 * MUL;
         u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32 * MUL;
     }
@@ -194,14 +194,14 @@ fn bench_byte_pack_buffer(c: &mut Criterion) {
     g.throughput(Throughput::Elements((CHUNKS * 4) as u64));
     g.bench_function("simd", |b| {
         b.iter(|| {
-            for (chunk, out) in i32_data.iter().zip(buf16.chunks_exact_mut(8)) {
+            for (chunk, out) in i32_data.iter().zip(buf16.as_chunks_mut::<8>().0.iter_mut()) {
                 i32_to_i16le(black_box(chunk), black_box(out));
             }
         })
     });
     g.bench_function("scalar", |b| {
         b.iter(|| {
-            for (chunk, out) in i32_data.iter().zip(buf16.chunks_exact_mut(8)) {
+            for (chunk, out) in i32_data.iter().zip(buf16.as_chunks_mut::<8>().0.iter_mut()) {
                 scalar_i32_to_i16le(black_box(chunk), black_box(out));
             }
         })
@@ -212,14 +212,20 @@ fn bench_byte_pack_buffer(c: &mut Criterion) {
     g.throughput(Throughput::Elements((CHUNKS * 4) as u64));
     g.bench_function("simd", |b| {
         b.iter(|| {
-            for (chunk, out) in i32_data.iter().zip(buf24.chunks_exact_mut(12)) {
+            for (chunk, out) in i32_data
+                .iter()
+                .zip(buf24.as_chunks_mut::<12>().0.iter_mut())
+            {
                 i32_to_i24le(black_box(chunk), black_box(out));
             }
         })
     });
     g.bench_function("scalar", |b| {
         b.iter(|| {
-            for (chunk, out) in i32_data.iter().zip(buf24.chunks_exact_mut(12)) {
+            for (chunk, out) in i32_data
+                .iter()
+                .zip(buf24.as_chunks_mut::<12>().0.iter_mut())
+            {
                 scalar_i32_to_i24le(black_box(chunk), black_box(out));
             }
         })

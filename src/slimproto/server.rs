@@ -7,6 +7,13 @@ use ecow::{EcoString, eco_format};
 use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
+
+/// How often to send a `strm 't'` heartbeat on an otherwise-idle control
+/// connection. Comfortably under squeezelite's own idle-read timeout
+/// (observed ~35-40s in the wild — see
+/// [`crate::slimproto::strm::build_strm_status`]).
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Bind the SlimProto TCP control port and accept client connections forever,
 /// spawning one thread per connection. Each SlimProto client (squeezelite
@@ -55,6 +62,11 @@ fn handle_connection(mut stream: TcpStream) {
     let remote_addr: Option<EcoString> = peer_addr.map(|a| eco_format!("{}", a.ip()));
     let peer_port: u16 = peer_addr.map(|a| a.port()).unwrap_or_default();
     log::info!("SlimProto client connected from {peer}");
+    // Coalesce a run of consecutively-ignored same-opcode frames (mostly
+    // `STAT`, sent roughly every heartbeat interval) into a single debug
+    // line instead of one per frame; logs again as soon as a different
+    // opcode is seen.
+    let mut last_ignored_opcode: Option<[u8; 4]> = None;
     loop {
         match frames::read_frame(&mut stream) {
             Ok(Frame::Helo(helo)) => {
@@ -92,10 +104,12 @@ fn handle_connection(mut stream: TcpStream) {
                         );
                         existing.write_stream = write_stream;
                         existing.peer_port = peer_port;
+                        spawn_heartbeat(existing.clone(), peer.clone());
                         continue;
                     }
                 }
                 let renderer = SlimRenderer::from_helo(&helo, remote_addr, peer_port, write_stream);
+                spawn_heartbeat(renderer.clone(), peer.clone());
                 if let Err(e) = get_msgchannel()
                     .0
                     .send(MessageType::SlimHelo(Box::new(renderer)))
@@ -103,11 +117,14 @@ fn handle_connection(mut stream: TcpStream) {
                     log::error!("SlimProto {peer}: failed to send SlimHelo message: {e}");
                 }
             }
-            Ok(Frame::Other { opcode, length }) => {
-                log::debug!(
-                    "SlimProto {peer}: ignoring {:?} frame ({length} bytes)",
-                    String::from_utf8_lossy(&opcode)
-                );
+            Ok(Frame::Other { opcode, .. }) => {
+                if last_ignored_opcode != Some(opcode) {
+                    log::debug!(
+                        "SlimProto {peer}: ignoring {:?} frames",
+                        String::from_utf8_lossy(&opcode)
+                    );
+                    last_ignored_opcode = Some(opcode);
+                }
             }
             Err(e) => {
                 log::info!("SlimProto client {peer} disconnected: {e}");
@@ -122,5 +139,33 @@ fn handle_connection(mut stream: TcpStream) {
                 return;
             }
         }
+    }
+}
+
+/// Periodically send a `strm 't'` heartbeat on `renderer`'s control
+/// connection, so squeezelite's own idle-read timeout never fires on an
+/// otherwise-quiet connection — see [`HEARTBEAT_INTERVAL`]. Self-terminates
+/// on the first write failure (the connection died; the read-loop thread on
+/// `handle_connection` handles the actual cleanup/reconnect bookkeeping),
+/// so a reconnect just leaves this to notice on its next tick and exit,
+/// while a fresh heartbeat thread is spawned for the new connection.
+fn spawn_heartbeat(renderer: SlimRenderer, peer: String) {
+    let jh = thread::Builder::new()
+        .name("slim_heartbeat".into())
+        .stack_size(THREAD_STACK)
+        .spawn({
+            let peer = peer.clone();
+            move || {
+                loop {
+                    thread::sleep(HEARTBEAT_INTERVAL);
+                    if let Err(e) = renderer.send_strm_status() {
+                        log::debug!("SlimProto {peer}: heartbeat stopped: {e}");
+                        return;
+                    }
+                }
+            }
+        });
+    if let Err(e) = jh {
+        log::warn!("SlimProto {peer}: failed to spawn heartbeat thread: {e}");
     }
 }

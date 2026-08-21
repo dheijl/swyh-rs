@@ -90,6 +90,17 @@ impl SlimRenderer {
         result
     }
 
+    /// Send a `strm` "status" (time) request — a heartbeat, not a playback
+    /// command. See [`crate::slimproto::strm::build_strm_status`] for why
+    /// this needs to be sent periodically at all.
+    pub fn send_strm_status(&self) -> io::Result<()> {
+        let frame = strm::build_strm_status();
+        self.write_stream
+            .lock()
+            .expect("SlimRenderer write_stream mutex poisoned")
+            .write_all(&frame)
+    }
+
     /// [`Self::send_strm_start`] on a background thread, so the caller (the
     /// FLTK button callback) is never blocked on the socket write. Mirrors
     /// [`crate::rendercontrol::Renderer::spawn_play`].

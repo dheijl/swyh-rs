@@ -526,8 +526,8 @@ mod tests {
     fn tpdf_raw_pairs_from_bytes(buf: [u8; 32]) -> [(f32, f32); 4] {
         const MUL: f32 = 1.0 / (1u32 << 31) as f32;
         let mut pairs = [(0.0f32, 0.0f32); 4];
-        for (i, w) in buf.chunks_exact(8).enumerate() {
-            let word = u64::from_ne_bytes(w.try_into().unwrap());
+        for (i, w) in buf.as_chunks::<8>().0.iter().enumerate() {
+            let word = u64::from_ne_bytes(*w);
             let u1 = ((word as u32) >> 1) as f32 * MUL;
             let u2 = ((word >> 32) as u32 >> 1) as f32 * MUL;
             pairs[i] = (u1, u2);

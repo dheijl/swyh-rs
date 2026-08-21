@@ -42,6 +42,17 @@ pub fn build_strm_stop() -> Vec<u8> {
     build_strm_frame(b'q', "", Ipv4Addr::UNSPECIFIED, 0)
 }
 
+/// Build a `strm` "status" (time) request frame — a no-op as far as
+/// playback goes, used purely as a heartbeat: squeezelite's control
+/// connection has its own idle-read timeout (observed ~35-40s in the wild)
+/// and treats hitting it as the connection dying, tearing down any
+/// in-progress stream along with it. A real SlimProto server avoids this by
+/// periodically sending *something*; this is that something. Same
+/// all-other-fields-zeroed shape as `build_strm_stop`.
+pub fn build_strm_status() -> Vec<u8> {
+    build_strm_frame(b't', "", Ipv4Addr::UNSPECIFIED, 0)
+}
+
 fn build_strm_frame(
     command: u8,
     request_line: &str,
@@ -125,6 +136,20 @@ mod tests {
         assert_eq!(payload.len(), 24);
         assert_eq!(payload[0], b'q'); // command
         // everything else is zeroed for a stop command
+        assert!(payload[1..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn strm_status_frame_layout() {
+        let frame = build_strm_status();
+
+        let declared_len = u16::from_be_bytes(frame[0..2].try_into().unwrap());
+        assert_eq!(declared_len, 4 + 24);
+        assert_eq!(&frame[2..6], b"strm");
+
+        let payload = &frame[6..];
+        assert_eq!(payload.len(), 24);
+        assert_eq!(payload[0], b't'); // command
         assert!(payload[1..].iter().all(|&b| b == 0));
     }
 }

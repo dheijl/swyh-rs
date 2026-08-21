@@ -267,6 +267,20 @@ impl StreamingContext {
             .ss
             .map(|ss| ss.values())
             .unwrap_or_else(|| cfg.stream_size_for(streaming_format).unwrap().values());
+        // tiny_http can't use chunked transfer-encoding for HTTP/1.0 (it didn't
+        // exist before 1.1), and without a declared Content-Length it falls back
+        // to buffering the *entire* response body into memory via `read_to_end()`
+        // before writing anything at all — fatal for a live/infinite audio
+        // stream, which never returns EOF (verified against tiny_http 0.12's
+        // `Response::raw_print`). SlimProto clients (squeezelite) always request
+        // HTTP/1.0, so force one of the "NotChunked" variants (a large declared
+        // size, same trick already used for the WAV/RF64 headers' own "infinite"
+        // size fields) whenever nothing more specific was already requested.
+        let (streamsize, chunksize) = if streamsize.is_none() && *rq.http_version() <= (1, 0) {
+            StreamSize::U64maxNotChunked.values()
+        } else {
+            (streamsize, chunksize)
+        };
 
         StreamingContext {
             sample_rate: wd.sample_rate,

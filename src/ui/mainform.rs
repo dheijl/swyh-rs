@@ -13,7 +13,8 @@ use crate::{
     fl,
     globals::statics::{
         APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
-        get_config, get_config_mut, get_renderers, get_renderers_mut, get_slim_renderers_mut,
+        get_config, get_config_mut, get_renderers, get_renderers_mut, get_slim_renderers,
+        get_slim_renderers_mut,
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
     slimproto::types::SlimRenderer,
@@ -1639,8 +1640,12 @@ impl MainForm {
             return;
         }
         new_renderer.player_index = self.slim_player_index;
+        // squeezelite always supports AUDG (unlike UPnP's GetVolume, which
+        // can fail per-device), so the slider is unconditional here.
+        let pbwidth = (self.bwidth / 3) * 2;
+        let slwidth = self.bwidth / 3;
         let mut pbut = LightButton::default()
-            .with_size(self.bwidth, self.bheight)
+            .with_size(pbwidth, self.bheight)
             .with_pos(0, 0)
             .with_align(Align::Center | Align::Clip)
             .with_label(&format!(
@@ -1704,6 +1709,56 @@ impl MainForm {
             }
         });
         new_renderer.rend_ui.button = Some(pbut.clone());
+        // the volume slider, mirroring add_renderer_button's — squeezelite
+        // always supports AUDG, so unlike UPnP's conditional slider this one
+        // is unconditional
+        let mut sl = HorNiceSlider::default()
+            .with_size(slwidth, self.bheight)
+            .with_pos(0, 0);
+        sl.set_maximum(100.0);
+        sl.set_minimum(0.0);
+        sl.set_step(1.0, 1);
+        sl.set_selection_color(Color::XtermGreen);
+        sl.set_color(Color::XtermWhite);
+        sl.set_value(new_renderer.volume.into());
+        sl.set_trigger(enums::CallbackTrigger::Release);
+        sl.set_callback({
+            let player_index = self.slim_player_index;
+            let this_renderer = new_renderer.clone();
+            move |s| {
+                let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
+                debug!(
+                    "Setting new volume for SlimProto {} to {vol}",
+                    this_renderer.remote_addr
+                );
+                this_renderer.spawn_set_volume(vol);
+                get_slim_renderers_mut()[player_index].volume = vol;
+                if app::is_event_shift() {
+                    debug!("Syncing volume for other active SlimProto renderers");
+                    // get a copy of the renderers to use for network IO
+                    let renderers = get_slim_renderers().clone().into_iter().enumerate();
+                    for (index, rend) in renderers {
+                        // if this renderer is playing but not the active slider renderer
+                        if rend.playing && (this_renderer.player_index != rend.player_index) {
+                            // squeezelite always supports AUDG: sync volume
+                            if let Some(mut slider) = rend.rend_ui.slider.clone() {
+                                debug!(
+                                    "Setting new volume for SlimProto {} to {vol}",
+                                    rend.remote_addr
+                                );
+                                rend.spawn_set_volume(vol);
+                                // update the original renderer volume value
+                                get_slim_renderers_mut()[index].volume = vol;
+                                // and update the slider too
+                                slider.set_value(s.value());
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        flx_button.add(&sl);
+        new_renderer.rend_ui.slider = Some(sl.clone());
         // add the new renderer to the global list of SlimProto renderers
         get_slim_renderers_mut().push(new_renderer.clone());
         self.renderer_pack.insert(&flx_button, 0);

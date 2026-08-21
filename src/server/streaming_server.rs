@@ -11,7 +11,7 @@ use crate::{
         streaming::{BitDepth, StreamingContext, StreamingFormat, StreamingState},
     },
     fl,
-    globals::statics::{get_config, get_slim_renderers, insert_client, remove_client},
+    globals::statics::{get_config, insert_client, remove_client},
     rendercontrol::WavData,
     server::query_params::StreamingParams,
     utils::ui_logger::{LogCategory, ui_log},
@@ -171,6 +171,15 @@ fn streaming_request(
             }
         }
     };
+    // a SlimProto client's own strm-triggered fetch: always headerless PCM
+    // regardless of Range, so drain the WAV/RF64 header via the same
+    // trim mechanism a Range request would use — see slimproto::strm's
+    // module doc comment for why the header can't be sent to squeezelite.
+    let header_offset = if streaming_ctx.slim {
+        streaming_ctx.wav_header_size()
+    } else {
+        header_offset
+    };
 
     ui_log(
         LogCategory::Info,
@@ -288,6 +297,11 @@ fn head_request(streaming_ctx: &StreamingContext, rq: Request, range: Option<Ran
             }
         }
     };
+    let header_offset = if streaming_ctx.slim {
+        streaming_ctx.wav_header_size()
+    } else {
+        header_offset
+    };
     // get the dlna headers
     let mut headers = get_dlna_headers(streaming_ctx);
     if status_code == 206 {
@@ -373,11 +387,13 @@ fn get_dlna_headers(streaming_ctx: &StreamingContext) -> Vec<Header> {
     // TransferMode.dlna.org is UPnP/DLNA-specific signaling; SlimProto
     // clients (squeezelite) don't speak DLNA, so skip it for them — a
     // regular HTTP client would just ignore an unrecognized header, but
-    // there's no reason to claim DLNA compliance to a client that isn't one
-    let is_slimproto_client = get_slim_renderers()
-        .iter()
-        .any(|r| r.remote_addr == streaming_ctx.remote_ip);
-    if !is_slimproto_client {
+    // there's no reason to claim DLNA compliance to a client that isn't
+    // one. `streaming_ctx.slim` (set from the `?slim=1` marker every
+    // strm-triggered request carries) is a precise signal here, unlike an
+    // IP-based lookup: a UPnP renderer sharing an IP with a SlimProto
+    // renderer (e.g. MoOde exposing both) would otherwise get its own
+    // genuine UPnP request misidentified.
+    if !streaming_ctx.slim {
         headers.push(Header::from_bytes(&b"TransferMode.dlna.org"[..], &b"Streaming"[..]).unwrap());
     }
     headers

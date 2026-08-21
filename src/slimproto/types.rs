@@ -2,6 +2,7 @@
 //! its `HELO` handshake.
 
 use crate::globals::statics::{THREAD_STACK, stop_clients_by_ip};
+use crate::rendercontrol::StreamInfo;
 use crate::slimproto::frames::SlimHelo;
 use crate::slimproto::strm;
 use ecow::EcoString;
@@ -29,8 +30,13 @@ pub struct SlimRenderer {
     pub player_index: usize,
     /// IP only, no port — same convention as `Controller::remote_addr`.
     pub remote_addr: EcoString,
-    /// Source port of the current TCP connection's `peer_addr
-    /// uniquely identifies a streaming connection
+    /// Source port of the current TCP connection's `peer_addr()`. Reconnects
+    /// from the same IP get a fresh ephemeral port, so this — together with
+    /// `remote_addr` — identifies *which* connection instance this renderer
+    /// is currently bound to; used to tell a stale
+    /// [`crate::enums::messages::MessageType::SlimDisconnected`] for an
+    /// already-superseded connection apart from one for the current
+    /// connection.
     pub peer_port: u16,
     pub mac: [u8; 6],
     pub device_id: u8,
@@ -63,11 +69,13 @@ impl SlimRenderer {
     }
 
     /// Tell this client to open an HTTP connection back to
-    /// `server_ip:server_port` and start decoding a FLAC stream. Runs
-    /// synchronously (blocks on the mutex + a socket write) — call from a
-    /// background thread, never the UI thread.
-    pub fn send_strm_start(&self, server_ip: Ipv4Addr, server_port: u16) -> io::Result<()> {
-        let frame = strm::build_strm_start(server_ip, server_port);
+    /// `server_ip:streaminfo.server_port` and start decoding
+    /// `streaminfo.streaming_format`. Runs synchronously (blocks on the
+    /// mutex + a socket write) — call from a background thread, never the
+    /// UI thread.
+    pub fn send_strm_start(&self, server_ip: Ipv4Addr, streaminfo: StreamInfo) -> io::Result<()> {
+        let frame = strm::build_strm_start(server_ip, &streaminfo)
+            .map_err(|e| io::Error::other(e.to_string()))?;
         self.write_stream
             .lock()
             .expect("SlimRenderer write_stream mutex poisoned")
@@ -104,13 +112,13 @@ impl SlimRenderer {
     /// [`Self::send_strm_start`] on a background thread, so the caller (the
     /// FLTK button callback) is never blocked on the socket write. Mirrors
     /// [`crate::rendercontrol::Renderer::spawn_play`].
-    pub fn spawn_strm_start(&self, server_ip: Ipv4Addr, server_port: u16) {
+    pub fn spawn_strm_start(&self, server_ip: Ipv4Addr, streaminfo: StreamInfo) {
         let renderer = self.clone();
         let spawned = thread::Builder::new()
             .name("slim_strm_start".into())
             .stack_size(THREAD_STACK)
             .spawn(move || {
-                if let Err(e) = renderer.send_strm_start(server_ip, server_port) {
+                if let Err(e) = renderer.send_strm_start(server_ip, streaminfo) {
                     log::error!(
                         "SlimProto: failed to start playback on {}: {e}",
                         renderer.remote_addr

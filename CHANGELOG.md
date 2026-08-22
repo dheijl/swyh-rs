@@ -3,11 +3,12 @@
 - 1.21.0 (unreleased)
   - don't report underrun errors in the GUI but log them
   - use rust-lld linker on Windows
-  - RUST: 1.97.1
+  - RUST: 1.98.0
   - GUI: insert the renderer buttons in their own pack, much cleaner
   - GUI: split off a builder function per tab from the mainform Create function
   - GUI: properly resize the log textbox on renderer button insert
   - various minor refactorings
+  - GUI: add SlimProto (SqueezeLite) support, enabled by default. Can be disabled in the APP Tab. Clients are discovered automatically and show up as renderer buttons in the GUI just like UPNP/DLNA renderers. The volume slider is write-only and always starts at 10%, you might have to increase it to hear sound. SqueeLite clients do not advertise a volume.
 
 - 1.20.5 (Jul 14, dheijl)
   - SAMPLES: instead of relying on LLVM optimizations to hoist the loop invariants in sample conversions out of the loops, use generics instead to dispatch the samples conversions jump-free for the various combinations of 16-bit/24-bit/dithering/endianness, a suggestion made by Claude while I was considering pulling up the conditions manually from the inner loops.
@@ -56,7 +57,7 @@
   - add (very basic) support for HTTP Range headers, as used by Linn streamers. This could possibly fix issue #45.
   - add comprehensive commandline arguments testing
   - improve configuration loading/saving handling and introduce `anyhow` for error handling
-  - PR #264 by @Churro: add support for `multi-channel` capture downmixing to stereo,  also "upmix" mono to stereo using SIMD.
+  - PR #264 by @Churro: add support for `multi-channel` capture downmixing to stereo, also "upmix" mono to stereo using SIMD.
   - PR #265 by @Churro; in samples_conv: add `TPDF dither`, round-to-nearest, and ±1.0 clamp at 16-bit.
   - reduce increased Linux startup delay in release mode caused by CPAL 0.18 being more thorough and thus slower when enumerating device configurations. See CPAL issue #1230. Debug mode is still slightly slower starting up.
   - move "fatal_error()"to src/ui and localize it
@@ -128,11 +129,11 @@
 - 1.12.13 (Aug 30 2025, dheijl)
   - binaries are now built with lld as the linker using **.cargo/config.toml**:
     - on Windows :
-    `[target.x86_64-pc-windows-msvc]`
-    `rustflags = ["-C", "link-arg=-fuse-ld=lld"]`
+      `[target.x86_64-pc-windows-msvc]`
+      `rustflags = ["-C", "link-arg=-fuse-ld=lld"]`
     - on Linux (now the default since Rust 1.90):
-    `[target.x86_64-unknown-linux-gnu]`
-    `rustflags = ["-C", "link-arg=-fuse-ld=lld"]`
+      `[target.x86_64-unknown-linux-gnu]`
+      `rustflags = ["-C", "link-arg=-fuse-ld=lld"]`
   - Fix for issue #221 by @DrCWO: when an RDP client (dis)connects while audio is being captured, the capture is aborted by Windows. Try to restart audio capture from the same device if it still exists. The RDP client should have audio disabled to make this work. Caveat: if you have multiple sound devices with the same name this will always pick the first one, as the sound index may have changed.
 
 - 1.12.12 (Aug 25 2025, dheijl)
@@ -180,7 +181,7 @@
   - replace parking_lot RwLock with std RwLock
   - some small optimizations
   - rust 1.85, edition 2024
-  
+
 - 1.12.3 (Nov 28 2024 dheijl)
   - support multiple players at the same IP address and port (e.g. Bubble UPNP exposing multiple Chromecast devices), see issue #157. Players are no longer identified by their IP address but by their SSDP "Location".
   - built with Rust 1.83.0
@@ -190,12 +191,12 @@
 
 - 1.12.0 (Nov 6 2024 dheijl)
   - Github CI added by @theavege, thanks!
-  - replace ```once_cell::sync::Lazy``` with ```std::sync::LazyLock```, so now swyh-rs requires Rustc version **1.80** or later!!
+  - replace `once_cell::sync::Lazy` with `std::sync::LazyLock`, so now swyh-rs requires Rustc version **1.80** or later!!
   - swyh-rs now is compiled with Rustc 1.82.0
   - get rid of a couple of unwraps
   - update flac-bound to 0.5.0 so that
     - libflac-sys (0.3.1) and libflac (1.4.3) are now the current versions
-    - swyh-rs can now use the new ```set_limit_min_bitrate()``` for the flac encoder to prevent connection loss when streaming/injecting silence.
+    - swyh-rs can now use the new `set_limit_min_bitrate()` for the flac encoder to prevent connection loss when streaming/injecting silence.
     - This enables the "inject silence" option to work for FLAC too. Enabling the inject silence option also automatically disables the old FLAC faint white noise injection that swyh-rs inserted when no sound is being captured. Downside: silence injection will introduce a delay when sound is resumed.
 
 - 1.11.6 (Sep 30 2024 dheijl)
@@ -244,7 +245,7 @@
   - CLI: don't ignore renderers newly discovered by ssdp
   - Windows setup: install Microsoft VC++ runtime 17 (VS 2015..2022) if not already installed, as Rust binaries compiled with the MSVC toolchain depend on it (issue #137).
   - bugfix: if the local address of the PC changes for some reason (DHCP): ignore the configured old (and wrong) value and use the current default instead.
-  - refactoring: replace the three inter-thread event channels by a single enum-based channel  
+  - refactoring: replace the three inter-thread event channels by a single enum-based channel
 
 - 1.10.9 (May 25 2024 dheijl)
   - optimize flac near silence injection when no sound is being captured
@@ -262,7 +263,7 @@
   - internet radio URL: query parameters bd (bit depth) and ss (streamsize) allow to override any configured values, for example
     - `/stream/swyh.flac?bd=24&ss=nonechunked`
     - `/stream/swyh.wav?bd=16&ss=u32maxnotchunked`
-    useful for CLI and/or when you don't use SSDP and the buttons in the GUI
+      useful for CLI and/or when you don't use SSDP and the buttons in the GUI
 
 - 1.10.6 (May 18 2024 dheijl)
   - make the default streamsize for FLAC NoneChunked
@@ -331,7 +332,7 @@
     - /stream/swyh.raw => LPCM 16 bit
     - /stream/swyh.flac => FLAC 24 bit
     - /stream/swyh.wav => LPCM 16 bit with a WAV header
-    - /stream/swyh.rf64 => LPCM 16 bit with a WAV/RF64 header  
+    - /stream/swyh.rf64 => LPCM 16 bit with a WAV/RF64 header
 
 - 1.9.2 (Nov 3 2023 dheijl)
   - some optimizations, use more iterators instead of loops, ...
@@ -374,20 +375,20 @@
     - get rid of some unwraps preventing possible panics
     - cache cpal sound device info
   - fix for issue #99: don't use Openhome Playlist for QPlay devices, use AVTransport instead
-  
+
 - 1.8.1 (May 6, dheijl and Joshua Megnauth @joshuamegnauth54)
   - make input devices too available for streaming, see PR #95
   - swyh-rs-cli: add a "-n" (--no-run) option. It enables a "dry-run" mode: the app exits where it would normally start streaming. Allows you to get the index of the sound sources and the ip addresses of the streamers that you need to pass as command line paremeters.
 
 - 1.7.1 (Apr 26 2023 dheijl)
   - bugfix: update in memory shared config instance for other threads
-  
+
 - 1.7.0 (Apr 26 2023 dheijl)
   - fix shaky silence buffer generation
   - update dependencies, update rust to 1.69
   - upgrade bitflags to 2.x
   - split into a GUI binary and a new CLI binary (see issue #93)
-  
+
 - 1.6.1 (Feb 28 2023 dheijl)
   - changed SSDP interval default from 1 to 10 minutes
   - changed chunked transfer default from true to false
@@ -404,7 +405,7 @@
   - do not panck on an invalid configuration file at startup, but replace it with a new default one
 
 - 1.5.1 (Oct 16 2022 dheijl)
-  - added the possibility of having multiple configurations. This allows you to run multiple instances of swyh-rs (using an optional commandline switch:  -c  config_id or --configuration config_id), where each configuration can use a different audio source. Suggested by @cavadias, see issue #82. Each configuration gets its own config file and log file in the .swyh-rs folder in your HOME directory.
+  - added the possibility of having multiple configurations. This allows you to run multiple instances of swyh-rs (using an optional commandline switch: -c config_id or --configuration config_id), where each configuration can use a different audio source. Suggested by @cavadias, see issue #82. Each configuration gets its own config file and log file in the .swyh-rs folder in your HOME directory.
   - removed the delay when starting the streaming server as it can interfere with autoreconnect.
 
 - 1.4.6-beta (unreleased)
@@ -418,7 +419,7 @@
 
 - 1.4.4 (Sep 1 2022 dheijl)
   - handle duplicate sound card names by storing the index too (solves issue #70)
-  - make the CaptureTimeout for LPCM/WAV configurable in the config.toml, with a default of 2000 msec (as it was hardcoded before). If no sound is captured for a CaptureTimeout period, a block of slience of (CaptureTimeout / 4) msec length is sent to the receiver (was previously 250 msec hardcoded).  
+  - make the CaptureTimeout for LPCM/WAV configurable in the config.toml, with a default of 2000 msec (as it was hardcoded before). If no sound is captured for a CaptureTimeout period, a block of slience of (CaptureTimeout / 4) msec length is sent to the receiver (was previously 250 msec hardcoded).
   - for some reason I can no longer compile fltk on Windows with MSVC, so fltk-bundled is used for now on Windows
 
 - 1.4.3 (Aug 3 2022 dheijl)
@@ -427,14 +428,14 @@
 
 - 1.4.2 (July 18 2022 dheijl)
   - use latest flac-bound git master to build libflac-sys without OGG
-  
+
 - 1.4.1 (July 15 2022 dheijl)
   - some code cleanup and comments, and document that libflac-sys does not build on 32 bit, so no more 32 bit support
   - small ui change
 
 - 1.4.0 (July 12 2022 dheijl)
   - add 16 bit and 24 bit FLAC support, using Flac-bound and libflac-sys
-  
+
 - 1.3.26 (June 7 2022 dheijl)
   - Fix possible exposure to CVE-2021-45707 and CVE-2022-24713 by replacing ifcfg crate with if_addrs crate.
 
@@ -442,7 +443,7 @@
   - Fix broken AVTransport (again), fixes issue #59
 
 - 1.3.24 (April 20 2022 dheijl)
-  - refactor rendering control code (pull up common OH and AV play template generation)  
+  - refactor rendering control code (pull up common OH and AV play template generation)
   - explicit stop playing for Openhome renderers too before starting play, Moode needs it
 
 - 1.3.23 (Feb 22 2022 dheijl)
@@ -452,7 +453,7 @@
   - dependency updates
 
 - 1.3.21 (Dec 8 2021 dheijl)
-  - get rid of all remaining traces of Range Headers (Linn) code  
+  - get rid of all remaining traces of Range Headers (Linn) code
   - fix panic when reading config after upgrade from 1.3.12 or earlier (thanks @FinalSh4re)
 
 - 1.3.20 (Nov 24 2021 dheijl)
@@ -514,7 +515,7 @@
   - migrate the configuration folder from `$HOME/swyh-rs` to `$HOME/.swyh-rs` so that it is hidden on Linux and comes before normal folders in Windows Explorer ([issue #32](https://github.com/dheijl/swyh-rs/issues/32))
   - add visual feedback (RMS value) for the audio capture
   - add InnoSetup Windows Setup, unsigned
-  
+
 - 1.3.5 (Feb 18 2021 dheijl)
   - changes for the new app::awake() in fltk-rs 0.14.0
   - deglob imports
@@ -565,7 +566,7 @@
 
 - 1.0.8 (Nov 27 2020 dheijl)
   - switch to parking_lot Mutex and Once, and use Ninja-Build for fltk to speed up CMake in the fltk build
-  
+
 - 1.0.7 (Nov 19 2020 dheijl)
   - upgrade to rustc 1.48, fltk-rs 0.10.11, and some small code improvements
 
@@ -590,28 +591,28 @@
   - fix for '/' in the name of an output audio source
 
 - 1.0.0 (Nov 11 2020 dheijl)
-    enable windows resizing again, but it does not really work in FLTK, even when using Pack groups...
+  enable windows resizing again, but it does not really work in FLTK, even when using Pack groups...
 
-- 0.9.9  (Nov 11 2020 dheijl)
-    disable resizing
+- 0.9.9 (Nov 11 2020 dheijl)
+  disable resizing
 
 - 0.9.8 (Nov 10 2020 dheijl)
-    better handling of ssdp discovery change and restart button
+  better handling of ssdp discovery change and restart button
 
-- 0.9.7  (Nov 9 2020  dheijl)
-    show a restart button after a configuration change that needs an application restart
+- 0.9.7 (Nov 9 2020 dheijl)
+  show a restart button after a configuration change that needs an application restart
 
-- 0.9.6  (Nov 9 2020  dheijl)
-    improve application start time
+- 0.9.6 (Nov 9 2020 dheijl)
+  improve application start time
 
-- 0.9.5  (Nov 8 2020  dheijl)
-    make the SSDP discovery interval a configurable option
+- 0.9.5 (Nov 8 2020 dheijl)
+  make the SSDP discovery interval a configurable option
 
-- 0.9.4  (Nov 6 2020  dheijl)
-    simplify and unify SSDP discovery
+- 0.9.4 (Nov 6 2020 dheijl)
+  simplify and unify SSDP discovery
 
-- 0.9.3  (Oct 21 2020 dheijl)
-    reduce network traffic during SSDP discovery for previously discovered renderers
+- 0.9.3 (Oct 21 2020 dheijl)
+  reduce network traffic during SSDP discovery for previously discovered renderers
 
-- 0.9.2  (Oct 20 2020 dheijl)
-    rerun SSDP discovery every minute, updating the renderers
+- 0.9.2 (Oct 20 2020 dheijl)
+  rerun SSDP discovery every minute, updating the renderers

@@ -1,3 +1,7 @@
+//! SlimProto TCP control server: accepts client connections, parses
+//! frames, and drives `HELO`/`STRM`/`AUDG`/heartbeat traffic for each
+//! connected [`SlimRenderer`].
+
 use crate::enums::messages::MessageType;
 use crate::globals::statics::{THREAD_STACK, get_msgchannel, get_slim_renderers_mut};
 use crate::slimproto::frames::{self, Frame};
@@ -120,13 +124,10 @@ fn handle_connection(mut stream: TcpStream) {
             }
             Ok(Frame::Other { opcode, payload }) => {
                 if &opcode == b"STAT" {
-                    // STAT is sent very frequently (every heartbeat tick at
-                    // minimum) and we don't act on its contents (it has no
-                    // volume/gain field to read — verified against
-                    // squeezelite's actual STAT_packet struct), so only the
-                    // very first one per connection gets logged in full;
+                    // STAT is sent very frequently and we don't act on its contents
+                    // only the very first one per connection gets logged in full;
                     // every one after that collapses into a single summary
-                    // line instead of one per frame like everything below.
+                    // line instead of one per frame like the other opcodes
                     if !logged_first_stat {
                         log_frame_detail(&peer, &opcode, &payload);
                         logged_first_stat = true;

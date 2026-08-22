@@ -17,6 +17,7 @@ new-audio-source-label = 新しいオーディオソース：{ $name }
 # Checkboxes and controls
 chk-autoresume = 自動再開
 chk-autoreconnect = 自動再接続
+chk-enable-slimproto = SlimProto を有効にする
 ssdp-interval-label = SSDP 間隔（分）
 btn-ssdp-discover = SSDP 探索を今すぐ実行
 log-level-label = ログレベル：{ $level }
@@ -45,6 +46,7 @@ status-injecting-silence = 出力ストリームに無音を挿入中
 status-starting-ssdp = SSDP 探索を開始中
 status-ssdp-interval-zero = SSDP 間隔が 0 => SSDP 探索をスキップ
 status-starting-slimproto = SlimProto 探索を開始中
+status-slimproto-disabled = SlimProto 探索は無効です
 status-loaded-config = 設定を読み込みました -c { $id }
 status-serving-started = ポート { $port } でサービスを開始しました...
 status-playing-to = { $name } に再生中
@@ -60,6 +62,7 @@ info-streamsize-changed = { $format } のストリームサイズを { $size } �
 warn-network-changed = ネットワークを { $name } に変更しました。再起動が必要です！！
 warn-audio-changed = オーディオソースを { $name } に変更しました。再起動が必要です！！
 warn-ssdp-changed = SSDP 間隔を { $interval } 分に変更しました。再起動が必要です！！
+warn-slimproto-changed = SlimProto サポートが変更されました。再起動が必要です！！
 warn-log-changed = ログレベルを { $level } に変更しました。再起動が必要です！！
 
 # Audio capture

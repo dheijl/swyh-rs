@@ -1,3 +1,6 @@
+//! SlimProto UDP discovery: replies to squeezelite's broadcast probe so it
+//! can find this server's control port.
+
 use anyhow::{Context, Result};
 use std::net::UdpSocket;
 

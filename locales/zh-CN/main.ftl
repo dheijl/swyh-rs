@@ -17,6 +17,7 @@ new-audio-source-label = 新音频源：{ $name }
 # Checkboxes and controls
 chk-autoresume = 自动恢复播放
 chk-autoreconnect = 自动重连
+chk-enable-slimproto = 启用 SlimProto
 ssdp-interval-label = SSDP 间隔（分钟）
 btn-ssdp-discover = 立即运行 SSDP 发现
 log-level-label = 日志级别：{ $level }
@@ -45,6 +46,7 @@ status-injecting-silence = 正在向输出流注入静音
 status-starting-ssdp = 正在启动 SSDP 发现
 status-ssdp-interval-zero = SSDP 间隔为 0 => 跳过 SSDP 发现
 status-starting-slimproto = 正在启动 SlimProto 发现
+status-slimproto-disabled = SlimProto 发现已禁用
 status-loaded-config = 已加载配置 -c { $id }
 status-serving-started = 已在端口 { $port } 上启动服务...
 status-playing-to = 正在播放到 { $name }
@@ -60,6 +62,7 @@ info-streamsize-changed = { $format } 的流大小已更改为 { $size }
 warn-network-changed = 网络已更改为 { $name }，需要重启！！
 warn-audio-changed = 音频源已更改为 { $name }，需要重启！！
 warn-ssdp-changed = SSDP 间隔已更改为 { $interval } 分钟，需要重启！！
+warn-slimproto-changed = SlimProto 支持已更改，需要重启！！
 warn-log-changed = 日志级别已更改为 { $level }，需要重启！！
 
 # Audio capture

@@ -116,6 +116,7 @@ pub struct MainForm {
     pub log_level_choice: Choice,
     pub auto_resume: CheckButton,
     pub auto_reconnect: CheckButton,
+    pub enable_slimproto: CheckButton,
     pub show_rms: CheckButton,
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
@@ -203,6 +204,7 @@ struct AppTab {
     log_level_choice: Choice,
     auto_resume: CheckButton,
     auto_reconnect: CheckButton,
+    enable_slimproto: CheckButton,
     show_rms: CheckButton,
     rms_mon_l: Progress,
     rms_mon_r: Progress,
@@ -951,6 +953,39 @@ impl AppTab {
         app_col.add(&flx_autoreconnect);
         app_col.fixed(&flx_autoreconnect, ROW_H);
 
+        // SlimProto (squeezelite) discovery on/off — startup-time setting,
+        // like ssdp_interval_mins, so toggling it needs a restart to take
+        // effect (see spawn_slim_discovery's gate in swyh-rs.rs)
+        let enable_slimproto_lbl = fl!("chk-enable-slimproto");
+        let mut enable_slimproto = CheckButton::new(0, 0, 0, 0, enable_slimproto_lbl.as_str());
+        if config.enable_slimproto {
+            enable_slimproto.set(true);
+        }
+        enable_slimproto.set_callback({
+            let config_changed = ctx.config_changed.clone();
+            let mut sb = ctx.status_buf.clone();
+            move |b| {
+                let is_set = b.is_set();
+                if get_config().enable_slimproto == is_set {
+                    return;
+                }
+                ui_log(LogCategory::Warning, &fl!("warn-slimproto-changed"));
+                {
+                    let mut conf = get_config_mut();
+                    conf.enable_slimproto = is_set;
+                    let _ = conf.update_config();
+                }
+                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                config_changed.set(true);
+            }
+        });
+        let mut flx_enable_slimproto = Flex::new(0, 0, GW, ROW_H, "");
+        flx_enable_slimproto.set_type(FlexType::Row);
+        flx_enable_slimproto.end();
+        flx_enable_slimproto.add(&enable_slimproto);
+        app_col.add(&flx_enable_slimproto);
+        app_col.fixed(&flx_enable_slimproto, ROW_H);
+
         // RMS animation enable + meters
         let show_rms_lbl = fl!("chk-rms-monitor");
         let mut show_rms = CheckButton::new(0, 0, 0, 0, show_rms_lbl.as_str());
@@ -1003,6 +1038,7 @@ impl AppTab {
             log_level_choice,
             auto_resume,
             auto_reconnect,
+            enable_slimproto,
             show_rms,
             rms_mon_l,
             rms_mon_r,
@@ -1269,6 +1305,7 @@ impl MainForm {
             log_level_choice: app_tab.log_level_choice,
             auto_resume: app_tab.auto_resume,
             auto_reconnect: app_tab.auto_reconnect,
+            enable_slimproto: app_tab.enable_slimproto,
             show_rms: app_tab.show_rms,
             rms_mon_l: app_tab.rms_mon_l,
             rms_mon_r: app_tab.rms_mon_r,
@@ -1432,13 +1469,15 @@ impl MainForm {
         s.push('\n');
         let _ = writeln!(
             s,
-            "{}  {}   {}  {}   {}  {}",
+            "{}  {}   {}  {}   {}  {}   {}  {}",
             fl!("chk-autoresume"),
             bool_icon(config.auto_resume),
             fl!("chk-autoreconnect"),
             bool_icon(config.auto_reconnect),
             fl!("chk-rms-monitor"),
             bool_icon(config.monitor_rms),
+            fl!("chk-enable-slimproto"),
+            bool_icon(config.enable_slimproto),
         );
         s
     }

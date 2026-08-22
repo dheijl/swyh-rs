@@ -1664,12 +1664,11 @@ impl MainForm {
     }
 
     /// SlimProto analogue of [`Self::add_renderer_button`]: builds a toggle
-    /// button for a squeezelite client that just sent `HELO`. Unlike UPnP
-    /// renderers there's no volume slider (`HELO` carries no volume —
-    /// SlimProto volume needs a separate `AUDG` command). Playback control
+    /// button for a squeezelite client that just sent `HELO`. Playback control
     /// follows the app's configured streaming format, same as UPnP (see
     /// `SlimRenderer::send_strm_start`) — Lpcm/Wav/Rf64 are sent headerless
     /// to squeezelite regardless, see `slimproto::strm`'s doc comment.
+    /// Volume is initialized at 10 % as the renderer does not supply Volume information.
     pub fn add_slim_renderer_button(&mut self, new_renderer: &mut SlimRenderer) {
         if get_config()
             .hidden_renderers
@@ -1679,6 +1678,7 @@ impl MainForm {
             return;
         }
         new_renderer.player_index = self.slim_player_index;
+        new_renderer.spawn_set_volume(new_renderer.volume);
         // squeezelite always supports AUDG (unlike UPnP's GetVolume, which
         // can fail per-device), so the slider is unconditional here.
         let pbwidth = (self.bwidth / 3) * 2;

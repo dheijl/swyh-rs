@@ -8,7 +8,7 @@
   - GUI: split off a builder function per tab from the mainform Create function
   - GUI: properly resize the log textbox on renderer button insert
   - various minor refactorings
-  - GUI: add SlimProto (SqueezeLite) support, enabled by default. Can be disabled in the APP Tab. Clients are discovered automatically and show up as renderer buttons in the GUI just like UPNP/DLNA renderers. The volume slider is write-only and always starts at 10%, you might have to increase it to hear sound. SqueeLite clients do not advertise a volume.
+  - GUI: add SlimProto (SqueezeLite) support, enabled by default. Can be disabled in the APP Tab. Clients are discovered automatically and show up as renderer buttons in the GUI just like UPNP/DLNA renderers. The volume slider is write-only and always starts at 20%, you might have to increase it to hear sound. SqueezeLite clients do not advertise a volume. You need to allow the SlimProto TCP and UDP ports 3483 in the firewall for SqueezLite to work.
 
 - 1.20.5 (Jul 14, dheijl)
   - SAMPLES: instead of relying on LLVM optimizations to hoist the loop invariants in sample conversions out of the loops, use generics instead to dispatch the samples conversions jump-free for the various combinations of 16-bit/24-bit/dithering/endianness, a suggestion made by Claude while I was considering pulling up the conditions manually from the inner loops.

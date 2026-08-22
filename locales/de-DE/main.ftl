@@ -17,6 +17,7 @@ new-audio-source-label = Neue Audioquelle: { $name }
 # Checkboxes and controls
 chk-autoresume = Autofortsetzung
 chk-autoreconnect = Autoreconnect
+chk-enable-slimproto = SlimProto aktivieren
 ssdp-interval-label = SSDP-Intervall (Min.)
 btn-ssdp-discover = SSDP-Erkennung jetzt starten
 log-level-label = Log: { $level }
@@ -45,6 +46,7 @@ status-injecting-silence = Stille wird in den Ausgabestrom eingespeist
 status-starting-ssdp = SSDP-Erkennung wird gestartet
 status-ssdp-interval-zero = SSDP-Intervall 0 => SSDP-Erkennung wird übersprungen
 status-starting-slimproto = SlimProto-Erkennung wird gestartet
+status-slimproto-disabled = SlimProto-Erkennung deaktiviert
 status-loaded-config = Konfiguration geladen -c { $id }
 status-serving-started = Server gestartet auf Port { $port }...
 status-playing-to = Wiedergabe auf { $name }
@@ -60,6 +62,7 @@ info-streamsize-changed = StrmGröße für { $format } geändert auf { $size }
 warn-network-changed = Netzwerk auf { $name } geändert, Neustart erforderlich!!
 warn-audio-changed = Audioquelle auf { $name } geändert, Neustart erforderlich!!
 warn-ssdp-changed = SSDP-Intervall auf { $interval } Min. geändert, Neustart erforderlich!!
+warn-slimproto-changed = SlimProto-Unterstützung geändert, Neustart erforderlich!!
 warn-log-changed = Log-Level auf { $level } geändert, Neustart erforderlich!!
 
 # Audio capture

@@ -17,6 +17,7 @@ new-audio-source-label = Nueva fuente de audio: { $name }
 # Checkboxes and controls
 chk-autoresume = Reanudar automáticamente
 chk-autoreconnect = Reconexión automática
+chk-enable-slimproto = Activar SlimProto
 ssdp-interval-label = Intervalo SSDP (minutos)
 btn-ssdp-discover = Ejecutar descubrimiento SSDP ahora
 log-level-label = Nivel de registro: { $level }
@@ -45,6 +46,7 @@ status-injecting-silence = Inyectando silencio en el stream de salida
 status-starting-ssdp = Iniciando descubrimiento SSDP
 status-ssdp-interval-zero = Intervalo SSDP 0 => Omitiendo descubrimiento SSDP
 status-starting-slimproto = Iniciando descubrimiento SlimProto
+status-slimproto-disabled = Descubrimiento SlimProto desactivado
 status-loaded-config = Configuración cargada -c { $id }
 status-serving-started = Servicio iniciado en el puerto { $port }...
 status-playing-to = Reproduciendo en { $name }
@@ -60,6 +62,7 @@ info-streamsize-changed = El tamaño de stream para { $format } ha cambiado a { 
 warn-network-changed = Red cambiada a { $name }, ¡¡se requiere reinicio!!
 warn-audio-changed = Fuente de audio cambiada a { $name }, ¡¡se requiere reinicio!!
 warn-ssdp-changed = Intervalo SSDP cambiado a { $interval } minutos, ¡¡se requiere reinicio!!
+warn-slimproto-changed = Soporte SlimProto cambiado, ¡¡se requiere reinicio!!
 warn-log-changed = Nivel de registro cambiado a { $level }, ¡¡se requiere reinicio!!
 
 # Audio capture

@@ -49,6 +49,9 @@ impl CfgDefaults {
     fn autoreconnect() -> bool {
         false
     }
+    fn enable_slimproto() -> bool {
+        true
+    }
     fn language() -> Option<String> {
         Some(detect_default_language())
     }
@@ -104,6 +107,11 @@ pub struct Configuration {
     pub ssdp_interval_mins: f64,
     #[serde(alias = "AutoReconnect", default = "CfgDefaults::autoreconnect")]
     pub auto_reconnect: bool,
+    /// Whether to start the SlimProto (squeezelite) UDP discovery
+    /// responder at all. Defaults to `true` so upgrading users keep
+    /// today's behavior — this is an opt-out, not an opt-in.
+    #[serde(alias = "EnableSlimproto", default = "CfgDefaults::enable_slimproto")]
+    pub enable_slimproto: bool,
     // removed in 1.8.5 (obsolete)
     #[serde(alias = "DisableChunked", skip, default)]
     _disable_chunked: bool,
@@ -176,6 +184,7 @@ impl Configuration {
             log_level: LevelFilter::Info,
             ssdp_interval_mins: 10.0,
             auto_reconnect: false,
+            enable_slimproto: true,
             _disable_chunked: true,
             lpcm_stream_size: Some(StreamSize::U64maxNotChunked),
             wav_stream_size: Some(StreamSize::U32maxNotChunked),

@@ -17,6 +17,7 @@ new-audio-source-label = Nieuwe Audio Bron: { $name }
 # Checkboxes and controls
 chk-autoresume = Autom. hervatten
 chk-autoreconnect = Auto-connecteren
+chk-enable-slimproto = SlimProto inschakelen
 ssdp-interval-label = SSDP Interval (in minuten)
 btn-ssdp-discover = SSDP-ontdekking nu uitvoeren
 log-level-label = Log Level: { $level }
@@ -45,6 +46,7 @@ status-injecting-silence = Injecteer stilte in de output stream
 status-starting-ssdp = Starten SSDP discovery
 status-ssdp-interval-zero = SSDP interval 0 => SSDP discovery wordt overgeslagen
 status-starting-slimproto = Starten SlimProto discovery
+status-slimproto-disabled = SlimProto discovery uitgeschakeld
 status-loaded-config = Laden configuratie -c { $id }
 status-serving-started = Server gestart op poort { $port }...
 status-playing-to = Afspelen naar { $name }
@@ -61,6 +63,7 @@ info-streamsize-changed = StreamSize voor { $format } gewijzigd naar { $size }
 warn-network-changed = Netwerk gewijzigd naar { $name }, herstarten nodig!!
 warn-audio-changed = Audio bron gewijzigd naar { $name }, herstarten nodig!!
 warn-ssdp-changed = SSDP interval gwijzigd naar { $interval } minuten, herstarten nodig!!
+warn-slimproto-changed = SlimProto-ondersteuning gewijzigd, herstarten nodig!!
 warn-log-changed = Log level gewijzigd naar { $level }, herstarten nodig!!
 
 # Audio capture

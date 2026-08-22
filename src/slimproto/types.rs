@@ -72,7 +72,7 @@ impl SlimRenderer {
             device_id: helo.device_id,
             capabilities: helo.capabilities.clone(),
             playing: false,
-            volume: 100,
+            volume: 20,
             write_stream,
             #[cfg(feature = "gui")]
             rend_ui: SlimRendUI::default(),

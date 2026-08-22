@@ -180,9 +180,16 @@ fn main() {
         ui_log(LogCategory::Info, &fl!("status-ssdp-interval-zero"));
     }
 
-    // start the SlimProto (squeezelite) discovery responder and TCP control threads
-    ui_log(LogCategory::Info, &fl!("status-starting-slimproto"));
-    spawn_slim_discovery();
+    // start the SlimProto (squeezelite) discovery responder
+    if config.enable_slimproto {
+        ui_log(LogCategory::Info, &fl!("status-starting-slimproto"));
+        spawn_slim_discovery();
+    } else {
+        ui_log(LogCategory::Info, &fl!("status-slimproto-disabled"));
+    }
+    // TCP control listener stays up regardless: nothing can discover it to
+    // connect without the discovery responder above, so it's inert when
+    // SlimProto support is disabled
     spawn_slim_server(local_addr);
 
     // start the RMS monitor thread

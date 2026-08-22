@@ -1,3 +1,6 @@
+//! SlimProto (squeezelite/Squeezebox) renderer support: UDP discovery, the
+//! TCP control connection, and the `strm`/`audg` command frame builders.
+
 pub mod audg;
 pub mod discovery;
 pub mod frames;

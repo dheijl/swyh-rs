@@ -1,3 +1,7 @@
+//! Parsing for SlimProto client -> server frames: `HELO` is decoded into
+//! [`SlimHelo`]; anything else comes back as [`Frame::Other`] with its
+//! payload intact for the caller to act on or log.
+
 use std::io::{self, Read};
 
 /// Fixed portion of a parsed `HELO` frame — the SlimProto client handshake.

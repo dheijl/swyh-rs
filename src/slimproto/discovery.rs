@@ -52,7 +52,19 @@ pub fn run_discovery(port: u16) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::{Ipv4Addr, SocketAddr};
     use std::time::Duration;
+
+    /// `local_addr()` on a socket bound to the wildcard address returns
+    /// `0.0.0.0:<port>`, which is fine to *bind* but not to *send to* on
+    /// every platform: Linux's kernel silently routes a `sendto(0.0.0.0)`
+    /// via loopback, but Windows rejects it outright with
+    /// `WSAEADDRNOTAVAIL`. Tests need an address they can actually target,
+    /// so resolve the wildcard down to a concrete loopback address on the
+    /// same port.
+    fn loopback_addr(wildcard: SocketAddr) -> SocketAddr {
+        SocketAddr::from((Ipv4Addr::LOCALHOST, wildcard.port()))
+    }
 
     #[test]
     fn replies_to_discovery_probe() {
@@ -64,7 +76,7 @@ mod tests {
         client
             .set_read_timeout(Some(Duration::from_secs(2)))
             .unwrap();
-        client.send_to(b"e", server_addr).unwrap();
+        client.send_to(b"e", loopback_addr(server_addr)).unwrap();
 
         let mut buf = [0u8; 32];
         let (n, from) = client
@@ -88,7 +100,7 @@ mod tests {
             .set_read_timeout(Some(Duration::from_millis(300)))
             .unwrap();
         client
-            .send_to(b"not a discovery probe", server_addr)
+            .send_to(b"not a discovery probe", loopback_addr(server_addr))
             .unwrap();
 
         let mut buf = [0u8; 32];

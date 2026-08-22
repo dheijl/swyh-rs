@@ -38,6 +38,7 @@ pub struct Args {
     pub language: Option<String>,
     pub sample_rate: Option<u32>,
     pub use_dither: Option<bool>,
+    pub enable_slimproto: Option<bool>,
 }
 
 impl Args {
@@ -68,6 +69,7 @@ Recognized options:
     -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
     -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
     -d (--dither) bool : use TPDF dither for 16-bit output [true]
+    -P (--slimproto) bool : enable SlimProto/squeezelite support [config: enable_slimproto, default true]
 "#
         );
         println!("{self:?}");
@@ -292,6 +294,16 @@ Recognized options:
                         }
                     } else {
                         self.use_dither = Some(true);
+                    }
+                }
+                Short('P') | Long("slimproto") => {
+                    if let Ok(v) = argparser.value() {
+                        match v.string().unwrap_or_default().sanitize_bool().parse() {
+                            Ok(val) => self.enable_slimproto = Some(val),
+                            Err(x) => errors.push(format!("Invalid slimproto flag: {x}.")),
+                        }
+                    } else {
+                        self.enable_slimproto = Some(true);
                     }
                 }
                 _ => (),
@@ -690,6 +702,27 @@ mod tests {
         assert_eq!(a.use_dither, Some(true));
         let a = parse(&["prog", "-dfalse"]).unwrap();
         assert_eq!(a.use_dither, Some(false));
+    }
+
+    // --- slimproto ---
+
+    #[test]
+    fn slimproto_true() {
+        let a = parse(&["prog", "-P", "true"]).unwrap();
+        assert_eq!(a.enable_slimproto, Some(true));
+    }
+
+    #[test]
+    fn slimproto_false_long_flag() {
+        let a = parse(&["prog", "--slimproto", "false"]).unwrap();
+        assert_eq!(a.enable_slimproto, Some(false));
+    }
+
+    #[test]
+    fn slimproto_no_value_defaults_true() {
+        // lexopt only hits the else-branch (default true) when -P is the last arg
+        let a = parse(&["prog", "-P"]).unwrap();
+        assert_eq!(a.enable_slimproto, Some(true));
     }
 
     // --- error accumulation ---

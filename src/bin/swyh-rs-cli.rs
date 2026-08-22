@@ -33,7 +33,8 @@ use swyh_rs::{
     fl,
     globals::statics::{
         APP_DATE, APP_VERSION, ONE_MINUTE, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
-        get_msgchannel, get_renderers, get_renderers_mut, get_slim_renderers_mut,
+        get_msgchannel, get_renderers, get_renderers_mut, get_slim_renderers,
+        get_slim_renderers_mut, stop_clients_by_ip,
     },
     rendercontrol::{Renderer, StreamInfo, WavData, discover, new_agent},
     server::streaming_server::run_server,
@@ -115,6 +116,7 @@ fn main() -> Result<(), i32> {
 
     config.inject_silence = args.inject_silence.or(config.inject_silence);
     config.use_dither = args.use_dither.or(config.use_dither);
+    config.enable_slimproto = args.enable_slimproto.unwrap_or(config.enable_slimproto);
 
     let mut audio_output_device =
         select_audio_source_cli(&mut args, &mut config, audio_output_device_opt)
@@ -181,6 +183,15 @@ fn main() -> Result<(), i32> {
         spawn_cli_ssdp_updater(msg_tx.clone(), config.ssdp_interval_mins);
     }
 
+    // start the SlimProto (squeezelite) discovery responder and TCP control listener
+    if config.enable_slimproto {
+        ui_log(LogCategory::Info, &fl!("status-starting-slimproto"));
+        spawn_cli_slim_discovery();
+        spawn_cli_slim_server(local_addr);
+    } else {
+        ui_log(LogCategory::Info, &fl!("status-slimproto-disabled"));
+    }
+
     apply_streaming_args(&args, &mut config);
 
     // start the webserver
@@ -214,10 +225,15 @@ fn main() -> Result<(), i32> {
 
     let mut player: Option<Renderer> = None;
     if !serve_only {
-        let Some(r) = select_primary_renderer(&mut config) else {
-            return Err(-1);
-        };
-        player = Some(r);
+        match select_primary_renderer(&config) {
+            Some(r) => player = Some(r),
+            // no DLNA renderer matched (yet): not fatal when SlimProto is
+            // enabled, since the requested target may be a SlimProto client
+            // that simply hasn't sent its HELO yet -- the SlimHelo arm in
+            // the message loop below can still start playback once it does
+            None if config.enable_slimproto => {}
+            None => return Err(-1),
+        }
     }
 
     // update config with new args
@@ -242,10 +258,10 @@ fn main() -> Result<(), i32> {
             &fl!("status-serving-started", "port" = port),
         );
     } else {
-        for ip in config.active_renderers {
+        for ip in &config.active_renderers {
             if let Some(pl) = get_renderers()
                 .iter()
-                .find(|&renderer| renderer.controller.remote_addr == ip)
+                .find(|&renderer| renderer.controller.remote_addr == *ip)
             {
                 let mut player = pl.clone();
                 if let Some(vol) = args.volume
@@ -281,17 +297,94 @@ fn main() -> Result<(), i32> {
                         get_renderers_mut().push(*newr);
                     }
                 }
-                // the CLI binary doesn't spawn the SlimProto discovery/TCP
-                // threads yet, so this never fires in practice today; kept
-                // only so this match stays exhaustive until CLI parity for
-                // SlimProto is a deliberate, separate step
-                MessageType::SlimHelo(newr) => {
-                    get_slim_renderers_mut().push(*newr);
+                // a SlimProto (squeezelite) client sent its HELO handshake:
+                // register it and, if its IP is one we were asked to play
+                // to, start streaming now -- this is the only place
+                // SlimProto playback can start, since there's no equivalent
+                // of SSDP discovery to find it ahead of time
+                MessageType::SlimHelo(mut newr) => {
+                    if config
+                        .hidden_renderers
+                        .iter()
+                        .any(|h| h.as_str() == newr.remote_addr.as_str())
+                    {
+                        ui_log(
+                            LogCategory::Info,
+                            &format!("SlimProto client {} is hidden, ignoring", newr.remote_addr),
+                        );
+                    } else {
+                        ui_log(
+                            LogCategory::Info,
+                            &format!(
+                                "SlimProto client connected: {} ({})",
+                                newr.model(),
+                                newr.remote_addr
+                            ),
+                        );
+                        newr.player_index = get_slim_renderers().len();
+                        if !serve_only
+                            && config
+                                .active_renderers
+                                .iter()
+                                .any(|ip| ip.as_str() == newr.remote_addr.as_str())
+                        {
+                            if let IpAddr::V4(server_ip) = local_addr {
+                                if let Some(vol) = args.volume {
+                                    newr.volume = vol.into();
+                                    newr.spawn_set_volume(newr.volume);
+                                }
+                                newr.spawn_strm_start(server_ip, streaminfo);
+                                newr.playing = true;
+                                ui_log(
+                                    LogCategory::Info,
+                                    &fl!("status-playing-to", "name" = newr.remote_addr.as_str()),
+                                );
+                            } else {
+                                ui_log(
+                                    LogCategory::Error,
+                                    &format!(
+                                        "SlimProto: {} needs an IPv4 local address, got {local_addr}",
+                                        newr.remote_addr
+                                    ),
+                                );
+                            }
+                        }
+                        get_slim_renderers_mut().push(*newr);
+                    }
                 }
-                // same rationale as the `SlimHelo` arm above
-                MessageType::SlimDisconnected { .. } => {}
+                // a SlimProto client's TCP control connection dropped; force-drop
+                // its HTTP streaming connection (it may never close it itself --
+                // see stop_clients_by_ip) and clear its playing state. Guard
+                // against a reconnect having already refreshed peer_port before
+                // this (necessarily racy) message got processed.
+                MessageType::SlimDisconnected {
+                    remote_addr,
+                    peer_port,
+                } => {
+                    ui_log(
+                        LogCategory::Info,
+                        &format!("SlimProto client {remote_addr} disconnected"),
+                    );
+                    stop_clients_by_ip(&remote_addr);
+                    if let Some(r) = get_slim_renderers_mut()
+                        .iter_mut()
+                        .find(|r| r.remote_addr == remote_addr && r.peer_port == peer_port)
+                    {
+                        r.playing = false;
+                    }
+                }
                 MessageType::PlayerMessage(streamer_feedback) => {
-                    if let StreamingState::Ended = streamer_feedback.streaming_state
+                    // a device that exposes both a UPnP renderer and a SlimProto
+                    // client at the same IP (e.g. MoOde) can trigger this feedback
+                    // via either path, and streaming_server.rs can't tell them
+                    // apart; if a SlimProto renderer at this IP is currently
+                    // playing, this feedback almost certainly belongs to that
+                    // session, so don't let it drive DLNA auto-resume
+                    let slim_playing_here = get_slim_renderers()
+                        .iter()
+                        .any(|r| r.remote_addr == streamer_feedback.remote_ip && r.playing);
+                    if !slim_playing_here
+                        && let StreamingState::Ended = streamer_feedback.streaming_state
                         && !serve_only
                     {
                         let still_streaming = get_clients()
@@ -668,6 +761,40 @@ fn spawn_cli_webserver(
         .unwrap();
 }
 
+/// spawn the SlimProto (squeezelite) UDP discovery responder thread
+fn spawn_cli_slim_discovery() {
+    let spawned = thread::Builder::new()
+        .name("slim_discovery".into())
+        .stack_size(THREAD_STACK)
+        .spawn(|| {
+            if let Err(e) =
+                swyh_rs::slimproto::discovery::run_discovery(swyh_rs::slimproto::SLIM_PORT)
+            {
+                error!("SlimProto discovery thread failed to start: {e}");
+            }
+        });
+    if let Err(e) = spawned {
+        error!("Unable to spawn SlimProto discovery thread: {e:?}");
+    }
+}
+
+/// spawn the SlimProto (squeezelite) TCP control connection accept-loop thread
+fn spawn_cli_slim_server(local_addr: IpAddr) {
+    let spawned = thread::Builder::new()
+        .name("slim_server".into())
+        .stack_size(THREAD_STACK)
+        .spawn(move || {
+            if let Err(e) =
+                swyh_rs::slimproto::server::run_server(local_addr, swyh_rs::slimproto::SLIM_PORT)
+            {
+                error!("SlimProto TCP server thread failed to start: {e}");
+            }
+        });
+    if let Err(e) = spawned {
+        error!("Unable to spawn SlimProto TCP server thread: {e:?}");
+    }
+}
+
 /// apply streaming-related args (format, bit depth, buffer, etc.) to config
 fn apply_streaming_args(args: &Args, config: &mut Configuration) {
     config.auto_resume = args.auto_resume.unwrap_or(config.auto_resume);
@@ -783,50 +910,67 @@ fn resolve_player_names(
     }
 }
 
-/// select the primary renderer from the discovered list based on config
-fn select_primary_renderer(config: &mut Configuration) -> Option<Renderer> {
-    if get_renderers().is_empty() {
-        error!("{}", fl!("cli-no-renderers"));
-        return None;
-    }
+/// select the primary renderer from the discovered list based on config.
+/// Returns `None` when the requested renderer isn't among the discovered DLNA
+/// renderers -- unlike a plain "not found", this deliberately does not fall
+/// back to some other, unrelated DLNA renderer: with SlimProto enabled the
+/// requested target may well be a SlimProto client that hasn't sent its HELO
+/// yet, and silently redirecting playback to a random DLNA device instead
+/// would be actively wrong.
+fn select_primary_renderer(config: &Configuration) -> Option<Renderer> {
     let last_renderer = config.last_renderer.as_deref().unwrap_or("");
-    // default = first player
-    let mut player = get_renderers()[0].clone();
-    // use the configured renderer if present
     if let Some(pl) = get_renderers()
         .iter()
         .find(|r| r.controller.remote_addr == last_renderer)
     {
-        player = pl.clone();
+        ui_log(
+            LogCategory::Info,
+            &fl!("cli-default-player-ip", "ip" = &pl.controller.remote_addr),
+        );
+        return Some(pl.clone());
     }
-    // if specified player ip not found: record which default we're using
-    if last_renderer != player.controller.remote_addr {
-        config.last_renderer = Some(player.controller.remote_addr.to_string());
+    if config.enable_slimproto {
+        info!(
+            "Renderer {last_renderer} not found among DLNA renderers yet; \
+             will start playback if it connects as a SlimProto client."
+        );
+    } else {
+        error!("{}", fl!("cli-no-renderers"));
     }
-    ui_log(
-        LogCategory::Info,
-        &fl!(
-            "cli-default-player-ip",
-            "ip" = &player.controller.remote_addr
-        ),
-    );
-    Some(player)
+    None
 }
 
 /// stop all playing renderers, wait for HTTP connections to drain, then exit
 fn shutdown_ctrlc(serve_only: bool, player: Option<&Renderer>, playing: Vec<Renderer>) -> ! {
     println!("{}", fl!("cli-received-ctrlc"));
-    if !serve_only && player.is_some() && !get_clients().is_empty() {
-        for mut pl in playing {
-            if get_clients()
-                .values()
-                .any(|cs| cs.remote_ip == pl.controller.remote_addr)
-            {
-                println!(
-                    "{}",
-                    fl!("cli-ctrlc-stopping", "name" = &pl.controller.dev_name)
+    let slim_playing: Vec<_> = get_slim_renderers()
+        .iter()
+        .filter(|r| r.playing)
+        .cloned()
+        .collect();
+    let had_dlna_target = !serve_only && player.is_some();
+    if (had_dlna_target || !slim_playing.is_empty()) && !get_clients().is_empty() {
+        if had_dlna_target {
+            for mut pl in playing {
+                if get_clients()
+                    .values()
+                    .any(|cs| cs.remote_ip == pl.controller.remote_addr)
+                {
+                    println!(
+                        "{}",
+                        fl!("cli-ctrlc-stopping", "name" = &pl.controller.dev_name)
+                    );
+                    pl.stop_play();
+                }
+            }
+        }
+        for renderer in &slim_playing {
+            println!("Stopping SlimProto renderer {}", renderer.remote_addr);
+            if let Err(e) = renderer.send_strm_stop() {
+                eprintln!(
+                    "SlimProto: failed to stop playback on {}: {e}",
+                    renderer.remote_addr
                 );
-                pl.stop_play();
             }
         }
         for _ in 0..100 {

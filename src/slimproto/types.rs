@@ -6,6 +6,7 @@ use crate::rendercontrol::StreamInfo;
 use crate::slimproto::audg;
 use crate::slimproto::frames::SlimHelo;
 use crate::slimproto::strm;
+use crate::utils::ui_logger::{LogCategory, ui_log};
 use ecow::EcoString;
 #[cfg(feature = "gui")]
 use fltk::button::LightButton;
@@ -165,6 +166,14 @@ impl SlimRenderer {
     /// `volume_percent`. See [`Self::send_strm_start`] for threading notes.
     pub fn send_set_volume(&self, volume_percent: i32) -> io::Result<()> {
         let frame = audg::build_audg(volume_percent);
+        ui_log(
+            LogCategory::Info,
+            &format!(
+                "SlimProto set volume to {volume_percent}% on {}:{}",
+                self.model(),
+                self.remote_addr
+            ),
+        );
         self.write_stream
             .lock()
             .expect("SlimRenderer write_stream mutex poisoned")

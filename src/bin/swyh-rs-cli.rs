@@ -329,10 +329,13 @@ fn main() -> Result<(), i32> {
                                 .any(|ip| ip.as_str() == newr.remote_addr.as_str())
                         {
                             if let IpAddr::V4(server_ip) = local_addr {
+                                // GUI always sets initial volume to 20
                                 if let Some(vol) = args.volume {
                                     newr.volume = vol.into();
-                                    newr.spawn_set_volume(newr.volume);
+                                } else {
+                                    newr.volume = 20;
                                 }
+                                newr.spawn_set_volume(newr.volume);
                                 newr.spawn_strm_start(server_ip, streaminfo);
                                 newr.playing = true;
                                 ui_log(

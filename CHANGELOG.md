@@ -9,6 +9,7 @@
   - GUI: properly resize the log textbox on renderer button insert
   - various minor refactorings
   - another SIMD optimization in TPDF dithering
+  - migrate to CPAL 0.19.0: `InputCallbackInfo`/`OutputCallbackInfo` are unified into `CallbackInfo`, `Stream::play()` is renamed to `Stream::start()`, and xrun detection moves from `Error::kind()` to `CallbackInfo::xrun()`
   - GUI: add SlimProto (SqueezeLite) support, enabled by default. Can be disabled in the APP Tab. Clients are discovered automatically and show up as renderer buttons in the GUI just like UPNP/DLNA renderers. The volume slider is write-only and always starts at 20%, you might have to increase it to hear sound. SqueezeLite clients do not advertise a volume. You need to allow the SlimProto TCP and UDP ports 3483 in the firewall for SqueezLite to work. Squeezelite has lower latency to start streaming that UPNP/DLNA. All swyh-rs audio formats are supported.
   - CLI: add SlimProto support (-P --slimproto default true). Volume is set at 20% unless specified with -v xx in the commandline.
 

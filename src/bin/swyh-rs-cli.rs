@@ -335,6 +335,7 @@ fn main() -> Result<(), i32> {
                                 } else {
                                     newr.volume = 20;
                                 }
+                                newr.spawn_set_volume(newr.volume);
                                 newr.spawn_strm_start(server_ip, streaminfo);
                                 newr.playing = true;
                                 ui_log(

@@ -86,10 +86,10 @@ fn tpdf_dither_simd_mul() -> f32x4 {
     diffs * f32x4::splat(65536.0_f32)
 }
 
-// Current production approach (mirrors tpdf_dither_lanes_16_threadlocal / see
-// samples_conv.rs `tpdf_dither_lanes_16_from_bytes`): one `fastrand::fill` call draws
-// 32 bytes (4 WyRand u64s) in a single thread-local dispatch; each u64 is split into
-// two u32 halves and scaled to [0, 1) — 8 draws from one dispatch instead of 8.
+// Superseded production approach: one `fastrand::fill` call draws 32 bytes (4 WyRand
+// u64s) in a single thread-local dispatch; each u64 is split into two u32 halves and
+// scaled to [0, 1) via a per-lane scalar multiply, then the four diffs are packed into
+// an f32x4 (four scalar SUBSSs) before the final SIMD multiply by the LSB constant.
 #[inline(always)]
 fn tpdf_dither_batched_fill() -> f32x4 {
     const MUL: f32 = 1.0 / (1u32 << 31) as f32;
@@ -106,6 +106,29 @@ fn tpdf_dither_batched_fill() -> f32x4 {
 
     let diffs = f32x4::new([u[0] - u[1], u[2] - u[3], u[4] - u[5], u[6] - u[7]]);
     diffs * f32x4::splat(65536.0_f32)
+}
+
+// Current production approach (mirrors samples_conv.rs `tpdf_dither_lanes_16_from_bytes`
+// after the u1/u2 vectorization): same `fastrand::fill` draw, but the two u32 halves of
+// each word are collected into separate u1/u2 lanes and subtracted as a single SIMD
+// SUBPS, with the `[0, 1)` scale and `· LSB` factor folded into one combined splat
+// constant (2^-15) applied after the subtract.
+#[inline(always)]
+fn tpdf_dither_vectorized_diff() -> f32x4 {
+    const COMBINED_SCALE: f32 = 65536.0_f32 / (1u32 << 31) as f32;
+
+    let mut buf = [0u8; 32];
+    fastrand::fill(&mut buf);
+
+    let mut u1 = [0.0f32; 4];
+    let mut u2 = [0.0f32; 4];
+    for (i, w) in buf.as_chunks::<8>().0.iter().enumerate() {
+        let word = u64::from_ne_bytes(*w);
+        u1[i] = ((word as u32) >> 1) as f32;
+        u2[i] = ((word >> 32) as u32 >> 1) as f32;
+    }
+
+    (f32x4::new(u1) - f32x4::new(u2)) * f32x4::splat(COMBINED_SCALE)
 }
 
 fn bench_tpdf_dither(c: &mut Criterion) {
@@ -138,6 +161,16 @@ fn bench_tpdf_dither(c: &mut Criterion) {
             let mut acc = f32x4::splat(0.0_f32);
             for _ in 0..N / 4 {
                 acc += black_box(tpdf_dither_batched_fill());
+            }
+            black_box(acc)
+        })
+    });
+
+    g.bench_function("vectorized_diff", |b| {
+        b.iter(|| {
+            let mut acc = f32x4::splat(0.0_f32);
+            for _ in 0..N / 4 {
+                acc += black_box(tpdf_dither_vectorized_diff());
             }
             black_box(acc)
         })

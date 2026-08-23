@@ -49,9 +49,7 @@ pub struct SlimRenderer {
     pub playing: bool,
     /// The slider's starting *display* position only — unlike UPnP's
     /// `GetVolume`, squeezelite exposes no "what's your current volume"
-    /// query at `HELO` time, so this is just a guess (100%, i.e. unity
-    /// gain). Nothing is sent to the client until the user actually moves
-    /// the slider, so a fresh connection's real volume is left untouched.
+    /// query at `HELO` time, so this starts out at 20 % fixed.
     pub volume: i32,
     pub write_stream: Arc<Mutex<TcpStream>>,
     #[cfg(feature = "gui")]

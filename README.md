@@ -14,6 +14,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 - [Current release and binaries](#current-release)
 - [Changelog](CHANGELOG.md)
 - [swyh-rs as your local internet radio station](#swyh-rs-as-your-local-internet-radio-station)
+- [SlimProto (Squeezelite) support](#slimproto-squeezelite-support)
 - [Todo](#todo)
 - [Building (Wiki)](https://github.com/dheijl/swyh-rs/wiki)
 - [Hotspot and Internet Connection Sharing with Sonos (Wiki)](https://github.com/dheijl/swyh-rs/wiki#6-using-an-internet-hotspot-and-windows-ics-internet-connection-sharing-with-sonos-by-ebizmarket-kelly-guzman)
@@ -31,7 +32,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current release is **[1.20.5](https://github.com/dheijl/swyh-rs/releases/tag/1.20.5)**, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is **[1.21.0](https://github.com/dheijl/swyh-rs/releases/tag/1.21.0)**, refer to the [Changelog](CHANGELOG.md) for more details.
 
 You can find x86/64  Windows setup and binaries and Linux (Ubuntu/Debian) appimages in [Releases](https://github.com/dheijl/swyh-rs/releases).
 
@@ -71,6 +72,7 @@ It has been tested with
 - for QPlay devices, like the Xiaomi S12, you need version 1.8.2 or later, see issue #99. Older versions wrongly try to use Openhome instead of AVTransport.
 - **Roon** with FLAC and using U32MaxChunked for streamsize (swyh-rs 1.10.5 and up). Thanks to @DrCWO for figuring this out (issue #55).
 - playback on **Squeezebox** players connected to Logitech Media Server (now known as Lyrion Music Server) works by adding the swyh-rs URL as a favorite to LMS: <http://pcipaddress:5901/stream/swyh.flac>, as pointed out by @Cornelisj (issue #40).
+- since 1.21.0, **squeezelite** clients no longer need LMS at all: swyh-rs speaks the SlimProto protocol directly, so squeezelite players are discovered automatically and show up as renderer buttons, just like UPnP/DLNA renderers. See [SlimProto (Squeezelite) support](#slimproto-squeezelite-support).
 
 but any OpenHome/DLNA streamer that supports FLAC (except older Sonos software versions that do not do FLAC over upnp) will probably work (since version 1.4.0).
 
@@ -133,6 +135,7 @@ If it doesn't work for you, please open a new issue and include all the debug lo
 - On a freshly installed Windows system you may get an error "**VCRUNTIME140.dll was not found**". Rust Windows binaries built with the MSVC toolchain need the Visual Studio 2015..2019 runtime. Because so much software relies on it, is almost always already present, but if not you can get the Visual C++ 2015..2019 runtime installer from [https://aka.ms/vs/16/release/vc_redist.x64.exe](https://aka.ms/vs/16/release/vc_redist.x64.exe). The current Windows installer will automatically do this if necessary.
 - On linux you may have to enable **audio monitoring** with pavucontrol to make audio capture work
 - make sure that your firewall or anti-virus do not block the default incoming HTTP port 5901 for streaming requests (or the port number you configured in the UI if not the default), and that outgoing UDP traffic is allowed for SSDP  
+- if you use SlimProto (squeezelite) support, make sure TCP and UDP port 3483 are allowed through your firewall, or squeezelite clients will not be discovered/controlled
 - resizing a window in fltk 1.4 is not ideal, but thanks to @MoAlyousef it is now usable in swyh-rs. But if you resize vertically to a very small window you risk losing the horizontal scrollbar in the textbox at the bottom.
 - simultaneous streaming to multiple renderers is only limited by the number of renderer buttons that can be shown in the available space in the window.
 - Kaspersky Antivirus can prevent audio capture, so you may have to add an exception for swyh-rs (thanks @JWolvers).
@@ -163,6 +166,7 @@ When swyh-rs starts, it:
 - captures audio from the selected audio source (WasApi on Windows, Alsa on Linux)
 - starts a built-in HTTP audio streaming web server on the configured port (default 5901)
 - runs **SSDP** discovery to find all UPnP/DLNA/OpenHome media renderers on the local network (takes about four seconds)
+- if enabled, listens for **SlimProto** (squeezelite) clients, see [SlimProto (Squeezelite) support](#slimproto-squeezelite-support)
 - displays a button for every discovered renderer, together with a volume slider if the renderer supports volume control — drag the slider to change the volume; hold Shift while dragging to copy the new volume to all currently active renderers
 - clicking a renderer button uses the OpenHome or AvTransport protocol to instruct it to play the audio stream from the built-in web server
 
@@ -237,10 +241,22 @@ and restart Pipewire.
 - **Auto-resume**: automatically resume streaming if a renderer stops unexpectedly. Always try disabling _Chunked Transfer Encoding_ first to see if that alone fixes the problem before enabling Auto-resume.
 - **Auto-reconnect**: re-activate all renderers that were active when swyh-rs was last closed.
 - **RMS monitor**: enable visualisation of the RMS level (L+R channels) of the captured audio. Use this to verify that swyh-rs is actually capturing audio. Adds a negligible amount of CPU use.
+- **Enable SlimProto**: enable or disable SlimProto (squeezelite) discovery and control, see [SlimProto (Squeezelite) support](#slimproto-squeezelite-support). Enabled by default. Changing this requires a restart.
 
 #### Status tab
 
 The Status tab is the active tab on startup. It shows a live, read-only summary of all current configuration settings and is updated automatically whenever a setting changes.
+
+### SlimProto (Squeezelite) support
+
+Since version 1.21.0, swyh-rs speaks the **SlimProto** protocol used by [squeezelite](https://github.com/ralph-irving/squeezelite) and Squeezebox hardware players directly, so you no longer need a Logitech Media Server (LMS/Lyrion) instance to stream to them.
+
+- squeezelite clients on the local network are discovered automatically, the same way UPnP/DLNA renderers are, and show up as renderer buttons in the GUI.
+- squeezelite clients do not report their volume, so the volume slider for a SlimProto renderer is **write-only** and always starts at 20% — you may need to raise it to hear anything.
+- SlimProto uses TCP and UDP port **3483**: make sure your firewall allows this port, in both directions, or discovery/control will not work.
+- SlimProto has lower latency to start streaming than UPnP/DLNA.
+- all swyh-rs audio formats (FLAC, WAV, RF64, LPCM) are supported.
+- SlimProto support is enabled by default, and can be disabled in the **App** tab (see [App tab](#app-tab)) or, for the CLI, with `-P/--slimproto false`.
 
 ### SSDP and VPN
 
@@ -276,6 +292,7 @@ Recognized options:
     -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
     -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
     -d (--dither) bool : use TPDF dither for 16-bit output [true]
+    -P (--slimproto) bool : enable SlimProto/squeezelite support [true]
 ```
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.
@@ -287,6 +304,8 @@ Other boolean options accept an optional true/false, because they are remembered
 Short options allow you to append the value to the short option, for example -S44100 is equivalent to -S 44100 and --sample_rate 44100, same for -xno etc...
 
 Boolean values accept y/yes/n/no/t/true/f/false/1/0.
+
+Like the GUI, swyh-rs-cli speaks SlimProto directly (see [SlimProto (Squeezelite) support](#slimproto-squeezelite-support)), enabled by default; disable it with `-P false` / `--slimproto false`. Discovered squeezelite clients are treated the same as UPnP/DLNA renderers for the `-o` option. Since squeezelite clients don't report their volume, it is set to 20% unless you specify a starting volume with `-v`.
 
 Hint: use the **-n (dry-run) mode** to get the index of the sound source device and the ip address of the receiver that you need to pass as commandline parameter.
 

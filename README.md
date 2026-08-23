@@ -356,7 +356,7 @@ MAC: I'm sorry but I don't have one... If you have one and would like to contrib
 
 - the App settings tab:
 
-<img width="700" height="772" alt="image" src="https://github.com/user-attachments/assets/3eddcc8d-29bd-4940-9b20-ac7562496e6f" />
+<img width="700" height="772" alt="app" src="https://github.com/user-attachments/assets/4f0424e7-5425-4d61-a343-4df6ba915e99" />
 
 - the Audio settings tab:
 
@@ -367,5 +367,5 @@ MAC: I'm sorry but I don't have one... If you have one and would like to contrib
 <img width="700" height="772" alt="image" src="https://github.com/user-attachments/assets/35afe373-e11e-4175-a3a0-f3162761716b" />
 
 - the Status tab:
-
-<img width="700" height="772" alt="image" src="https://github.com/user-attachments/assets/27989917-7ad9-4ada-bcfe-f5291c79c51e" />
+-  
+<img width="700" height="772" alt="status" src="https://github.com/user-attachments/assets/8335f5f1-453b-4f6e-9569-1b867e36282a" />

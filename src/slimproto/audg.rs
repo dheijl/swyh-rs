@@ -2,7 +2,7 @@
 //! (server -> client).
 //!
 //! Byte layout verified against squeezelite's `slimproto.h` (`struct
-//! audg_packet`) and `process_audg` in `slimproto.c`, not from memory:
+//! audg_packet`) and `process_audg` in `slimproto.c`
 //!
 //! ```c
 //! struct audg_packet {

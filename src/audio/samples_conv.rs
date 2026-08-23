@@ -48,30 +48,35 @@ static HALF_LSB_24_SIMD: f32x4 = f32x4::splat(128.0);
 /// `(u1 − u2) · LSB`, with u1, u2 ∼ U[0, 1). Peak amplitude ±1 LSB, mean 0, triangular
 /// density on (−1, 1) LSB.
 ///
-/// Each `u64` is split into two `u32` halves, and each half is scaled to `[0, 1)` via
-/// `(half >> 1) as f32 * MUL` — the same shift-then-scale trick `fastrand::f32_inclusive`
-/// applies to a full 64-bit draw, applied here twice per word. WyRand's multiply step
-/// already mixes entropy across all 64 output bits, so the two halves are
-/// independent-enough draws; this gets 8 values out of 4 RNG state updates instead of 8.
+/// Each `u64` is split into two `u32` halves via `(half >> 1) as f32` — the same shift
+/// trick `fastrand::f32_inclusive` applies to a full 64-bit draw, applied here twice per
+/// word. WyRand's multiply step already mixes entropy across all 64 output bits, so the
+/// two halves are independent-enough draws; this gets 8 values out of 4 RNG state
+/// updates instead of 8. The two halves of each word are collected into separate `u1`/`u2`
+/// lanes and subtracted as a single SIMD op; the `[0, 1)` scale (`MUL`) and the `· LSB`
+/// factor are folded into one combined splat constant applied after the subtract, since
+/// `(u1·MUL − u2·MUL) · LSB == (u1 − u2) · (MUL·LSB)`.
 ///
 /// Shared by the thread-local production path ([`tpdf_dither_lanes_16_threadlocal`]) and
 /// the seeded test path (`tpdf_dither_lanes_16_seeded` in `tests`), so both exercise the
 /// same bit-level conversion — only the entropy source differs.
 #[inline(always)]
 fn tpdf_dither_lanes_16_from_bytes(buf: [u8; 32]) -> f32x4 {
-    const MUL: f32 = 1.0 / (1u32 << 31) as f32;
+    // MUL·LSB collapses to 2^-15 exactly (65536.0 / 2^31 == 2^-15), so the [0, 1) scale
+    // and the LSB scale combine into a single constant applied once, after the subtract.
+    const COMBINED_SCALE: f32 = LSB_AT_16BIT_POST_MULT / (1u32 << 31) as f32;
 
-    let mut u = [0.0f32; 8];
+    let mut u1 = [0.0f32; 4];
+    let mut u2 = [0.0f32; 4];
     // 32 bytes split into 8-byte words, so the remainder is always empty
     let (words, _) = buf.as_chunks::<8>();
     for (i, w) in words.iter().enumerate() {
         let word = u64::from_ne_bytes(*w);
-        u[2 * i] = ((word as u32) >> 1) as f32 * MUL;
-        u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32 * MUL;
+        u1[i] = ((word as u32) >> 1) as f32;
+        u2[i] = ((word >> 32) as u32 >> 1) as f32;
     }
 
-    let diffs = f32x4::new([u[0] - u[1], u[2] - u[3], u[4] - u[5], u[6] - u[7]]);
-    diffs * f32x4::splat(LSB_AT_16BIT_POST_MULT)
+    (f32x4::new(u1) - f32x4::new(u2)) * f32x4::splat(COMBINED_SCALE)
 }
 
 /// Generate one f32x4 of TPDF dither, reading from `fastrand`'s per-thread RNG.

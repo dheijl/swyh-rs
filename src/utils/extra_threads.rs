@@ -98,14 +98,16 @@ pub fn run_rms_monitor(
                 // chunk samples, scale to i16, and multiply-accumulate with SIMD f32x4
                 total_samples += samples.len();
                 let (chunks, remainder) = samples.as_chunks::<4>();
-                ch_sum = chunks.iter().fold(ch_sum, |acc, chunk| {
-                    let scaled = f32x4::new(*chunk) * imax;
-                    scaled.mul_add(scaled, acc)
+                ch_sum = chunks.iter().fold(ch_sum, |acc, x| {
+                    let f4 = f32x4::new(*x);
+                    let i4 = f4 * imax;
+                    i4.mul_add(i4, acc)
                 });
                 debug_assert!(remainder.is_empty() || remainder.len() == 2);
                 if remainder.len() == 2 {
-                    let scaled = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]) * imax;
-                    ch_sum = scaled.mul_add(scaled, ch_sum);
+                    let rem = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
+                    let i4 = rem * imax;
+                    ch_sum = i4.mul_add(i4, ch_sum);
                 }
             }
             // no samples: clear RMS widgets and reset accumulators

@@ -408,8 +408,8 @@ fn main() -> Result<(), i32> {
                     }
                 }
                 MessageType::LogMessage(msg) => ui_log(LogCategory::Info, &msg),
-                // the CLI's own play() calls above are synchronous; this only
-                // fires if `Renderer::spawn_play` is used elsewhere in-process
+                // never fires in the CLI: only play() is used here, not spawn_play().
+                // Kept because MessageType is shared with the GUI, which does use spawn_play().
                 MessageType::PlayResult(outcome) => {
                     if let Err(e) = outcome.result {
                         ui_log(

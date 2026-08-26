@@ -13,7 +13,7 @@ authors = [
 ]
 edition = "2024"
 name = "swyh-rs"
-version = "1.21.0"
+version = "1.21.1"
 description = "Stream What You Hear written in Rust"
 license = "MIT"
 repository = "https://github.com/dheijl/swyh-rs/"

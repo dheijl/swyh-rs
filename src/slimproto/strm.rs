@@ -33,7 +33,6 @@
 
 use crate::enums::streaming::{BitDepth, StreamingFormat};
 use crate::rendercontrol::StreamInfo;
-use ecow::{EcoString, eco_format};
 use std::net::Ipv4Addr;
 
 /// squeezelite's `sample_rates[]` table (`pcm.c`'s `pcm_open`): the strm
@@ -74,10 +73,7 @@ fn pcm_size_code(bits_per_sample: BitDepth) -> u8 {
 /// headerless-PCM rationale. Returns `Err` instead of silently sending an
 /// undefined/wrong `pcm_sample_rate` if `streaminfo.sample_rate` has no
 /// code in squeezelite's table.
-pub fn build_strm_start(
-    server_ip: Ipv4Addr,
-    streaminfo: &StreamInfo,
-) -> Result<Vec<u8>, EcoString> {
+pub fn build_strm_start(server_ip: Ipv4Addr, streaminfo: &StreamInfo) -> Result<Vec<u8>, String> {
     let fmt = streaminfo.streaming_format;
     // `?slim=1` marks every strm-triggered request, not just Wav/Rf64: it
     // also tells `get_dlna_headers` (streaming_server.rs) to skip the
@@ -91,7 +87,7 @@ pub fn build_strm_start(
             (b'f', b'?', b'?', b'?', b'?')
         } else {
             let rate = pcm_rate_code(streaminfo.sample_rate).ok_or_else(|| {
-                eco_format!(
+                format!(
                     "SlimProto: {} Hz has no strm pcm_sample_rate code",
                     streaminfo.sample_rate
                 )

@@ -5,7 +5,6 @@ pub mod commandline;
 pub mod configuration;
 pub mod extra_threads;
 pub mod i18n;
-pub mod inject_silence;
 pub mod local_ip_address;
 pub mod priority;
 pub(crate) mod traits;

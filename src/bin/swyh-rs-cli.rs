@@ -26,8 +26,11 @@ use hashbrown::HashMap;
 use log::{LevelFilter, debug, error, info};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
 use swyh_rs::{
-    audio::audiodevices::{
-        Device, capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+    audio::{
+        audiodevices::{
+            Device, capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+        },
+        inject_silence::run_silence_injector,
     },
     enums::{messages::MessageType, streaming::StreamingState},
     fl,
@@ -42,7 +45,6 @@ use swyh_rs::{
         commandline::Args,
         configuration::Configuration,
         i18n,
-        inject_silence::run_silence_injector,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::*,

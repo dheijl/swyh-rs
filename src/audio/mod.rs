@@ -2,5 +2,6 @@
 
 pub mod audiodevices;
 pub(crate) mod flacstream;
+pub mod inject_silence;
 pub mod rwstream;
 pub mod samples_conv;

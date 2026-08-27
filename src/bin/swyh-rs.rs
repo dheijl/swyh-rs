@@ -13,6 +13,7 @@ use swyh_rs::{
         audiodevices::{
             Device, capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
         },
+        inject_silence::run_silence_injector,
         rwstream::AudioSamples,
     },
     enums::{messages::MessageType, streaming::StreamingState},
@@ -29,7 +30,6 @@ use swyh_rs::{
         configuration::Configuration,
         extra_threads::{run_rms_monitor, run_ssdp_updater},
         i18n,
-        inject_silence::run_silence_injector,
         local_ip_address::{get_interfaces, get_local_addr},
         priority::raise_priority,
         ui_logger::*,

@@ -1,8 +1,8 @@
 //! `swyh-rs` — GUI entry point.
 //!
 //! A Rust clone of SWYH (<https://www.streamwhatyouhear.com>): captures the default
-//! audio output device and streams it in LPCM, WAV, RF64, or FLAC format to DLNA/OpenHome
-//! renderers discovered via SSDP.  Tested on Windows 10/11 and Ubuntu/Debian with Volumio, MoOde,
+//! audio output device and streams it in LPCM, WAV, RF64, or FLAC format to DLNA/OpenHome/SqueezeLite
+//! renderers discovered via SSDP/SlimProto.  Tested on Windows 10/11 and Ubuntu/Debian with Volumio, MoOde,
 //! Harman-Kardon AVR, Sonos etc... renderers.
 
 #![cfg(feature = "gui")]

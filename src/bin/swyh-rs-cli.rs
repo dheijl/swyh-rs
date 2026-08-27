@@ -1,7 +1,7 @@
 //! `swyh-rs-cli` — headless CLI entry point.
 //!
 //! Command-line equivalent of `swyh-rs`: captures audio and streams to one or more
-//! DLNA/OpenHome renderers without a GUI.  Renderer selection, streaming format, bit
+//! DLNA/OpenHome/SqueezeLite renderers without a GUI.  Renderer selection, streaming format, bit
 //! depth, and network interface are all configurable via command-line flags.
 
 #![cfg(feature = "cli")]

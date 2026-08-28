@@ -4,7 +4,7 @@
 use crate::globals::statics::{THREAD_STACK, stop_clients_by_ip};
 use crate::rendercontrol::StreamInfo;
 use crate::slimproto::audg;
-use crate::slimproto::frames::SlimHelo;
+use crate::slimproto::parse_frames::SlimHelo;
 use crate::slimproto::strm;
 use crate::utils::ui_logger::{LogCategory, ui_log};
 use ecow::EcoString;

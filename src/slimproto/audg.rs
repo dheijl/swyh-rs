@@ -16,9 +16,9 @@
 //! };
 //! ```
 //! 18-byte payload after the 4-byte opcode (which, like `strm`, is handled
-//! by the shared frame envelope — see [`crate::slimproto::strm::build_frame_envelope`]
-//! — not this struct), no padding (same `#pragma pack(push, 1)` as
-//! `strm_packet`).
+//! by the shared frame envelope — see
+//! [`crate::slimproto::frame_envelope::build_frame_envelope`] — not this
+//! struct), no padding (same `#pragma pack(push, 1)` as `strm_packet`).
 //!
 //! `gainL`/`gainR` are 16.16 fixed-point (`FIXED_ONE = 0x10000` in
 //! `squeezelite.h` is unity/100% gain): `process_audg` computes
@@ -29,7 +29,7 @@
 //! gain, a plain linear percent-to-gain mapping rather than LMS's own
 //! perceptual volume curve.
 
-use crate::slimproto::strm::build_frame_envelope;
+use crate::slimproto::frame_envelope::build_frame_envelope;
 
 const FIXED_ONE: f64 = 65536.0;
 

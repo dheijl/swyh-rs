@@ -8,7 +8,7 @@
 //! client sends verbatim on the new connection it opens back to us.
 //!
 //! **The outer envelope is not symmetric with client -> server frames.**
-//! `frames::read_frame` parses client -> server frames (`HELO`, `STAT`, ...)
+//! `parse_frames::read_frame` parses client -> server frames (`HELO`, `STAT`, ...)
 //! as `opcode[4] + length(BE u32, payload-only) + payload`. Server -> client
 //! frames use a *different* shape (verified against squeezelite's
 //! `slimproto_run()` read loop in `slimproto.c`): a **2-byte** BE length
@@ -33,6 +33,7 @@
 
 use crate::enums::streaming::{BitDepth, StreamingFormat};
 use crate::rendercontrol::StreamInfo;
+use crate::slimproto::frame_envelope::build_frame_envelope;
 use ecow::{EcoString, eco_format};
 use std::net::Ipv4Addr;
 
@@ -163,19 +164,6 @@ const fn build_control_frame(command: u8) -> [u8; 30] {
     frame[4] = opcode[2];
     frame[5] = opcode[3];
     frame[6] = command;
-    frame
-}
-
-/// Wrap a payload in its SlimProto server -> client frame envelope:
-/// `length(BE u16, covers opcode+payload) + opcode[4] + payload`. Shared
-/// with `audg::build_audg` — this envelope shape applies to every
-/// server -> client opcode, not just `strm`.
-pub(crate) fn build_frame_envelope(opcode: &[u8; 4], payload: &[u8]) -> Vec<u8> {
-    let body_len = 4 + payload.len();
-    let mut frame = Vec::with_capacity(2 + body_len);
-    frame.extend_from_slice(&(body_len as u16).to_be_bytes());
-    frame.extend_from_slice(opcode);
-    frame.extend_from_slice(payload);
     frame
 }
 

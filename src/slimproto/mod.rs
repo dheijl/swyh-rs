@@ -3,7 +3,8 @@
 
 pub mod audg;
 pub mod discovery;
-pub mod frames;
+pub mod frame_envelope;
+pub mod parse_frames;
 pub mod server;
 pub mod strm;
 pub mod types;

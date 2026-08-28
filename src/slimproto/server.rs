@@ -4,7 +4,7 @@
 
 use crate::enums::messages::MessageType;
 use crate::globals::statics::{THREAD_STACK, get_msgchannel, get_slim_renderers_mut};
-use crate::slimproto::frames::{self, Frame};
+use crate::slimproto::parse_frames::{self, Frame};
 use crate::slimproto::types::SlimRenderer;
 use anyhow::{Context, Result};
 use ecow::{EcoString, eco_format};
@@ -73,7 +73,7 @@ fn handle_connection(mut stream: TcpStream) {
     let mut last_ignored_opcode: Option<[u8; 4]> = None;
     let mut logged_first_stat = false;
     loop {
-        match frames::read_frame(&mut stream) {
+        match parse_frames::read_frame(&mut stream) {
             Ok(Frame::Helo(helo)) => {
                 log::info!(
                     "SlimProto HELO from {peer}: device_id={} revision={} mac={:02x?} caps={}",

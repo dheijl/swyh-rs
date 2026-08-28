@@ -103,7 +103,7 @@ impl SlimRenderer {
             .write_stream
             .lock()
             .expect("SlimRenderer write_stream mutex poisoned")
-            .write_all(&frame);
+            .write_all(frame);
         stop_clients_by_ip(&self.remote_addr);
         result
     }
@@ -116,7 +116,7 @@ impl SlimRenderer {
         self.write_stream
             .lock()
             .expect("SlimRenderer write_stream mutex poisoned")
-            .write_all(&frame)
+            .write_all(frame)
     }
 
     /// [`Self::send_strm_start`] on a background thread, so the caller (the

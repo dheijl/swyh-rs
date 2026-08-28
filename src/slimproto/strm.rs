@@ -33,6 +33,7 @@
 
 use crate::enums::streaming::{BitDepth, StreamingFormat};
 use crate::rendercontrol::StreamInfo;
+use ecow::{EcoString, eco_format};
 use std::net::Ipv4Addr;
 
 /// squeezelite's `sample_rates[]` table (`pcm.c`'s `pcm_open`): the strm
@@ -73,7 +74,10 @@ fn pcm_size_code(bits_per_sample: BitDepth) -> u8 {
 /// headerless-PCM rationale. Returns `Err` instead of silently sending an
 /// undefined/wrong `pcm_sample_rate` if `streaminfo.sample_rate` has no
 /// code in squeezelite's table.
-pub fn build_strm_start(server_ip: Ipv4Addr, streaminfo: &StreamInfo) -> Result<Vec<u8>, String> {
+pub fn build_strm_start(
+    server_ip: Ipv4Addr,
+    streaminfo: &StreamInfo,
+) -> Result<Vec<u8>, EcoString> {
     let fmt = streaminfo.streaming_format;
     // `?slim=1` marks every strm-triggered request, not just Wav/Rf64: it
     // also tells `get_dlna_headers` (streaming_server.rs) to skip the
@@ -87,7 +91,7 @@ pub fn build_strm_start(server_ip: Ipv4Addr, streaminfo: &StreamInfo) -> Result<
             (b'f', b'?', b'?', b'?', b'?')
         } else {
             let rate = pcm_rate_code(streaminfo.sample_rate).ok_or_else(|| {
-                format!(
+                eco_format!(
                     "SlimProto: {} Hz has no strm pcm_sample_rate code",
                     streaminfo.sample_rate
                 )
@@ -128,8 +132,9 @@ pub fn build_strm_start(server_ip: Ipv4Addr, streaminfo: &StreamInfo) -> Result<
 /// Build a `strm` "stop" frame telling the client to halt playback
 /// immediately. All fields besides `command` are ignored by the client for
 /// `'q'`, so they're left zeroed and no request line is sent.
-pub fn build_strm_stop() -> Vec<u8> {
-    build_control_frame(b'q')
+pub fn build_strm_stop() -> &'static [u8] {
+    const FRAME: [u8; 30] = build_control_frame(b'q');
+    &FRAME
 }
 
 /// Build a `strm` "status" (time) request frame — a no-op as far as
@@ -139,17 +144,26 @@ pub fn build_strm_stop() -> Vec<u8> {
 /// in-progress stream along with it. A real SlimProto server avoids this by
 /// periodically sending *something*; this is that something. Same
 /// all-other-fields-zeroed shape as `build_strm_stop`.
-pub fn build_strm_status() -> Vec<u8> {
-    build_control_frame(b't')
+pub fn build_strm_status() -> &'static [u8] {
+    const FRAME: [u8; 30] = build_control_frame(b't');
+    &FRAME
 }
 
 /// Build a minimal strm frame carrying just `command`, every other field
 /// zeroed and no request line — used for `'q'` and `'t'`, where the client
-/// ignores everything but `command`.
-fn build_control_frame(command: u8) -> Vec<u8> {
-    let mut payload = vec![0u8; 24];
-    payload[0] = command;
-    build_frame_envelope(b"strm", &payload)
+/// ignores everything but `command`. It's a `const fn` so;that the frame
+/// does not have to be rebuilt on every call ('t' hartbeat!).
+const fn build_control_frame(command: u8) -> [u8; 30] {
+    let mut frame = [0u8; 30];
+    // length (BE u16) covers opcode[4] + payload[24] = 28
+    frame[1] = 4 + 24;
+    let opcode = b"strm";
+    frame[2] = opcode[0];
+    frame[3] = opcode[1];
+    frame[4] = opcode[2];
+    frame[5] = opcode[3];
+    frame[6] = command;
+    frame
 }
 
 /// Wrap a payload in its SlimProto server -> client frame envelope:

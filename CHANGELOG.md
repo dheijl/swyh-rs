@@ -2,6 +2,8 @@
 
 - 1.21.1 (unreleased)
   - prefer String over EcoString when EcoString has no clear advantage
+  - refactor: some renaming and/or moving of files
+  - slimproto: optimize hartbeat
 
 - 1.21.0 (Aug 23 2026, dheijl)
   - don't report underrun errors in the GUI but log them

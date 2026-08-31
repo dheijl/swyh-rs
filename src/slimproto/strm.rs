@@ -134,7 +134,7 @@ pub fn build_strm_start(
 /// immediately. All fields besides `command` are ignored by the client for
 /// `'q'`, so they're left zeroed and no request line is sent.
 pub fn build_strm_stop() -> &'static [u8] {
-    const FRAME: [u8; 30] = build_control_frame(b'q');
+    const FRAME: [u8; 30] = build_strm_control_frame(b'q');
     &FRAME
 }
 
@@ -145,8 +145,9 @@ pub fn build_strm_stop() -> &'static [u8] {
 /// in-progress stream along with it. A real SlimProto server avoids this by
 /// periodically sending *something*; this is that something. Same
 /// all-other-fields-zeroed shape as `build_strm_stop`.
+#[inline(always)]
 pub fn build_strm_status() -> &'static [u8] {
-    const FRAME: [u8; 30] = build_control_frame(b't');
+    const FRAME: [u8; 30] = build_strm_control_frame(b't');
     &FRAME
 }
 
@@ -154,15 +155,14 @@ pub fn build_strm_status() -> &'static [u8] {
 /// zeroed and no request line — used for `'q'` and `'t'`, where the client
 /// ignores everything but `command`. It's a `const fn` so;that the frame
 /// does not have to be rebuilt on every call ('t' hartbeat!).
-const fn build_control_frame(command: u8) -> [u8; 30] {
+const fn build_strm_control_frame(command: u8) -> [u8; 30] {
     let mut frame = [0u8; 30];
     // length (BE u16) covers opcode[4] + payload[24] = 28
-    frame[1] = 4 + 24;
-    let opcode = b"strm";
-    frame[2] = opcode[0];
-    frame[3] = opcode[1];
-    frame[4] = opcode[2];
-    frame[5] = opcode[3];
+    frame[1] = 28;
+    frame[2] = b's';
+    frame[3] = b't';
+    frame[4] = b'r';
+    frame[5] = b'm';
     frame[6] = command;
     frame
 }

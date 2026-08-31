@@ -14,6 +14,9 @@
             "repo"
         ],
         "terminal.integrated.gpuAcceleration": "off",
-        "editor.experimentalGpuAcceleration": "off"
+        "editor.experimentalGpuAcceleration": "off",
+        "files.exclude": {
+            "**/target": true
+        }
     },
 }

@@ -5,18 +5,16 @@
 use std::io::{self, Read};
 
 /// Fixed portion of a parsed `HELO` frame — the SlimProto client handshake.
-///
-/// `uuid` and `lang` from the wire format are intentionally not kept: real
-/// squeezelite always zero-fills `uuid` and never sets `lang` in `sendHELO()`
-/// (see `slimproto.c`), so there is nothing meaningful to store yet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlimHelo {
     pub device_id: u8,
     pub revision: u8,
     pub mac: [u8; 6],
+    pub uuid: Option<[u8; 16]>,
     pub wlan_channel_list: u16,
     pub bytes_received: u64,
     pub capabilities: String,
+    pub lang: Option<[u8; 2]>,
 }
 
 /// A parsed SlimProto frame.
@@ -72,6 +70,9 @@ pub fn read_frame(stream: &mut impl Read) -> io::Result<Frame> {
     }
 }
 
+/// `uuid` and `lang` from the wire format are intentionally not parsed: real
+/// squeezelite always zero-fills `uuid` and never sets `lang` in `sendHELO()`
+/// (see `slimproto.c`), so there is nothing meaningful to store yet.
 fn parse_helo(payload: &[u8]) -> io::Result<SlimHelo> {
     if payload.len() < HELO_FIXED_LEN {
         return Err(io::Error::new(
@@ -97,9 +98,11 @@ fn parse_helo(payload: &[u8]) -> io::Result<SlimHelo> {
         device_id,
         revision,
         mac,
+        uuid: None,
         wlan_channel_list,
         bytes_received,
         capabilities,
+        lang: None,
     })
 }
 

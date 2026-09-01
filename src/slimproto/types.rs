@@ -219,9 +219,11 @@ mod tests {
             device_id: 12,
             revision: 0,
             mac: [0, 1, 2, 3, 4, 5],
+            uuid: None,
             wlan_channel_list: 0,
             bytes_received: 0,
             capabilities: capabilities.to_string(),
+            lang: None,
         }
     }
 

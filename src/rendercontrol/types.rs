@@ -46,17 +46,17 @@ impl StreamInfo {
 /// An UPNP/DLNA service desciption
 #[derive(Debug, Clone)]
 pub struct AvService {
-    pub(super) service_id: String,
-    pub(super) service_type: String,
-    pub(super) control_url: String,
+    pub(super) service_id: EcoString,
+    pub(super) service_type: EcoString,
+    pub(super) control_url: EcoString,
 }
 
 impl AvService {
     pub(super) fn new() -> AvService {
         AvService {
-            service_id: String::new(),
-            service_type: String::new(),
-            control_url: String::new(),
+            service_id: EcoString::new(),
+            service_type: EcoString::new(),
+            control_url: EcoString::new(),
         }
     }
 }
@@ -114,10 +114,10 @@ pub struct Controller {
 pub struct Renderer {
     // public identity/state, read directly by the UI and CLI binaries
     pub player_index: usize,
-    pub dev_model: String,
-    pub dev_url: String,
+    pub dev_model: EcoString,
+    pub dev_url: EcoString,
     pub volume: i32,
-    pub location: String,
+    pub location: EcoString,
     pub playing: bool,
     #[cfg(feature = "gui")]
     /// the GUI fields associated with this renderer neede when the streaming
@@ -128,11 +128,11 @@ pub struct Renderer {
     pub controller: Arc<Controller>,
 
     // internal mod wiring, only ever touched from control.rs/discovery.rs
-    pub(super) dev_type: String,
-    pub(super) oh_control_url: String,
-    pub(super) av_control_url: String,
-    pub(super) oh_volume_url: String,
-    pub(super) av_volume_url: String,
+    pub(super) dev_type: EcoString,
+    pub(super) oh_control_url: EcoString,
+    pub(super) av_control_url: EcoString,
+    pub(super) oh_volume_url: EcoString,
+    pub(super) av_volume_url: EcoString,
     pub(super) services: Vec<AvService>,
     /// guards against overlapping `spawn_play()` calls for this renderer;
     /// shared (via `Arc`) across every clone made from the same discovered

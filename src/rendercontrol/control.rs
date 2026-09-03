@@ -253,15 +253,15 @@ impl Renderer {
     pub(super) fn new(agent: &ureq::Agent) -> Renderer {
         Renderer {
             player_index: 0,
-            dev_model: String::new(),
-            dev_url: String::new(),
-            dev_type: String::new(),
-            oh_control_url: String::new(),
-            av_control_url: String::new(),
-            oh_volume_url: String::new(),
-            av_volume_url: String::new(),
+            dev_model: EcoString::new(),
+            dev_url: EcoString::new(),
+            dev_type: EcoString::new(),
+            oh_control_url: EcoString::new(),
+            av_control_url: EcoString::new(),
+            oh_volume_url: EcoString::new(),
+            av_volume_url: EcoString::new(),
             volume: -1,
-            location: String::new(),
+            location: EcoString::new(),
             services: Vec::with_capacity(8),
             playing: false,
             #[cfg(feature = "gui")]
@@ -286,9 +286,9 @@ impl Renderer {
     /// a `dev_url` built from the SSDP location for renderers with an absent
     /// or bad `URLBase` (e.g. Yamaha WXAD-10 reports a wrong port).
     pub(super) fn set_location(&mut self, location: &str, remote_ip: IpAddr) {
-        self.location = location.to_string();
+        self.location = location.into();
         Arc::make_mut(&mut self.controller).remote_addr = eco_format!("{remote_ip}");
-        if self.dev_url.is_empty() || !location.contains(&self.dev_url) {
+        if self.dev_url.is_empty() || !location.contains(self.dev_url.as_str()) {
             let mut url_base = location;
             if let Some(stripped) = url_base.strip_prefix("http://") {
                 url_base = stripped;
@@ -298,7 +298,7 @@ impl Renderer {
             {
                 url_base = &url_base[..pos];
             }
-            self.dev_url = format!("http://{url_base}/");
+            self.dev_url = eco_format!("http://{url_base}/");
         }
     }
 
@@ -887,11 +887,11 @@ mod tests {
     #[test]
     fn parse_url_ip_with_port() {
         let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "http://192.168.1.26:80/".to_string();
+        rend.dev_url = "http://192.168.1.26:80/".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "192.168.1.26");
         assert_eq!(rend.controller.port, 80);
-        rend.dev_url = "http://192.168.1.26:12345/".to_string();
+        rend.dev_url = "http://192.168.1.26:12345/".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "192.168.1.26");
         assert_eq!(rend.controller.port, 12345);
@@ -900,7 +900,7 @@ mod tests {
     #[test]
     fn parse_url_no_port() {
         let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "http://192.168.1.26/".to_string();
+        rend.dev_url = "http://192.168.1.26/".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "192.168.1.26");
         assert_eq!(rend.controller.port, 0);
@@ -909,7 +909,7 @@ mod tests {
     #[test]
     fn parse_url_hostname_with_port() {
         let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "http://myrenderer.local:8080/desc.xml".to_string();
+        rend.dev_url = "http://myrenderer.local:8080/desc.xml".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "myrenderer.local");
         assert_eq!(rend.controller.port, 8080);
@@ -918,7 +918,7 @@ mod tests {
     #[test]
     fn parse_url_hostname_no_port() {
         let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "http://myrenderer.local/desc.xml".to_string();
+        rend.dev_url = "http://myrenderer.local/desc.xml".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "myrenderer.local");
         assert_eq!(rend.controller.port, 0);
@@ -927,7 +927,7 @@ mod tests {
     #[test]
     fn parse_url_with_path() {
         let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "http://192.168.0.1:1234/some/path/desc.xml".to_string();
+        rend.dev_url = "http://192.168.0.1:1234/some/path/desc.xml".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "192.168.0.1");
         assert_eq!(rend.controller.port, 1234);
@@ -936,7 +936,7 @@ mod tests {
     #[test]
     fn parse_url_invalid_url() {
         let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "not a url at all".to_string();
+        rend.dev_url = "not a url at all".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "0.0.0.0");
         assert_eq!(rend.controller.port, 0);
@@ -946,7 +946,7 @@ mod tests {
     fn parse_url_no_authority() {
         let mut rend = Renderer::new(&ureq::agent());
         // relative URL has no authority
-        rend.dev_url = "/just/a/path".to_string();
+        rend.dev_url = "/just/a/path".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "0.0.0.0");
         assert_eq!(rend.controller.port, 0);
@@ -955,7 +955,7 @@ mod tests {
     #[test]
     fn set_location_keeps_dev_url_when_it_matches_location() {
         let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "http://192.168.1.26:80/".to_string();
+        rend.dev_url = "http://192.168.1.26:80/".into();
         rend.set_location(
             "http://192.168.1.26:80/desc.xml",
             IpAddr::from([192, 168, 1, 26]),
@@ -969,7 +969,7 @@ mod tests {
     fn set_location_builds_dev_url_when_urlbase_absent() {
         let mut rend = Renderer::new(&ureq::agent());
         // no URLBase found in the description xml
-        rend.dev_url = String::new();
+        rend.dev_url = EcoString::new();
         rend.set_location(
             "http://192.168.1.181:33065/dev/e8dbf26b/desc.xml",
             IpAddr::from([192, 168, 1, 181]),
@@ -981,7 +981,7 @@ mod tests {
     fn set_location_falls_back_when_urlbase_port_is_wrong() {
         let mut rend = Renderer::new(&ureq::agent());
         // e.g. Yamaha WXAD-10: description xml reports the wrong port
-        rend.dev_url = "http://192.168.1.50:49152/".to_string();
+        rend.dev_url = "http://192.168.1.50:49152/".into();
         rend.set_location(
             "http://192.168.1.50:80/desc.xml",
             IpAddr::from([192, 168, 1, 50]),
@@ -992,11 +992,11 @@ mod tests {
     #[test]
     fn renderer() {
         let mut rend = Renderer::new(&ureq::agent());
-        rend.dev_url = "http://192.168.1.26:80/".to_string();
+        rend.dev_url = "http://192.168.1.26:80/".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "192.168.1.26");
         assert_eq!(rend.controller.port, 80);
-        rend.dev_url = "http://192.168.1.26:12345/".to_string();
+        rend.dev_url = "http://192.168.1.26:12345/".into();
         rend.parse_url();
         assert_eq!(rend.controller.host, "192.168.1.26");
         assert_eq!(rend.controller.port, 12345);

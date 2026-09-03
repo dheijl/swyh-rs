@@ -52,7 +52,7 @@ crossbeam-channel = "0.5.16"
 ctrlc = { version = "3.5.2", features = ["termination"] }
 dasp_sample = "0.11.0"
 dirs = "6.0.0"
-ecow = "0.3.0"
+ecow = "0.3.1"
 fastrand = "2.5.0"
 fluent-uri = "0.4.1"
 fluent-templates = { version = "0.15.1", default-features = false, features = [
@@ -83,7 +83,7 @@ socket2 = "0.6.5"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
 tiny_http = "0.12.0"
-toml = "1.1.4"
+toml = "1.1.5"
 ureq = { version = "3.4.0", default-features = false, features = [
     "charset",
     "gzip",

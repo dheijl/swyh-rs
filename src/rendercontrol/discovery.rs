@@ -226,7 +226,7 @@ pub fn new_agent() -> ureq::Agent {
 ///
 /// returns a list of all (new) AVTransport/Openhome DLNA rendering devices
 ///
-pub fn discover(agent: &ureq::Agent, rmap: &HashMap<String, Renderer>) -> Option<Vec<Renderer>> {
+pub fn discover(agent: &ureq::Agent, rmap: &HashMap<EcoString, Renderer>) -> Option<Vec<Renderer>> {
     debug!("SSDP discovery started");
 
     // get the address of the selected interface
@@ -382,13 +382,13 @@ fn build_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
                 }
             }
             Ok(XmlEvent::Characters(value)) => match cur_elem.as_str() {
-                "serviceType" => service.service_type = value,
-                "serviceId" => service.service_id = value,
-                "modelName" => renderer.dev_model = value,
+                "serviceType" => service.service_type = value.into(),
+                "serviceId" => service.service_id = value.into(),
+                "modelName" => renderer.dev_model = value.into(),
                 "friendlyName" => Arc::make_mut(&mut renderer.controller).dev_name = value,
-                "deviceType" => renderer.dev_type = value,
-                "URLBase" => renderer.dev_url = value,
-                "controlURL" => service.control_url = normalize_url(&value),
+                "deviceType" => renderer.dev_type = value.into(),
+                "URLBase" => renderer.dev_url = value.into(),
+                "controlURL" => service.control_url = normalize_url(&value).into(),
                 _ => {}
             },
 

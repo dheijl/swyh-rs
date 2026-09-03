@@ -22,6 +22,7 @@ use std::{
 static GLOBAL: MiMalloc = MiMalloc;
 use cpal::{SampleFormat, SupportedStreamConfig, traits::StreamTrait};
 use crossbeam_channel::{Receiver, Sender, unbounded};
+use ecow::EcoString;
 use hashbrown::HashMap;
 use log::{LevelFilter, debug, error, info};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLogger};
@@ -996,12 +997,12 @@ fn shutdown_ctrlc(serve_only: bool, player: Option<&Renderer>, playing: Vec<Rend
 /// run the `ssdp_updater` — periodically discover DLNA/OpenHome renderers
 /// and forward new ones to the main thread via `ssdp_tx`
 fn run_ssdp_updater(ssdp_tx: &Sender<MessageType>, ssdp_interval_mins: f64) {
-    let mut rmap: HashMap<String, Renderer> = HashMap::new();
+    let mut rmap: HashMap<EcoString, Renderer> = HashMap::new();
     let agent = new_agent();
     loop {
         let renderers = discover(&agent, &rmap).unwrap_or_default();
         for r in &renderers {
-            rmap.entry(r.controller.remote_addr.to_string())
+            rmap.entry(r.controller.remote_addr.clone())
                 .or_insert_with(|| {
                     info!(
                         "Found new renderer {} {}  at {}",

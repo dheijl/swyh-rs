@@ -2,6 +2,7 @@
 //! [`SlimHelo`]; anything else comes back as [`Frame::Other`] with its
 //! payload intact for the caller to act on or log.
 
+use ecow::EcoString;
 use std::io::{self, Read};
 
 /// Fixed portion of a parsed `HELO` frame — the SlimProto client handshake.
@@ -13,7 +14,7 @@ pub struct SlimHelo {
     pub uuid: Option<[u8; 16]>,
     pub wlan_channel_list: u16,
     pub bytes_received: u64,
-    pub capabilities: String,
+    pub capabilities: EcoString,
     pub lang: Option<[u8; 2]>,
 }
 
@@ -92,7 +93,7 @@ fn parse_helo(payload: &[u8]) -> io::Result<SlimHelo> {
     let bytes_received_l = u32::from_be_bytes(payload[30..34].try_into().unwrap());
     let bytes_received = (u64::from(bytes_received_h) << 32) | u64::from(bytes_received_l);
     // payload[34..36] is lang, intentionally skipped
-    let capabilities = String::from_utf8_lossy(&payload[HELO_FIXED_LEN..]).into_owned();
+    let capabilities: EcoString = String::from_utf8_lossy(&payload[HELO_FIXED_LEN..]).into();
 
     Ok(SlimHelo {
         device_id,

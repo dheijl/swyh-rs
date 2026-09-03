@@ -8,6 +8,7 @@
 use std::{sync::atomic::Ordering, thread, time::Duration};
 
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
+use ecow::EcoString;
 use fltk::{app, misc::Progress};
 use hashbrown::HashMap;
 use log::info;
@@ -31,7 +32,7 @@ pub fn run_ssdp_updater(
 ) {
     let agent = new_agent();
     // the hashmap used to detect new renderers
-    let mut rmap: HashMap<String, Renderer> = HashMap::new();
+    let mut rmap: HashMap<EcoString, Renderer> = HashMap::new();
     let mut first_discovery = true;
     loop {
         let renderers = discover(&agent, &rmap).unwrap_or_default();

@@ -45,7 +45,7 @@ pub struct SlimRenderer {
     pub peer_port: u16,
     pub mac: [u8; 6],
     pub device_id: u8,
-    pub capabilities: String,
+    pub capabilities: EcoString,
     pub playing: bool,
     /// The slider's starting *display* position only — unlike UPnP's
     /// `GetVolume`, squeezelite exposes no "what's your current volume"
@@ -222,7 +222,7 @@ mod tests {
             uuid: None,
             wlan_channel_list: 0,
             bytes_received: 0,
-            capabilities: capabilities.to_string(),
+            capabilities: capabilities.into(),
             lang: None,
         }
     }

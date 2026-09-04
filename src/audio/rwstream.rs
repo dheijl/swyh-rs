@@ -170,7 +170,8 @@ impl ChannelStream {
         self.stop.store(true, Ordering::Release);
     }
 
-    /// called by the `wave_reader`s to write the f32 samples to our input channel
+    /// called by the `run_sample_distributor` thread to write the
+    /// f32 samples to our input channel
     pub fn write(&self, samples: AudioSamples) {
         // don't blow up memory if streaming stalls for some reason
         // 10_000 messages (capture buffers, not samples) is a quite a lot

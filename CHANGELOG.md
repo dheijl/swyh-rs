@@ -4,8 +4,9 @@
   - prefer String over EcoString when EcoString has no clear advantage
   - refactor: some renaming and/or moving of files
   - slimproto: optimize hartbeat
-  - use more EcoString for the cheap clones
+  - use more EcoString (for the cheap clones)
   - refactor(audio): move client fan-out of the samples off the CPAL capture callback. Distribute captured buffers to HTTP clients and the RMS monitor from a dedicated thread instead of inside the real-time audio callback.
+  - Rust: 1.98.1
 
 - 1.21.0 (Aug 23 2026, dheijl)
   - don't report underrun errors in the GUI but log them

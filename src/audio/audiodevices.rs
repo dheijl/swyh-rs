@@ -434,8 +434,7 @@ fn capture_started() {
 
 /// Runs on a dedicated thread: receives capture buffers sent by [`distribute_samples`]
 /// from the CPAL callback and fans them out to all connected clients, and to the RMS
-/// monitor thread if it's enabled. Not gated behind the `gui` feature, since client
-/// fan-out matters for the headless CLI too.
+/// monitor thread if it's enabled.
 pub fn run_sample_distributor(
     capture_receiver: &Receiver<AudioSamples>,
     rms_sender: &Sender<AudioSamples>,
@@ -461,7 +460,7 @@ fn distribute_samples(f32_samples: &[f32], capture_sender: &Sender<AudioSamples>
         let _ = capture_sender.send(shared_samples);
     } else {
         #[cfg(debug_assertions)]
-        debug!("Distributor channel overflow, dropping chunk!");
+        debug!("Distributor channel overflow, dropping CPAL audio chunk!");
     }
 }
 

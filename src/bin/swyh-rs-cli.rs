@@ -29,9 +29,11 @@ use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, WriteLog
 use swyh_rs::{
     audio::{
         audiodevices::{
-            Device, capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+            Device, capture_output_audio, get_default_audio_output_device,
+            get_output_audio_devices, run_sample_distributor,
         },
         inject_silence::run_silence_injector,
+        rwstream::AudioSamples,
     },
     enums::{messages::MessageType, streaming::StreamingState},
     fl,
@@ -144,10 +146,15 @@ fn main() -> Result<(), i32> {
     // the rms monitor channel
     let rms_channel = unbounded();
 
+    // the capture -> distributor channel: decouples the CPAL callback from the
+    // O(clients) fan-out and RMS dispatch (see run_sample_distributor)
+    let capture_channel = unbounded();
+    spawn_cli_sample_distributor(capture_channel.clone().1, rms_channel.clone().0);
+
     // capture system audio
     debug!("Try capturing system audio");
-    let rms_chan1 = rms_channel.clone();
-    let Some(mut stream) = capture_output_audio(&audio_output_device, &audio_cfg, rms_chan1.0)
+    let capture_chan1 = capture_channel.clone();
+    let Some(mut stream) = capture_output_audio(&audio_output_device, &audio_cfg, capture_chan1.0)
     else {
         ui_log(LogCategory::Error, &fl!("err-capture-audio"));
         return Err(-2);
@@ -440,10 +447,12 @@ fn main() -> Result<(), i32> {
                             }
                         }
                         if found_audio_device {
-                            let rms_chan2 = rms_channel.clone();
-                            if let Some(s) =
-                                capture_output_audio(&audio_output_device, &audio_cfg, rms_chan2.0)
-                            {
+                            let capture_chan2 = capture_channel.clone();
+                            if let Some(s) = capture_output_audio(
+                                &audio_output_device,
+                                &audio_cfg,
+                                capture_chan2.0,
+                            ) {
                                 stream = s;
                                 stream.play().expect("Unable to play audio stream");
                                 info!("Audio capture resumed.");
@@ -742,6 +751,16 @@ fn build_wav_data(device: &Device, config: &Configuration) -> (SupportedStreamCo
         default_sample_rate: default_rate,
     };
     (audio_cfg, wd)
+}
+
+/// spawn the sample distributor thread: fans captured audio buffers out to all
+/// connected clients and the RMS monitor channel, off the real-time CPAL callback thread
+fn spawn_cli_sample_distributor(capture_rx: Receiver<AudioSamples>, rms_tx: Sender<AudioSamples>) {
+    thread::Builder::new()
+        .name("sample_distributor".into())
+        .stack_size(THREAD_STACK)
+        .spawn(move || run_sample_distributor(&capture_rx, &rms_tx))
+        .unwrap();
 }
 
 /// spawn the CLI SSDP discovery thread

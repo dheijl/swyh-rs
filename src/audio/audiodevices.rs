@@ -15,7 +15,7 @@ use cpal::{
     Error, ErrorKind, InputCallbackInfo, Sample, SampleFormat, SizedSample, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait},
 };
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Receiver, Sender};
 use dasp_sample::ToSample;
 use log::{debug, warn};
 use std::sync::{Arc, Once, atomic::Ordering};
@@ -285,7 +285,7 @@ pub fn get_default_audio_output_device() -> Option<Device> {
 pub fn capture_output_audio(
     device_wrap: &Device,
     audio_cfg: &SupportedStreamConfig,
-    rms_sender: Sender<AudioSamples>,
+    capture_sender: Sender<AudioSamples>,
 ) -> Option<cpal::Stream> {
     let device = device_wrap.as_ref();
     ui_log(
@@ -314,7 +314,7 @@ pub fn capture_output_audio(
             let result = device.build_input_stream(
                 audio_cfg.config(),
                 move |data, info: &InputCallbackInfo| {
-                    wave_reader_f32(data, channels, &mut stereo_samples, &rms_sender, info)
+                    wave_reader_f32(data, channels, &mut stereo_samples, &capture_sender, info)
                 },
                 capture_err_fn,
                 None,
@@ -327,7 +327,7 @@ pub fn capture_output_audio(
             channels,
             f32_samples,
             stereo_samples,
-            rms_sender,
+            capture_sender,
             "I16",
         ),
         cpal::SampleFormat::U16 => build_typed_input_stream::<u16>(
@@ -336,7 +336,7 @@ pub fn capture_output_audio(
             channels,
             f32_samples,
             stereo_samples,
-            rms_sender,
+            capture_sender,
             "U16",
         ),
         cpal::SampleFormat::I32 => build_typed_input_stream::<i32>(
@@ -345,7 +345,7 @@ pub fn capture_output_audio(
             channels,
             f32_samples,
             stereo_samples,
-            rms_sender,
+            capture_sender,
             "I32",
         ),
         _ => None,
@@ -382,7 +382,7 @@ fn build_typed_input_stream<T>(
     channels: u16,
     mut f32_samples: Vec<f32>,
     mut stereo_samples: Vec<f32>,
-    rms_sender: Sender<AudioSamples>,
+    capture_sender: Sender<AudioSamples>,
     fmt: &str,
 ) -> Option<cpal::Stream>
 where
@@ -396,7 +396,7 @@ where
                 channels,
                 &mut f32_samples,
                 &mut stereo_samples,
-                &rms_sender,
+                &capture_sender,
                 info,
             )
         },
@@ -432,17 +432,36 @@ fn capture_started() {
     }
 }
 
-/// Distribute the captured f32 audio samples chunk to all our HTTP client threads
-/// and to the RMS monitor thread if needed.
-/// All sample processing threads share the sample chunk through an Arc
-fn distribute_samples(f32_samples: &[f32], rms_sender: &Sender<AudioSamples>) {
+/// Runs on a dedicated thread: receives capture buffers sent by [`distribute_samples`]
+/// from the CPAL callback and fans them out to all connected clients, and to the RMS
+/// monitor thread if it's enabled. Not gated behind the `gui` feature, since client
+/// fan-out matters for the headless CLI too.
+pub fn run_sample_distributor(
+    capture_receiver: &Receiver<AudioSamples>,
+    rms_sender: &Sender<AudioSamples>,
+) {
+    while let Ok(shared_samples) = capture_receiver.recv() {
+        get_clients_fast()
+            .iter()
+            .for_each(|(_, client)| client.write(Arc::clone(&shared_samples)));
+        if RUN_RMS_MONITOR.load(Ordering::Relaxed) {
+            let _ = rms_sender.send(shared_samples);
+        }
+    }
+}
+
+/// Hand the captured f32 audio samples chunk off to the sample distributor thread
+/// (see [`run_sample_distributor`]), which fans it out to all HTTP client threads
+/// and the RMS monitor thread. Keeps that O(clients) work off this real-time
+/// CPAL callback thread.
+fn distribute_samples(f32_samples: &[f32], capture_sender: &Sender<AudioSamples>) {
     let shared_samples = AudioSamples::from(f32_samples);
-    get_clients_fast()
-        .iter()
-        .for_each(|(_, client)| client.write(Arc::clone(&shared_samples)));
-    // update RMS channel
-    if RUN_RMS_MONITOR.load(Ordering::Relaxed) {
-        rms_sender.send(Arc::clone(&shared_samples)).unwrap();
+    // don't blow up memory if the distributor thread stalls for some reason
+    if capture_sender.len() < 10_000 {
+        let _ = capture_sender.send(shared_samples);
+    } else {
+        #[cfg(debug_assertions)]
+        debug!("Distributor channel overflow, dropping chunk!");
     }
 }
 
@@ -456,7 +475,7 @@ fn wave_reader<T>(
     channels: u16,
     f32_samples: &mut Vec<f32>,
     stereo_samples: &mut Vec<f32>,
-    rms_sender: &Sender<AudioSamples>,
+    capture_sender: &Sender<AudioSamples>,
     _info: &InputCallbackInfo,
 ) where
     T: Sample + ToSample<f32>,
@@ -465,10 +484,10 @@ fn wave_reader<T>(
     f32_samples.clear();
     f32_samples.extend(samples.iter().map(|x: &T| T::to_sample::<f32>(*x)));
     if channels == 2 {
-        distribute_samples(f32_samples, rms_sender);
+        distribute_samples(f32_samples, capture_sender);
     } else {
         downmix_to_stereo(f32_samples, channels, stereo_samples);
-        distribute_samples(stereo_samples, rms_sender);
+        distribute_samples(stereo_samples, capture_sender);
     }
 }
 
@@ -478,14 +497,14 @@ fn wave_reader_f32(
     samples: &[f32],
     channels: u16,
     stereo_samples: &mut Vec<f32>,
-    rms_sender: &Sender<AudioSamples>,
+    capture_sender: &Sender<AudioSamples>,
     _info: &InputCallbackInfo,
 ) {
     ONFIRSTCALL.call_once(capture_started);
     if channels == 2 {
-        distribute_samples(samples, rms_sender);
+        distribute_samples(samples, capture_sender);
     } else {
         downmix_to_stereo(samples, channels, stereo_samples);
-        distribute_samples(stereo_samples, rms_sender);
+        distribute_samples(stereo_samples, capture_sender);
     }
 }

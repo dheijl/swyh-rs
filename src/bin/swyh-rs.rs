@@ -11,7 +11,8 @@ use mimalloc::MiMalloc;
 use swyh_rs::{
     audio::{
         audiodevices::{
-            Device, capture_output_audio, get_default_audio_output_device, get_output_audio_devices,
+            Device, capture_output_audio, get_default_audio_output_device,
+            get_output_audio_devices, run_sample_distributor,
         },
         inject_silence::run_silence_injector,
         rwstream::AudioSamples,
@@ -135,11 +136,16 @@ fn main() {
     // the rms monitor channel
     let rms_channel = unbounded();
 
+    // the capture -> distributor channel: decouples the CPAL callback from the
+    // O(clients) fan-out and RMS dispatch (see run_sample_distributor)
+    let capture_channel = unbounded();
+    spawn_sample_distributor(capture_channel.clone().1, rms_channel.clone().0);
+
     // capture system audio
     debug!("Try capturing system audio");
     let mut stream: Option<cpal::Stream> = None;
-    let rms_chan1 = rms_channel.clone();
-    match capture_output_audio(&audio_output_device, &audio_cfg, rms_chan1.0) {
+    let capture_chan1 = capture_channel.clone();
+    match capture_output_audio(&audio_output_device, &audio_cfg, capture_chan1.0) {
         Some(s) => {
             stream = Some(s);
         }
@@ -321,10 +327,12 @@ fn main() {
                             }
                         }
                         if found_audio_device {
-                            let rms_chan3 = rms_channel.clone();
-                            if let Some(s) =
-                                capture_output_audio(&audio_output_device, &audio_cfg, rms_chan3.0)
-                            {
+                            let capture_chan3 = capture_channel.clone();
+                            if let Some(s) = capture_output_audio(
+                                &audio_output_device,
+                                &audio_cfg,
+                                capture_chan3.0,
+                            ) {
                                 stream = Some(s);
                                 info!("Audio capture resumed.");
                                 break;
@@ -512,6 +520,18 @@ fn spawn_slim_server(local_addr: IpAddr) {
         });
     if let Err(e) = jh {
         log::error!("Unable to spawn SlimProto TCP server thread: {e:?}");
+    }
+}
+
+/// spawn the sample distributor thread: fans captured audio buffers out to all
+/// connected clients and the RMS monitor thread, off the real-time CPAL callback thread
+fn spawn_sample_distributor(capture_rx: Receiver<AudioSamples>, rms_tx: Sender<AudioSamples>) {
+    let jh = thread::Builder::new()
+        .name("sample_distributor".into())
+        .stack_size(THREAD_STACK)
+        .spawn(move || run_sample_distributor(&capture_rx, &rms_tx));
+    if let Err(e) = jh {
+        log::error!("Unable to spawn sample distributor thread: {e:?}");
     }
 }
 

@@ -39,7 +39,7 @@ use std::net::Ipv4Addr;
 
 /// squeezelite's `sample_rates[]` table (`pcm.c`'s `pcm_open`): the strm
 /// packet's 1-byte `pcm_sample_rate` field is `'0' + index` into this
-/// table. Only the entries swyh-rs can actually produce (see
+/// table. Only the entries up to what swyh-rs can actually produce (see
 /// `SAMPLE_RATES` in `globals/statics.rs`) are listed here; squeezelite's
 /// own table has further entries (up to 1536000) that swyh-rs never needs.
 const PCM_SAMPLE_RATES: [u32; 15] = [
@@ -133,7 +133,7 @@ pub fn build_strm_start(
 /// Build a `strm` "stop" frame telling the client to halt playback
 /// immediately. All fields besides `command` are ignored by the client for
 /// `'q'`, so they're left zeroed and no request line is sent.
-pub fn build_strm_stop() -> &'static [u8] {
+pub const fn build_strm_stop() -> &'static [u8] {
     const FRAME: [u8; 30] = build_strm_control_frame(b'q');
     &FRAME
 }
@@ -146,7 +146,7 @@ pub fn build_strm_stop() -> &'static [u8] {
 /// periodically sending *something*; this is that something. Same
 /// all-other-fields-zeroed shape as `build_strm_stop`.
 #[inline(always)]
-pub fn build_strm_status() -> &'static [u8] {
+pub const fn build_strm_status() -> &'static [u8] {
     const FRAME: [u8; 30] = build_strm_control_frame(b't');
     &FRAME
 }

@@ -17,6 +17,7 @@
         "editor.experimentalGpuAcceleration": "off",
         "files.exclude": {
             "**/target": true
-        }
+        },
+        "explorer.excludeGitIgnore": false
     },
 }

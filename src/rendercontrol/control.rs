@@ -507,7 +507,7 @@ impl Controller {
             return Err("Invalid UPNP/DLNA protocol");
         }
         // build the hashmap with the formatting vars for the OH and AV play templates
-        let mut fmt_vars = Context::new();
+        let mut fmt_vars = Context::default();
         let addr = format!("{local_addr}:{}", streaminfo.server_port);
         let streaming_url = format!("http://{addr}/stream/swyh.{}", streaminfo.streaming_format);
         fmt_vars.insert("server_uri", Value::owned_str(streaming_url));

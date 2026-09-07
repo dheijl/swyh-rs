@@ -7,6 +7,7 @@
   - use more EcoString (for the cheap clones)
   - refactor(audio): move client fan-out of the samples off the CPAL capture callback. Distribute captured buffers to HTTP clients and the RMS monitor from a dedicated thread instead of inside the real-time audio callback.
   - Rust: 1.98.1
+  - tiny http is replaced by tiny_http_dh, my fork of tiny_http. It is upgraded to the latest Rust compiler, Rust 2024, has some cherrypicked PRs from tiny_http, and two CVE issue fixes.
 
 - 1.21.0 (Aug 23 2026, dheijl)
   - don't report underrun errors in the GUI but log them

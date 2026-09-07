@@ -58,7 +58,7 @@ fluent-templates = { version = "0.15.1", default-features = false, features = [
     "macros",
     "walkdir",
 ] }
-figura = "3.0.0"
+figura = "3.1.0"
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",
 ] }
@@ -81,9 +81,9 @@ serde = { version = "1.0.229", features = ["derive"] }
 socket2 = "0.6.5"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
-tiny_http = "0.12.0"
+tiny_http_dh = { version = "0.12.0", git = "https://github.com/dheijl/tiny-http-dh" }
 toml = "1.1.5"
-ureq = { version = "3.4.0", default-features = false, features = [
+ureq = { version = "3.4.1", default-features = false, features = [
     "charset",
     "gzip",
 ] }
@@ -114,6 +114,7 @@ name = "samples_conv"
 harness = false
 
 [patch.crates-io]
+zmij = { git = "https://github.com/dtolnay/zmij" }
 #figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
@@ -121,4 +122,3 @@ harness = false
 #cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }
-zmij = { git = "https://github.com/dtolnay/zmij" }

@@ -7,7 +7,7 @@
 use ecow::{EcoString, eco_format};
 use serde::{Deserialize, Serialize};
 use std::{convert::From, fmt, str::FromStr};
-use tiny_http::Request;
+use tiny_http_dh::Request;
 
 use crate::{
     globals::statics::get_config, rendercontrol::WavData, server::query_params::StreamingParams,

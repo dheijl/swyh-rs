@@ -20,7 +20,7 @@ use crossbeam_channel::{Sender, unbounded};
 use ecow::EcoString;
 use log::debug;
 use std::{io, net::IpAddr, sync::Arc, thread, time::Duration};
-use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
+use tiny_http_dh::{Header, Method, Request, Response, Server, StatusCode};
 
 /// streaming state feedback for a client
 #[derive(Debug, Clone, Eq, PartialEq)]

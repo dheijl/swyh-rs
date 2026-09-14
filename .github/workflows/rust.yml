@@ -5,38 +5,57 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
- 
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
   build:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
 
     steps:
-    - name: Download deps
-      shell: bash
-      run: |
-        if [[ ${RUNNER_OS} == "Linux" ]]; then
-            sudo apt-get update
-            sudo apt-get install -y lib{pango1.0,x11,xext,xft,xinerama}-dev\
-                lib{xcursor,xrender,xfixes,png,gl1-mesa,rust-alsa-sys}-dev\
-                libglu1-mesa-dev libdbus-1-dev
-        fi
     - uses: actions/checkout@v7
+    - name: Install Linux deps
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lib{pango1.0,x11,xext,xft,xinerama}-dev\
+            lib{xcursor,xrender,xfixes,png,gl1-mesa,rust-alsa-sys}-dev\
+            libglu1-mesa-dev libdbus-1-dev
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-    - name: Build app
-      working-directory: src
-      shell: bash
-      run: |
-        cargo build --bin swyh-rs
-        cargo build --bin swyh-rs-cli --features cli --no-default-features
+        components: clippy
+    - uses: Swatinem/rust-cache@v2
 
+    - name: Build (GUI)
+      run: cargo build --bin swyh-rs
+    - name: Build (CLI)
+      run: cargo build --bin swyh-rs-cli --features cli --no-default-features
+
+    - name: Clippy (GUI)
+      run: cargo clippy --bin swyh-rs --all-targets -- -D warnings
+    - name: Clippy (CLI)
+      run: cargo clippy --bin swyh-rs-cli --features cli --no-default-features --all-targets -- -D warnings
+
+    - name: Test (GUI)
+      run: cargo test
+    - name: Test (CLI)
+      run: cargo test --features cli --no-default-features

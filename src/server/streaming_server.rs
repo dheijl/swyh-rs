@@ -20,7 +20,7 @@ use crossbeam_channel::{Sender, unbounded};
 use ecow::EcoString;
 use log::debug;
 use std::{io, net::IpAddr, sync::Arc, thread, time::Duration};
-use tiny_http_dh::{Header, Method, Request, Response, Server, StatusCode};
+use tiny_http_dh::{Header, Method, PoolConfig, Request, Response, Server, StatusCode};
 
 /// streaming state feedback for a client
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -56,13 +56,23 @@ pub fn run_server(
             ),
         );
     } // drop the read lock before entering the server loop
-    let server = Arc::new(Server::http(addr).unwrap_or_else(|e| {
-        ui_log(
-            LogCategory::Error,
-            &fl!("srv-start-error", "error" = e.to_string()),
-        );
-        panic!("Can't start server thread: {e}");
-    }));
+    let server = Arc::new(
+        Server::http_with_pool(
+            addr,
+            PoolConfig {
+                min_threads: 4,
+                max_threads: 32,
+                max_queue: 128,
+            },
+        )
+        .unwrap_or_else(|e| {
+            ui_log(
+                LogCategory::Error,
+                &fl!("srv-start-error", "error" = e.to_string()),
+            );
+            panic!("Can't start server thread: {e}");
+        }),
+    );
     let mut handles = Vec::new();
     // always have two threads ready to serve new requests
     for _ in 0..2 {

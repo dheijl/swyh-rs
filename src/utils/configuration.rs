@@ -34,7 +34,9 @@ fn detect_default_language() -> String {
         println!("Used locale: {l}");
         return l;
     }
-    let base_locale = &l[..2];
+    let Some(base_locale) = l.get(..2) else {
+        return "en-US".to_string();
+    };
     let Some(locale) = supported.into_iter().find(|s| s.contains(base_locale)) else {
         return "en-US".to_string();
     };

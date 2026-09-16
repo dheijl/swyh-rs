@@ -9,6 +9,7 @@
   - Rust: 1.98.1
   - tiny http is replaced by tiny_http_dh, my fork of tiny_http. It is upgraded to the latest Rust compiler, Rust 2024, has some cherrypicked PRs from tiny_http, and two CVE issue fixes.
   - limit the tiny_http thread/task pool using the new `_with_pool()` method.
+  - update CI with caching, fmt, and tests (thanks Claude).
 
 - 1.21.0 (Aug 23 2026, dheijl)
   - don't report underrun errors in the GUI but log them

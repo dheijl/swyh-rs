@@ -160,35 +160,32 @@ fn streaming_request(
     // Linn streamers typically send `Range: bytes=0-`; we respond 206 and start from byte 0.
     // A range starting within the WAV/RF64 header is also satisfiable by trimming the header.
     // Anything else (bounded range or offset past the header) is rejected with 416.
-    let (status_code, header_offset) = match &range {
-        None => (200u16, 0usize),
-        Some(RangeSpec::Bounded) => {
-            return range_not_satisfiable(streaming_ctx, request);
-        }
-        Some(RangeSpec::From(start)) => {
-            let hdr_size = streaming_ctx.wav_header_size() as u64;
-            if *start <= hdr_size {
-                // Start within the WAV/RF64 header (or byte 0 for any format): 206,
-                // trim that many header bytes from the front of the stream.
-                (206u16, *start as usize)
-            } else {
-                // Start is past the header and into the audio data — we cannot seek
-                // into a live stream. Fall back to 200 and serve from the beginning,
-                // which matches the pre-range-support behaviour and keeps MPD happy
-                // (MPD probes with Range: bytes=<Content-Length>- after reading the
-                // WAV header to verify the announced size).
-                (200u16, 0usize)
+    let (status_code, header_offset) = if streaming_ctx.slim {
+        // SlimProto clients drain the WAV/RF64 header if present
+        (200u16, streaming_ctx.wav_header_size())
+    } else {
+        // UPNP clients check for range headers
+        match &range {
+            None => (200u16, 0usize),
+            Some(RangeSpec::Bounded) => {
+                return range_not_satisfiable(streaming_ctx, request);
+            }
+            Some(RangeSpec::From(start)) => {
+                let hdr_size = streaming_ctx.wav_header_size() as u64;
+                if *start <= hdr_size {
+                    // Start within the WAV/RF64 header (or byte 0 for any format): 206,
+                    // trim that many header bytes from the front of the stream.
+                    (206u16, *start as usize)
+                } else {
+                    // Start is past the header and into the audio data — we cannot seek
+                    // into a live stream. Fall back to 200 and serve from the beginning,
+                    // which matches the pre-range-support behaviour and keeps MPD happy
+                    // (MPD probes with Range: bytes=<Content-Length>- after reading the
+                    // WAV header to verify the announced size).
+                    (200u16, 0usize)
+                }
             }
         }
-    };
-    // a SlimProto client's own strm-triggered fetch: always headerless PCM
-    // regardless of Range, so drain the WAV/RF64 header via the same
-    // trim mechanism a Range request would use — see slimproto::strm's
-    // module doc comment for why the header can't be sent to squeezelite.
-    let header_offset = if streaming_ctx.slim {
-        streaming_ctx.wav_header_size()
-    } else {
-        header_offset
     };
 
     ui_log(

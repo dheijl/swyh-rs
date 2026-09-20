@@ -81,7 +81,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 socket2 = "0.6.5"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
-tiny_http_dh = { version = "0.12.1", git = "https://github.com/dheijl/tiny-http-dh" }
+tiny_http_dh = { version = "0.12.2" }
 toml = "1.1.6"
 ureq = { version = "3.4.2", default-features = false, features = [
     "charset",
@@ -117,7 +117,7 @@ harness = false
 zmij = { git = "https://github.com/dtolnay/zmij" }
 #figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
-#tiny_http = { git = "https://github.com/tiny-http/tiny-http" }
+#tiny_http = { git = "https://github.com/dheijl/tiny-http-dh" }
 cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "stable-0.18" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }

@@ -49,9 +49,9 @@ pub fn run_server(local_addr: IpAddr, port: u16) -> Result<()> {
 
 /// Read frames from a single connected SlimProto client until it disconnects.
 /// `HELO` becomes a [`MessageType::SlimHelo`] for the UI to turn into a
-/// renderer + button; anything else is read and discarded so the connection
-/// stays open, matching real server behavior even though nothing acts on
-/// those frames yet.
+/// renderer + button; `DSCO` is info-logged; anything else is read and
+/// discarded so the connection stays open, matching real server behavior
+/// even though nothing acts on those frames yet.
 fn handle_connection(mut stream: TcpStream) {
     let peer = stream
         .peer_addr()
@@ -121,6 +121,12 @@ fn handle_connection(mut stream: TcpStream) {
                 {
                     log::error!("SlimProto {peer}: failed to send SlimHelo message: {e}");
                 }
+            }
+            Ok(Frame::Dsco { reason }) => {
+                log::info!(
+                    "SlimProto {peer}: DSCO, client closed its audio stream connection (reason={reason})"
+                );
+                last_ignored_opcode = None;
             }
             Ok(Frame::Other { opcode, payload }) => {
                 if &opcode == b"STAT" {

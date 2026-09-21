@@ -1,6 +1,7 @@
 //! Parsing for SlimProto client -> server frames: `HELO` is decoded into
-//! [`SlimHelo`]; anything else comes back as [`Frame::Other`] with its
-//! payload intact for the caller to act on or log.
+//! [`SlimHelo`], `DSCO` into its raw reason byte; anything else comes back
+//! as [`Frame::Other`] with its payload intact for the caller to act on or
+//! log.
 
 use ecow::EcoString;
 use std::io::{self, Read};
@@ -22,8 +23,15 @@ pub struct SlimHelo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Frame {
     Helo(SlimHelo),
-    /// Any frame whose opcode we don't act on yet (`STAT`, `DSCO`, ...),
-    /// with its payload intact so the caller can debug-log its content.
+    /// squeezelite closed its HTTP audio-stream connection. `reason` is the
+    /// raw 1-byte disconnect-reason code it reports; its meaning isn't
+    /// documented upstream so it's kept as-is for diagnostic logging rather
+    /// than decoded into named variants.
+    Dsco {
+        reason: u8,
+    },
+    /// Any frame whose opcode we don't act on yet (`STAT`, ...), with its
+    /// payload intact so the caller can debug-log its content.
     Other {
         opcode: [u8; 4],
         payload: Vec<u8>,
@@ -66,9 +74,23 @@ pub fn read_frame(stream: &mut impl Read) -> io::Result<Frame> {
 
     if &opcode == b"HELO" {
         Ok(Frame::Helo(parse_helo(&payload)?))
+    } else if &opcode == b"DSCO" {
+        Ok(Frame::Dsco {
+            reason: parse_dsco(&payload)?,
+        })
     } else {
         Ok(Frame::Other { opcode, payload })
     }
+}
+
+/// `DSCO` payload is a single reason byte.
+fn parse_dsco(payload: &[u8]) -> io::Result<u8> {
+    payload.first().copied().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::UnexpectedEof,
+            "DSCO payload empty, expected a 1-byte reason code",
+        )
+    })
 }
 
 /// `uuid` and `lang` from the wire format are intentionally not parsed: real
@@ -177,6 +199,29 @@ mod tests {
             panic!("expected Frame::Helo, got {second:?}");
         };
         assert_eq!(helo.mac, [1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn parses_dsco_frame() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"DSCO");
+        bytes.extend_from_slice(&1u32.to_be_bytes());
+        bytes.push(4); // reason code, meaning unspecified upstream
+        let mut cursor = Cursor::new(bytes);
+
+        let frame = read_frame(&mut cursor).expect("failed to read DSCO frame");
+        assert_eq!(frame, Frame::Dsco { reason: 4 });
+    }
+
+    #[test]
+    fn rejects_empty_dsco_payload() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"DSCO");
+        bytes.extend_from_slice(&0u32.to_be_bytes());
+        let mut cursor = Cursor::new(bytes);
+
+        let err = read_frame(&mut cursor).expect_err("expected a parse error");
+        assert_eq!(err.kind(), io::ErrorKind::UnexpectedEof);
     }
 
     #[test]

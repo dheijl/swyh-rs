@@ -4,7 +4,7 @@
 
 use crate::enums::messages::MessageType;
 use crate::globals::statics::{THREAD_STACK, get_msgchannel, get_slim_renderers_mut};
-use crate::slimproto::parse_frames::{self, Frame};
+use crate::slimproto::parse_frames::{self, DscoReason, Frame};
 use crate::slimproto::types::SlimRenderer;
 use anyhow::{Context, Result};
 use ecow::{EcoString, eco_format};
@@ -123,9 +123,14 @@ fn handle_connection(mut stream: TcpStream) {
                 }
             }
             Ok(Frame::Dsco { reason }) => {
-                log::info!(
-                    "SlimProto {peer}: DSCO, client closed its audio stream connection (reason={reason})"
-                );
+                match DscoReason::from_byte(reason) {
+                    Some(r) => log::info!(
+                        "SlimProto {peer}: DSCO, client closed its audio stream connection ({r:?})"
+                    ),
+                    None => log::info!(
+                        "SlimProto {peer}: DSCO, client closed its audio stream connection (unknown reason={reason})"
+                    ),
+                }
                 last_ignored_opcode = None;
             }
             Ok(Frame::Other { opcode, payload }) => {

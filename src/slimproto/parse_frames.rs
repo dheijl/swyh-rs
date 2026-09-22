@@ -24,9 +24,8 @@ pub struct SlimHelo {
 pub enum Frame {
     Helo(SlimHelo),
     /// squeezelite closed its HTTP audio-stream connection. `reason` is the
-    /// raw 1-byte disconnect-reason code it reports; its meaning isn't
-    /// documented upstream so it's kept as-is for diagnostic logging rather
-    /// than decoded into named variants.
+    /// raw 1-byte disconnect-reason code it reports; see [`DscoReason`] for
+    /// the known values.
     Dsco {
         reason: u8,
     },
@@ -36,6 +35,31 @@ pub enum Frame {
         opcode: [u8; 4],
         payload: Vec<u8>,
     },
+}
+
+/// the DSCO reason code
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DscoReason {
+    EndOfStream = 0,
+    ConnectionReset = 1,
+    ConnectionTimeout = 2,
+    TransportError = 3,
+}
+
+impl DscoReason {
+    /// Maps a raw wire `DSCO` reason byte to a known variant. `None` for any
+    /// value squeezelite doesn't document here, so an unrecognized byte
+    /// falls back to numeric logging instead of being treated as a parse
+    /// error.
+    pub fn from_byte(byte: u8) -> Option<Self> {
+        match byte {
+            0 => Some(Self::EndOfStream),
+            1 => Some(Self::ConnectionReset),
+            2 => Some(Self::ConnectionTimeout),
+            3 => Some(Self::TransportError),
+            _ => None,
+        }
+    }
 }
 
 /// Byte length of the fixed `HELO_packet` fields after the generic 8-byte
@@ -211,6 +235,18 @@ mod tests {
 
         let frame = read_frame(&mut cursor).expect("failed to read DSCO frame");
         assert_eq!(frame, Frame::Dsco { reason: 4 });
+    }
+
+    #[test]
+    fn dsco_reason_from_byte_maps_known_and_unknown_codes() {
+        assert_eq!(DscoReason::from_byte(0), Some(DscoReason::EndOfStream));
+        assert_eq!(DscoReason::from_byte(1), Some(DscoReason::ConnectionReset));
+        assert_eq!(
+            DscoReason::from_byte(2),
+            Some(DscoReason::ConnectionTimeout)
+        );
+        assert_eq!(DscoReason::from_byte(3), Some(DscoReason::TransportError));
+        assert_eq!(DscoReason::from_byte(4), None);
     }
 
     #[test]

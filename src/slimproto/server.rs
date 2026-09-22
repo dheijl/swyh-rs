@@ -123,14 +123,10 @@ fn handle_connection(mut stream: TcpStream) {
                 }
             }
             Ok(Frame::Dsco { reason }) => {
-                match DscoReason::from_byte(reason) {
-                    Some(r) => log::info!(
-                        "SlimProto {peer}: DSCO, client closed its audio stream connection ({r:?})"
-                    ),
-                    None => log::info!(
-                        "SlimProto {peer}: DSCO, client closed its audio stream connection (unknown reason={reason})"
-                    ),
-                }
+                let r = DscoReason::from_byte(reason);
+                log::info!(
+                    "SlimProto {peer}: DSCO, client closed its audio stream connection ({r:?})"
+                );
                 last_ignored_opcode = None;
             }
             Ok(Frame::Other { opcode, payload }) => {

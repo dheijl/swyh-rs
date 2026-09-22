@@ -40,24 +40,25 @@ pub enum Frame {
 /// the DSCO reason code
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DscoReason {
-    EndOfStream = 0,
-    ConnectionReset = 1,
-    ConnectionTimeout = 2,
-    TransportError = 3,
+    EndOfStream,
+    ConnectionReset,
+    ConnectionTimeout,
+    TransportError,
+    /// Any value squeezelite doesn't document here, kept for numeric logging
+    /// instead of being treated as a parse error.
+    Unknown(u8),
 }
 
 impl DscoReason {
-    /// Maps a raw wire `DSCO` reason byte to a known variant. `None` for any
-    /// value squeezelite doesn't document here, so an unrecognized byte
-    /// falls back to numeric logging instead of being treated as a parse
-    /// error.
-    pub fn from_byte(byte: u8) -> Option<Self> {
+    /// Maps a raw wire `DSCO` reason byte to a known variant, or
+    /// [`Self::Unknown`] for anything squeezelite doesn't document.
+    pub fn from_byte(byte: u8) -> Self {
         match byte {
-            0 => Some(Self::EndOfStream),
-            1 => Some(Self::ConnectionReset),
-            2 => Some(Self::ConnectionTimeout),
-            3 => Some(Self::TransportError),
-            _ => None,
+            0 => Self::EndOfStream,
+            1 => Self::ConnectionReset,
+            2 => Self::ConnectionTimeout,
+            3 => Self::TransportError,
+            other => Self::Unknown(other),
         }
     }
 }
@@ -239,14 +240,11 @@ mod tests {
 
     #[test]
     fn dsco_reason_from_byte_maps_known_and_unknown_codes() {
-        assert_eq!(DscoReason::from_byte(0), Some(DscoReason::EndOfStream));
-        assert_eq!(DscoReason::from_byte(1), Some(DscoReason::ConnectionReset));
-        assert_eq!(
-            DscoReason::from_byte(2),
-            Some(DscoReason::ConnectionTimeout)
-        );
-        assert_eq!(DscoReason::from_byte(3), Some(DscoReason::TransportError));
-        assert_eq!(DscoReason::from_byte(4), None);
+        assert_eq!(DscoReason::from_byte(0), DscoReason::EndOfStream);
+        assert_eq!(DscoReason::from_byte(1), DscoReason::ConnectionReset);
+        assert_eq!(DscoReason::from_byte(2), DscoReason::ConnectionTimeout);
+        assert_eq!(DscoReason::from_byte(3), DscoReason::TransportError);
+        assert_eq!(DscoReason::from_byte(4), DscoReason::Unknown(4));
     }
 
     #[test]

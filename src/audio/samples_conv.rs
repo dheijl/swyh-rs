@@ -111,6 +111,8 @@ fn quantize_chunks<Q: Fn(f32x4) -> [i32; 4]>(
     i32_samples: &mut Vec<i32>,
     quantize: Q,
 ) {
+    // extend_from_slice per chunk is deliberate: a pre-sized resize() + write-in-place
+    // loop measured no faster (the zero-fill resize)
     let (chunks, remainder) = f32_samples.as_chunks::<4>();
     chunks.iter().for_each(|chunk| {
         let f32_array = f32x4::new(*chunk);
@@ -989,5 +991,37 @@ mod tests {
         let ref5 = (-0.1_f32 * 32_768.0).round() as i32;
         assert!((out[4] - ref4).abs() <= 1);
         assert!((out[5] - ref5).abs() <= 1);
+    }
+
+    #[test]
+    fn test_samples_to_i32_matches_per_chunk_and_reuses_buffer() {
+        // 10 samples: two full chunks + a 2-sample remainder, including clamp/NaN cases.
+        // Output must equal the per-chunk f32_to_i32 results, with the stale contents
+        // of a reused, over-long buffer fully discarded.
+        let input = [
+            0.25f32,
+            -0.25,
+            1.5,
+            -1.5,
+            f32::NAN,
+            0.0,
+            0.999,
+            -0.999,
+            0.1,
+            -0.1,
+        ];
+        for bd in [BitDepth::Bits16, BitDepth::Bits24] {
+            // Reused buffer that starts longer than the output and full of junk.
+            let mut out = vec![0x5A5A_5A5A; 32];
+            samples_to_i32(&input, &mut out, bd, Dither::NoDither);
+            let mut expected = Vec::new();
+            for chunk in [&input[0..4], &input[4..8]] {
+                let arr = f32x4::new(chunk.try_into().unwrap());
+                expected.extend_from_slice(&f32_to_i32(bd, arr, Dither::NoDither));
+            }
+            let tail = f32x4::new([input[8], input[9], 0.0, 0.0]);
+            expected.extend_from_slice(&f32_to_i32(bd, tail, Dither::NoDither)[0..2]);
+            assert_eq!(out, expected);
+        }
     }
 }

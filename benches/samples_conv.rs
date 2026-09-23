@@ -1,6 +1,7 @@
 //! Criterion benchmarks comparing the SIMD (SSSE3/NEON) byte-pack implementations
-//! in `simd_impl` / `neon_impl` against the scalar fallback, and measuring
-//! `samples_to_i32` throughput at 16-bit and 24-bit depth.
+//! in `simd_impl` / `neon_impl` against the scalar fallback, measuring
+//! `samples_to_i32` throughput at 16-bit and 24-bit depth, and comparing its
+//! `extend_from_slice` output loop against a rejected write-in-place alternative.
 //!
 //! Run with:
 //!   cargo bench --bench samples_conv
@@ -15,7 +16,7 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
 use swyh_rs::audio::samples_conv::{
-    i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le, samples_to_i32,
+    f32_to_i32, i32_to_i16be, i32_to_i16le, i32_to_i24be, i32_to_i24le, samples_to_i32,
 };
 use swyh_rs::enums::streaming::{BitDepth, Dither};
 use wide::f32x4;
@@ -296,11 +297,98 @@ fn bench_samples_to_i32(c: &mut Criterion) {
     g.finish();
 }
 
+// ---------------------------------------------------------------------------
+// samples_to_i32 output strategy: the production extend_from_slice-per-chunk loop vs.
+// a rejected pre-sized, write-in-place alternative. Kept so the measurement that
+// decided it (in-place was 3-14% slower at 16 bits, a wash at 24 bits) is reproducible.
+// ---------------------------------------------------------------------------
+
+// Rejected approach: resize() the output once, then write each quantized chunk straight
+// into its [i32; 4] slot via as_chunks_mut. Meant to avoid extend_from_slice's per-chunk
+// capacity check + len update, but the resize() zero-fill pass costs more than that
+// always-predicted branch. Generic over the quantizer like the production loop, so each
+// case is monomorphized with a constant bd/dither and the `f32_to_i32` match folds away.
+#[inline(always)]
+fn quantize_chunks_inplace<Q: Fn(f32x4) -> [i32; 4]>(
+    f32_samples: &[f32],
+    i32_samples: &mut Vec<i32>,
+    quantize: Q,
+) {
+    i32_samples.resize(f32_samples.len(), 0);
+    let (chunks, remainder) = f32_samples.as_chunks::<4>();
+    let (out_chunks, out_remainder) = i32_samples.as_chunks_mut::<4>();
+    chunks
+        .iter()
+        .zip(out_chunks.iter_mut())
+        .for_each(|(chunk, out)| *out = quantize(f32x4::new(*chunk)));
+    if !remainder.is_empty() {
+        let mut tail = [0.0f32; 4];
+        tail[..remainder.len()].copy_from_slice(remainder);
+        out_remainder.copy_from_slice(&quantize(f32x4::new(tail))[..remainder.len()]);
+    }
+}
+
+fn samples_to_i32_inplace(
+    f32_samples: &[f32],
+    i32_samples: &mut Vec<i32>,
+    bd: BitDepth,
+    use_dither: Dither,
+) {
+    i32_samples.clear();
+    match (bd, use_dither) {
+        (BitDepth::Bits16, Dither::Dither) => {
+            quantize_chunks_inplace(f32_samples, i32_samples, |v| {
+                f32_to_i32(BitDepth::Bits16, v, Dither::Dither)
+            })
+        }
+        (BitDepth::Bits16, Dither::NoDither) => {
+            quantize_chunks_inplace(f32_samples, i32_samples, |v| {
+                f32_to_i32(BitDepth::Bits16, v, Dither::NoDither)
+            })
+        }
+        (BitDepth::Bits24, _) => quantize_chunks_inplace(f32_samples, i32_samples, |v| {
+            f32_to_i32(BitDepth::Bits24, v, Dither::NoDither)
+        }),
+    }
+}
+
+fn bench_samples_to_i32_extend_vs_inplace(c: &mut Criterion) {
+    // 962 ≈ one 10 ms stereo callback at 48 kHz; 4098 = a larger buffer. Both have a
+    // 2-sample tail so the remainder path is included.
+    const SIZES: [usize; 2] = [962, 4098];
+    let cases: &[(BitDepth, Dither, &str)] = &[
+        (BitDepth::Bits16, Dither::Dither, "16bit_dither"),
+        (BitDepth::Bits16, Dither::NoDither, "16bit_nodither"),
+        (BitDepth::Bits24, Dither::NoDither, "24bit"),
+    ];
+
+    for n in SIZES {
+        let samples: Vec<f32> = (0..n).map(|i| (i as f32 / n as f32) * 2.0 - 1.0).collect();
+        // Capacity is reused across iterations, as in production.
+        let mut out = Vec::with_capacity(n);
+
+        let mut g = c.benchmark_group(format!("samples_to_i32_out_{n}"));
+        g.throughput(Throughput::Elements(n as u64));
+        for &(bd, use_dither, label) in cases {
+            g.bench_with_input(BenchmarkId::new("extend", label), label, |b, _| {
+                b.iter(|| samples_to_i32(black_box(&samples), black_box(&mut out), bd, use_dither))
+            });
+            g.bench_with_input(BenchmarkId::new("inplace", label), label, |b, _| {
+                b.iter(|| {
+                    samples_to_i32_inplace(black_box(&samples), black_box(&mut out), bd, use_dither)
+                })
+            });
+        }
+        g.finish();
+    }
+}
+
 criterion_group!(
     benches,
     bench_tpdf_dither,
     bench_byte_pack,
     bench_byte_pack_buffer,
     bench_samples_to_i32,
+    bench_samples_to_i32_extend_vs_inplace,
 );
 criterion_main!(benches);

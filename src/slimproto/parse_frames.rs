@@ -22,28 +22,21 @@ pub struct SlimHelo {
 /// A parsed SlimProto frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Frame {
+    /// squeezelite HELO frame
     Helo(SlimHelo),
-    /// squeezelite closed its HTTP audio-stream connection.
-    Dsco {
-        reason: DscoReason,
-    },
-    /// Any frame whose opcode we don't act on yet (`STAT`, ...), with its
-    /// payload intact so the caller can debug-log its content.
-    Other {
-        opcode: [u8; 4],
-        payload: Vec<u8>,
-    },
+    /// squeezelite DSCO frame
+    Dsco { reason: DscoReason },
+    /// other squeezelite frames (`STAT`, ...), ignored
+    Other { opcode: [u8; 4], payload: Vec<u8> },
 }
 
-/// the DSCO reason code
+/// the documented DSCO reason codes
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DscoReason {
     EndOfStream,
     ConnectionReset,
     ConnectionTimeout,
     TransportError,
-    /// Any value squeezelite doesn't document here, kept for numeric logging
-    /// instead of being treated as a parse error.
     Unknown(u8),
 }
 
@@ -74,10 +67,10 @@ const MAX_FRAME_PAYLOAD_LEN: u32 = 8 * 1024;
 
 /// Read one SlimProto frame from `stream`: an 8-byte `opcode`+`length`
 /// header (length is big-endian, payload-only), followed by `length` bytes
-/// of payload. `HELO` frames are parsed into [`SlimHelo`]; anything else is
-/// returned as [`Frame::Other`] with its payload drained from the stream
-/// (so the caller can keep reading subsequent frames) and handed back
-/// intact, so the caller can debug-log it.
+/// of payload. `HELO` and `DSCO`frames are parsed into [`SlimHelo`] and
+/// [`DscoReason`] respectively.
+/// Anything else is returned as [`Frame::Other`] including payload
+/// so the caller can debug-log it.
 pub fn read_frame(stream: &mut impl Read) -> io::Result<Frame> {
     let mut header = [0u8; 8];
     stream.read_exact(&mut header)?;

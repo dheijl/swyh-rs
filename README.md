@@ -26,7 +26,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 - [Windows tray-icon code (Python) by @phil2sat](https://github.com/dheijl/swyh-rs/blob/master/tray_icon/)
 - [Latency, streaming format and stream duration](#latency-and-streaming-format-and-stream-duration)
 - [Audio quality and Windows WasApi Loopback capture](#audio-quality-and-windows-wasapi-loopback-capture)
-- [Releases](#releases)
+- [Releases and installing](#releases-and-installing)
 - [AI use](#ai-use)
 - [Screenshots](#screenshots)
 
@@ -352,7 +352,7 @@ The following pages might get you going:
 
 See also [issue #44](https://github.com/dheijl/swyh-rs/issues/44).
 
-### Releases
+### Releases and installing
 
 The binaries I publish in [Releases](https://github.com/dheijl/swyh-rs/releases) are built on
 
@@ -363,6 +363,15 @@ The binaries I publish in [Releases](https://github.com/dheijl/swyh-rs/releases)
 - Linux:
   - since V1.12.17 the appimages are built on an Ubuntu 20.04LTS Pro VM with the latest Rust stable version, so they should run on most systems.
   - the appimages contain update information, so you can update them using the [UpdateAppImage](https://github.com/AppImageCommunity/AppImageUpdate) tool.
+
+#### Installing with winget (Windows)
+
+Since version 1.21.0 swyh-rs is also available in the Windows Package Manager, so no manual download is needed:
+
+- install: `winget install dheijl.swyh-rs`
+- upgrade: `winget upgrade dheijl.swyh-rs`
+
+I'll try to publish future releases to winget as well.
 
 I do my best to keep everything up-to-date.
 

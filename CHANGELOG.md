@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.21.1 (unreleased)
+  - show the main form even when no audio devices found, needed for the AppimageHub test runner to succeed in the pull request check. Changes made with the assistance of Clause Opus 5.5.
   - prefer String over EcoString when EcoString has no clear advantage
   - refactor: some renaming and/or moving of files
   - slimproto: optimize hartbeat, also parse and log DSCO frames + reason

@@ -40,7 +40,7 @@ use swyh_rs::{
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-use cpal::{SampleFormat, SupportedStreamConfig, traits::StreamTrait};
+use cpal::{SampleFormat, SupportedBufferSize, SupportedStreamConfig, traits::StreamTrait};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use fltk::{app, misc::Progress, prelude::ButtonExt};
 use log::{LevelFilter, debug, info};
@@ -83,8 +83,6 @@ fn main() {
     };
     // initialize i18n before any user-facing string is produced
     i18n::init(&config.language.clone().unwrap_or("en-US".to_string()));
-    // check for the default audio device
-    let default_device = ad.unwrap_or_else(|| fatal_error(fl!("err-no-audio-device")));
     // if set: an app restart is required to apply the changes
     let config_changed: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
@@ -113,10 +111,15 @@ fn main() {
     ui_log(LogCategory::Info, &format!("{config:?}"));
     info!("Config: {config:?}");
 
-    let (mut audio_output_device, source_names) = select_audio_source(&config, default_device);
+    let (mut audio_output_device, source_names) = select_audio_source(&config, ad);
+    // without an audio device (e.g. a CI runner without ALSA) the GUI still
+    // starts, only audio capture is skipped
+    if audio_output_device.is_none() {
+        ui_log(LogCategory::Error, &fl!("err-no-audio-device"));
+    }
     let networks = get_interfaces();
     let local_addr = resolve_local_addr(&config, &networks);
-    let (audio_cfg, wd) = build_wav_data(&audio_output_device, &config);
+    let (audio_cfg, wd) = build_wav_data(audio_output_device.as_ref(), &config);
 
     // we now have enough information to create the GUI with meaningful data
     let (ssdp_kick_tx, ssdp_kick_rx) = crossbeam_channel::unbounded::<()>();
@@ -144,13 +147,15 @@ fn main() {
     // capture system audio
     debug!("Try capturing system audio");
     let mut stream: Option<cpal::Stream> = None;
-    let capture_chan1 = capture_channel.clone();
-    match capture_output_audio(&audio_output_device, &audio_cfg, capture_chan1.0) {
-        Some(s) => {
-            stream = Some(s);
-        }
-        _ => {
-            ui_log(LogCategory::Error, &fl!("err-capture-audio"));
+    if let Some(ref dev) = audio_output_device {
+        let capture_chan1 = capture_channel.clone();
+        match capture_output_audio(dev, &audio_cfg, capture_chan1.0) {
+            Some(s) => {
+                stream = Some(s);
+            }
+            _ => {
+                ui_log(LogCategory::Error, &fl!("err-capture-audio"));
+            }
         }
     }
     if let Some(ref s) = stream
@@ -161,8 +166,10 @@ fn main() {
 
     // If silence injector is on, create a silence injector stream and keep it alive
     let _silence_stream = {
-        if let Some(true) = config.inject_silence {
-            if let Some(stream) = run_silence_injector(&audio_output_device) {
+        if let Some(true) = config.inject_silence
+            && let Some(ref dev) = audio_output_device
+        {
+            if let Some(stream) = run_silence_injector(dev) {
                 ui_log(LogCategory::Info, &fl!("status-injecting-silence"));
                 Some(stream)
             } else {
@@ -310,29 +317,28 @@ fn main() {
                 MessageType::CaptureAborted => {
                     let mut capture_retry_count = 0i32;
                     stream = None;
+                    let Some(config_name) = config.sound_source.as_deref() else {
+                        continue;
+                    };
                     while capture_retry_count < 5 {
                         thread::sleep(Duration::from_millis(250));
                         capture_retry_count += 1;
                         debug!("Retrying capturing audio #{capture_retry_count}");
                         let audio_devices = get_output_audio_devices();
-                        let config_name: &str = config.sound_source.as_ref().unwrap();
                         // ignore sound index as it may have changed, so duplicate names won't probably work
                         let mut found_audio_device = false;
                         for adev in audio_devices.into_iter() {
                             if adev.name() == config_name {
                                 info!("Audio capture: reselecting audio source: {}", adev.name());
-                                audio_output_device = adev;
+                                audio_output_device = Some(adev);
                                 found_audio_device = true;
                                 break;
                             }
                         }
-                        if found_audio_device {
+                        if found_audio_device && let Some(ref dev) = audio_output_device {
                             let capture_chan3 = capture_channel.clone();
-                            if let Some(s) = capture_output_audio(
-                                &audio_output_device,
-                                &audio_cfg,
-                                capture_chan3.0,
-                            ) {
+                            if let Some(s) = capture_output_audio(dev, &audio_cfg, capture_chan3.0)
+                            {
                                 stream = Some(s);
                                 info!("Audio capture resumed.");
                                 break;
@@ -406,30 +412,45 @@ fn setup_logging(config: &Configuration) {
 }
 
 /// select the audio output device named in `config`, falling back to `default_device`;
-/// also returns the names of all available output devices for the GUI selector
-fn select_audio_source(config: &Configuration, default_device: Device) -> (Device, Vec<String>) {
-    if config.sound_source.is_none() {
-        fatal_error(fl!("err-no-sound-source"));
-    }
+/// also returns the names of all available output devices for the GUI selector.
+/// Returns `None` as device if no audio device is available at all.
+fn select_audio_source(
+    config: &Configuration,
+    default_device: Option<Device>,
+) -> (Option<Device>, Vec<String>) {
     let audio_devices = get_output_audio_devices();
-    let mut source_names: Vec<String> = Vec::with_capacity(audio_devices.len());
-    let config_name = config.sound_source.as_ref().unwrap();
-    let mut selected = default_device;
-    for (index, adev) in audio_devices.into_iter().enumerate() {
-        let adevname = adev.name().to_string();
-        if let Some(config_id) = config.sound_source_index {
-            // index is needed for duplicate audio device names in Windows
-            if config_id == index as i32 && adevname == *config_name {
-                info!("Selected audio source: {adevname}[#{index}]");
-                selected = adev;
-            }
-        } else if adevname == *config_name {
-            info!("Selected audio source: {adevname}");
-            selected = adev;
+    let source_names: Vec<String> = audio_devices
+        .iter()
+        .map(|adev| adev.name().to_string())
+        .collect();
+    let selected = match select_source_index(
+        &source_names,
+        config.sound_source.as_deref(),
+        config.sound_source_index,
+    ) {
+        Some(index) => {
+            info!("Selected audio source: {}[#{index}]", source_names[index]);
+            audio_devices.into_iter().nth(index)
         }
-        source_names.push(adevname);
-    }
+        None => default_device,
+    };
     (selected, source_names)
+}
+
+/// find the index of the configured audio source in `names`.
+/// If `config_index` is set both index and name must match
+/// (the index is needed for duplicate audio device names in Windows),
+/// otherwise the last device with a matching name wins.
+fn select_source_index(
+    names: &[String],
+    config_name: Option<&str>,
+    config_index: Option<i32>,
+) -> Option<usize> {
+    let config_name = config_name?;
+    names.iter().enumerate().rev().find_map(|(index, name)| {
+        let index_ok = config_index.is_none_or(|ci| ci == index as i32);
+        (index_ok && name == config_name).then_some(index)
+    })
 }
 
 /// resolve the local IP address to bind to, persisting it to config
@@ -454,16 +475,30 @@ fn resolve_local_addr(config: &Configuration, networks: &[String]) -> IpAddr {
     }
 }
 
-/// determine the stream config and build the `WavData` descriptor
-fn build_wav_data(device: &Device, config: &Configuration) -> (SupportedStreamConfig, WavData) {
-    let default_rate = device.default_config().sample_rate();
-    let audio_cfg = if let Some(rate) = config.sample_rate {
-        device
+/// fallback sample rate when no audio device is available
+const FALLBACK_SAMPLE_RATE: u32 = 48000;
+
+/// determine the stream config and build the `WavData` descriptor;
+/// without an audio device a stereo F32 fallback config is used
+fn build_wav_data(
+    device: Option<&Device>,
+    config: &Configuration,
+) -> (SupportedStreamConfig, WavData) {
+    let audio_cfg = match (device, config.sample_rate) {
+        (Some(device), Some(rate)) => device
             .find_config(rate, SampleFormat::F32, 2)
-            .unwrap_or_else(|| *device.default_config())
-    } else {
-        *device.default_config()
+            .unwrap_or_else(|| *device.default_config()),
+        (Some(device), None) => *device.default_config(),
+        (None, rate) => SupportedStreamConfig::new(
+            2,
+            rate.unwrap_or(FALLBACK_SAMPLE_RATE),
+            SupportedBufferSize::Unknown,
+            SampleFormat::F32,
+        ),
     };
+    let default_rate = device.map_or(audio_cfg.sample_rate(), |d| {
+        d.default_config().sample_rate()
+    });
     let wd = WavData {
         sample_format: audio_cfg.sample_format(),
         sample_rate: audio_cfg.sample_rate(),
@@ -700,4 +735,48 @@ fn shutdown_and_exit() {
         info!("Time-out waiting for HTTP streaming shutdown - exiting.");
     }
     log::logger().flush();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn names(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    #[test]
+    fn no_devices_selects_nothing() {
+        assert_eq!(select_source_index(&[], Some("a"), None), None);
+        assert_eq!(select_source_index(&[], Some("a"), Some(0)), None);
+    }
+
+    #[test]
+    fn no_configured_source_selects_nothing() {
+        assert_eq!(select_source_index(&names(&["a", "b"]), None, None), None);
+        assert_eq!(
+            select_source_index(&names(&["a", "b"]), None, Some(1)),
+            None
+        );
+    }
+
+    #[test]
+    fn name_only_selects_last_match() {
+        let n = names(&["a", "b", "a"]);
+        assert_eq!(select_source_index(&n, Some("b"), None), Some(1));
+        assert_eq!(select_source_index(&n, Some("a"), None), Some(2));
+        assert_eq!(select_source_index(&n, Some("c"), None), None);
+    }
+
+    #[test]
+    fn index_and_name_must_both_match() {
+        let n = names(&["a", "b", "a"]);
+        assert_eq!(select_source_index(&n, Some("a"), Some(0)), Some(0));
+        assert_eq!(select_source_index(&n, Some("a"), Some(2)), Some(2));
+        // index points at a different name: no match, even though the name exists
+        assert_eq!(select_source_index(&n, Some("a"), Some(1)), None);
+        // index out of range
+        assert_eq!(select_source_index(&n, Some("a"), Some(5)), None);
+        assert_eq!(select_source_index(&n, Some("a"), Some(-1)), None);
+    }
 }

@@ -121,6 +121,7 @@ pub struct MainForm {
     pub rms_mon_l: Progress,
     pub rms_mon_r: Progress,
     pub tb: TextDisplay,
+    tb_style_buf: TextBuffer,
     flx_feedback: Flex,
     status_buf: TextBuffer,
     restartbutton: Flex,
@@ -1251,6 +1252,29 @@ impl MainForm {
         tb.set_text_size(12);
         tb.set_selection_color(enums::Color::DarkYellow);
         tb.set_buffer(Some(buf));
+        let tb_normal_color = tb.text_color();
+        let tb_normal_font = tb.text_font();
+        let tb_style_buf = TextBuffer::default();
+        tb.set_highlight_data(
+            tb_style_buf.clone(),
+            vec![
+                StyleTableEntry {
+                    color: tb_normal_color,
+                    font: tb_normal_font,
+                    size: 12,
+                },
+                StyleTableEntry {
+                    color: Color::from_u32(0x00ff_8c00), // DarkOrange, for *W warnings
+                    font: tb_normal_font,
+                    size: 12,
+                },
+                StyleTableEntry {
+                    color: Color::Red, // for *E errors
+                    font: tb_normal_font,
+                    size: 12,
+                },
+            ],
+        );
         flx_feedback.add(&tb);
         flx_feedback.resizable(&tb);
         vpack.add(&flx_feedback);
@@ -1310,6 +1334,7 @@ impl MainForm {
             rms_mon_l: app_tab.rms_mon_l,
             rms_mon_r: app_tab.rms_mon_r,
             tb,
+            tb_style_buf,
             flx_feedback,
             status_buf,
             restartbutton: flx_restart,
@@ -1332,13 +1357,23 @@ impl MainForm {
         let Some(mut textbuffer) = self.tb.buffer() else {
             return;
         };
-        let start = textbuffer.length() as usize;
-        let end = start + msg.len();
         textbuffer.append(msg);
         textbuffer.append("\n");
-        if let Some(b'*') = msg.as_bytes().first() {
-            textbuffer.highlight(start as i32, end as i32);
-        }
+        // extend the style buffer in lockstep with the content buffer: one style
+        // byte per text byte, matching the "*E "/"*W " prefixes from ui_logger::LogCategory
+        let msg_bytes = msg.as_bytes();
+        let style_byte = if msg_bytes.first() == Some(&b'*') {
+            match msg_bytes.get(1) {
+                Some(b'E') => b'C',
+                Some(b'W') => b'B',
+                _ => b'A',
+            }
+        } else {
+            b'A'
+        };
+        let style_run = String::from_utf8(vec![style_byte; msg.len() + 1])
+            .expect("style_byte is ASCII, so the run is valid UTF-8");
+        self.tb_style_buf.append(&style_run);
         let buflen = textbuffer.length();
         self.tb.set_insert_position(buflen);
         // track the line count

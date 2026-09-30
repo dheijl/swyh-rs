@@ -26,7 +26,7 @@ use swyh_rs::{
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
     server::streaming_server::{StreamerFeedBack, run_server},
-    ui::{fatal_error::fatal_error, mainform::MainForm},
+    ui::mainform::MainForm,
     utils::{
         configuration::Configuration,
         extra_threads::{run_rms_monitor, run_ssdp_updater},
@@ -51,7 +51,7 @@ use simplelog::{CombinedLogger, ConfigBuilder, WriteLogger};
 use std::{
     cell::Cell,
     fs::File,
-    net::IpAddr,
+    net::{IpAddr, Ipv4Addr},
     path::Path,
     rc::Rc,
     thread::{self},
@@ -453,26 +453,70 @@ fn select_source_index(
     })
 }
 
-/// resolve the local IP address to bind to, persisting it to config
+/// how the local IP address to bind to was obtained
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AddrSource {
+    /// `last_network` from the config, still present on this machine
+    Configured,
+    /// the address of the interface that routes to the internet
+    Detected,
+    /// no internet route: the first non-loopback IPv4 interface
+    Fallback,
+    /// no usable interface at all (e.g. a sandboxed CI runner): 127.0.0.1
+    Loopback,
+}
+
+/// resolve the local IP address to bind to;
+/// only a detected address is persisted to config, so that a fallback
+/// (and certainly the loopback address) is not kept once a network is available again
 fn resolve_local_addr(config: &Configuration, networks: &[String]) -> IpAddr {
-    let get_default = || -> Option<IpAddr> {
-        let addr = get_local_addr()?;
-        let mut conf = get_config_mut();
-        conf.last_network = Some(addr.to_string());
-        let _ = conf.update_config();
-        Some(addr)
-    };
-    if let Some(ref net) = config.last_network {
-        let mut nw = net.parse().unwrap_or_else(|_| {
-            get_default().unwrap_or_else(|| fatal_error(fl!("err-no-local-address")))
-        });
-        if !networks.contains(net) {
-            nw = get_default().unwrap_or_else(|| fatal_error(fl!("err-no-local-address")));
+    let (addr, source) =
+        choose_local_addr(config.last_network.as_deref(), networks, get_local_addr);
+    match source {
+        AddrSource::Configured => {}
+        AddrSource::Detected => {
+            let mut conf = get_config_mut();
+            conf.last_network = Some(addr.to_string());
+            let _ = conf.update_config();
         }
-        nw
-    } else {
-        get_default().unwrap_or_else(|| fatal_error(fl!("err-no-local-address")))
+        AddrSource::Fallback => ui_log(
+            LogCategory::Warning,
+            &fl!("warn-local-address-fallback", "addr" = addr.to_string()),
+        ),
+        AddrSource::Loopback => ui_log(
+            LogCategory::Error,
+            &fl!("err-local-address-loopback", "addr" = addr.to_string()),
+        ),
     }
+    addr
+}
+
+/// choose the local IP address to bind to, in order of preference:
+/// the configured `last_network` if still present in `networks`, the address
+/// returned by `detect`, the first non-loopback IPv4 address in `networks`,
+/// and finally 127.0.0.1
+fn choose_local_addr(
+    last_network: Option<&str>,
+    networks: &[String],
+    detect: impl FnOnce() -> Option<IpAddr>,
+) -> (IpAddr, AddrSource) {
+    if let Some(net) = last_network
+        && networks.iter().any(|n| n == net)
+        && let Ok(addr) = net.parse()
+    {
+        return (addr, AddrSource::Configured);
+    }
+    if let Some(addr) = detect() {
+        return (addr, AddrSource::Detected);
+    }
+    if let Some(addr) = networks
+        .iter()
+        .filter_map(|n| n.parse::<IpAddr>().ok())
+        .find(|a| a.is_ipv4() && !a.is_loopback())
+    {
+        return (addr, AddrSource::Fallback);
+    }
+    (IpAddr::V4(Ipv4Addr::LOCALHOST), AddrSource::Loopback)
 }
 
 /// fallback sample rate when no audio device is available
@@ -778,5 +822,58 @@ mod tests {
         // index out of range
         assert_eq!(select_source_index(&n, Some("a"), Some(5)), None);
         assert_eq!(select_source_index(&n, Some("a"), Some(-1)), None);
+    }
+
+    fn ip(s: &str) -> IpAddr {
+        s.parse().unwrap()
+    }
+
+    #[test]
+    fn configured_address_present_is_used_without_detecting() {
+        let n = names(&["127.0.0.1", "192.168.1.10", "10.0.0.5"]);
+        let result =
+            choose_local_addr(Some("10.0.0.5"), &n, || panic!("detect must not be called"));
+        assert_eq!(result, (ip("10.0.0.5"), AddrSource::Configured));
+    }
+
+    #[test]
+    fn configured_address_gone_falls_back_to_detect() {
+        let n = names(&["127.0.0.1", "192.168.1.10"]);
+        let result = choose_local_addr(Some("10.0.0.5"), &n, || Some(ip("192.168.1.10")));
+        assert_eq!(result, (ip("192.168.1.10"), AddrSource::Detected));
+    }
+
+    #[test]
+    fn unparsable_configured_address_falls_back_to_detect() {
+        let n = names(&["garbage", "192.168.1.10"]);
+        let result = choose_local_addr(Some("garbage"), &n, || Some(ip("192.168.1.10")));
+        assert_eq!(result, (ip("192.168.1.10"), AddrSource::Detected));
+    }
+
+    #[test]
+    fn no_configured_address_uses_detect() {
+        let n = names(&["127.0.0.1", "192.168.1.10"]);
+        let result = choose_local_addr(None, &n, || Some(ip("192.168.1.10")));
+        assert_eq!(result, (ip("192.168.1.10"), AddrSource::Detected));
+    }
+
+    #[test]
+    fn detect_fails_uses_first_non_loopback_ipv4() {
+        let n = names(&["127.0.0.1", "192.168.1.10", "10.0.0.5"]);
+        let result = choose_local_addr(None, &n, || None);
+        assert_eq!(result, (ip("192.168.1.10"), AddrSource::Fallback));
+    }
+
+    #[test]
+    fn only_loopback_uses_loopback() {
+        let n = names(&["127.0.0.1"]);
+        let result = choose_local_addr(Some("127.0.0.2"), &n, || None);
+        assert_eq!(result, (ip("127.0.0.1"), AddrSource::Loopback));
+    }
+
+    #[test]
+    fn no_interfaces_uses_loopback() {
+        let result = choose_local_addr(None, &[], || None);
+        assert_eq!(result, (ip("127.0.0.1"), AddrSource::Loopback));
     }
 }

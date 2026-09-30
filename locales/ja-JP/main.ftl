@@ -105,8 +105,8 @@ err-priority-linux = 申し訳ありませんが、優先度を上げる権限�
 
 # Error messages
 err-no-audio-device = デフォルトのオーディオデバイスが見つかりません！
-err-no-sound-source = 設定にサウンドソースがありません！
-err-no-local-address = ローカルネットワークアドレスを取得できませんでした！
+warn-local-address-fallback = インターネットへの経路が見つかりません。ローカルネットワークアドレス { $addr } を使用します
+err-local-address-loopback = ローカルネットワークアドレスを取得できませんでした！ストリーミングは { $addr } でのみ利用可能です
 err-capture-audio = オーディオをキャプチャできませんでした...設定を確認してください。
 err-play-stream = オーディオストリームを再生できません。
 err-inject-silence = 無音を挿入できません！！

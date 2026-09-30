@@ -105,8 +105,8 @@ err-priority-linux = Désolé, vous n'avez pas les permissions pour augmenter la
 
 # Error messages
 err-no-audio-device = Aucun périphérique audio par défaut trouvé !
-err-no-sound-source = Aucune source sonore dans la configuration !
-err-no-local-address = Impossible d'obtenir l'adresse réseau locale !
+warn-local-address-fallback = Aucune route vers Internet trouvée, utilisation de l'adresse réseau locale { $addr }
+err-local-address-loopback = Impossible d'obtenir l'adresse réseau locale ! Streaming disponible uniquement sur { $addr }
 err-capture-audio = Impossible de capturer l'audio... Veuillez vérifier la configuration.
 err-play-stream = Impossible de lire le flux audio.
 err-inject-silence = Impossible d'injecter du silence !!

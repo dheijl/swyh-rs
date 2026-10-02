@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
 - 1.21.1 (unreleased)
+  - built with rust 1.99
+  - refactor(logging): carry LogCategory as data instead of a string prefix
   - GUI:log messages color is now red for errors and orange for warnings, instead of just highlighting the last warning or error.
   - GUI: show the main form even when no audio devices are found or no local ip address found, needed for the AppimageHub test runner to succeed in the pull request check. Changes made with the assistance of Claude.
   - prefer String over EcoString when EcoString has no clear advantage

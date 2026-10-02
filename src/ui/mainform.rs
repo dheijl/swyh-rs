@@ -1353,31 +1353,27 @@ impl MainForm {
     }
 
     /// show a log message in the text box
-    pub fn add_log_msg(&mut self, msg: &str) {
+    pub fn add_log_msg(&mut self, msg: &LogData) {
         let Some(mut textbuffer) = self.tb.buffer() else {
             return;
         };
-        textbuffer.append(msg);
+        let line = format!("{}{}", msg.category, msg.message);
+        textbuffer.append(&line);
         textbuffer.append("\n");
         // extend the style buffer in lockstep with the content buffer: one style
-        // byte per text byte, matching the "*E "/"*W " prefixes from ui_logger::LogCategory
-        let msg_bytes = msg.as_bytes();
-        let style_byte = if msg_bytes.first() == Some(&b'*') {
-            match msg_bytes.get(1) {
-                Some(b'E') => b'C',
-                Some(b'W') => b'B',
-                _ => b'A',
-            }
-        } else {
-            b'A'
+        // byte per text byte, matching the style table built in `new()`
+        let style_byte = match msg.category {
+            LogCategory::Error => b'C',
+            LogCategory::Warning => b'B',
+            LogCategory::Info => b'A',
         };
-        let style_run = String::from_utf8(vec![style_byte; msg.len() + 1])
+        let style_run = String::from_utf8(vec![style_byte; line.len() + 1])
             .expect("style_byte is ASCII, so the run is valid UTF-8");
         self.tb_style_buf.append(&style_run);
         let buflen = textbuffer.length();
         self.tb.set_insert_position(buflen);
         // track the line count
-        self.log_lines += msg
+        self.log_lines += line
             .as_bytes()
             .iter()
             .fold(0, |acc, &b| acc + (b == b'\n') as i32)

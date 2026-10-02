@@ -6,6 +6,7 @@
 use log::{error, info, warn};
 use std::fmt::Display;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogCategory {
     Error,
     Warning,
@@ -20,6 +21,14 @@ impl Display for LogCategory {
             LogCategory::Info => f.write_str(""),
         }
     }
+}
+
+/// a categorised log message, carried over the application's crossbeam
+/// channel as [MessageType::LogMessage`]
+#[derive(Debug, Clone)]
+pub struct LogData {
+    pub category: LogCategory,
+    pub message: String,
 }
 
 /// `ui_log`
@@ -38,7 +47,10 @@ pub fn ui_log(cat: LogCategory, s: &str) {
         use fltk::app;
         get_msgchannel()
             .0
-            .send(MessageType::LogMessage(cat.to_string() + s))
+            .send(MessageType::LogMessage(LogData {
+                category: cat,
+                message: s.to_string(),
+            }))
             .unwrap();
         app::awake();
     }

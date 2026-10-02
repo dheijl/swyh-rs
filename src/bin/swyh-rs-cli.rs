@@ -417,7 +417,7 @@ fn main() -> Result<(), i32> {
                         }
                     }
                 }
-                MessageType::LogMessage(msg) => ui_log(LogCategory::Info, &msg),
+                MessageType::LogMessage(msg) => ui_log(msg.category, &msg.message),
                 // never fires in the CLI: only play() is used here, not spawn_play().
                 // Kept because MessageType is shared with the GUI, which does use spawn_play().
                 MessageType::PlayResult(outcome) => {

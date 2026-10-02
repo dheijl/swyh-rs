@@ -4,6 +4,7 @@ use crate::{
     rendercontrol::{PlayOutcome, Renderer},
     server::streaming_server::StreamerFeedBack,
     slimproto::types::SlimRenderer,
+    utils::ui_logger::LogData,
 };
 use ecow::EcoString;
 
@@ -13,7 +14,7 @@ pub enum MessageType {
     PlayerMessage(StreamerFeedBack),
     /// outcome of a `Renderer::spawn_play()` attempt, see [`PlayOutcome`]
     PlayResult(PlayOutcome),
-    LogMessage(String),
+    LogMessage(LogData),
     CaptureAborted,
     /// a SlimProto (squeezelite) client sent its `HELO` handshake
     SlimHelo(Box<SlimRenderer>), // boxed to reduce enum size

@@ -229,9 +229,8 @@ impl ChannelStream {
         if l2 > 0 {
             buf[l1..].copy_from_slice(&s2[..l2]);
         }
-        // remove the copied bytes from the fifo
-        // use drain() hack until truncate_front() is stabilized
-        self.flac_fifo.drain(0..buf.len());
+        // remove the copied bytes from the front of the fifo
+        self.flac_fifo.retain_back(self.flac_fifo.len() - buf.len());
         Ok(buf.len())
     }
 

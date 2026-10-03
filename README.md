@@ -43,8 +43,6 @@ You can find [Arm binaries here](https://github.com/jamieduk/SWYH-ARM-64Bit-Linu
 **swyh-rs** implements the idea behind the original [SWYH](https://www.streamwhatyouhear.com) (source repo <https://github.com/StreamWhatYouHear/SWYH>) written in Rust.
 It allows you to stream the music you're currently playing on your PC (Windows or Linux) to an UPNP/DLNA/OpenHome compatible music player (a "Renderer").
 
-**UPDATE**: the original [SWYH](https://www.streamwhatyouhear.com) has picked up development again after 6 years, and a new revamped version 2.0 beta is available. Still Windows, MP3 and LPCM/L16 only though.
-
 I wrote this because
 
 - I wanted to learn Rust
@@ -54,7 +52,14 @@ I wrote this because
 
 **NOTE** swyh-rs does not support lossy mp3 or aac re-encoding, only lossless LPCM/WAV/RF64/FLAC for obvious reasons.
 
-It has been tested with
+## ALTERNATIVES
+
+- the original [SWYH](https://www.streamwhatyouhear.com) has picked up development again after 6 years, and a new revamped version 2.0 beta is available. Still Windows, MP3 and LPCM/L16 only though.
+- [StreamToSpeaker](https://github.com/Mihonarium/StreamToSpeaker/) by @Mihonarium may be better suited if you are on Windows and want to watch video or play games while streaming the audio to your speakers, as it should have much lower latency than swyh-rs. Only LPCM/WAV 16 bit and Airplay for the moment (October 2026) but this may change.
+
+## Compatibility
+
+swyh-rs has been tested with
 
 - [MoOde audio](https://moodeaudio.org/), with Moode configured as UPNP renderer in _Openhome_ mode, and using FLAC (preferable) or LPCM (since 1.8.7) or WAV format. See [Known problems](#known-problems) for solving the 5-second delay with WAV/RF64/LPCM format. Use FLAC instead if you can.
 - [Volumio](https://volumio.org/)

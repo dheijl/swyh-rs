@@ -588,6 +588,101 @@ mod tests {
         eprintln!("{noise:?}");
     }
 
+    /// Replays the exact `make_contiguous()` + `retain_back()` sequence used
+    /// by `fill_lpcm_buffer` (see rwstream.rs) against a `VecDeque<u64>` of
+    /// unique, monotonically increasing values, so any reordering, loss, or
+    /// duplication caused by the ring buffer's internal rotation shows up as
+    /// a value mismatch rather than just a length mismatch.
+    ///
+    /// Capacity is pinned deliberately small (4) so that the random mix of
+    /// push/consume sizes below is guaranteed to repeatedly wrap the
+    /// underlying ring buffer and force reallocations, exercising both
+    /// branches inside `retain_back` (head-in-`front`, head-in-`back`) many
+    /// times over, not just the always-unwrapped case right after a single
+    /// `make_contiguous()` call.
+    #[test]
+    #[cfg(debug_assertions)]
+    fn test_make_contiguous_retain_back_fifo_invariant() {
+        use std::collections::VecDeque;
+
+        let mut rng = Rng::with_seed(0x5a17_u64);
+        let mut fifo: VecDeque<u64> = VecDeque::with_capacity(4);
+        let mut oracle: VecDeque<u64> = VecDeque::new();
+        let mut next_value: u64 = 0;
+
+        for _ in 0..5_000 {
+            // simulate `get_samples()`: push a random-sized chunk of new samples
+            let push_count = rng.usize(0..9);
+            for _ in 0..push_count {
+                fifo.push_back(next_value);
+                oracle.push_back(next_value);
+                next_value += 1;
+            }
+
+            // simulate the `samples_needed` computed in `fill_lpcm_buffer`:
+            // anything from nothing up to the entire current fifo
+            let len = fifo.len();
+            let samples_needed = if len == 0 { 0 } else { rng.usize(0..=len) };
+
+            // --- the logic under test, copied verbatim from fill_lpcm_buffer ---
+            let consumed: Vec<u64> = {
+                let samples = fifo.make_contiguous();
+                samples[..samples_needed].to_vec()
+            };
+            fifo.retain_back(fifo.len() - samples_needed);
+            // --- end logic under test ---
+
+            // the consumed slice must be exactly the oldest `samples_needed`
+            // values, in order
+            let expected_consumed: Vec<u64> = oracle.iter().take(samples_needed).copied().collect();
+            assert_eq!(consumed, expected_consumed);
+            oracle.drain(..samples_needed);
+
+            // what's left in the fifo must match the oracle element-for-element,
+            // in order: no gaps, duplicates, or reordering introduced by the
+            // rotate-then-truncate pair
+            assert_eq!(fifo.len(), oracle.len());
+            assert!(fifo.iter().eq(oracle.iter()));
+        }
+    }
+
+    /// Deterministic companion to the randomized invariant test above:
+    /// explicitly construct a fifo whose head has wrapped past the end of
+    /// its backing buffer (via push/pop churn on a tiny capacity) *before*
+    /// `make_contiguous()` is ever called, then run one consume cycle and
+    /// check the result by hand.
+    #[test]
+    fn test_make_contiguous_retain_back_after_wraparound() {
+        use std::collections::VecDeque;
+
+        let mut fifo: VecDeque<u32> = VecDeque::with_capacity(4);
+        // churn the ring buffer so head != 0 and the live range wraps
+        // past the end of the backing storage
+        for v in 0..4 {
+            fifo.push_back(v);
+        }
+        for _ in 0..3 {
+            fifo.pop_front();
+        }
+        for v in 4..9 {
+            fifo.push_back(v); // [3, 4, 5, 6, 7, 8], wrapped internally
+        }
+        assert_eq!(
+            fifo.iter().copied().collect::<Vec<_>>(),
+            vec![3, 4, 5, 6, 7, 8]
+        );
+
+        let samples_needed = 2;
+        let consumed: Vec<u32> = {
+            let samples = fifo.make_contiguous();
+            samples[..samples_needed].to_vec()
+        };
+        fifo.retain_back(fifo.len() - samples_needed);
+
+        assert_eq!(consumed, vec![3, 4]);
+        assert_eq!(fifo.iter().copied().collect::<Vec<_>>(), vec![5, 6, 7, 8]);
+    }
+
     use dasp_sample::{I24, Sample};
     // just to prove that ((i32 >> 8) & 0xffffff) is indeed I24
     #[test]

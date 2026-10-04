@@ -297,7 +297,8 @@ impl ChannelStream {
                 }
             }
         } // make_contiguous borrow ends here
-        self.fifo.drain(0..samples_needed);
+        // remove the consumed samples from the front of the fifo
+        self.fifo.retain_back(self.fifo.len() - samples_needed);
         Ok(chunks_needed * buf_chunksize)
     }
 }

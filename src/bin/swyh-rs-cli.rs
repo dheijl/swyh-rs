@@ -832,6 +832,10 @@ fn apply_streaming_args(args: &Args, config: &mut Configuration) {
         }
     }
     config.buffering_delay_msec = args.upfront_buffer.or(config.buffering_delay_msec);
+    config.latency_reduction_delay_msec = args
+        .latency_reduction_delay
+        .or(config.latency_reduction_delay_msec);
+    config.latency_reduction_msec = args.latency_reduction.or(config.latency_reduction_msec);
 }
 
 /// true once every renderer `resolve_player_names` is waiting for has actually been

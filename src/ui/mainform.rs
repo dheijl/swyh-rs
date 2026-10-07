@@ -543,6 +543,79 @@ impl AudioTab {
         audio_col.add(&flx_buf);
         audio_col.fixed(&flx_buf, ROW_H);
 
+        // latency reduction delay (how long to wait after connecting before dropping)
+        let label_lat_delay = Frame::default()
+            .with_label(&fl!("latency-reduction-delay-label"))
+            .with_align(Align::Left | Align::Inside);
+        let mut latency_delay_ms = IntInput::new(0, 0, 50, 0, "");
+        latency_delay_ms.set_maximum_size(5);
+        let lat_delay_config = config.latency_reduction_delay_msec.unwrap_or_default();
+        latency_delay_ms.set_value(&lat_delay_config.to_string());
+        latency_delay_ms.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |i| {
+                let mut d: i32 = i.value().parse().unwrap_or(0);
+                if d < 0 {
+                    i.set_value(&0i32.to_string());
+                    return;
+                }
+                if d > 5_000 {
+                    i.set_value(&5_000i32.to_string());
+                    d = 5_000;
+                }
+                if d as u32 != lat_delay_config {
+                    {
+                        let mut conf = get_config_mut();
+                        conf.latency_reduction_delay_msec = Some(d as u32);
+                        let _ = conf.update_config();
+                    }
+                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                }
+            }
+        });
+        // latency reduction amount (how much audio to drop once the delay above has elapsed)
+        let label_lat_amount = Frame::default()
+            .with_label(&fl!("latency-reduction-label"))
+            .with_align(Align::Left | Align::Inside);
+        let mut latency_reduction_ms = IntInput::new(0, 0, 50, 0, "");
+        latency_reduction_ms.set_maximum_size(5);
+        let lat_amount_config = config.latency_reduction_msec.unwrap_or_default();
+        latency_reduction_ms.set_value(&lat_amount_config.to_string());
+        latency_reduction_ms.set_callback({
+            let mut sb = ctx.status_buf.clone();
+            move |i| {
+                let mut l: i32 = i.value().parse().unwrap_or(0);
+                if l < 0 {
+                    i.set_value(&0i32.to_string());
+                    return;
+                }
+                if l > 5_000 {
+                    i.set_value(&5_000i32.to_string());
+                    l = 5_000;
+                }
+                if l as u32 != lat_amount_config {
+                    {
+                        let mut conf = get_config_mut();
+                        conf.latency_reduction_msec = Some(l as u32);
+                        let _ = conf.update_config();
+                    }
+                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                }
+            }
+        });
+        let mut flx_lat = Flex::new(0, 0, GW, ROW_H, "");
+        flx_lat.set_spacing(10);
+        flx_lat.set_type(FlexType::Row);
+        flx_lat.end();
+        flx_lat.add(&label_lat_delay);
+        flx_lat.add(&latency_delay_ms);
+        flx_lat.fixed(&latency_delay_ms, 50);
+        flx_lat.add(&label_lat_amount);
+        flx_lat.add(&latency_reduction_ms);
+        flx_lat.fixed(&latency_reduction_ms, 50);
+        audio_col.add(&flx_lat);
+        audio_col.fixed(&flx_lat, ROW_H);
+
         group.add(&audio_col);
 
         AudioTab {
@@ -1436,6 +1509,8 @@ impl MainForm {
                     .unwrap_or(StreamSize::NoneChunked)
             });
         let buf_ms = config.buffering_delay_msec.unwrap_or(0);
+        let lat_delay_ms = config.latency_reduction_delay_msec.unwrap_or(0);
+        let lat_reduction_ms = config.latency_reduction_msec.unwrap_or(0);
         let network = config.last_network.as_deref().unwrap_or("-");
         let port = config.server_port.unwrap_or_default();
         let ssdp = config.ssdp_interval_mins;
@@ -1470,6 +1545,12 @@ impl MainForm {
         s.push('\n');
         s.push_str(&fl!("strmsize-label", "size" = streamsize));
         let _ = writeln!(s, "   buffer: {buf_ms} ms");
+        if lat_reduction_ms > 0 {
+            let _ = writeln!(
+                s,
+                "   latency reduction: {lat_reduction_ms} ms after {lat_delay_ms} ms"
+            );
+        }
         let _ = writeln!(
             s,
             "{}  {}",

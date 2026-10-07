@@ -230,6 +230,7 @@ and restart Pipewire.
   - _U32MaxNotChunked_: Content-Length = u32::MAX − 1, no chunking (default for WAV)
   - _U64MaxNotChunked_: Content-Length = u64::MAX − 1, no chunking
 - **Initial buffering** (ms): buffer audio for this many milliseconds before streaming starts. Helps prevent stuttering on flaky WiFi networks or with renderers that have no configurable buffer.
+- **Latency reduction delay** (ms) and **Latency reduction** (ms): most renderers buffer a noticeable amount of audio internally before they actually start playing, so dropping audio right when the connection opens does nothing useful — it only delays that start further. Instead, swyh-rs waits **Latency reduction delay** ms after a renderer connects (long enough for the renderer's own buffer to fill and playback to actually start), then discards **Latency reduction** ms worth of audio to shrink the renderer's playback lag by roughly that amount. Audio is dropped and forwarded in alternating chunks (rather than all at once) so the stream never goes silent for long enough to trip the unrelated silence-fallback mechanism; as a result the drop is spread over roughly twice the configured duration instead of being one single skip. Both default to 0 (disabled).
 - **TPDF dither**: apply TPDF dither when converting to 16-bit audio. Only active when 24-bit is not selected; the checkbox is grayed out when 24-bit is enabled. Dithering improves perceived audio quality at 16-bit but adds a small CPU overhead; disable it if you need the lowest possible CPU usage.
 - **Inject Silence**: continuously mix silence into the input stream as an alternative to the automatic periodic-silence mechanism, preventing some renderers from disconnecting during playback pauses. Works with FLAC since version 1.12.0. On Linux silence may be injected automatically so no need to check this in that case.
 
@@ -295,6 +296,8 @@ Recognized options:
     -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
     -v (--volume) u8 : desired player volume between 0 and 100 [unchanged]
     -u (--upfront_buffer) u32 : initial buffering in milliseconds [0]
+    -g (--latency_reduction_delay) u32 : wait this many msec after connecting before dropping audio to reduce latency, giving the renderer's own buffer time to fill [0]
+    -D (--latency_reduction) u32 : once latency_reduction_delay has elapsed, drop this many msec of audio to reduce playback latency [0]
     -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
     -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
     -d (--dither) bool : use TPDF dither for 16-bit output [true]

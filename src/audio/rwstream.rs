@@ -28,9 +28,9 @@ use std::{
     io::{Error, Read, Result as IoResult},
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 use wide::f32x4;
 
@@ -92,6 +92,25 @@ pub struct ChannelStream {
     /// clone (the `CLIENTS` map's copy and the one actually being read by
     /// the streaming thread, see `run_server`) shares the same flag.
     stop: Arc<AtomicBool>,
+    /// When this client connected — used to gate the latency-reduction drop
+    /// (see `drop_samples_remaining`) behind `drop_delay`, so it only kicks in
+    /// once the renderer's own buffer has plausibly filled and playback has
+    /// actually started.
+    connected_at: Instant,
+    /// How long to wait after `connected_at` before dropping samples.
+    drop_delay: Duration,
+    /// Number of samples still to discard (in whole incoming chunks, see
+    /// `write`) to reduce this client's playback latency. `Arc`'d for the
+    /// same reason as `stop`: every clone of this `ChannelStream` must see
+    /// the same countdown.
+    drop_samples_remaining: Arc<AtomicUsize>,
+    /// Alternates which of the next two eligible chunks `write` drops vs.
+    /// forwards (see `next_drop_decision`). Without this, a drop window
+    /// larger than `capture_timeout` would starve our own receiver long
+    /// enough to spuriously trip the silence fallback in `get_samples`,
+    /// which would add latency instead of reducing it. `Arc`'d for the same
+    /// reason as `drop_samples_remaining`.
+    pass_through_next: Arc<AtomicBool>,
 }
 
 impl ChannelStream {
@@ -142,6 +161,13 @@ impl ChannelStream {
             streaming_format: context.streaming_format,
             flac_channel,
             stop: Arc::new(AtomicBool::new(false)),
+            connected_at: Instant::now(),
+            drop_delay: Duration::from_millis(u64::from(context.latency_reduction_delay_msec)),
+            drop_samples_remaining: Arc::new(AtomicUsize::new(stereo_sample_count(
+                context.sample_rate,
+                u64::from(context.latency_reduction_msec),
+            ))),
+            pass_through_next: Arc::new(AtomicBool::new(false)),
         };
         if context.streaming_format == StreamingFormat::Flac {
             chs.start_flac_encoder();
@@ -171,8 +197,32 @@ impl ChannelStream {
     }
 
     /// called by the `run_sample_distributor` thread to write the
-    /// f32 samples to our input channel
+    /// f32 samples to our input channel.
+    ///
+    /// Once `drop_delay` has elapsed since this client connected — long
+    /// enough for the renderer's own buffer to fill and playback to actually
+    /// start — incoming chunks are dropped and forwarded alternately (see
+    /// `next_drop_decision`) until `drop_samples_remaining` reaches zero,
+    /// shortening the renderer's playback lag by roughly that amount.
+    /// Dropping earlier would just delay the renderer's own buffer from
+    /// filling, making things worse; dropping every chunk outright (instead
+    /// of alternating) could starve our receiver long enough to spuriously
+    /// trip the `capture_timeout` silence fallback in `get_samples`, which
+    /// would add latency instead of reducing it.
     pub fn write(&self, samples: AudioSamples) {
+        let remaining = self.drop_samples_remaining.load(Ordering::Relaxed);
+        if remaining > 0 && self.connected_at.elapsed() >= self.drop_delay {
+            let pass_through_next = self.pass_through_next.load(Ordering::Relaxed);
+            let (should_drop, new_remaining, new_pass_through_next) =
+                next_drop_decision(remaining, samples.len(), pass_through_next);
+            self.drop_samples_remaining
+                .store(new_remaining, Ordering::Relaxed);
+            self.pass_through_next
+                .store(new_pass_through_next, Ordering::Relaxed);
+            if should_drop {
+                return;
+            }
+        }
         // don't blow up memory if streaming stalls for some reason
         // 10_000 messages (capture buffers, not samples) is a quite a lot
         if self.s.len() < 10_000 {
@@ -432,9 +482,49 @@ fn write_fmt_chunk(buf: &mut [u8], sample_rate: u32, bits_per_sample: u16) {
     buf[22..24].copy_from_slice(&bits_per_sample.to_le_bytes()); // BitsPerSample
 }
 
+/// Number of interleaved stereo f32 samples corresponding to `ms` milliseconds
+/// at `sample_rate` (2 channels — the whole pipeline is stereo-only, see the
+/// module docs). Shared by `get_silence_buffer` and the latency-reduction
+/// drop countdown set up in `ChannelStream::new`.
+fn stereo_sample_count(sample_rate: u32, ms: u64) -> usize {
+    ((u64::from(sample_rate) * 2 * ms) / 1000) as usize
+}
+
+/// New value for a latency-reduction drop countdown after discarding a whole
+/// incoming chunk of `chunk_len` samples: `remaining` decreases by
+/// `chunk_len`, saturating at 0. The chunk that exhausts the countdown may
+/// contain more samples than strictly needed, but it is still dropped whole
+/// (see `ChannelStream::write`), so the actual amount dropped can overshoot
+/// the configured value by up to one chunk.
+fn next_drop_remaining(remaining: usize, chunk_len: usize) -> usize {
+    remaining.saturating_sub(chunk_len)
+}
+
+/// Decide what `ChannelStream::write` should do with one incoming chunk
+/// during an active latency-reduction drop window. Alternates between
+/// dropping a chunk (counting it against `remaining`) and passing the next
+/// one through unmodified, so the receiver on the other end of the channel
+/// never sees two consecutive drops — bounding the gap between forwarded
+/// chunks to roughly one chunk's duration regardless of how much total audio
+/// is being dropped, which keeps `capture_timeout`'s silence fallback from
+/// spuriously kicking in during a long drop window.
+///
+/// Returns `(should_drop_this_chunk, new_remaining, new_pass_through_next)`.
+fn next_drop_decision(
+    remaining: usize,
+    chunk_len: usize,
+    pass_through_next: bool,
+) -> (bool, usize, bool) {
+    if pass_through_next {
+        (false, remaining, false)
+    } else {
+        (true, next_drop_remaining(remaining, chunk_len), true)
+    }
+}
+
 fn get_silence_buffer(sample_rate: u32, silence_period: u64) -> Vec<f32> {
-    // silence_period is in msecs (capture_timeout / 4), sample rate is per second, 2 channels for stereo
-    let size = ((sample_rate as u64 * 2 * silence_period) / 1000) as usize;
+    // silence_period is in msecs (capture_timeout / 4)
+    let size = stereo_sample_count(sample_rate, silence_period);
     let mut silence = Vec::with_capacity(size);
     silence.resize(size, 0f32);
     silence
@@ -579,6 +669,57 @@ mod tests {
         const SAMPLE_RATE: u32 = 44100;
         let sb = get_silence_buffer(SAMPLE_RATE, 250);
         assert_eq!(sb.len(), ((SAMPLE_RATE * 2) as u64 / (1000 / 250)) as usize);
+    }
+
+    #[test]
+    fn test_stereo_sample_count() {
+        assert_eq!(stereo_sample_count(44_100, 1000), 88_200);
+        assert_eq!(stereo_sample_count(48_000, 500), 48_000);
+        assert_eq!(stereo_sample_count(44_100, 0), 0);
+        assert_eq!(stereo_sample_count(0, 1000), 0);
+        // non-exact-ms remainders truncate (matches get_silence_buffer's existing behavior)
+        assert_eq!(stereo_sample_count(44_100, 1), 88);
+    }
+
+    #[test]
+    fn test_next_drop_remaining() {
+        // chunk smaller than remaining: decreases normally
+        assert_eq!(next_drop_remaining(100, 40), 60);
+        // chunk exactly exhausts remaining
+        assert_eq!(next_drop_remaining(40, 40), 0);
+        // chunk larger than remaining: saturates at 0, never underflows
+        assert_eq!(next_drop_remaining(30, 40), 0);
+        // already zero stays zero
+        assert_eq!(next_drop_remaining(0, 40), 0);
+    }
+
+    #[test]
+    fn test_next_drop_decision_alternates_drop_and_pass_through() {
+        // first eligible chunk (pass_through_next starts false): dropped
+        let (drop1, rem1, pass1) = next_drop_decision(1000, 100, false);
+        assert!(drop1);
+        assert_eq!(rem1, 900);
+        assert!(pass1);
+
+        // next chunk: this round's "pass through" turn — forwarded, remaining untouched
+        let (drop2, rem2, pass2) = next_drop_decision(rem1, 100, pass1);
+        assert!(!drop2);
+        assert_eq!(rem2, 900);
+        assert!(!pass2);
+
+        // back to a drop turn
+        let (drop3, rem3, pass3) = next_drop_decision(rem2, 100, pass2);
+        assert!(drop3);
+        assert_eq!(rem3, 800);
+        assert!(pass3);
+    }
+
+    #[test]
+    fn test_next_drop_decision_drop_turn_saturates_at_zero() {
+        let (should_drop, remaining, pass_through_next) = next_drop_decision(30, 100, false);
+        assert!(should_drop);
+        assert_eq!(remaining, 0);
+        assert!(pass_through_next);
     }
 
     #[test]

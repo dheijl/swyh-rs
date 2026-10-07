@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.21.1 (unreleased)
+  - add configurable latency reduction: wait N msec after a renderer connects (letting its own buffer fill and playback actually start), then drop M msec of audio, alternating dropped/forwarded chunks to avoid tripping the silence fallback, to shrink the renderer's playback lag. GUI (Audio tab) and CLI (`-g/--latency_reduction_delay`, `-D/--latency_reduction`) options, both default to 0 (disabled). Changes made with the assistance of Claude.
   - built with rust 1.99
   - refactor(logging): carry LogCategory as data instead of a string prefix
   - GUI:log messages color is now red for errors and orange for warnings, instead of just highlighting the last warning or error.

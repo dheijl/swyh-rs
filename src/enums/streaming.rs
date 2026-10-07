@@ -238,6 +238,8 @@ pub struct StreamingContext {
     pub bits_per_sample: BitDepth,
     pub streaming_format: StreamingFormat,
     pub buffering_delay_msec: u32,
+    pub latency_reduction_delay_msec: u32,
+    pub latency_reduction_msec: u32,
     pub remote_addr: EcoString, // ip:port
     pub remote_ip: EcoString,   // ip only
     pub chunksize: usize,
@@ -291,6 +293,8 @@ impl StreamingContext {
             bits_per_sample,
             streaming_format,
             buffering_delay_msec: cfg.buffering_delay_msec.unwrap_or(0),
+            latency_reduction_delay_msec: cfg.latency_reduction_delay_msec.unwrap_or(0),
+            latency_reduction_msec: cfg.latency_reduction_msec.unwrap_or(0),
             remote_addr,
             remote_ip,
             chunksize,

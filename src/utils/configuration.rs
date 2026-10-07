@@ -141,6 +141,18 @@ pub struct Configuration {
     pub inject_silence: Option<bool>,
     #[serde(alias = "BufferingDelayMSec", default)]
     pub buffering_delay_msec: Option<u32>,
+    /// How long to wait, after a renderer connects, before starting to drop
+    /// audio to reduce latency — long enough for the renderer's own buffer
+    /// to fill and playback to actually start (see `latency_reduction_msec`;
+    /// dropping before playback has started would just delay that start).
+    #[serde(alias = "LatencyReductionDelayMSec", default)]
+    pub latency_reduction_delay_msec: Option<u32>,
+    /// Milliseconds of audio to discard, once `latency_reduction_delay_msec`
+    /// has elapsed, to reduce the renderer's playback lag. Dropped in whole
+    /// incoming capture chunks (see `ChannelStream::write`), so the actual
+    /// amount dropped can overshoot this value by up to one chunk.
+    #[serde(alias = "LatencyReductionMSec", default)]
+    pub latency_reduction_msec: Option<u32>,
     #[serde(alias = "LastRenderer", default)]
     pub last_renderer: Option<String>,
     #[serde(alias = "ActiveRenderers", default)]
@@ -199,6 +211,8 @@ impl Configuration {
             capture_timeout: Some(2000),
             inject_silence: Some(false),
             buffering_delay_msec: Some(0),
+            latency_reduction_delay_msec: Some(0),
+            latency_reduction_msec: Some(0),
             last_renderer: None,
             active_renderers: Vec::new(),
             hidden_renderers: Vec::new(),
@@ -289,6 +303,14 @@ impl Configuration {
         }
         if config.configuration.buffering_delay_msec.is_none() {
             config.configuration.buffering_delay_msec = Some(0);
+            force_update = true;
+        }
+        if config.configuration.latency_reduction_delay_msec.is_none() {
+            config.configuration.latency_reduction_delay_msec = Some(0);
+            force_update = true;
+        }
+        if config.configuration.latency_reduction_msec.is_none() {
+            config.configuration.latency_reduction_msec = Some(0);
             force_update = true;
         }
         if config.configuration.config_id.is_none() {

@@ -82,7 +82,7 @@ socket2 = "0.6.5"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
 tiny_http_dh = { version = "0.12.2" }
-toml = "1.1.6"
+toml = "1.1.7"
 ureq = { version = "3.4.2", default-features = false, features = [
     "charset",
     "gzip",

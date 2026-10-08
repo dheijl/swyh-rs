@@ -104,16 +104,21 @@ pub struct ChannelStream {
     /// same reason as `stop`: every clone of this `ChannelStream` must see
     /// the same countdown.
     drop_samples_remaining: Arc<AtomicUsize>,
-    /// Alternates which of the next two eligible chunks `write` drops vs.
-    /// forwards (see `next_drop_decision`). Without this, a drop window
-    /// larger than `capture_timeout` would starve our own receiver long
-    /// enough to spuriously trip the silence fallback in `get_samples`,
-    /// which would add latency instead of reducing it. `Arc`'d for the same
-    /// reason as `drop_samples_remaining`.
-    pass_through_next: Arc<AtomicBool>,
+    /// Count of consecutive chunks dropped since the last pass-through (see
+    /// `next_drop_decision`): drops `DROPS_PER_CYCLE` eligible chunks, then
+    /// forwards 1, repeating. Without the periodic pass-through, a drop
+    /// window larger than `capture_timeout` would starve our own receiver
+    /// long enough to spuriously trip the silence fallback in
+    /// `get_samples`, which would add latency instead of reducing it.
+    /// `Arc`'d for the same reason as `drop_samples_remaining`.
+    drop_streak: Arc<AtomicUsize>,
 }
 
 impl ChannelStream {
+    /// Number of consecutive chunks `next_drop_decision` drops before
+    /// forwarding one, during an active latency-reduction drop window.
+    const DROPS_PER_CYCLE: usize = 2;
+
     pub fn new(
         tx: Sender<AudioSamples>,
         rx: Receiver<AudioSamples>,
@@ -167,7 +172,7 @@ impl ChannelStream {
                 context.sample_rate,
                 u64::from(context.latency_reduction_msec),
             ))),
-            pass_through_next: Arc::new(AtomicBool::new(false)),
+            drop_streak: Arc::new(AtomicUsize::new(0)),
         };
         if context.streaming_format == StreamingFormat::Flac {
             chs.start_flac_encoder();
@@ -201,24 +206,24 @@ impl ChannelStream {
     ///
     /// Once `drop_delay` has elapsed since this client connected — long
     /// enough for the renderer's own buffer to fill and playback to actually
-    /// start — incoming chunks are dropped and forwarded alternately (see
-    /// `next_drop_decision`) until `drop_samples_remaining` reaches zero,
+    /// start — incoming chunks are dropped `DROPS_PER_CYCLE`-out-of-every-
+    /// `DROPS_PER_CYCLE + 1` (see `next_drop_decision`) until
+    /// `drop_samples_remaining` reaches zero,
     /// shortening the renderer's playback lag by roughly that amount.
     /// Dropping earlier would just delay the renderer's own buffer from
     /// filling, making things worse; dropping every chunk outright (instead
-    /// of alternating) could starve our receiver long enough to spuriously
-    /// trip the `capture_timeout` silence fallback in `get_samples`, which
-    /// would add latency instead of reducing it.
+    /// of periodically passing one through) could starve our receiver long
+    /// enough to spuriously trip the `capture_timeout` silence fallback in
+    /// `get_samples`, which would add latency instead of reducing it.
     pub fn write(&self, samples: AudioSamples) {
         let remaining = self.drop_samples_remaining.load(Ordering::Relaxed);
         if remaining > 0 && self.connected_at.elapsed() >= self.drop_delay {
-            let pass_through_next = self.pass_through_next.load(Ordering::Relaxed);
-            let (should_drop, new_remaining, new_pass_through_next) =
-                next_drop_decision(remaining, samples.len(), pass_through_next);
+            let drop_streak = self.drop_streak.load(Ordering::Relaxed);
+            let (should_drop, new_remaining, new_drop_streak) =
+                next_drop_decision(remaining, samples.len(), drop_streak);
             self.drop_samples_remaining
                 .store(new_remaining, Ordering::Relaxed);
-            self.pass_through_next
-                .store(new_pass_through_next, Ordering::Relaxed);
+            self.drop_streak.store(new_drop_streak, Ordering::Relaxed);
             if should_drop {
                 return;
             }
@@ -501,24 +506,29 @@ fn next_drop_remaining(remaining: usize, chunk_len: usize) -> usize {
 }
 
 /// Decide what `ChannelStream::write` should do with one incoming chunk
-/// during an active latency-reduction drop window. Alternates between
-/// dropping a chunk (counting it against `remaining`) and passing the next
-/// one through unmodified, so the receiver on the other end of the channel
-/// never sees two consecutive drops — bounding the gap between forwarded
-/// chunks to roughly one chunk's duration regardless of how much total audio
-/// is being dropped, which keeps `capture_timeout`'s silence fallback from
-/// spuriously kicking in during a long drop window.
+/// during an active latency-reduction drop window. Drops
+/// `ChannelStream::DROPS_PER_CYCLE` chunks in a row (counting each against
+/// `remaining`), then passes the next one through unmodified, repeating —
+/// so the receiver on the other end of the channel never sees more than
+/// `DROPS_PER_CYCLE` consecutive drops, bounding the gap between forwarded
+/// chunks to roughly `DROPS_PER_CYCLE` chunks' duration regardless of how
+/// much total audio is being dropped, which keeps `capture_timeout`'s
+/// silence fallback from spuriously kicking in during a long drop window
 ///
-/// Returns `(should_drop_this_chunk, new_remaining, new_pass_through_next)`.
+/// Returns `(should_drop_this_chunk, new_remaining, new_drop_streak)`.
 fn next_drop_decision(
     remaining: usize,
     chunk_len: usize,
-    pass_through_next: bool,
-) -> (bool, usize, bool) {
-    if pass_through_next {
-        (false, remaining, false)
+    drop_streak: usize,
+) -> (bool, usize, usize) {
+    if drop_streak >= ChannelStream::DROPS_PER_CYCLE {
+        (false, remaining, 0)
     } else {
-        (true, next_drop_remaining(remaining, chunk_len), true)
+        (
+            true,
+            next_drop_remaining(remaining, chunk_len),
+            drop_streak + 1,
+        )
     }
 }
 
@@ -694,32 +704,38 @@ mod tests {
     }
 
     #[test]
-    fn test_next_drop_decision_alternates_drop_and_pass_through() {
-        // first eligible chunk (pass_through_next starts false): dropped
-        let (drop1, rem1, pass1) = next_drop_decision(1000, 100, false);
+    fn test_next_drop_decision_drops_two_then_passes_one() {
+        // first eligible chunk (drop_streak starts at 0): dropped
+        let (drop1, rem1, streak1) = next_drop_decision(1000, 100, 0);
         assert!(drop1);
         assert_eq!(rem1, 900);
-        assert!(pass1);
+        assert_eq!(streak1, 1);
 
-        // next chunk: this round's "pass through" turn — forwarded, remaining untouched
-        let (drop2, rem2, pass2) = next_drop_decision(rem1, 100, pass1);
-        assert!(!drop2);
-        assert_eq!(rem2, 900);
-        assert!(!pass2);
+        // second consecutive chunk: still dropped
+        let (drop2, rem2, streak2) = next_drop_decision(rem1, 100, streak1);
+        assert!(drop2);
+        assert_eq!(rem2, 800);
+        assert_eq!(streak2, 2);
 
-        // back to a drop turn
-        let (drop3, rem3, pass3) = next_drop_decision(rem2, 100, pass2);
-        assert!(drop3);
+        // third chunk: this cycle's pass-through turn — forwarded, remaining untouched
+        let (drop3, rem3, streak3) = next_drop_decision(rem2, 100, streak2);
+        assert!(!drop3);
         assert_eq!(rem3, 800);
-        assert!(pass3);
+        assert_eq!(streak3, 0);
+
+        // back to a drop turn for the next cycle
+        let (drop4, rem4, streak4) = next_drop_decision(rem3, 100, streak3);
+        assert!(drop4);
+        assert_eq!(rem4, 700);
+        assert_eq!(streak4, 1);
     }
 
     #[test]
     fn test_next_drop_decision_drop_turn_saturates_at_zero() {
-        let (should_drop, remaining, pass_through_next) = next_drop_decision(30, 100, false);
+        let (should_drop, remaining, drop_streak) = next_drop_decision(30, 100, 0);
         assert!(should_drop);
         assert_eq!(remaining, 0);
-        assert!(pass_through_next);
+        assert_eq!(drop_streak, 1);
     }
 
     #[test]

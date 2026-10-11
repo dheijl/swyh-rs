@@ -198,7 +198,7 @@ impl ChannelStream {
     /// regardless of whether the client itself ever closes the connection.
     /// See the `stop` field's doc comment for why this exists.
     pub fn request_stop(&self) {
-        self.stop.store(true, Ordering::Release);
+        self.stop.store(true, Ordering::Relaxed);
     }
 
     /// called by the `run_sample_distributor` thread to write the
@@ -362,7 +362,7 @@ impl ChannelStream {
 /// filling the read buffer with FLAC or LPCM/WAV/RF64 data
 impl Read for ChannelStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        if self.stop.load(Ordering::Acquire) {
+        if self.stop.load(Ordering::Relaxed) {
             return Ok(0); // EOF: ends the HTTP response on this read
         }
         if self.flac_channel.is_some() {

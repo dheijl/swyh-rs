@@ -204,17 +204,13 @@ impl ChannelStream {
     /// called by the `run_sample_distributor` thread to write the
     /// f32 samples to our input channel.
     ///
-    /// Once `drop_delay` has elapsed since this client connected — long
-    /// enough for the renderer's own buffer to fill and playback to actually
-    /// start — incoming chunks are dropped `DROPS_PER_CYCLE`-out-of-every-
-    /// `DROPS_PER_CYCLE + 1` (see `next_drop_decision`) until
-    /// `drop_samples_remaining` reaches zero,
-    /// shortening the renderer's playback lag by roughly that amount.
-    /// Dropping earlier would just delay the renderer's own buffer from
-    /// filling, making things worse; dropping every chunk outright (instead
-    /// of periodically passing one through) could starve our receiver long
-    /// enough to spuriously trip the `capture_timeout` silence fallback in
-    /// `get_samples`, which would add latency instead of reducing it.
+    /// When latency-reduction is active, samples are dropped at a rate
+    /// of `DROPS_PER_CYCLE` until the desired latency reduction
+    /// is achieved. Samples not dropped are passed through to prevent
+    /// silence detection at both ends to kick in.
+    /// Dropping only kicks in after the initial `drop_delay`
+    /// amount of samples has been written (to fill the renderer buffer)
+    /// and stops once the desired delay has been achieved.
     pub fn write(&self, samples: AudioSamples) {
         let remaining = self.drop_samples_remaining.load(Ordering::Relaxed);
         if remaining > 0 && self.connected_at.elapsed() >= self.drop_delay {
@@ -488,32 +484,20 @@ fn write_fmt_chunk(buf: &mut [u8], sample_rate: u32, bits_per_sample: u16) {
 }
 
 /// Number of interleaved stereo f32 samples corresponding to `ms` milliseconds
-/// at `sample_rate` (2 channels — the whole pipeline is stereo-only, see the
-/// module docs). Shared by `get_silence_buffer` and the latency-reduction
-/// drop countdown set up in `ChannelStream::new`.
+/// at `sample_rate` for 2 channels
 fn stereo_sample_count(sample_rate: u32, ms: u64) -> usize {
     ((u64::from(sample_rate) * 2 * ms) / 1000) as usize
 }
 
-/// New value for a latency-reduction drop countdown after discarding a whole
-/// incoming chunk of `chunk_len` samples: `remaining` decreases by
-/// `chunk_len`, saturating at 0. The chunk that exhausts the countdown may
-/// contain more samples than strictly needed, but it is still dropped whole
-/// (see `ChannelStream::write`), so the actual amount dropped can overshoot
-/// the configured value by up to one chunk.
+/// Compute how many samples still need to be dropped to achieve the desired
+/// latency reduction
 fn next_drop_remaining(remaining: usize, chunk_len: usize) -> usize {
     remaining.saturating_sub(chunk_len)
 }
 
-/// Decide what `ChannelStream::write` should do with one incoming chunk
-/// during an active latency-reduction drop window. Drops
-/// `ChannelStream::DROPS_PER_CYCLE` chunks in a row (counting each against
-/// `remaining`), then passes the next one through unmodified, repeating —
-/// so the receiver on the other end of the channel never sees more than
-/// `DROPS_PER_CYCLE` consecutive drops, bounding the gap between forwarded
-/// chunks to roughly `DROPS_PER_CYCLE` chunks' duration regardless of how
-/// much total audio is being dropped, which keeps `capture_timeout`'s
-/// silence fallback from spuriously kicking in during a long drop window
+/// When latency-reduction is active one sample chunk gets dropped for
+/// every DROPS_PER_CYCLE chunks arriving (until the desired latency
+/// reduction is achieved)
 ///
 /// Returns `(should_drop_this_chunk, new_remaining, new_drop_streak)`.
 fn next_drop_decision(

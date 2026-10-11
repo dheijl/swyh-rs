@@ -11,10 +11,7 @@ use std::{
     io::Write,
     sync::{
         Arc,
-        atomic::{
-            AtomicBool,
-            Ordering::{Acquire, Release},
-        },
+        atomic::{AtomicBool, Ordering::Relaxed},
     },
     time::Duration,
 };
@@ -102,7 +99,7 @@ impl FlacChannel {
 
     pub(crate) fn run(&self) {
         // copy instance data for thread
-        if self.active.load(Acquire) {
+        if self.active.load(Relaxed) {
             let msg = fl!("err-flac-already-running");
             ui_log(LogCategory::Error, &msg);
             panic!("{msg}");
@@ -115,7 +112,7 @@ impl FlacChannel {
         let use_dither = self.use_dither;
         let l_active = self.active.clone();
         // fire up thread
-        self.active.store(true, Release);
+        self.active.store(true, Relaxed);
         let _thr = std::thread::Builder::new()
             .name("flac_encoder".into())
             .stack_size(THREAD_STACK)
@@ -148,7 +145,7 @@ impl FlacChannel {
                 // read and FLAC encode samples
                 let mut time_out = Duration::from_millis(NOISE_PERIOD_MS);
                 let mut i32_samples = Vec::<i32>::with_capacity(16384);
-                while l_active.load(Acquire) {
+                while l_active.load(Relaxed) {
                     if let Ok(f32_samples) = samples_rdr.recv_timeout(time_out) {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS);
                         samples_to_i32(&f32_samples, &mut i32_samples, bd, use_dither);
@@ -162,7 +159,7 @@ impl FlacChannel {
                             ui_log(LogCategory::Warning, &fl!("flac-encoder-end"));
                             break;
                         }
-                    } else if l_active.load(Acquire) {
+                    } else if l_active.load(Relaxed) {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
                         // if no samples for a certain time: send very faint near silence bursts
                         fill_noise_buffer(&mut rng, bd, &mut noise_buf);
@@ -186,7 +183,7 @@ impl FlacChannel {
     }
 
     pub(crate) fn stop(&self) {
-        self.active.store(false, Release);
+        self.active.store(false, Relaxed);
     }
 }
 

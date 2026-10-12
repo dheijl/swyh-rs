@@ -436,7 +436,7 @@ const DOWNMIX_ATTEN: f32 = std::f32::consts::FRAC_1_SQRT_2;
 ///
 /// Special cases:
 /// - 1 channel: duplicated to L=R (SIMD).
-/// - 2 channels: copied unchanged.
+/// - 2 channels: copied unchanged (never called by the current code in audiodevices).
 /// - 6 channels (5.1): branch-free fast path.
 /// - 8 channels (7.1): branch-free fast path.
 ///

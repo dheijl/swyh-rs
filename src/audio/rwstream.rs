@@ -201,28 +201,36 @@ impl ChannelStream {
         self.stop.store(true, Ordering::Relaxed);
     }
 
-    /// called by the `run_sample_distributor` thread to write the
-    /// f32 samples to our input channel.
-    ///
-    /// When latency-reduction is active, samples are dropped at a rate
-    /// of `DROPS_PER_CYCLE` until the desired latency reduction
-    /// is achieved. Samples not dropped are passed through to prevent
-    /// silence detection at both ends to kick in.
-    /// Dropping only kicks in after the initial `drop_delay`
-    /// amount of samples has been written (to fill the renderer buffer)
-    /// and stops once the desired delay has been achieved.
-    pub fn write(&self, samples: AudioSamples) {
+    /// Decides whether to drop this chunk as part of the latency-reduction
+    /// scheme: drops samples at a rate of `DROPS_PER_CYCLE` until the
+    /// desired latency reduction is achieved, passing through every other
+    /// chunk so silence detection at both ends doesn't spuriously kick in.
+    /// Dropping only starts once `drop_delay` has elapsed after connecting
+    /// (to let the renderer's buffer fill) and stops once the desired
+    /// reduction is achieved.
+    #[inline(always)]
+    fn should_drop_chunk(&self, chunk_len: usize) -> bool {
         let remaining = self.drop_samples_remaining.load(Ordering::Relaxed);
-        if remaining > 0 && self.connected_at.elapsed() >= self.drop_delay {
-            let drop_streak = self.drop_streak.load(Ordering::Relaxed);
-            let (should_drop, new_remaining, new_drop_streak) =
-                next_drop_decision(remaining, samples.len(), drop_streak);
-            self.drop_samples_remaining
-                .store(new_remaining, Ordering::Relaxed);
-            self.drop_streak.store(new_drop_streak, Ordering::Relaxed);
-            if should_drop {
-                return;
-            }
+        if remaining == 0 || self.connected_at.elapsed() < self.drop_delay {
+            return false;
+        }
+        let (should_drop, new_remaining, new_drop_streak) = next_drop_decision(
+            remaining,
+            chunk_len,
+            self.drop_streak.load(Ordering::Relaxed),
+        );
+        self.drop_samples_remaining
+            .store(new_remaining, Ordering::Relaxed);
+        self.drop_streak.store(new_drop_streak, Ordering::Relaxed);
+        should_drop
+    }
+
+    /// called by the `run_sample_distributor` thread to write the
+    /// f32 samples to our input channel, first discarding the chunk if
+    /// latency-reduction dropping applies (see `should_drop_chunk`).
+    pub fn write(&self, samples: AudioSamples) {
+        if self.should_drop_chunk(samples.len()) {
+            return;
         }
         // don't blow up memory if streaming stalls for some reason
         // 10_000 messages (capture buffers, not samples) is a quite a lot

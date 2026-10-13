@@ -109,7 +109,7 @@ swyh-rs/
 
 - **Rust files**: Use snake_case (e.g., `user_service.rs`, `auth_handler.rs`)
 - **Test files**: Integration tests in `tests/` directory
-- **Module files**: `mod.rs` for module declarations
+- **Module files**: new-style `foo.rs` alongside a `foo/` directory for submodules — not `foo/mod.rs`
 - **Binary targets**: Place in `src/bin/` for additional executables
 
 ## Code Style & Standards

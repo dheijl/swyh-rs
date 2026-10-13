@@ -201,15 +201,24 @@ impl ChannelStream {
         self.stop.store(true, Ordering::Relaxed);
     }
 
-    /// Decides whether to drop this chunk as part of the latency-reduction
-    /// scheme: drops samples at a rate of `DROPS_PER_CYCLE` until the
-    /// desired latency reduction is achieved, passing through every other
-    /// chunk so silence detection at both ends doesn't spuriously kick in.
-    /// Dropping only starts once `drop_delay` has elapsed after connecting
-    /// (to let the renderer's buffer fill) and stops once the desired
-    /// reduction is achieved.
+    /// Decides whether to drop this chunk
+    /// - either because the input channel is building up backlog (if streaming
+    ///   is stalled), never buffer more than 10_000 chunks
+    /// - or as part of the latency-reduction scheme: drops samples at a
+    ///   rate of `DROPS_PER_CYCLE` until the desired latency reduction is
+    ///   achieved, passing through every other chunk so silence detection at
+    ///   both ends doesn't spuriously kick in. Dropping only starts once
+    ///   `drop_delay` has elapsed after connecting (to let the renderer's
+    ///   buffer fill) and stops once the desired reduction is achieved.
     #[inline(always)]
     fn should_drop_chunk(&self, chunk_len: usize) -> bool {
+        if self.s.len() >= 10_000 {
+            #[cfg(debug_assertions)]
+            {
+                debug!("Samples buffer overflow, dropping chunks!");
+            }
+            return true;
+        }
         let remaining = self.drop_samples_remaining.load(Ordering::Relaxed);
         if remaining == 0 || self.connected_at.elapsed() < self.drop_delay {
             return false;
@@ -227,21 +236,12 @@ impl ChannelStream {
 
     /// called by the `run_sample_distributor` thread to write the
     /// f32 samples to our input channel, first discarding the chunk if
-    /// latency-reduction dropping applies (see `should_drop_chunk`).
+    /// `should_drop_chunk` says to (buffer overflow or latency-reduction).
     pub fn write(&self, samples: AudioSamples) {
         if self.should_drop_chunk(samples.len()) {
             return;
         }
-        // don't blow up memory if streaming stalls for some reason
-        // 10_000 messages (capture buffers, not samples) is a quite a lot
-        if self.s.len() < 10_000 {
-            let _ = self.s.send(samples);
-        } else {
-            #[cfg(debug_assertions)]
-            {
-                debug!("Samples buffer overflow, dropping chunks!");
-            }
-        }
+        let _ = self.s.send(samples);
     }
 
     /// fill the LPCM/WAV/RF64 fifo buffer with f32 samples

@@ -118,6 +118,9 @@ impl ChannelStream {
     /// Number of consecutive chunks `next_drop_decision` drops before
     /// forwarding one, during an active latency-reduction drop window.
     const DROPS_PER_CYCLE: usize = 2;
+    /// max number of chunks that can be queued in the write channel
+    /// before they are dropped
+    const MAX_BACKLOG: usize = 10_000;
 
     pub fn new(
         tx: Sender<AudioSamples>,
@@ -203,7 +206,7 @@ impl ChannelStream {
 
     /// Decides whether to drop this chunk
     /// - either because the input channel is building up backlog (if streaming
-    ///   is stalled), never buffer more than 10_000 chunks
+    ///   is stalled), never buffer more than `MAX_BACKLOG` chunks
     /// - or as part of the latency-reduction scheme: drops samples at a
     ///   rate of `DROPS_PER_CYCLE` until the desired latency reduction is
     ///   achieved, passing through every other chunk so silence detection at
@@ -212,7 +215,7 @@ impl ChannelStream {
     ///   buffer fill) and stops once the desired reduction is achieved.
     #[inline(always)]
     fn should_drop_chunk(&self, chunk_len: usize) -> bool {
-        if self.s.len() >= 10_000 {
+        if self.s.len() >= ChannelStream::MAX_BACKLOG {
             #[cfg(debug_assertions)]
             {
                 debug!("Samples buffer overflow, dropping chunks!");

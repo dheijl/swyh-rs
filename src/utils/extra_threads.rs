@@ -77,7 +77,6 @@ pub fn run_rms_monitor(
     let samples_per_update = ((wd.sample_rate * u32::from(wd.channels)) / 10) as usize;
     let mut total_samples = 0usize;
     let mut ch_sum = f32x4::splat(0f32);
-    let imax = f32x4::splat(F32_TO_I16);
     let mut channel_drained = false;
     loop {
         // avoid the Crossbeam spin loops in Backoff
@@ -96,17 +95,17 @@ pub fn run_rms_monitor(
         match rms_receiver.recv_timeout(Duration::from_millis(500)) {
             // update RMS value with new samples
             Ok(samples) => {
-                // chunk samples, scale to i16, and multiply-accumulate with SIMD f32x4
+                // chunk samples and multiply-accumulate with SIMD f32x4
                 total_samples += samples.len();
                 let (chunks, remainder) = samples.as_chunks::<4>();
                 ch_sum = chunks.iter().fold(ch_sum, |acc, x| {
-                    let i4 = f32x4::new(*x) * imax;
-                    i4.mul_add(i4, acc)
+                    let f4 = f32x4::new(*x);
+                    f4.mul_add(f4, acc)
                 });
                 debug_assert!(remainder.is_empty() || remainder.len() == 2);
                 if remainder.len() == 2 {
-                    let i4 = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]) * imax;
-                    ch_sum = i4.mul_add(i4, ch_sum);
+                    let f4 = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
+                    ch_sum = f4.mul_add(f4, ch_sum);
                 }
             }
             // no samples: clear RMS widgets and reset accumulators
@@ -128,8 +127,9 @@ pub fn run_rms_monitor(
         if total_samples >= samples_per_update {
             let rms = ch_sum.to_array();
             let samples_per_channel = (total_samples / wd.channels as usize) as f32;
-            let rms_l = f64::from(((rms[0] + rms[2]) / samples_per_channel).sqrt());
-            let rms_r = f64::from(((rms[1] + rms[3]) / samples_per_channel).sqrt());
+            // compute rms and scale to I16
+            let rms_l = f64::from(((rms[0] + rms[2]) / samples_per_channel).sqrt() * F32_TO_I16);
+            let rms_r = f64::from(((rms[1] + rms[3]) / samples_per_channel).sqrt() * F32_TO_I16);
             ch_sum = f32x4::splat(0f32);
             total_samples = 0;
             rms_frame_l.set_value(rms_l);

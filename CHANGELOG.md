@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.21.1 (unreleased)
+  - small optimization in RMS computation
   - audio capture now supports CPAL I24 and U24 sample formats too
   - add configurable latency reduction: wait N msec after a renderer connects (letting its own buffer fill and playback actually start), then drop M msec of audio, alternating dropped/forwarded chunks to avoid tripping the silence fallback, to shrink the renderer's playback lag. GUI (Audio tab) and CLI (`-g/--latency_reduction_delay`, `-D/--latency_reduction`) options, both default to 0 (disabled). Changes made with the assistance of Claude.
   - built with rust 1.99
@@ -12,7 +13,7 @@
   - slimproto: optimize hartbeat, also parse and log DSCO frames + reason
   - use more EcoString (for the cheap clones)
   - refactor(audio): move client fan-out of the samples off the CPAL capture callback. Distribute captured buffers to HTTP clients and the RMS monitor from a dedicated thread instead of inside the real-time audio callback.
-  - Rust: 1.98.1
+  - Rust: 1.99.1
   - tiny http is replaced by tiny_http_dh, my fork of tiny_http. It is upgraded to the latest Rust compiler, Rust 2024, has some cherrypicked PRs from tiny_http, and two CVE issue fixes.
   - limit the tiny_http thread/task pool using the new `_with_pool()` method.
   - update CI with caching, fmt, and tests (thanks Claude).

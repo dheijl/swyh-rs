@@ -65,7 +65,7 @@ fn scalar_i32_to_i24be(i32_array: &[i32; 4], buf: &mut [u8]) {
 // the four values are packed into an f32x4 — four scalar MULSSs.
 #[inline(always)]
 fn tpdf_dither_scalar_mul() -> f32x4 {
-    f32x4::new([
+    f32x4::from_array([
         (fastrand::f32() - fastrand::f32()) * 65536.0_f32,
         (fastrand::f32() - fastrand::f32()) * 65536.0_f32,
         (fastrand::f32() - fastrand::f32()) * 65536.0_f32,
@@ -78,7 +78,7 @@ fn tpdf_dither_scalar_mul() -> f32x4 {
 // 8 separate `fastrand::f32()` calls though, each paying its own thread-local dispatch.
 #[inline(always)]
 fn tpdf_dither_simd_mul() -> f32x4 {
-    let diffs = f32x4::new([
+    let diffs = f32x4::from_array([
         fastrand::f32() - fastrand::f32(),
         fastrand::f32() - fastrand::f32(),
         fastrand::f32() - fastrand::f32(),
@@ -105,7 +105,7 @@ fn tpdf_dither_batched_fill() -> f32x4 {
         u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32 * MUL;
     }
 
-    let diffs = f32x4::new([u[0] - u[1], u[2] - u[3], u[4] - u[5], u[6] - u[7]]);
+    let diffs = f32x4::from_array([u[0] - u[1], u[2] - u[3], u[4] - u[5], u[6] - u[7]]);
     diffs * f32x4::splat(65536.0_f32)
 }
 
@@ -129,7 +129,7 @@ fn tpdf_dither_vectorized_diff() -> f32x4 {
         u2[i] = ((word >> 32) as u32 >> 1) as f32;
     }
 
-    (f32x4::new(u1) - f32x4::new(u2)) * f32x4::splat(COMBINED_SCALE)
+    (f32x4::from_array(u1) - f32x4::from_array(u2)) * f32x4::splat(COMBINED_SCALE)
 }
 
 fn bench_tpdf_dither(c: &mut Criterion) {
@@ -320,11 +320,11 @@ fn quantize_chunks_inplace<Q: Fn(f32x4) -> [i32; 4]>(
     chunks
         .iter()
         .zip(out_chunks.iter_mut())
-        .for_each(|(chunk, out)| *out = quantize(f32x4::new(*chunk)));
+        .for_each(|(chunk, out)| *out = quantize(f32x4::from_array(*chunk)));
     if !remainder.is_empty() {
         let mut tail = [0.0f32; 4];
         tail[..remainder.len()].copy_from_slice(remainder);
-        out_remainder.copy_from_slice(&quantize(f32x4::new(tail))[..remainder.len()]);
+        out_remainder.copy_from_slice(&quantize(f32x4::from_array(tail))[..remainder.len()]);
     }
 }
 

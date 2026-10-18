@@ -89,7 +89,7 @@ ureq = { version = "3.4.2", default-features = false, features = [
 ] }
 wide = "1.7.1"
 xml = "1.4.0"
-arc-swap = "1.9.2"
+arc-swap = "1.9.3"
 
 [target.'cfg(windows)'.dependencies]
 fltk = { version = "1.5.23", features = ["use-ninja"], optional = true }

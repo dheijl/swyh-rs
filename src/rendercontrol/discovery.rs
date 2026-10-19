@@ -388,7 +388,7 @@ fn build_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
                 "friendlyName" => Arc::make_mut(&mut renderer.controller).dev_name = value,
                 "deviceType" => renderer.dev_type = value.into(),
                 "URLBase" => renderer.dev_url = value.into(),
-                "controlURL" => service.control_url = normalize_url(&value).into(),
+                "controlURL" => service.control_url = normalize_url(&value),
                 _ => {}
             },
 
@@ -404,11 +404,11 @@ fn build_renderer(agent: &ureq::Agent, xml: &str) -> Option<Renderer> {
 }
 
 /// sometimes the control url is not prefixed with a '/'
-fn normalize_url(value: &str) -> String {
+fn normalize_url(value: &str) -> EcoString {
     if value.is_empty() || value.starts_with('/') {
-        value.to_owned()
+        value.into()
     } else {
-        '/'.to_string() + value
+        EcoString::from('/'.to_string() + value)
     }
 }
 
@@ -429,12 +429,9 @@ mod tests {
 
     #[test]
     fn test_normalize() {
-        let mut url = "/ctl".to_string();
-        assert!(normalize_url(&url) == *"/ctl");
-        url = "ctl".to_string();
-        assert!(normalize_url(&url) == *"/ctl");
-        url = String::new();
-        assert!(normalize_url(&url) == url);
+        assert!(normalize_url("/ctl") == "/ctl");
+        assert!(normalize_url("ctl") == "/ctl");
+        assert!(normalize_url("") == EcoString::new());
     }
 
     #[test]

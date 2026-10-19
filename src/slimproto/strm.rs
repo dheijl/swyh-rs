@@ -66,6 +66,15 @@ fn pcm_size_code(bits_per_sample: BitDepth) -> u8 {
     }
 }
 
+/// The `strm` packet's `format` + `pcm_*` byte fields.
+struct PcmFields {
+    format: u8,
+    sample_size: u8,
+    sample_rate: u8,
+    channels: u8,
+    endianness: u8,
+}
+
 /// Build a `strm` "start" frame telling the client to open an HTTP
 /// connection to `server_ip:streaminfo.server_port` and decode
 /// `streaminfo.streaming_format`.
@@ -87,33 +96,38 @@ pub fn build_strm_start(
     // no-op there, since `wav_header_size()` is already 0 for both.
     let request_line = format!("GET /stream/swyh.{}?slim=1 HTTP/1.0\r\n\r\n", fmt.as_str());
 
-    let (format, pcm_sample_size, pcm_sample_rate, pcm_channels, pcm_endianness) =
-        if fmt == StreamingFormat::Flac {
-            (b'f', b'?', b'?', b'?', b'?')
-        } else {
-            let rate = pcm_rate_code(streaminfo.sample_rate).ok_or_else(|| {
-                eco_format!(
-                    "SlimProto: {} Hz has no strm pcm_sample_rate code",
-                    streaminfo.sample_rate
-                )
-            })?;
-            (
-                b'p',
-                pcm_size_code(streaminfo.bits_per_sample),
-                rate,
-                b'2',                                          // always stereo
-                if fmt.needs_wav_hdr() { b'1' } else { b'0' }, // Wav/Rf64: little-endian, Lpcm: big-endian
+    let pcm = if fmt == StreamingFormat::Flac {
+        PcmFields {
+            format: b'f',
+            sample_size: b'?',
+            sample_rate: b'?',
+            channels: b'?',
+            endianness: b'?',
+        }
+    } else {
+        let rate = pcm_rate_code(streaminfo.sample_rate).ok_or_else(|| {
+            eco_format!(
+                "SlimProto: {} Hz has no strm pcm_sample_rate code",
+                streaminfo.sample_rate
             )
-        };
+        })?;
+        PcmFields {
+            format: b'p',
+            sample_size: pcm_size_code(streaminfo.bits_per_sample),
+            sample_rate: rate,
+            channels: b'2',                                            // always stereo
+            endianness: if fmt.needs_wav_hdr() { b'1' } else { b'0' }, // Wav/Rf64: little-endian, Lpcm: big-endian
+        }
+    };
 
     let mut payload = Vec::with_capacity(24 + request_line.len());
     payload.push(b's'); // command
     payload.push(b'1'); // autostart
-    payload.push(format);
-    payload.push(pcm_sample_size);
-    payload.push(pcm_sample_rate);
-    payload.push(pcm_channels);
-    payload.push(pcm_endianness);
+    payload.push(pcm.format);
+    payload.push(pcm.sample_size);
+    payload.push(pcm.sample_rate);
+    payload.push(pcm.channels);
+    payload.push(pcm.endianness);
     payload.push(0); // threshold: 0 KB, fine to autostart immediately
     payload.push(0); // spdif_enable
     payload.push(0); // transition_period

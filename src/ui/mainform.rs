@@ -249,7 +249,7 @@ impl AudioTab {
                     conf.sound_source_index = Some(index);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -291,7 +291,7 @@ impl AudioTab {
                     conf.streaming_format = Some(newformat);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
         fmt_choice
@@ -349,7 +349,7 @@ impl AudioTab {
                         "size" = &newsize
                     ),
                 );
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
         ss_choice
@@ -387,7 +387,7 @@ impl AudioTab {
                     conf.use_dither = Some(is_set);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
         b24_bit.set_callback({
@@ -411,7 +411,7 @@ impl AudioTab {
                     }
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
         (b24_bit, use_dither)
@@ -453,7 +453,7 @@ impl AudioTab {
                     conf.sample_rate = new_rate;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -483,7 +483,7 @@ impl AudioTab {
                     conf.inject_silence = Some(is_set);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -517,7 +517,7 @@ impl AudioTab {
                         conf.buffering_delay_msec = Some(b as u32);
                         let _ = conf.update_config();
                     }
-                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                    sb.set_text(&StatusTab::format_status(default_sample_rate));
                 }
             }
         });
@@ -551,7 +551,7 @@ impl AudioTab {
                         conf.latency_reduction_delay_msec = Some(d as u32);
                         let _ = conf.update_config();
                     }
-                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                    sb.set_text(&StatusTab::format_status(default_sample_rate));
                 }
             }
         });
@@ -585,7 +585,7 @@ impl AudioTab {
                         conf.latency_reduction_msec = Some(l as u32);
                         let _ = conf.update_config();
                     }
-                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                    sb.set_text(&StatusTab::format_status(default_sample_rate));
                 }
             }
         });
@@ -743,7 +743,7 @@ impl NetworkTab {
                     conf.last_network = Some(name);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -772,7 +772,7 @@ impl NetworkTab {
                         conf.server_port = Some(new_value as u16);
                         let _ = conf.update_config();
                     }
-                    sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                    sb.set_text(&StatusTab::format_status(default_sample_rate));
                     config_changed.set(true);
                 }
             }
@@ -814,7 +814,7 @@ impl NetworkTab {
                                 LogCategory::Warning,
                                 &fl!("warn-ssdp-changed", "interval" = ssdp_interval_mins),
                             );
-                            sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                            sb.set_text(&StatusTab::format_status(default_sample_rate));
                             config_changed.set(true);
                         }
                         true
@@ -935,7 +935,7 @@ impl AppTab {
                     conf.language = Some(lang);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -973,7 +973,7 @@ impl AppTab {
                     conf.color_theme = Some(new_theme);
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
         theme_button
@@ -1018,7 +1018,7 @@ impl AppTab {
                     LogCategory::Warning,
                     &fl!("warn-widget-style-changed", "style" = name),
                 );
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -1062,7 +1062,7 @@ impl AppTab {
                     conf.log_level = loglevel;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -1091,7 +1091,7 @@ impl AppTab {
                     conf.auto_resume = is_set;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
         auto_resume
@@ -1119,7 +1119,7 @@ impl AppTab {
                     conf.auto_reconnect = is_set;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
         auto_reconnect
@@ -1151,7 +1151,7 @@ impl AppTab {
                     conf.enable_slimproto = is_set;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
         });
@@ -1198,7 +1198,7 @@ impl AppTab {
                     conf.monitor_rms = run_rms;
                     let _ = conf.update_config();
                 }
-                sb.set_text(&MainForm::format_config_status(default_sample_rate));
+                sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
         (show_rms, rms_mon_l, rms_mon_r)
@@ -1340,10 +1340,114 @@ impl StatusTab {
                 ssb.set_text(&MainForm::build_status_style(&sb_ref.text()));
             });
         }
-        status_buf.set_text(&MainForm::format_config_status(default_sample_rate));
+        status_buf.set_text(&StatusTab::format_status(default_sample_rate));
         group.add(&status_display);
 
         StatusTab { group }
+    }
+
+    /// build the status tab text from the current config
+    fn format_status(default_sample_rate: u32) -> String {
+        let config = get_config();
+        let bool_icon = |b: bool| if b { "✓" } else { "✗" };
+
+        let audio = config.sound_source.as_deref().unwrap_or("-");
+        let format = config
+            .streaming_format
+            .map_or("lpcm".to_string(), |f| f.to_string());
+        let bits = config.bits_per_sample.unwrap_or(16);
+        let sample_rate = config.sample_rate.unwrap_or(default_sample_rate);
+        let streamsize = config
+            .streaming_format
+            .map_or(StreamSize::U64maxNotChunked, |fmt| {
+                config
+                    .stream_size_for(fmt)
+                    .unwrap_or(StreamSize::NoneChunked)
+            });
+        let buf_ms = config.buffering_delay_msec.unwrap_or(0);
+        let lat_delay_ms = config.latency_reduction_delay_msec.unwrap_or(0);
+        let lat_reduction_ms = config.latency_reduction_msec.unwrap_or(0);
+        let network = config.last_network.as_deref().unwrap_or("-");
+        let port = config.server_port.unwrap_or_default();
+        let ssdp = config.ssdp_interval_mins;
+        let lang = config.language.as_deref().unwrap_or("en-US");
+        let theme = config
+            .color_theme
+            .and_then(|i| THEMES.get(i as usize).copied())
+            .unwrap_or("-");
+        let style = config
+            .widget_scheme
+            .and_then(|i| STYLES.get(i as usize).copied())
+            .unwrap_or("-");
+        let log_level = config.log_level;
+
+        let mut s = String::with_capacity(512);
+        s.push_str(&fl!("audio-source-label", "name" = audio));
+        s.push('\n');
+        let _ = write!(
+            s,
+            "{}  {} bit  {} Hz",
+            fl!("fmt-label", "format" = &format),
+            bits,
+            sample_rate,
+        );
+        if bits == 16 {
+            let _ = write!(
+                s,
+                "  TPDF dither {}",
+                bool_icon(config.use_dither.unwrap_or(true))
+            );
+        }
+        s.push('\n');
+        s.push_str(&fl!("strmsize-label", "size" = streamsize));
+        let _ = writeln!(s, "   buffer: {buf_ms} ms");
+        if lat_reduction_ms > 0 {
+            let _ = writeln!(
+                s,
+                "   latency reduction: {lat_reduction_ms} ms after {lat_delay_ms} ms"
+            );
+        }
+        let _ = writeln!(
+            s,
+            "{}  {}",
+            fl!("chk-inject-silence"),
+            bool_icon(config.inject_silence.unwrap_or(false))
+        );
+        s.push('\n');
+        s.push_str(&fl!("active-network", "addr" = network));
+        s.push('\n');
+        let _ = writeln!(
+            s,
+            "{}  {}   SSDP: {} min",
+            fl!("http-port-label"),
+            port,
+            ssdp
+        );
+        s.push('\n');
+        s.push_str(&fl!("language-label", "lang" = lang));
+        s.push('\n');
+        let _ = writeln!(
+            s,
+            "{}   {}",
+            fl!("color-theme-label", "name" = theme),
+            fl!("widget-style-label", "style" = style)
+        );
+        s.push_str(&fl!("log-level-label", "level" = log_level));
+        s.push('\n');
+        s.push('\n');
+        let _ = writeln!(
+            s,
+            "{}  {}   {}  {}   {}  {}   {}  {}",
+            fl!("chk-autoresume"),
+            bool_icon(config.auto_resume),
+            fl!("chk-autoreconnect"),
+            bool_icon(config.auto_reconnect),
+            fl!("chk-rms-monitor"),
+            bool_icon(config.monitor_rms),
+            fl!("chk-enable-slimproto"),
+            bool_icon(config.enable_slimproto),
+        );
+        s
     }
 }
 
@@ -1667,111 +1771,7 @@ impl MainForm {
     /// refresh the status tab content from the current config
     pub fn refresh_status(&mut self) {
         self.status_buf
-            .set_text(&Self::format_config_status(self.default_sample_rate));
-    }
-
-    /// build the status tab text from the current config
-    fn format_config_status(default_sample_rate: u32) -> String {
-        let config = get_config();
-        let bool_icon = |b: bool| if b { "✓" } else { "✗" };
-
-        let audio = config.sound_source.as_deref().unwrap_or("-");
-        let format = config
-            .streaming_format
-            .map_or("lpcm".to_string(), |f| f.to_string());
-        let bits = config.bits_per_sample.unwrap_or(16);
-        let sample_rate = config.sample_rate.unwrap_or(default_sample_rate);
-        let streamsize = config
-            .streaming_format
-            .map_or(StreamSize::U64maxNotChunked, |fmt| {
-                config
-                    .stream_size_for(fmt)
-                    .unwrap_or(StreamSize::NoneChunked)
-            });
-        let buf_ms = config.buffering_delay_msec.unwrap_or(0);
-        let lat_delay_ms = config.latency_reduction_delay_msec.unwrap_or(0);
-        let lat_reduction_ms = config.latency_reduction_msec.unwrap_or(0);
-        let network = config.last_network.as_deref().unwrap_or("-");
-        let port = config.server_port.unwrap_or_default();
-        let ssdp = config.ssdp_interval_mins;
-        let lang = config.language.as_deref().unwrap_or("en-US");
-        let theme = config
-            .color_theme
-            .and_then(|i| THEMES.get(i as usize).copied())
-            .unwrap_or("-");
-        let style = config
-            .widget_scheme
-            .and_then(|i| STYLES.get(i as usize).copied())
-            .unwrap_or("-");
-        let log_level = config.log_level;
-
-        let mut s = String::with_capacity(512);
-        s.push_str(&fl!("audio-source-label", "name" = audio));
-        s.push('\n');
-        let _ = write!(
-            s,
-            "{}  {} bit  {} Hz",
-            fl!("fmt-label", "format" = &format),
-            bits,
-            sample_rate,
-        );
-        if bits == 16 {
-            let _ = write!(
-                s,
-                "  TPDF dither {}",
-                bool_icon(config.use_dither.unwrap_or(true))
-            );
-        }
-        s.push('\n');
-        s.push_str(&fl!("strmsize-label", "size" = streamsize));
-        let _ = writeln!(s, "   buffer: {buf_ms} ms");
-        if lat_reduction_ms > 0 {
-            let _ = writeln!(
-                s,
-                "   latency reduction: {lat_reduction_ms} ms after {lat_delay_ms} ms"
-            );
-        }
-        let _ = writeln!(
-            s,
-            "{}  {}",
-            fl!("chk-inject-silence"),
-            bool_icon(config.inject_silence.unwrap_or(false))
-        );
-        s.push('\n');
-        s.push_str(&fl!("active-network", "addr" = network));
-        s.push('\n');
-        let _ = writeln!(
-            s,
-            "{}  {}   SSDP: {} min",
-            fl!("http-port-label"),
-            port,
-            ssdp
-        );
-        s.push('\n');
-        s.push_str(&fl!("language-label", "lang" = lang));
-        s.push('\n');
-        let _ = writeln!(
-            s,
-            "{}   {}",
-            fl!("color-theme-label", "name" = theme),
-            fl!("widget-style-label", "style" = style)
-        );
-        s.push_str(&fl!("log-level-label", "level" = log_level));
-        s.push('\n');
-        s.push('\n');
-        let _ = writeln!(
-            s,
-            "{}  {}   {}  {}   {}  {}   {}  {}",
-            fl!("chk-autoresume"),
-            bool_icon(config.auto_resume),
-            fl!("chk-autoreconnect"),
-            bool_icon(config.auto_reconnect),
-            fl!("chk-rms-monitor"),
-            bool_icon(config.monitor_rms),
-            fl!("chk-enable-slimproto"),
-            bool_icon(config.enable_slimproto),
-        );
-        s
+            .set_text(&StatusTab::format_status(self.default_sample_rate));
     }
 
     /// apply a red/green color style to all cross/check marks

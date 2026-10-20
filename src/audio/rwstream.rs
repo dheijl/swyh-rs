@@ -278,19 +278,7 @@ impl ChannelStream {
             self.flac_fifo.append(&mut VecDeque::from(chunk));
         }
         // fill the buffer with the number of FLAC bytes needed from the fifo
-        let (s1, s2) = self.flac_fifo.as_slices();
-        let (l1, l2) = {
-            if s1.len() >= buf.len() {
-                (buf.len(), 0)
-            } else {
-                (s1.len(), buf.len() - s1.len())
-            }
-        };
-        debug_assert!(l1 + l2 == buf.len());
-        buf[..l1].copy_from_slice(&s1[..l1]);
-        if l2 > 0 {
-            buf[l1..].copy_from_slice(&s2[..l2]);
-        }
+        copy_fifo_front(&self.flac_fifo, buf);
         // remove the copied bytes from the front of the fifo
         self.flac_fifo.retain_back(self.flac_fifo.len() - buf.len());
         Ok(buf.len())
@@ -362,6 +350,24 @@ impl ChannelStream {
         // remove the consumed samples from the front of the fifo
         self.fifo.retain_back(self.fifo.len() - samples_needed);
         Ok(chunks_needed * buf_chunksize)
+    }
+}
+
+/// Copy `buf.len()` bytes from the front of `fifo` into `buf`.
+///
+/// `fifo` is a `VecDeque`, so its contents may be split across two
+/// underlying slices; this copies from both as needed.
+fn copy_fifo_front(fifo: &VecDeque<u8>, buf: &mut [u8]) {
+    let (s1, s2) = fifo.as_slices();
+    let (l1, l2) = if s1.len() >= buf.len() {
+        (buf.len(), 0)
+    } else {
+        (s1.len(), buf.len() - s1.len())
+    };
+    debug_assert!(l1 + l2 == buf.len());
+    buf[..l1].copy_from_slice(&s1[..l1]);
+    if l2 > 0 {
+        buf[l1..].copy_from_slice(&s2[..l2]);
     }
 }
 
@@ -857,5 +863,84 @@ mod tests {
         };
         let b2 = { &((i32::from_sample(f32_sample) >> 8).to_be_bytes())[1..] };
         assert_eq!(b1, b2);
+    }
+
+    /// Build a full `VecDeque<u8>` (`len() == cap`) holding `values` in logical
+    /// order, whose live range is physically split at `head_offset` bytes
+    /// from the end of its backing storage (via push/pop churn that never
+    /// exceeds `cap`, so no reallocation straightens it out), giving
+    /// `as_slices()` two non-empty slices: `cap - head_offset` bytes then
+    /// `head_offset` bytes.
+    fn wrapped_fifo(cap: usize, head_offset: usize, values: &[u8]) -> VecDeque<u8> {
+        assert_eq!(values.len(), cap);
+        assert!(head_offset > 0 && head_offset < cap);
+        let mut fifo: VecDeque<u8> = VecDeque::with_capacity(cap);
+        for v in 0..cap as u8 {
+            fifo.push_back(v);
+        }
+        for _ in 0..head_offset {
+            fifo.pop_front();
+        }
+        for v in 0..head_offset as u8 {
+            fifo.push_back(v);
+        }
+        for (i, &v) in values.iter().enumerate() {
+            fifo[i] = v;
+        }
+        fifo
+    }
+
+    #[test]
+    fn test_copy_fifo_front_split_across_wrap() {
+        let values: Vec<u8> = (10..=80).step_by(10).collect();
+        let fifo = wrapped_fifo(8, 6, &values);
+        assert_eq!(fifo.as_slices().0.len(), 2);
+        assert_eq!(fifo.as_slices().1.len(), 6);
+
+        // buf spans both the 2-byte first slice and part of the second
+        let mut buf = [0u8; 4];
+        copy_fifo_front(&fifo, &mut buf);
+        assert_eq!(buf, [10, 20, 30, 40]);
+    }
+
+    #[test]
+    fn test_copy_fifo_front_entirely_from_first_slice() {
+        let values: Vec<u8> = (10..=80).step_by(10).collect();
+        let fifo = wrapped_fifo(8, 6, &values);
+
+        let mut buf = [0u8; 2];
+        copy_fifo_front(&fifo, &mut buf);
+        assert_eq!(buf, [10, 20]);
+    }
+
+    #[test]
+    fn test_copy_fifo_front_exact_fifo_len() {
+        let values: Vec<u8> = (10..=80).step_by(10).collect();
+        let fifo = wrapped_fifo(8, 6, &values);
+
+        let mut buf = [0u8; 8];
+        copy_fifo_front(&fifo, &mut buf);
+        assert_eq!(buf, values.as_slice());
+    }
+
+    #[test]
+    fn test_copy_fifo_front_contiguous_no_wrap() {
+        let mut fifo: VecDeque<u8> = VecDeque::new();
+        fifo.extend([1, 2, 3, 4]);
+        assert!(fifo.as_slices().1.is_empty());
+
+        let mut buf = [0u8; 3];
+        copy_fifo_front(&fifo, &mut buf);
+        assert_eq!(buf, [1, 2, 3]);
+    }
+
+    #[test]
+    fn test_copy_fifo_front_empty_buf() {
+        let values: Vec<u8> = (10..=80).step_by(10).collect();
+        let fifo = wrapped_fifo(8, 6, &values);
+
+        let mut buf: [u8; 0] = [];
+        copy_fifo_front(&fifo, &mut buf);
+        assert_eq!(buf, [] as [u8; 0]);
     }
 }

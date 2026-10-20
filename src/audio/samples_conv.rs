@@ -19,13 +19,13 @@ use crate::enums::streaming::{BitDepth, Dither};
 /// conversion constant for f32 sample to i32
 const F32_TO_I32: f32 = (i32::MAX as f32) + 1.0;
 /// XMM register constant
-static F32_TO_I32_SIMD: f32x4 = f32x4::splat(F32_TO_I32);
+const F32_TO_I32_SIMD: f32x4 = f32x4::splat(F32_TO_I32);
 /// f32 clamp rails — applied before quantization so out-of-range samples (which WASAPI
 /// shared-mode mixing can produce on intersample peaks) clip to full scale instead of
 /// relying on `wide`'s post-conversion saturation. Makes the stereo passthrough path
 /// behave identically to the downmix path, which already clamps.
-static CLAMP_HI: f32x4 = f32x4::splat(1.0);
-static CLAMP_LO: f32x4 = f32x4::splat(-1.0);
+const CLAMP_HI: f32x4 = f32x4::splat(1.0);
+const CLAMP_LO: f32x4 = f32x4::splat(-1.0);
 
 /// One LSB at 16-bit, expressed in the post-multiply (i32-scaled) f32 domain.
 /// `F32_TO_I32 / 2^15 == 2^31 / 2^15 == 2^16 == 65536.0`.
@@ -37,11 +37,11 @@ const LSB_AT_16BIT_POST_MULT: f32 = 65536.0;
 /// −0.5 LSB DC bias regardless of sign — defeating the whole purpose of
 /// round-to-nearest. Adding 32768 before the shift converts floor-shift into
 /// round-to-nearest-shift.
-static HALF_LSB_16_SIMD: f32x4 = f32x4::splat(32_768.0);
+const HALF_LSB_16_SIMD: f32x4 = f32x4::splat(32_768.0);
 /// Half-LSB nudge at 24-bit (= 2^7). Same logic as the 16-bit case; the bias would
 /// be ~−178 dBFS so it's inaudible, but applying the nudge anyway keeps both code
 /// paths unbiased and the math symmetric.
-static HALF_LSB_24_SIMD: f32x4 = f32x4::splat(128.0);
+const HALF_LSB_24_SIMD: f32x4 = f32x4::splat(128.0);
 
 /// Turn 32 bytes of raw RNG output (4 WyRand `u64`s) into one f32x4 of triangular-PDF
 /// (TPDF) dither for 16-bit quantization, in the post-multiply f32 domain. Each lane is
@@ -65,6 +65,7 @@ fn tpdf_dither_lanes_16_from_bytes(buf: [u8; 32]) -> f32x4 {
     // MUL·LSB collapses to 2^-15 exactly (65536.0 / 2^31 == 2^-15), so the [0, 1) scale
     // and the LSB scale combine into a single constant applied once, after the subtract.
     const COMBINED_SCALE: f32 = LSB_AT_16BIT_POST_MULT / (1u32 << 31) as f32;
+    const COMBINED_SCALE_SIMD: f32x4 = f32x4::splat(COMBINED_SCALE);
 
     let mut u1 = [0.0f32; 4];
     let mut u2 = [0.0f32; 4];
@@ -76,7 +77,7 @@ fn tpdf_dither_lanes_16_from_bytes(buf: [u8; 32]) -> f32x4 {
         u2[i] = ((word >> 32) as u32 >> 1) as f32;
     }
 
-    (f32x4::new(u1) - f32x4::new(u2)) * f32x4::splat(COMBINED_SCALE)
+    (f32x4::new(u1) - f32x4::new(u2)) * COMBINED_SCALE_SIMD
 }
 
 /// Generate one f32x4 of TPDF dither, reading from `fastrand`'s per-thread RNG.

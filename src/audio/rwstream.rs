@@ -357,7 +357,10 @@ impl ChannelStream {
 ///
 /// `fifo` is a `VecDeque`, so its contents may be split across two
 /// underlying slices; this copies from both as needed.
+/// the fifo instance here is guaranteed to contain at least
+/// buf.len() bytes by the caller
 fn copy_fifo_front(fifo: &VecDeque<u8>, buf: &mut [u8]) {
+    debug_assert!(fifo.len() >= buf.len());
     let (s1, s2) = fifo.as_slices();
     let (l1, l2) = if s1.len() >= buf.len() {
         (buf.len(), 0)

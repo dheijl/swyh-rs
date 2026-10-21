@@ -592,5 +592,69 @@ mod tests {
         assert_eq!(cfg.inject_silence, Some(false));
         assert_eq!(cfg.buffering_delay_msec, Some(0));
         assert_eq!(cfg.sound_source_index, Some(0));
+        assert_eq!(cfg.latency_reduction_delay_msec, Some(0));
+        assert_eq!(cfg.latency_reduction_msec, Some(0));
+        assert_eq!(cfg.config_id, Some(String::new()));
+    }
+
+    #[test]
+    fn malformed_config_falls_back_to_defaults() {
+        // server_port expects an integer; a string value makes the whole
+        // [configuration] table fail to deserialize, so read_config_from
+        // should discard it entirely and fall back to Configuration::new().
+        let f = temp_toml("[configuration]\nserver_port = \"not-a-port\"\n");
+        let cfg = Configuration::read_config_from(f.path()).unwrap();
+        assert_eq!(cfg.server_port, Some(SERVER_PORT));
+        assert_eq!(cfg.bits_per_sample, Some(16));
+        assert_eq!(cfg.capture_timeout, Some(2000));
+        assert_eq!(cfg.sound_source_index, Some(0));
+    }
+
+    #[test]
+    fn missing_fields_are_persisted_to_disk() {
+        let f = temp_toml("[configuration]\n");
+        let _cfg = Configuration::read_config_from(f.path()).unwrap();
+        let written = fs::read_to_string(f.path()).unwrap();
+        assert!(written.contains("capture_timeout = 2000"), "{written}");
+        assert!(written.contains("buffering_delay_msec = 0"), "{written}");
+        assert!(written.contains("sound_source_index = 0"), "{written}");
+    }
+
+    #[test]
+    fn stream_size_for_reads_matching_field() {
+        let mut cfg = Configuration::new();
+        cfg.lpcm_stream_size = Some(StreamSize::U64maxNotChunked);
+        cfg.wav_stream_size = Some(StreamSize::U32maxNotChunked);
+        cfg.rf64_stream_size = Some(StreamSize::NoneChunked);
+        cfg.flac_stream_size = Some(StreamSize::U32maxNotChunked);
+        assert_eq!(
+            cfg.stream_size_for(StreamingFormat::Lpcm),
+            Some(StreamSize::U64maxNotChunked)
+        );
+        assert_eq!(
+            cfg.stream_size_for(StreamingFormat::Wav),
+            Some(StreamSize::U32maxNotChunked)
+        );
+        assert_eq!(
+            cfg.stream_size_for(StreamingFormat::Rf64),
+            Some(StreamSize::NoneChunked)
+        );
+        assert_eq!(
+            cfg.stream_size_for(StreamingFormat::Flac),
+            Some(StreamSize::U32maxNotChunked)
+        );
+    }
+
+    #[test]
+    fn set_stream_size_for_updates_matching_field() {
+        let mut cfg = Configuration::new();
+        cfg.set_stream_size_for(StreamingFormat::Lpcm, StreamSize::NoneChunked);
+        cfg.set_stream_size_for(StreamingFormat::Wav, StreamSize::NoneChunked);
+        cfg.set_stream_size_for(StreamingFormat::Rf64, StreamSize::NoneChunked);
+        cfg.set_stream_size_for(StreamingFormat::Flac, StreamSize::U64maxNotChunked);
+        assert_eq!(cfg.lpcm_stream_size, Some(StreamSize::NoneChunked));
+        assert_eq!(cfg.wav_stream_size, Some(StreamSize::NoneChunked));
+        assert_eq!(cfg.rf64_stream_size, Some(StreamSize::NoneChunked));
+        assert_eq!(cfg.flac_stream_size, Some(StreamSize::U64maxNotChunked));
     }
 }

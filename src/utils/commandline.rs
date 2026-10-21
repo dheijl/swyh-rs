@@ -68,8 +68,7 @@ Recognized options:
     -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
     -v (--volume) u8 : desired player volume between 0 and 100 [unchanged]
     -u (--upfront_buffer) u32 : initial buffering in milliseconds [0]
-    -g (--latency_reduction_delay) u32 : wait this many msec after connecting before dropping audio to reduce latency, giving the renderer's own buffer time to fill [0]
-    -D (--latency_reduction) u32 : once latency_reduction_delay has elapsed, drop this many msec of audio to reduce playback latency [0]
+    -D (--latency_reduction) delay_ms,drop_ms : wait delay_ms msec after connecting (giving the renderer's own buffer time to fill), then drop drop_ms msec of audio to reduce playback latency [0,0]
     -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
     -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
     -d (--dither) bool : use TPDF dither for 16-bit output [true]
@@ -261,21 +260,27 @@ Recognized options:
                         }
                     }
                 }
-                Short('g') | Long("latency_reduction_delay") => {
-                    if let Ok(ms) = argparser.value() {
-                        match ms.parse::<u32>() {
-                            Ok(m) => self.latency_reduction_delay = Some(m),
-                            Err(x) => {
-                                errors.push(format!("Invalid latency reduction delay msec: {x}."));
-                            }
-                        }
-                    }
-                }
                 Short('D') | Long("latency_reduction") => {
-                    if let Ok(ms) = argparser.value() {
-                        match ms.parse::<u32>() {
-                            Ok(m) => self.latency_reduction = Some(m),
-                            Err(x) => errors.push(format!("Invalid latency reduction msec: {x}.")),
+                    if let Ok(v) = argparser.value() {
+                        let value = v.string().unwrap_or_default();
+                        match value.split_once(',') {
+                            Some((delay, drop)) => {
+                                match delay.parse::<u32>() {
+                                    Ok(d) => self.latency_reduction_delay = Some(d),
+                                    Err(x) => errors.push(format!(
+                                        "Invalid latency reduction delay msec: {x}."
+                                    )),
+                                }
+                                match drop.parse::<u32>() {
+                                    Ok(m) => self.latency_reduction = Some(m),
+                                    Err(x) => {
+                                        errors.push(format!("Invalid latency reduction msec: {x}."));
+                                    }
+                                }
+                            }
+                            None => errors.push(format!(
+                                "Invalid latency_reduction value '{value}': expected 'delay_ms,drop_ms' (e.g. 300,200)."
+                            )),
                         }
                     }
                 }
@@ -674,35 +679,47 @@ mod tests {
         assert!(errs.iter().any(|e| e.contains("Invalid upfront buffer")));
     }
 
-    // --- latency_reduction_delay ---
+    // --- latency_reduction (combined delay_ms,drop_ms) ---
 
     #[test]
-    fn latency_reduction_delay_valid() {
-        let a = parse(&["prog", "-g", "300"]).unwrap();
+    fn latency_reduction_valid() {
+        let a = parse(&["prog", "-D", "300,200"]).unwrap();
         assert_eq!(a.latency_reduction_delay, Some(300));
+        assert_eq!(a.latency_reduction, Some(200));
     }
 
     #[test]
-    fn latency_reduction_delay_invalid() {
-        let errs = parse(&["prog", "-g", "abc"]).unwrap_err();
+    fn latency_reduction_long_flag() {
+        let a = parse(&["prog", "--latency_reduction", "300,200"]).unwrap();
+        assert_eq!(a.latency_reduction_delay, Some(300));
+        assert_eq!(a.latency_reduction, Some(200));
+    }
+
+    #[test]
+    fn latency_reduction_invalid_delay() {
+        let errs = parse(&["prog", "-D", "abc,200"]).unwrap_err();
         assert!(
             errs.iter()
                 .any(|e| e.contains("Invalid latency reduction delay"))
         );
     }
 
-    // --- latency_reduction ---
-
     #[test]
-    fn latency_reduction_valid() {
-        let a = parse(&["prog", "-D", "200"]).unwrap();
-        assert_eq!(a.latency_reduction, Some(200));
+    fn latency_reduction_invalid_drop() {
+        let errs = parse(&["prog", "-D", "300,abc"]).unwrap_err();
+        assert!(
+            errs.iter()
+                .any(|e| e.contains("Invalid latency reduction msec"))
+        );
     }
 
     #[test]
-    fn latency_reduction_invalid() {
-        let errs = parse(&["prog", "-D", "abc"]).unwrap_err();
-        assert!(errs.iter().any(|e| e.contains("Invalid latency reduction")));
+    fn latency_reduction_missing_comma() {
+        let errs = parse(&["prog", "-D", "300"]).unwrap_err();
+        assert!(
+            errs.iter()
+                .any(|e| e.contains("Invalid latency_reduction value"))
+        );
     }
 
     // --- sample_rate ---

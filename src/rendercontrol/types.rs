@@ -141,6 +141,38 @@ pub struct Renderer {
     pub(super) play_pending: Arc<AtomicBool>,
 }
 
+/// Decide which (if any) UPnP renderer a `StreamerFeedBack`/`ChannelStream`
+/// belongs to, given its remote IP and its `is_slim` marker (see
+/// `StreamingContext::slim`), against the IPs of the currently-known UPnP
+/// renderers (in `get_renderers()` order).
+///
+/// Returns `None` — a deliberate no-op, never a panic/unwrap — when:
+/// * the feedback is SlimProto's own (`is_slim == true`): it was never a UPnP
+///   renderer's traffic in the first place, no matter what shares its IP;
+/// * no UPnP renderer's IP matches at all (e.g. a manually-entered stream URL
+///   fetched by something that isn't one of our discovered renderers
+/// * more than one UPnP renderer shares this IP (ambiguous — matches the
+///   pre-existing "Bubble UPnP same-IP" bail-out behaviour).
+pub fn match_upnp_renderer_index<'a>(
+    is_slim: bool,
+    feedback_ip: &str,
+    upnp_renderer_ips: impl Iterator<Item = &'a str>,
+) -> Option<usize> {
+    if is_slim {
+        return None;
+    }
+    let mut found: Option<usize> = None;
+    for (i, ip) in upnp_renderer_ips.enumerate() {
+        if ip == feedback_ip {
+            if found.is_some() {
+                return None;
+            }
+            found = Some(i);
+        }
+    }
+    found
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,6 +199,55 @@ mod tests {
             url.insert(0, '/');
         }
         assert_eq!(url, "/A/.url");
+    }
+
+    #[test]
+    fn match_upnp_renderer_index_single_match() {
+        let ips = ["192.168.1.10", "192.168.1.20"];
+        assert_eq!(
+            match_upnp_renderer_index(false, "192.168.1.10", ips.into_iter()),
+            Some(0)
+        );
+        assert_eq!(
+            match_upnp_renderer_index(false, "192.168.1.20", ips.into_iter()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn match_upnp_renderer_index_ambiguous_same_ip() {
+        let ips = ["192.168.1.10", "192.168.1.10"];
+        assert_eq!(
+            match_upnp_renderer_index(false, "192.168.1.10", ips.into_iter()),
+            None
+        );
+    }
+
+    #[test]
+    fn match_upnp_renderer_index_slim_feedback_ignored() {
+        let ips = ["192.168.1.10"];
+        assert_eq!(
+            match_upnp_renderer_index(true, "192.168.1.10", ips.into_iter()),
+            None
+        );
+    }
+
+    #[test]
+    fn match_upnp_renderer_index_no_match() {
+        let ips = ["192.168.1.10"];
+        assert_eq!(
+            match_upnp_renderer_index(false, "192.168.1.99", ips.into_iter()),
+            None
+        );
+    }
+
+    #[test]
+    fn match_upnp_renderer_index_empty_list() {
+        let ips: [&str; 0] = [];
+        assert_eq!(
+            match_upnp_renderer_index(false, "192.168.1.10", ips.into_iter()),
+            None
+        );
     }
 
     #[test]

@@ -104,7 +104,7 @@ impl SlimRenderer {
             .lock()
             .expect("SlimRenderer write_stream mutex poisoned")
             .write_all(frame);
-        stop_clients_by_ip(&self.remote_addr);
+        stop_clients_by_ip(&self.remote_addr, true);
         result
     }
 

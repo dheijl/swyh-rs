@@ -26,6 +26,8 @@ use tiny_http_dh::{Header, Method, PoolConfig, Request, Response, Server, Status
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StreamerFeedBack {
     pub remote_ip: EcoString,
+    /// Set from `StreamingContext::slim` — see `ChannelStream::is_slim`.
+    pub is_slim: bool,
     pub streaming_state: StreamingState,
 }
 
@@ -213,6 +215,7 @@ fn streaming_request(
     feedback_channel
         .send(MessageType::PlayerMessage(StreamerFeedBack {
             remote_ip: streaming_ctx.remote_ip.clone(),
+            is_slim: streaming_ctx.slim,
             streaming_state: StreamingState::Started,
         }))
         .unwrap_or_else(|e| {
@@ -272,6 +275,7 @@ fn streaming_request(
     feedback_channel
         .send(MessageType::PlayerMessage(StreamerFeedBack {
             remote_ip: streaming_ctx.remote_ip.clone(),
+            is_slim: streaming_ctx.slim,
             streaming_state: StreamingState::Ended,
         }))
         .unwrap_or_else(|e| {

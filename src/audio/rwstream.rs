@@ -70,6 +70,10 @@ pub struct ChannelStream {
     pub s: Sender<AudioSamples>,
     pub r: Receiver<AudioSamples>,
     pub remote_ip: EcoString,
+    /// Set from `StreamingContext::slim` — distinguishes a SlimProto
+    /// `strm`-triggered fetch from a UPnP renderer's own fetch, even when
+    /// both share the same `remote_ip` (e.g. MoOde exposing both).
+    pub is_slim: bool,
     pub streaming_format: StreamingFormat,
     fifo: VecDeque<f32>,
     flac_fifo: VecDeque<u8>,
@@ -162,6 +166,7 @@ impl ChannelStream {
             capture_timeout: Duration::from_millis(capture_timeout), // silence kicks in after CAPTURE_TIMEOUT seconds
             sending_silence: false,
             remote_ip: context.remote_ip.clone(),
+            is_slim: context.slim,
             wav_hdr,
             use_wave_format: context.needs_wav_hdr(),
             bits_per_sample: context.bits_per_sample as u16,

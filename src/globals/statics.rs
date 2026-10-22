@@ -117,9 +117,15 @@ pub fn remove_client(remote_addr: &str) -> (Option<ChannelStream>, usize) {
 /// a SlimProto renderer is told to stop or its control connection drops:
 /// unlike a UPnP renderer, there's no guarantee the client actually closes
 /// the HTTP data connection on its own.
-pub fn stop_clients_by_ip(ip: &str) {
+///
+/// `is_slim` is also matched against each client's own
+/// [`ChannelStream::is_slim`]: a UPnP renderer sharing `ip` with a SlimProto
+/// client (e.g. MoOde exposing both) has its own, unrelated stream, which
+/// must survive a SlimProto-triggered stop at that IP. All current callers
+/// are SlimProto-only contexts and pass `true`.
+pub fn stop_clients_by_ip(ip: &str, is_slim: bool) {
     for client in CLIENTS.load().values() {
-        if client.remote_ip == ip {
+        if client.remote_ip == ip && client.is_slim == is_slim {
             client.request_stop();
         }
     }

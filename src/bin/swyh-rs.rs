@@ -24,7 +24,7 @@ use swyh_rs::{
         get_msgchannel, get_renderers, get_renderers_mut, get_slim_renderers,
         get_slim_renderers_mut, stop_clients_by_ip,
     },
-    rendercontrol::{Renderer, StreamInfo, WavData},
+    rendercontrol::{StreamInfo, WavData, match_upnp_renderer_index},
     server::streaming_server::{StreamerFeedBack, run_server},
     ui::mainform::MainForm,
     utils::{
@@ -272,7 +272,7 @@ fn main() {
                         LogCategory::Info,
                         &format!("SlimProto client {remote_addr} disconnected"),
                     );
-                    stop_clients_by_ip(&remote_addr);
+                    stop_clients_by_ip(&remote_addr, true);
                     // guard against a reconnect having already refreshed
                     // this renderer's peer_port before this (necessarily
                     // racy) message got processed — a stale notification
@@ -661,30 +661,24 @@ fn handle_player_message(
     local_addr: &IpAddr,
 ) {
     // A device that exposes both a UPnP renderer and a SlimProto client at
-    // the same IP (e.g. MoOde) can trigger this feedback via either path:
-    // a SlimProto-driven /stream/swyh.* fetch shares `remote_ip` with the
-    // UPnP renderer's own SOAP-triggered fetch, and streaming_server.rs
-    // can't tell them apart. If a SlimProto renderer at this IP is
-    // currently playing, this feedback almost certainly belongs to that
-    // session — don't let it light up or auto-resume the wrong (UPnP)
-    // button.
-    let slim_playing_here = get_slim_renderers()
+    // the same IP (e.g. MoOde) can trigger this feedback via either path.
+    // `streamer_feedback.is_slim` tells us precisely which one this is, so
+    // route SlimProto's own feedback (or an ambiguous/absent UPnP match —
+    // see `match_upnp_renderer_index`) away from the UPnP button/state below.
+    let renderers = get_renderers();
+    let ips: Vec<String> = renderers
         .iter()
-        .any(|r| r.remote_addr == streamer_feedback.remote_ip && r.playing);
-    if slim_playing_here {
-        return;
-    }
-    // check for multiple renderers at same ip address (Bubble UPnP)
-    let mut same_ip: Vec<Renderer> = get_renderers()
-        .iter()
-        .filter(|r| r.controller.remote_addr == streamer_feedback.remote_ip)
-        .cloned()
+        .map(|r| r.controller.remote_addr.to_string())
         .collect();
-    // the following only works for players with a unique IP address
-    if same_ip.len() != 1 {
+    let Some(idx) = match_upnp_renderer_index(
+        streamer_feedback.is_slim,
+        &streamer_feedback.remote_ip,
+        ips.iter().map(String::as_str),
+    ) else {
         return;
-    }
-    let renderer = &mut same_ip[0];
+    };
+    let renderer = renderers[idx].clone();
+    drop(renderers); // release the RENDERERS read lock before further work
     let Some(mut button) = renderer.rend_ui.button.clone() else {
         return;
     };
@@ -696,9 +690,9 @@ fn handle_player_message(
         StreamingState::Ended => {
             // check if the renderer has actually not started streaming again
             // as this can happen with Bubble/Nest Audio OpenHome
-            let still_streaming = get_clients()
-                .values()
-                .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
+            let still_streaming = get_clients().values().any(|chanstrm| {
+                chanstrm.remote_ip == streamer_feedback.remote_ip && !chanstrm.is_slim
+            });
             if still_streaming {
                 button.set(true);
                 update_playstate(&streamer_feedback.remote_ip, true);

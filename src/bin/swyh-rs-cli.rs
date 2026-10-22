@@ -378,7 +378,7 @@ fn main() -> Result<(), i32> {
                         LogCategory::Info,
                         &format!("SlimProto client {remote_addr} disconnected"),
                     );
-                    stop_clients_by_ip(&remote_addr);
+                    stop_clients_by_ip(&remote_addr, true);
                     if let Some(r) = get_slim_renderers_mut()
                         .iter_mut()
                         .find(|r| r.remote_addr == remote_addr && r.peer_port == peer_port)
@@ -389,20 +389,16 @@ fn main() -> Result<(), i32> {
                 MessageType::PlayerMessage(streamer_feedback) => {
                     // a device that exposes both a UPnP renderer and a SlimProto
                     // client at the same IP (e.g. MoOde) can trigger this feedback
-                    // via either path, and streaming_server.rs can't tell them
-                    // apart; if a SlimProto renderer at this IP is currently
-                    // playing, this feedback almost certainly belongs to that
-                    // session, so don't let it drive DLNA auto-resume
-                    let slim_playing_here = get_slim_renderers()
-                        .iter()
-                        .any(|r| r.remote_addr == streamer_feedback.remote_ip && r.playing);
-                    if !slim_playing_here
+                    // via either path; `streamer_feedback.is_slim` tells us
+                    // precisely which one this is, so don't let SlimProto's own
+                    // feedback drive DLNA auto-resume
+                    if !streamer_feedback.is_slim
                         && let StreamingState::Ended = streamer_feedback.streaming_state
                         && !serve_only
                     {
-                        let still_streaming = get_clients()
-                            .values()
-                            .any(|chanstrm| chanstrm.remote_ip == streamer_feedback.remote_ip);
+                        let still_streaming = get_clients().values().any(|chanstrm| {
+                            chanstrm.remote_ip == streamer_feedback.remote_ip && !chanstrm.is_slim
+                        });
                         if !still_streaming && autoresume {
                             // clone the renderer out of the lock before doing any
                             // (blocking) network I/O, so a slow/unresponsive renderer
@@ -983,7 +979,7 @@ fn shutdown_ctrlc(serve_only: bool, player: Option<&Renderer>, playing: Vec<Rend
             for mut pl in playing {
                 if get_clients()
                     .values()
-                    .any(|cs| cs.remote_ip == pl.controller.remote_addr)
+                    .any(|cs| cs.remote_ip == pl.controller.remote_addr && !cs.is_slim)
                 {
                     println!(
                         "{}",

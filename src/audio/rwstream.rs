@@ -70,15 +70,13 @@ pub struct ChannelStream {
     pub s: Sender<AudioSamples>,
     pub r: Receiver<AudioSamples>,
     pub remote_ip: EcoString,
-    /// Set from `StreamingContext::slim` — distinguishes a SlimProto
-    /// `strm`-triggered fetch from a UPnP renderer's own fetch, even when
+    /// distinguishes a SlimProto fetch from an UPnP fetch when
     /// both share the same `remote_ip` (e.g. MoOde exposing both).
     pub is_slim: bool,
     pub streaming_format: StreamingFormat,
     fifo: VecDeque<f32>,
     flac_fifo: VecDeque<u8>,
-    // Arc'd so the derived Clone (one per client connect, see `run_server`) is O(1)
-    // instead of duplicating a buffer that can be sizeable at high sample rates
+    // Arc'd to prevent copying when Cloning in the server
     silence: Arc<[f32]>,
     capture_timeout: Duration,
     sending_silence: bool,
@@ -89,32 +87,16 @@ pub struct ChannelStream {
     flac_channel: Option<FlacChannel>,
     /// Set by [`Self::request_stop`] to make `Read::read` return EOF on the
     /// next call, ending the HTTP response even if the client itself never
-    /// closes its end of the connection (e.g. a SlimProto client that stops
-    /// decoding on `strm 'q'` but leaves the TCP connection open) — without
-    /// this, a stalled write to that socket can block the streaming thread
-    /// indefinitely, leaking a `CLIENTS` entry forever. `Arc`'d so every
-    /// clone (the `CLIENTS` map's copy and the one actually being read by
-    /// the streaming thread, see `run_server`) shares the same flag.
+    /// closes its end of the connection
+    /// The Arcs following make sure any clone sees the same values
     stop: Arc<AtomicBool>,
-    /// When this client connected — used to gate the latency-reduction drop
-    /// (see `drop_samples_remaining`) behind `drop_delay`, so it only kicks in
-    /// once the renderer's own buffer has plausibly filled and playback has
-    /// actually started.
+    /// When this client connected — to compute delay before latency drop starts
     connected_at: Instant,
     /// How long to wait after `connected_at` before dropping samples.
     drop_delay: Duration,
-    /// Number of samples still to discard (in whole incoming chunks, see
-    /// `write`) to reduce this client's playback latency. `Arc`'d for the
-    /// same reason as `stop`: every clone of this `ChannelStream` must see
-    /// the same countdown.
+    /// Number of samples still to discard in whole incoming chunks
     drop_samples_remaining: Arc<AtomicUsize>,
-    /// Count of consecutive chunks dropped since the last pass-through (see
-    /// `next_drop_decision`): drops `DROPS_PER_CYCLE` eligible chunks, then
-    /// forwards 1, repeating. Without the periodic pass-through, a drop
-    /// window larger than `capture_timeout` would starve our own receiver
-    /// long enough to spuriously trip the silence fallback in
-    /// `get_samples`, which would add latency instead of reducing it.
-    /// `Arc`'d for the same reason as `drop_samples_remaining`.
+    /// Count of consecutive chunks dropped since the last pass-through
     drop_streak: Arc<AtomicUsize>,
 }
 

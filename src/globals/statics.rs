@@ -4,8 +4,8 @@
 use std::sync::{Arc, LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
 
 use crate::{
-    audio::rwstream::ChannelStream, enums::messages::MessageType, rendercontrol::Renderer,
-    slimproto::types::SlimRenderer, utils::configuration::Configuration,
+    audio::rwstream::ChannelStream, enums::messages::MessageType,
+    globals::renderer_kind::RendererKind, utils::configuration::Configuration,
 };
 
 use arc_swap::{ArcSwap, Guard};
@@ -131,27 +131,14 @@ pub fn stop_clients_by_ip(ip: &str, is_slim: bool) {
     }
 }
 
-/// all currently known renderers as discovered by SSDP
-static RENDERERS: LazyLock<RwLock<Vec<Renderer>>> = LazyLock::new(|| RwLock::new(Vec::new()));
-pub fn get_renderers() -> RwLockReadGuard<'static, Vec<Renderer>> {
+/// all currently known renderers, UPnP (discovered via SSDP) and SlimProto
+/// (added on `HELO`) alike, in discovery order
+static RENDERERS: LazyLock<RwLock<Vec<RendererKind>>> = LazyLock::new(|| RwLock::new(Vec::new()));
+pub fn get_renderers() -> RwLockReadGuard<'static, Vec<RendererKind>> {
     RENDERERS.read().expect("RENDERERS read lock poisoned")
 }
-pub fn get_renderers_mut() -> RwLockWriteGuard<'static, Vec<Renderer>> {
+pub fn get_renderers_mut() -> RwLockWriteGuard<'static, Vec<RendererKind>> {
     RENDERERS.write().expect("RENDERERS write lock poisoned")
-}
-
-/// all currently known SlimProto (squeezelite) renderers, added on `HELO`
-static SLIM_RENDERERS: LazyLock<RwLock<Vec<SlimRenderer>>> =
-    LazyLock::new(|| RwLock::new(Vec::new()));
-pub fn get_slim_renderers() -> RwLockReadGuard<'static, Vec<SlimRenderer>> {
-    SLIM_RENDERERS
-        .read()
-        .expect("SLIM_RENDERERS read lock poisoned")
-}
-pub fn get_slim_renderers_mut() -> RwLockWriteGuard<'static, Vec<SlimRenderer>> {
-    SLIM_RENDERERS
-        .write()
-        .expect("SLIM_RENDERERS write lock poisoned")
 }
 
 /// the global GUI logger textbox channel used by all threads

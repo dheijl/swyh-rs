@@ -3,7 +3,8 @@
 //! connected [`SlimRenderer`].
 
 use crate::enums::messages::MessageType;
-use crate::globals::statics::{THREAD_STACK, get_msgchannel, get_slim_renderers_mut};
+use crate::globals::RendererKind;
+use crate::globals::statics::{THREAD_STACK, get_msgchannel, get_renderers_mut};
 use crate::slimproto::parse_frames::{self, Frame};
 use crate::slimproto::types::SlimRenderer;
 use anyhow::{Context, Result};
@@ -100,9 +101,11 @@ fn handle_connection(mut stream: TcpStream) {
                 // dropping the HELO, so playback commands sent after a
                 // reconnect land on the live connection instead of a dead one
                 {
-                    let mut renderers = get_slim_renderers_mut();
-                    if let Some(existing) =
-                        renderers.iter_mut().find(|r| r.remote_addr == remote_addr)
+                    let mut renderers = get_renderers_mut();
+                    if let Some(existing) = renderers
+                        .iter_mut()
+                        .filter_map(RendererKind::as_slim_mut)
+                        .find(|r| r.remote_addr == remote_addr)
                     {
                         log::info!(
                             "SlimProto {peer}: renderer {remote_addr} reconnected, refreshing write handle"

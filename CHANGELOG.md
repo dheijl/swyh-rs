@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.21.1 (unreleased)
+  - refactor: merge UPnP and SlimProto renderer lists into one list of RenderKind enum
   - refactor ui code
   - small optimization in RMS computation
   - audio capture now supports CPAL I24 and U24 sample formats too

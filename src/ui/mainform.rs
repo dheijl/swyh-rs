@@ -11,10 +11,12 @@ use crate::{
         StreamingFormat::{self},
     },
     fl,
-    globals::statics::{
-        APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
-        get_config, get_config_mut, get_renderers, get_renderers_mut, get_slim_renderers,
-        get_slim_renderers_mut,
+    globals::{
+        RendererKind,
+        statics::{
+            APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
+            get_config, get_config_mut, get_renderers, get_renderers_mut,
+        },
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
     slimproto::types::SlimRenderer,
@@ -131,8 +133,10 @@ pub struct MainForm {
     wd: WavData,
     default_sample_rate: u32,
     local_addr: IpAddr,
+    /// index of the next renderer button in the merged UPnP+SlimProto
+    /// `RENDERERS` list, shared by both [`Self::add_renderer_button`] and
+    /// [`Self::add_slim_renderer_button`] since both push onto that one list
     player_index: usize,
-    slim_player_index: usize,
     config_changed: Rc<Cell<bool>>,
     /// running line count of `tb`'s buffer, kept in sync by `add_log_msg`
     log_lines: i32,
@@ -1674,7 +1678,6 @@ impl MainForm {
 
         let mut mf = MainForm {
             player_index: 0,
-            slim_player_index: 0,
             wind,
             choose_audio_source_but: audio_tab.choose_audio_source_but,
             fmt_choice: audio_tab.fmt_choice,
@@ -1838,7 +1841,9 @@ impl MainForm {
                 } else {
                     newr_c.spawn_stop_play();
                 }
-                get_renderers_mut()[player_index].playing = b.is_on();
+                if let RendererKind::Upnp(r) = &mut get_renderers_mut()[player_index] {
+                    r.playing = b.is_on();
+                }
             }
         });
         // the flex for the new button
@@ -1871,12 +1876,20 @@ impl MainForm {
                         this_renderer.controller.dev_name
                     );
                     this_renderer.spawn_set_volume(vol);
-                    get_renderers_mut()[player_index].volume = vol;
+                    if let RendererKind::Upnp(r) = &mut get_renderers_mut()[player_index] {
+                        r.volume = vol;
+                    }
                     if app::is_event_shift() {
                         debug!("Syncing volume for other active renderers");
-                        // get a copy of the renderers to use for network IO
+                        // get a copy of the renderers to use for network IO; `index` is
+                        // this entry's position in the merged RENDERERS list, so it stays
+                        // valid for the get_renderers_mut() write below even though we
+                        // only act on the UPnP entries here (same-protocol sync only)
                         let renderers = get_renderers().clone().into_iter().enumerate();
-                        for (index, mut rend) in renderers {
+                        for (index, kind) in renderers {
+                            let RendererKind::Upnp(mut rend) = kind else {
+                                continue;
+                            };
                             // if this renderer is playing but not the active slider renderer
                             if rend.playing && (this_renderer.player_index != rend.player_index) {
                                 // and it supports setting the volume: sync volume
@@ -1887,7 +1900,9 @@ impl MainForm {
                                     );
                                     rend.spawn_set_volume(vol);
                                     // update the original renderer volume value
-                                    get_renderers_mut()[index].volume = vol;
+                                    if let RendererKind::Upnp(r) = &mut get_renderers_mut()[index] {
+                                        r.volume = vol;
+                                    }
                                     // and update the slider too
                                     slider.set_value(s.value());
                                 }
@@ -1933,8 +1948,8 @@ impl MainForm {
             }
         });
         new_renderer.rend_ui.button = Some(pbut.clone());
-        // add the new renderer to the global list of renderers
-        get_renderers_mut().push(new_renderer.clone());
+        // add the new renderer to the merged global list of renderers
+        get_renderers_mut().push(RendererKind::Upnp(new_renderer.clone()));
         self.renderer_pack.insert(&flx_button, 0);
         self.clamp_feedback_height();
         app::redraw();
@@ -1969,7 +1984,7 @@ impl MainForm {
         {
             return;
         }
-        new_renderer.player_index = self.slim_player_index;
+        new_renderer.player_index = self.player_index;
         new_renderer.spawn_set_volume(new_renderer.volume);
         // squeezelite always supports AUDG (unlike UPnP's GetVolume, which
         // can fail per-device), so the slider is unconditional here.
@@ -1985,7 +2000,7 @@ impl MainForm {
                 new_renderer.remote_addr
             ));
         pbut.set_callback({
-            let player_index = self.slim_player_index;
+            let player_index = self.player_index;
             let renderer = new_renderer.clone();
             let local_addr = self.local_addr;
             let wd = self.wd;
@@ -2011,7 +2026,9 @@ impl MainForm {
                 } else {
                     renderer.spawn_strm_stop();
                 }
-                get_slim_renderers_mut()[player_index].playing = b.is_on();
+                if let RendererKind::Slim(r) = &mut get_renderers_mut()[player_index] {
+                    r.playing = b.is_on();
+                }
             }
         });
         // the flex for the new button
@@ -2054,7 +2071,7 @@ impl MainForm {
         sl.set_value(new_renderer.volume.into());
         sl.set_trigger(enums::CallbackTrigger::Release);
         sl.set_callback({
-            let player_index = self.slim_player_index;
+            let player_index = self.player_index;
             let this_renderer = new_renderer.clone();
             move |s| {
                 let vol: i32 = s.value() as i32; // guaranteed between 0.0 and 100.0
@@ -2063,12 +2080,20 @@ impl MainForm {
                     this_renderer.remote_addr
                 );
                 this_renderer.spawn_set_volume(vol);
-                get_slim_renderers_mut()[player_index].volume = vol;
+                if let RendererKind::Slim(r) = &mut get_renderers_mut()[player_index] {
+                    r.volume = vol;
+                }
                 if app::is_event_shift() {
                     debug!("Syncing volume for other active SlimProto renderers");
-                    // get a copy of the renderers to use for network IO
-                    let renderers = get_slim_renderers().clone().into_iter().enumerate();
-                    for (index, rend) in renderers {
+                    // get a copy of the renderers to use for network IO; `index` is
+                    // this entry's position in the merged RENDERERS list, so it stays
+                    // valid for the get_renderers_mut() write below even though we
+                    // only act on the SlimProto entries here (same-protocol sync only)
+                    let renderers = get_renderers().clone().into_iter().enumerate();
+                    for (index, kind) in renderers {
+                        let RendererKind::Slim(rend) = kind else {
+                            continue;
+                        };
                         // if this renderer is playing but not the active slider renderer
                         if rend.playing && (this_renderer.player_index != rend.player_index) {
                             // squeezelite always supports AUDG: sync volume
@@ -2079,7 +2104,9 @@ impl MainForm {
                                 );
                                 rend.spawn_set_volume(vol);
                                 // update the original renderer volume value
-                                get_slim_renderers_mut()[index].volume = vol;
+                                if let RendererKind::Slim(r) = &mut get_renderers_mut()[index] {
+                                    r.volume = vol;
+                                }
                                 // and update the slider too
                                 slider.set_value(s.value());
                             }
@@ -2090,8 +2117,8 @@ impl MainForm {
         });
         flx_button.add(&sl);
         new_renderer.rend_ui.slider = Some(sl.clone());
-        // add the new renderer to the global list of SlimProto renderers
-        get_slim_renderers_mut().push(new_renderer.clone());
+        // add the new renderer to the merged global list of renderers
+        get_renderers_mut().push(RendererKind::Slim(new_renderer.clone()));
         self.renderer_pack.insert(&flx_button, 0);
         self.clamp_feedback_height();
         app::redraw();
@@ -2107,8 +2134,8 @@ impl MainForm {
                 pbut.do_callback();
             }
         }
-        // bump slim_player_index
-        self.slim_player_index += 1;
+        // bump player_index
+        self.player_index += 1;
     }
 
     /// change the theme

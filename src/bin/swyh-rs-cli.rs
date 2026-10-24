@@ -535,8 +535,7 @@ fn resolve_selected_index(
     let name_matches: Vec<_> = device_names
         .iter()
         .enumerate()
-        .filter(|(_, name)| name.as_str() == config_sound_source)
-        .map(|(index, _)| index)
+        .filter_map(|(index, name)| (name.as_str() == config_sound_source).then_some(index))
         .collect();
     match name_matches.as_slice() {
         [unique_index] => *unique_index,

@@ -29,11 +29,10 @@ pub fn get_local_addr() -> Option<IpAddr> {
 }
 
 pub fn get_interfaces() -> Vec<String> {
-    let mut interfaces: Vec<String> = Vec::new();
     let ifaces = if_addrs::get_if_addrs().expect("could not get interfaces");
     ifaces
         .iter()
         .filter(|iface| matches!(iface.addr, IfAddr::V4(..)))
-        .for_each(|iface| interfaces.push(iface.addr.ip().to_string()));
-    interfaces
+        .map(|iface| iface.addr.ip().to_string())
+        .collect()
 }

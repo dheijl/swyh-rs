@@ -145,58 +145,27 @@ pub struct Renderer {
 }
 
 /// Decide which (if any) UPnP renderer a `StreamerFeedBack`/`ChannelStream`
-/// belongs to, given its remote IP and its `is_slim` marker (see
-/// `StreamingContext::slim`), against the IPs of the currently-known UPnP
-/// renderers. `upnp_renderer_ips` must already be filtered down to UPnP
-/// renderers only — the returned index is a position in that filtered
-/// sequence, not in a merged UPnP+SlimProto list. Most callers should use
-/// [`find_matching_upnp_renderer`] instead, which does that filtering (and
-/// the index resolution back to a renderer) for them.
-///
+/// belongs to.
 /// Returns `None` — a deliberate no-op, never a panic/unwrap — when:
-/// * the feedback is SlimProto's own (`is_slim == true`): it was never a UPnP
-///   renderer's traffic in the first place, no matter what shares its IP;
 /// * no UPnP renderer's IP matches at all (e.g. a manually-entered stream URL
 ///   fetched by something that isn't one of our discovered renderers
 /// * more than one UPnP renderer shares this IP (ambiguous — matches the
 ///   pre-existing "Bubble UPnP same-IP" bail-out behaviour).
-pub fn match_upnp_renderer_index<'a>(
-    is_slim: bool,
+pub fn find_matching_upnp_renderer(
+    renderers: &[RendererKind],
     feedback_ip: &str,
-    upnp_renderer_ips: impl Iterator<Item = &'a str>,
-) -> Option<usize> {
-    if is_slim {
-        return None;
-    }
-    let mut found: Option<usize> = None;
-    for (i, ip) in upnp_renderer_ips.enumerate() {
-        if ip == feedback_ip {
+) -> Option<Renderer> {
+    let mut found: Option<&Renderer> = None;
+    for renderer in renderers.iter().filter_map(RendererKind::as_upnp) {
+        if renderer.controller.remote_addr == feedback_ip {
+            // more then 1 upnp renderer at ths ip
             if found.is_some() {
                 return None;
             }
-            found = Some(i);
+            found = Some(renderer);
         }
     }
-    found
-}
-
-/// [`match_upnp_renderer_index`], but operating directly on the merged
-/// UPnP+SlimProto `renderers` list: filters it down to the UPnP entries
-/// (in order), resolves the match against that filtered sequence, then
-/// indexes back into it — so the caller never has to juggle a separate
-/// "filtered index vs. merged-list index" distinction itself.
-pub fn find_matching_upnp_renderer<'a>(
-    renderers: &'a [RendererKind],
-    is_slim: bool,
-    feedback_ip: &str,
-) -> Option<&'a Renderer> {
-    let upnp_renderers: Vec<&Renderer> =
-        renderers.iter().filter_map(RendererKind::as_upnp).collect();
-    let ips = upnp_renderers
-        .iter()
-        .map(|r| r.controller.remote_addr.as_str());
-    let idx = match_upnp_renderer_index(is_slim, feedback_ip, ips)?;
-    Some(upnp_renderers[idx])
+    found.cloned()
 }
 
 #[cfg(test)]
@@ -237,8 +206,8 @@ mod tests {
     #[test]
     fn find_matching_upnp_renderer_single_match() {
         let renderers = [upnp_renderer("192.168.1.10"), upnp_renderer("192.168.1.20")];
-        let found = find_matching_upnp_renderer(&renderers, false, "192.168.1.20")
-            .expect("expected a match");
+        let found =
+            find_matching_upnp_renderer(&renderers, "192.168.1.20").expect("expected a match");
         assert_eq!(found.controller.remote_addr, "192.168.1.20");
     }
 
@@ -253,30 +222,24 @@ mod tests {
             slim_renderer("192.168.1.6"),
             upnp_renderer("192.168.1.20"),
         ];
-        let found = find_matching_upnp_renderer(&renderers, false, "192.168.1.10")
-            .expect("expected a match");
+        let found =
+            find_matching_upnp_renderer(&renderers, "192.168.1.10").expect("expected a match");
         assert_eq!(found.controller.remote_addr, "192.168.1.10");
-        let found = find_matching_upnp_renderer(&renderers, false, "192.168.1.20")
-            .expect("expected a match");
+        let found =
+            find_matching_upnp_renderer(&renderers, "192.168.1.20").expect("expected a match");
         assert_eq!(found.controller.remote_addr, "192.168.1.20");
     }
 
     #[test]
     fn find_matching_upnp_renderer_ambiguous_same_ip() {
         let renderers = [upnp_renderer("192.168.1.10"), upnp_renderer("192.168.1.10")];
-        assert!(find_matching_upnp_renderer(&renderers, false, "192.168.1.10").is_none());
-    }
-
-    #[test]
-    fn find_matching_upnp_renderer_slim_feedback_ignored() {
-        let renderers = [upnp_renderer("192.168.1.10")];
-        assert!(find_matching_upnp_renderer(&renderers, true, "192.168.1.10").is_none());
+        assert!(find_matching_upnp_renderer(&renderers, "192.168.1.10").is_none());
     }
 
     #[test]
     fn find_matching_upnp_renderer_no_match() {
         let renderers = [upnp_renderer("192.168.1.10")];
-        assert!(find_matching_upnp_renderer(&renderers, false, "192.168.1.99").is_none());
+        assert!(find_matching_upnp_renderer(&renderers, "192.168.1.99").is_none());
     }
 
     #[test]
@@ -304,52 +267,9 @@ mod tests {
     }
 
     #[test]
-    fn match_upnp_renderer_index_single_match() {
-        let ips = ["192.168.1.10", "192.168.1.20"];
-        assert_eq!(
-            match_upnp_renderer_index(false, "192.168.1.10", ips.into_iter()),
-            Some(0)
-        );
-        assert_eq!(
-            match_upnp_renderer_index(false, "192.168.1.20", ips.into_iter()),
-            Some(1)
-        );
-    }
-
-    #[test]
-    fn match_upnp_renderer_index_ambiguous_same_ip() {
-        let ips = ["192.168.1.10", "192.168.1.10"];
-        assert_eq!(
-            match_upnp_renderer_index(false, "192.168.1.10", ips.into_iter()),
-            None
-        );
-    }
-
-    #[test]
-    fn match_upnp_renderer_index_slim_feedback_ignored() {
-        let ips = ["192.168.1.10"];
-        assert_eq!(
-            match_upnp_renderer_index(true, "192.168.1.10", ips.into_iter()),
-            None
-        );
-    }
-
-    #[test]
-    fn match_upnp_renderer_index_no_match() {
-        let ips = ["192.168.1.10"];
-        assert_eq!(
-            match_upnp_renderer_index(false, "192.168.1.99", ips.into_iter()),
-            None
-        );
-    }
-
-    #[test]
-    fn match_upnp_renderer_index_empty_list() {
-        let ips: [&str; 0] = [];
-        assert_eq!(
-            match_upnp_renderer_index(false, "192.168.1.10", ips.into_iter()),
-            None
-        );
+    fn find_matching_upnp_renderer_empty_list() {
+        let renderers: [RendererKind; 0] = [];
+        assert!(find_matching_upnp_renderer(&renderers, "192.168.1.10").is_none());
     }
 
     #[test]

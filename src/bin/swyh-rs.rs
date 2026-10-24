@@ -667,19 +667,15 @@ fn handle_player_message(
 ) {
     // A device that exposes both a UPnP renderer and a SlimProto client at
     // the same IP (e.g. MoOde) can trigger this feedback via either path.
-    // `streamer_feedback.is_slim` tells us precisely which one this is, so
-    // route SlimProto's own feedback (or an ambiguous/absent UPnP match —
-    // see `find_matching_upnp_renderer`) away from the UPnP button/state below.
-    let renderers = get_renderers();
-    let Some(renderer) = find_matching_upnp_renderer(
-        &renderers,
-        streamer_feedback.is_slim,
-        &streamer_feedback.remote_ip,
-    )
-    .cloned() else {
+    if streamer_feedback.is_slim {
+        return;
+    }
+    // check for ambiguous/absent UPnP match — see `find_matching_upnp_renderer`.
+    let Some(renderer) =
+        find_matching_upnp_renderer(&get_renderers(), &streamer_feedback.remote_ip)
+    else {
         return;
     };
-    drop(renderers); // release the RENDERERS read lock before further work
     let Some(mut button) = renderer.rend_ui.button.clone() else {
         return;
     };

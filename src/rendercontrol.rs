@@ -18,5 +18,4 @@ pub use discovery::{discover, new_agent};
 pub use types::RendUI;
 pub use types::{
     AvService, Renderer, StreamInfo, SupportedProtocols, WavData, find_matching_upnp_renderer,
-    match_upnp_renderer_index,
 };

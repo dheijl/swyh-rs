@@ -211,9 +211,8 @@ mod tests {
         assert_eq!(found.controller.remote_addr, "192.168.1.20");
     }
 
-    /// The riskiest part of merging the UPnP and SlimProto renderer lists:
-    /// SlimProto entries interleaved among the UPnP ones must not shift which
-    /// UPnP renderer a given filtered-sequence index resolves back to.
+    /// Merging the UPnP and SlimProto renderer lists: select
+    /// the correct renderer matching unique ip + type
     #[test]
     fn find_matching_upnp_renderer_skips_interleaved_slim_renderers() {
         let renderers = [

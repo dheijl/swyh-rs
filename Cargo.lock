@@ -1880,9 +1880,9 @@ dependencies = [
 
 [[package]]
 name = "tiny_http_dh"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bba70d332c19cbaf738b2687041007bfe3492ef313f7c7077ca65774fe104a3"
+checksum = "b7fbf759003e96f4c94113876f3b6946af46d52ca4dfbff7605f947a2b931dad"
 dependencies = [
  "ascii",
  "chunked_transfer",

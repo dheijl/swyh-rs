@@ -121,7 +121,8 @@ pub struct Renderer {
     pub dev_url: EcoString,
     pub volume: i32,
     pub location: EcoString,
-    pub playing: bool,
+    /// shared (via `Arc`) across every clone for easy update
+    pub playing: Arc<AtomicBool>,
     #[cfg(feature = "gui")]
     /// the GUI fields associated with this renderer neede when the streaming
     /// sends a feedback message to the UI or when syncing volume sliders

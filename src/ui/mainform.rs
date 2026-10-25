@@ -1842,7 +1842,7 @@ impl MainForm {
                     newr_c.spawn_stop_play();
                 }
                 if let RendererKind::Upnp(r) = &mut get_renderers_mut()[player_index] {
-                    r.playing = b.is_on();
+                    r.playing.store(b.is_on(), Ordering::Relaxed);
                 }
             }
         });
@@ -1891,7 +1891,9 @@ impl MainForm {
                                 continue;
                             };
                             // if this renderer is playing but not the active slider renderer
-                            if rend.playing && (this_renderer.player_index != rend.player_index) {
+                            if rend.playing.load(Ordering::Relaxed)
+                                && (this_renderer.player_index != rend.player_index)
+                            {
                                 // and it supports setting the volume: sync volume
                                 if let Some(mut slider) = rend.rend_ui.slider.clone() {
                                     debug!(

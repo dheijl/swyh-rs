@@ -263,7 +263,7 @@ impl Renderer {
             volume: -1,
             location: EcoString::new(),
             services: Vec::with_capacity(8),
-            playing: false,
+            playing: Arc::new(AtomicBool::new(false)),
             #[cfg(feature = "gui")]
             rend_ui: RendUI::default(),
             controller: Arc::new(Controller {

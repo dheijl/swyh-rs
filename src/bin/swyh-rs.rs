@@ -56,6 +56,7 @@ use std::{
     net::{IpAddr, Ipv4Addr},
     path::Path,
     rc::Rc,
+    sync::atomic::Ordering,
     thread::{self},
     time::Duration,
 };
@@ -304,14 +305,14 @@ fn main() {
                             LogCategory::Error,
                             &format!("Failed to start playing on {}: {e}", outcome.remote_addr),
                         );
-                        update_playstate(&outcome.remote_addr, false);
-                        let button = get_renderers()
-                            .iter()
-                            .filter_map(RendererKind::as_upnp)
-                            .find(|r| r.controller.remote_addr == outcome.remote_addr)
-                            .and_then(|r| r.rend_ui.button.clone());
-                        if let Some(mut button) = button {
-                            button.set(false);
+                        // check for ambiguous/absent UPnP match — see `find_matching_upnp_renderer`.
+                        if let Some(renderer) =
+                            find_matching_upnp_renderer(&get_renderers(), &outcome.remote_addr)
+                        {
+                            renderer.playing.store(false, Ordering::Relaxed);
+                            if let Some(mut button) = renderer.rend_ui.button.clone() {
+                                button.set(false);
+                            }
                         }
                     }
                 }
@@ -360,17 +361,6 @@ fn main() {
     } // while app::wait()
 
     shutdown_and_exit();
-}
-
-/// update the playstate for the renderer with this ip address
-fn update_playstate(remote_addr: &str, playing: bool) {
-    if let Some(r) = get_renderers_mut()
-        .iter_mut()
-        .filter_map(RendererKind::as_upnp_mut)
-        .find(|r| r.controller.remote_addr == remote_addr)
-    {
-        r.playing = playing;
-    }
 }
 
 /// configure simplelog to write to file (and terminal in debug/Linux builds)
@@ -681,7 +671,7 @@ fn handle_player_message(
     };
     match streamer_feedback.streaming_state {
         StreamingState::Started => {
-            update_playstate(&streamer_feedback.remote_ip, true);
+            renderer.playing.store(true, Ordering::Relaxed);
             button.set(true);
         }
         StreamingState::Ended => {
@@ -692,13 +682,13 @@ fn handle_player_message(
             });
             if still_streaming {
                 button.set(true);
-                update_playstate(&streamer_feedback.remote_ip, true);
+                renderer.playing.store(true, Ordering::Relaxed);
             } else {
-                update_playstate(&streamer_feedback.remote_ip, false);
+                renderer.playing.store(false, Ordering::Relaxed);
                 if auto_resume && button.is_set() {
                     let streaminfo = StreamInfo::new(wd.sample_rate);
                     renderer.spawn_play(*local_addr, streaminfo);
-                    update_playstate(&streamer_feedback.remote_ip, true);
+                    renderer.playing.store(true, Ordering::Relaxed);
                 } else {
                     button.set(false);
                 }

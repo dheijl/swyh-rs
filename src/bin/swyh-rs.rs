@@ -285,11 +285,11 @@ fn main() {
                         .iter_mut()
                         .filter_map(RendererKind::as_slim_mut)
                         .find(|r| r.remote_addr == remote_addr && r.peer_port == peer_port)
-                        .map(|r| {
+                        .and_then(|r| {
                             r.playing = false;
                             r.rend_ui.button.clone()
                         });
-                    if let Some(Some(mut button)) = button {
+                    if let Some(mut button) = button {
                         button.set(false);
                     }
                 }

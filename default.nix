@@ -58,7 +58,7 @@ assert withGui || withCli; let
     cargoLock.outputHashes = {
       # cpal is pinned to a git branch, not a crates.io release, so Cargo.lock
       # has no checksum for it and Nix needs an explicit FOD hash.
-      "cpal-0.18.3" = lib.fakeHash;
+      "cpal-0.18.3" = "sha256-k6/7InNmzuouznoyCIPQnThLz9NTsNN4nXe2Pe11mrM=";
       # zmij is likewise pulled straight from its git repo.
       "zmij-1.0.23" = "sha256-r63ABNBMG1xoxJmRLnPRzitTQsKJq3cs/DB66YtPs4U=";
     };

@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check flake (eval only)
         run: nix flake check --no-build -L

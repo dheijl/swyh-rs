@@ -60,7 +60,7 @@ assert withGui || withCli; let
       # has no checksum for it and Nix needs an explicit FOD hash.
       "cpal-0.18.3" = lib.fakeHash;
       # zmij is likewise pulled straight from its git repo.
-      "zmij-1.0.23" = lib.fakeHash;
+      "zmij-1.0.23" = "sha256-r63ABNBMG1xoxJmRLnPRzitTQsKJq3cs/DB66YtPs4U=";
     };
     buildPhase =
       ''

@@ -56,7 +56,11 @@ assert withGui || withCli; let
     };
     cargoLock.lockFile = ./Cargo.lock;
     cargoLock.outputHashes = {
-      "figura-1.3.3" = "sha256-QnheoM/G9aYQe9OytfkPg2648cTJNiL+IaKFdb66r8I=";
+      # cpal is pinned to a git branch, not a crates.io release, so Cargo.lock
+      # has no checksum for it and Nix needs an explicit FOD hash.
+      "cpal-0.18.3" = lib.fakeHash;
+      # zmij is likewise pulled straight from its git repo.
+      "zmij-1.0.23" = lib.fakeHash;
     };
     buildPhase =
       ''

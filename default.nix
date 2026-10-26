@@ -1,7 +1,8 @@
 {
-  makeRustPlatform,
+  rustPlatform,
   pkg-config,
   cmake,
+  rust,
   alsa-lib,
   xorg,
   pango,
@@ -33,13 +34,7 @@ assert withGui || withCli; let
     pkg-config
     cmake
   ];
-  # nixpkgs' own rustc is often too old for the project's MSRV, so build
-  # against the overlay's up-to-date stable toolchain instead.
   rust = rust-bin.stable.latest.default;
-  rustPlatform = makeRustPlatform {
-    cargo = rust;
-    rustc = rust;
-  };
   pname =
     if withGui && withCli
     then "swyh-rs"
@@ -61,11 +56,7 @@ assert withGui || withCli; let
     };
     cargoLock.lockFile = ./Cargo.lock;
     cargoLock.outputHashes = {
-      # cpal is pinned to a git branch, not a crates.io release, so Cargo.lock
-      # has no checksum for it and Nix needs an explicit FOD hash.
-      "cpal-0.18.3" = "sha256-k6/7InNmzuouznoyCIPQnThLz9NTsNN4nXe2Pe11mrM=";
-      # zmij is likewise pulled straight from its git repo.
-      "zmij-1.0.23" = "sha256-r63ABNBMG1xoxJmRLnPRzitTQsKJq3cs/DB66YtPs4U=";
+      "figura-1.3.3" = "sha256-QnheoM/G9aYQe9OytfkPg2648cTJNiL+IaKFdb66r8I=";
     };
     buildPhase =
       ''

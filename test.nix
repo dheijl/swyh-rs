@@ -1,5 +1,5 @@
 {
-  testers,
+  nixosTest,
   module,
   system,
   linkFarm,
@@ -13,7 +13,7 @@
     };
   modules = [module];
 in
-  testers.nixosTest {
+  nixosTest {
     name = "swyh";
     /*
     We have three tests here:

@@ -1,0 +1,28 @@
+name: Nix
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/determinate-nix-action@v3
+
+      - name: Check flake (eval only)
+        run: nix flake check --no-build -L
+
+      - name: Build CLI package
+        run: nix build .#swyh-rs-cli -L
+
+      - name: Build GUI package
+        run: nix build .#swyh-rs-gui -L

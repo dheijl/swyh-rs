@@ -1,8 +1,7 @@
 {
-  rustPlatform,
+  makeRustPlatform,
   pkg-config,
   cmake,
-  rust,
   alsa-lib,
   xorg,
   pango,
@@ -34,7 +33,13 @@ assert withGui || withCli; let
     pkg-config
     cmake
   ];
+  # nixpkgs' own rustc is often too old for the project's MSRV, so build
+  # against the overlay's up-to-date stable toolchain instead.
   rust = rust-bin.stable.latest.default;
+  rustPlatform = makeRustPlatform {
+    cargo = rust;
+    rustc = rust;
+  };
   pname =
     if withGui && withCli
     then "swyh-rs"

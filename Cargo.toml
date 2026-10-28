@@ -102,7 +102,7 @@ winres = "0.1.12"
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.23", features = ["use-ninja"], optional = true }
 fltk-theme = { version = "0.7.9", optional = true }
-rustix = { version = "1.1.5", default-features = false, features = ["process"] }
+rustix = { version = "1.1.6", default-features = false, features = ["process"] }
 
 [dev-dependencies]
 tempfile = "3"
@@ -114,11 +114,11 @@ name = "samples_conv"
 harness = false
 
 [patch.crates-io]
-zmij = { git = "https://github.com/dtolnay/zmij" }
+#zmij = { git = "https://github.com/dtolnay/zmij" }
 #figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
 #tiny_http = { git = "https://github.com/dheijl/tiny-http-dh" }
-cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "stable-0.18" }
+#cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "stable-0.18" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git" }
 #flac-bound = { git = "https://github.com/dheijl/flac-bound" }
 #flac-bound = { git = "https://github.com/nabijaczleweli/flac-bound" }

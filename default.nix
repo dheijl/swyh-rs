@@ -55,9 +55,6 @@ assert withGui || withCli; let
       src = lib.cleanSource ./.;
     };
     cargoLock.lockFile = ./Cargo.lock;
-    cargoLock.outputHashes = {
-      "figura-1.3.3" = "sha256-QnheoM/G9aYQe9OytfkPg2648cTJNiL+IaKFdb66r8I=";
-    };
     buildPhase =
       ''
         runHook preBuild

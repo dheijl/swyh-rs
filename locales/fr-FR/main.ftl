@@ -32,6 +32,7 @@ strmsize-label = Streamsize : { $size }
 buffer-label = Tampon initial (msec) :
 latency-reduction-delay-label = Délai de réduction de latence (msec) :
 latency-reduction-label = quantité (msec) :
+latency-reduction-status-label = Réduction de latence : { $amount } ms après { $delay } ms
 chk-rms-monitor = Moniteur RMS
 btn-apply-config = Cliquer pour appliquer les changements de configuration
 upnp-devices = Périphériques UPNP sur le réseau { $addr }

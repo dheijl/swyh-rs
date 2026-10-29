@@ -32,6 +32,7 @@ strmsize-label = Tamaño de stream: { $size }
 buffer-label = Búfer inicial (ms):
 latency-reduction-delay-label = Retardo de reducción de latencia (ms):
 latency-reduction-label = cantidad (ms):
+latency-reduction-status-label = Reducción de latencia: { $amount } ms después de { $delay } ms
 chk-rms-monitor = Monitor RMS
 btn-apply-config = Pulsar para aplicar los cambios de configuración
 upnp-devices = Dispositivos de renderizado UPNP en la red { $addr }

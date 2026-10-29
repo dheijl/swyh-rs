@@ -32,6 +32,7 @@ strmsize-label = Streamsize: { $size }
 buffer-label = Startbuffer (msec):
 latency-reduction-delay-label = Vertraging latentievermindering (msec):
 latency-reduction-label = hoeveelheid (msec):
+latency-reduction-status-label = Latentievermindering: { $amount } ms na { $delay } ms
 chk-rms-monitor = RMS Monitor
 btn-apply-config = Klik om de wijzigingen toe te passen
 upnp-devices = UPNP toestellen op netwerk { $addr }

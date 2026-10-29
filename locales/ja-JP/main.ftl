@@ -32,6 +32,7 @@ strmsize-label = ストリームサイズ：{ $size }
 buffer-label = 初期バッファ（ミリ秒）：
 latency-reduction-delay-label = レイテンシ短縮の待機時間（ミリ秒）：
 latency-reduction-label = 量（ミリ秒）：
+latency-reduction-status-label = レイテンシ短縮：{ $delay } ms後に{ $amount } ms短縮
 chk-rms-monitor = RMS モニター
 btn-apply-config = クリックして設定変更を適用
 upnp-devices = ネットワーク { $addr } 上の UPNP レンダリングデバイス

@@ -32,6 +32,7 @@ strmsize-label = StrmGröße: { $size }
 buffer-label = Startpuffer (ms):
 latency-reduction-delay-label = Latenzreduzierungs-Verzögerung (ms):
 latency-reduction-label = Menge (ms):
+latency-reduction-status-label = Latenzreduzierung: { $amount } ms nach { $delay } ms
 chk-rms-monitor = RMS-Monitor
 btn-apply-config = Konfiguration übernehmen
 upnp-devices = UPNP-Geräte im Netzwerk { $addr }

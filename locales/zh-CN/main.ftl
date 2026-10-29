@@ -32,6 +32,7 @@ strmsize-label = 流大小：{ $size }
 buffer-label = 初始缓冲区（毫秒）：
 latency-reduction-delay-label = 延迟缩减等待时间（毫秒）：
 latency-reduction-label = 数量（毫秒）：
+latency-reduction-status-label = 延迟缩减：{ $delay } 毫秒后缩减 { $amount } 毫秒
 chk-rms-monitor = RMS 监视器
 btn-apply-config = 点击应用配置更改
 upnp-devices = 网络 { $addr } 上的 UPNP 渲染设备

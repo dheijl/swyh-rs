@@ -32,6 +32,7 @@ strmsize-label = DimFlusso: { $size }
 buffer-label = Buffer iniziale (ms):
 latency-reduction-delay-label = Ritardo riduzione latenza (ms):
 latency-reduction-label = quantità (ms):
+latency-reduction-status-label = Riduzione latenza: { $amount } ms dopo { $delay } ms
 chk-rms-monitor = Monitor RMS
 btn-apply-config = Applica modifiche alla configurazione
 upnp-devices = Dispositivi UPNP sulla rete { $addr }

@@ -345,6 +345,7 @@ If you do not specify a player swyh-rs-cli switches to serve_only mode.
 - WAV is in theory limited to 4 GB streaming, so it's possible that it only works with an u32Max streamsize. But you can try if NoneChunked works. 4 GB is only a couple of hours of streaming depending on sample size and sample rate. On MoodeAudio WAV only works with U32MaxNotChunked, but RF64 and FLAC work with anything. It depends on the decoder used in the receiver.
 - On some receivers WAV and RF64 will cause an extra HTTP request, increasing latency slightly.
 - If you suffer from hiccups or drop-outs caused by your WiFi network, use FLAC, as the compression increases buffering in the receiver. This makes it less likely that you will suffer from audio stuttering.
+- version 1.21.1 introduces two new parameters in the `Audio` tab: `Latency reduction delay (msec)` and `Amount (msec)`, both default 0. They allow you to experiment with latency reduction. The delay is the time you allow the player to buffer audio before latency reduction kicks in. Latency reduction is attempted by dropping a number of msecs of audio frames, hopefully reducing latency. But the player can decide that the dropped frames causes its buffer to become too small, so it may start buffering, undoing the latency decrease attempt. Anyway, you can try it, starting with small amounts like 25 msec, it may help or it may not. If both values are 0 (zero) latency reduction is disabled.
 
 ### Audio quality and Windows WasApi Loopback capture
 

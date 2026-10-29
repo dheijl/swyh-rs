@@ -1405,17 +1405,20 @@ impl StatusTab {
         s.push('\n');
         s.push_str(&fl!("strmsize-label", "size" = streamsize));
         let _ = writeln!(s, "   buffer: {buf_ms} ms");
-        if lat_reduction_ms > 0 {
-            let _ = writeln!(
-                s,
-                "   latency reduction: {lat_reduction_ms} ms after {lat_delay_ms} ms"
-            );
-        }
-        let _ = writeln!(
+        let _ = write!(
             s,
             "{}  {}",
             fl!("chk-inject-silence"),
             bool_icon(config.inject_silence.unwrap_or(false))
+        );
+        let _ = writeln!(
+            s,
+            "   {}",
+            fl!(
+                "latency-reduction-status-label",
+                "amount" = lat_reduction_ms,
+                "delay" = lat_delay_ms
+            )
         );
         s.push('\n');
         s.push_str(&fl!("active-network", "addr" = network));

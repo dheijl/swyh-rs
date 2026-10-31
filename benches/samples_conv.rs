@@ -1,15 +1,15 @@
-//! Criterion benchmarks comparing the SIMD (SSSE3/NEON) byte-pack implementations
-//! in `simd_impl` / `neon_impl` against the scalar fallback, measuring
-//! `samples_to_i32` throughput at 16-bit and 24-bit depth, and comparing its
-//! `extend_from_slice` output loop against a rejected write-in-place alternative.
+//! Criterion benchmarks comparing the SIMD (`wide::u8x16::shuffle`, i.e. PSHUFB on
+//! SSSE3 / `vqtbl1q_u8` on NEON) byte-pack implementations against a scalar
+//! reference, measuring `samples_to_i32` throughput at 16-bit and 24-bit depth, and
+//! comparing its `extend_from_slice` output loop against a rejected write-in-place
+//! alternative.
 //!
 //! Run with:
 //!   cargo bench --bench samples_conv
 //!
-//! The scalar byte-pack reference functions below are verbatim copies of the
-//! `#[cfg(not(...))]` fallback arms in `samples_conv.rs` (active on targets without
-//! SSSE3/NEON).  They are defined here because on x86_64+ssse3 / aarch64 the scalar
-//! path is not compiled into the crate binary, so we cannot call it directly.
+//! The scalar byte-pack reference functions below are the per-sample
+//! `to_le_bytes`/`to_be_bytes` copies that `samples_conv.rs` used as its fallback
+//! before the byte-pack moved to `wide`. They are kept here as a baseline.
 //! `samples_to_i32` / `f32_to_i32` have no scalar fallback — they always use
 //! `wide::f32x4` — so `bench_samples_to_i32` measures only the production SIMD path.
 

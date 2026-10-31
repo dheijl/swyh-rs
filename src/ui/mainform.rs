@@ -1261,15 +1261,9 @@ impl AppTab {
         flx_autoresume.set_type(FlexType::Row);
         flx_autoresume.end();
         flx_autoresume.add(&auto_resume);
+        flx_autoresume.add(&auto_reconnect);
         app_col.add(&flx_autoresume);
         app_col.fixed(&flx_autoresume, ROW_H);
-
-        let mut flx_autoreconnect = Flex::new(0, 0, GW, ROW_H, "");
-        flx_autoreconnect.set_type(FlexType::Row);
-        flx_autoreconnect.end();
-        flx_autoreconnect.add(&auto_reconnect);
-        app_col.add(&flx_autoreconnect);
-        app_col.fixed(&flx_autoreconnect, ROW_H);
 
         // SlimProto (squeezelite) discovery on/off
         let enable_slimproto = Self::build_enable_slimproto_checkbox(ctx);

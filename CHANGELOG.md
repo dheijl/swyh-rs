@@ -1,6 +1,8 @@
 # swyh-rs Changelog
 
 - 1.21.1 (unreleased)
+  - bugfix: RMS monitor checkbox (p)ushed down off the App tab) visible again
+  - refactor: replace handwritten (Claude, unsafe) simd code with the safe equivalents from the wide crate, much cleaner and same performance
   - refactor: merge UPnP and SlimProto renderer lists into one list of RenderKind enum and some other minor refactoring
   - refactor ui code
   - small optimization in RMS computation

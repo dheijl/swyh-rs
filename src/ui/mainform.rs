@@ -800,6 +800,7 @@ impl NetworkTab {
 
         let mut ssdp_interval = Counter::new(0, 0, 0, 0, "");
         ssdp_interval.set_value(config.ssdp_interval_mins);
+        ssdp_interval.set_tooltip(&fl!("ssdp-interval-tooltip"));
         ssdp_interval.handle({
             let config_changed = ctx.config_changed.clone();
             let mut sb = ctx.status_buf.clone();

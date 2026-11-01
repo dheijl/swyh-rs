@@ -19,6 +19,7 @@ chk-autoresume = 自动恢复播放
 chk-autoreconnect = 自动重连
 chk-enable-slimproto = 启用 SlimProto
 ssdp-interval-label = SSDP 间隔（分钟）
+ssdp-interval-tooltip = 0 = 禁用 UPnP/DLNA 发现（需要重启）
 btn-ssdp-discover = 立即运行 SSDP 发现
 log-level-label = 日志级别：{ $level }
 fmt-label = 格式：{ $format }

@@ -19,6 +19,7 @@ chk-autoresume = 自動再開
 chk-autoreconnect = 自動再接続
 chk-enable-slimproto = SlimProto を有効にする
 ssdp-interval-label = SSDP 間隔（分）
+ssdp-interval-tooltip = 0 = UPnP/DLNA 探索を無効化（再起動が必要）
 btn-ssdp-discover = SSDP 探索を今すぐ実行
 log-level-label = ログレベル：{ $level }
 fmt-label = フォーマット：{ $format }

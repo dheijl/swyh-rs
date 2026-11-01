@@ -19,6 +19,7 @@ chk-autoresume = Autom. hervatten
 chk-autoreconnect = Auto-connecteren
 chk-enable-slimproto = SlimProto inschakelen
 ssdp-interval-label = SSDP Interval (in minuten)
+ssdp-interval-tooltip = 0 = UPnP/DLNA-ontdekking uitschakelen (herstart vereist)
 btn-ssdp-discover = SSDP-ontdekking nu uitvoeren
 log-level-label = Log Level: { $level }
 fmt-label = Formaat: { $format }

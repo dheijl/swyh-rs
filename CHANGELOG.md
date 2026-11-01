@@ -1,6 +1,7 @@
 # swyh-rs Changelog
 
 - 1.21.1 (unreleased)
+  - GUI: add a tooltip for ssdp-interval = 0 disabling UPNP discvovery, and add a scrollbar (if needed) to the renderers box (issue #309). Added with the assistance of Claude.
   - bugfix: RMS monitor checkbox (p)ushed down off the App tab) visible again
   - refactor: replace handwritten (Claude, unsafe) simd code with the safe equivalents from the wide crate, much cleaner and same performance
   - refactor: merge UPnP and SlimProto renderer lists into one list of RenderKind enum and some other minor refactoring

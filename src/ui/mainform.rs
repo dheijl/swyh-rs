@@ -27,7 +27,7 @@ use fltk::{
     button::{Button, CheckButton, LightButton},
     enums::{self, Align, Color, Event, FrameType},
     frame::Frame,
-    group::{Flex, FlexType, Group, Pack, PackType, Tabs},
+    group::{Flex, FlexType, Group, Pack, PackType, Scroll, ScrollType, Tabs},
     image::SvgImage,
     input::IntInput,
     menu::Choice,
@@ -130,6 +130,8 @@ pub struct MainForm {
     bwidth: i32,
     bheight: i32,
     renderer_pack: Pack,
+    /// vertical-only scroll area around `renderer_pack`, sized by [`Self::fit_to_window`]
+    renderer_scroll: Scroll,
     wd: WavData,
     default_sample_rate: u32,
     local_addr: IpAddr,
@@ -151,12 +153,19 @@ const TAB_BAR_H: i32 = 30;
 const INNER_H: i32 = TAB_H - TAB_BAR_H;
 const ROW_SPACING: i32 = 5;
 const MARGIN: i32 = 5;
-/// floor for the feedback log box height once [`MainForm::clamp_feedback_height`]
-/// starts shrinking it to keep it inside the window
-const MIN_FEEDBACK_H: i32 = 60;
-/// height the feedback log box is constructed with, and the ceiling
-/// [`MainForm::clamp_feedback_height`] grows it back to when there's room
+/// floor for the feedback log box height once [`MainForm::fit_to_window`]
+/// starts shrinking it to keep it inside the window: 5 lines of 12pt text
+/// (~14px each), plus room for its horizontal scrollbar and frame
+const MIN_FEEDBACK_H: i32 = 5 * 14 + 16 + 6;
+/// height the feedback log box is constructed with
 const PREFERRED_FEEDBACK_H: i32 = 296;
+/// spacing between the rows of the main vertical pack
+const VPACK_SPACING: i32 = 15;
+/// spacing between the renderer button rows
+const RENDERER_SPACING: i32 = 15;
+/// the renderer scroll area never shrinks below 2 button rows (if there are that many),
+/// even if that pushes the feedback box partly out of a very small window
+const MIN_RENDERER_AREA_H: i32 = 2 * ROW_H + RENDERER_SPACING;
 const LABEL_W: i32 = 130;
 const LABEL_W_NET: i32 = 179;
 
@@ -1457,6 +1466,83 @@ fn feedback_target_height(window_h: i32, feedback_y: i32) -> i32 {
     (window_h - feedback_y).max(MIN_FEEDBACK_H)
 }
 
+/// total height of rows stacked with `spacing` between them, as `Fl_Pack` lays them out
+fn stacked_height(heights: impl IntoIterator<Item = i32>, spacing: i32) -> i32 {
+    let (sum, n) = heights
+        .into_iter()
+        .fold((0, 0), |(sum, n), h| (sum + h, n + 1));
+    if n == 0 { 0 } else { sum + spacing * (n - 1) }
+}
+
+/// height for the renderer scroll area: fit all the buttons if they fit, otherwise
+/// whatever is left above a minimum-height feedback box (but at least 2 rows)
+fn renderer_area_height(window_h: i32, area_y: i32, content_h: i32) -> i32 {
+    let available = window_h - area_y - VPACK_SPACING - MIN_FEEDBACK_H;
+    content_h.min(available.max(MIN_RENDERER_AREA_H))
+}
+
+/// `Fl_Scroll` never resizes its children, so make the renderer pack follow the scroll
+/// area's width, minus the vertical scrollbar when the buttons don't all fit
+fn fit_pack_width(scroll: &Scroll, pack: &mut Pack) {
+    let pack_w = if pack.h() > scroll.h() {
+        scroll.w() - app::scrollbar_size()
+    } else {
+        scroll.w()
+    };
+    if pack.w() != pack_w {
+        pack.resize(pack.x(), pack.y(), pack_w, pack.h());
+    }
+}
+
+/// Size the renderer scroll area and the feedback box below it to the window height.
+/// Relies on `vpack` having positioned `scroll` (i.e. on a previous draw).
+/// Returns true if anything was resized.
+fn fit_bottom_to_window(
+    window_h: i32,
+    scroll: &mut Scroll,
+    pack: &mut Pack,
+    feedback: &mut Flex,
+) -> bool {
+    let mut changed = false;
+    let feedback_y = if scroll.visible() {
+        let content_h = stacked_height(
+            (0..pack.children())
+                .filter_map(|i| pack.child(i))
+                .filter(|c| c.visible())
+                .map(|c| c.h()),
+            RENDERER_SPACING,
+        );
+        if pack.h() != content_h {
+            pack.resize(pack.x(), pack.y(), pack.w(), content_h);
+            changed = true;
+        }
+        let scroll_h = renderer_area_height(window_h, scroll.y(), content_h);
+        if scroll.h() != scroll_h {
+            // the scroll's resize callback refits the pack width
+            scroll.resize(scroll.x(), scroll.y(), scroll.w(), scroll_h);
+            changed = true;
+        } else {
+            // narrow the buttons only when the vertical scrollbar shows, so it never covers them
+            fit_pack_width(scroll, pack);
+        }
+        // don't leave the view scrolled past the end after the area grew
+        let max_ypos = (content_h - scroll_h).max(0);
+        if scroll.yposition() > max_ypos {
+            scroll.scroll_to(0, max_ypos);
+            changed = true;
+        }
+        scroll.y() + scroll_h + VPACK_SPACING
+    } else {
+        feedback.y()
+    };
+    let target = feedback_target_height(window_h, feedback_y);
+    if feedback.y() != feedback_y || feedback.h() != target {
+        feedback.resize(feedback.x(), feedback_y, feedback.w(), target);
+        changed = true;
+    }
+    changed
+}
+
 impl MainForm {
     /// Builds the entire main window.
     pub fn create(
@@ -1480,12 +1566,21 @@ impl MainForm {
         let title_color: Color = Color::from_u32(0x00e6_fff0);
         let app = app::App::default().with_scheme(app::Scheme::Gtk);
         app::background(247, 247, 247);
+        // never open taller than the screen's work area (minus room for the title bar),
+        // the renderer scroll area takes up the slack
+        const TITLEBAR_ALLOWANCE: i32 = 40;
+        let (_, _, _, work_h) = app::screen_work_area(0);
+        let wh = if work_h > TITLEBAR_ALLOWANCE {
+            WH.min(work_h - TITLEBAR_ALLOWANCE)
+        } else {
+            WH
+        };
         let mut wind = DoubleWindow::default()
-            .with_size(WW, WH)
+            .with_size(WW, wh)
             .with_label(&fl!("window-title", "version" = app_version));
 
         wind.make_resizable(true);
-        wind.size_range(WW, WH * 2 / 3, 0, 0);
+        wind.size_range(WW, (WH * 2 / 3).min(wh), 0, 0);
 
         // set window icon
         let icon_bytes = include_str!("../../assets/swyh-rs logo note-only 16x16.svg");
@@ -1495,10 +1590,10 @@ impl MainForm {
 
         wind.end();
 
-        let mut vpack: Pack = Pack::new(XPOS, YPOS, GW, WH - 10, "");
+        let mut vpack: Pack = Pack::new(XPOS, YPOS, GW, wh - 10, "");
         vpack.make_resizable(true);
         vpack.set_type(PackType::Vertical);
-        vpack.set_spacing(15);
+        vpack.set_spacing(VPACK_SPACING);
         vpack.end();
         wind.add(&vpack);
 
@@ -1595,12 +1690,25 @@ impl MainForm {
         vpack.add(&flx_buttons_title);
 
         // ssdp discovered renderer buttons go here, stacked in their own nested pack
-        // so new buttons can just be inserted/removed from it directly
+        // so new buttons can just be inserted/removed from it directly.
+        // The pack lives in a vertical scroll area whose height is capped by
+        // fit_bottom_to_window(), so the buttons can't push the form past the window.
+        // Hidden until the first renderer button arrives.
+        let mut renderer_scroll = Scroll::new(0, 0, GW, 0, "");
+        renderer_scroll.set_type(ScrollType::Vertical);
+        renderer_scroll.end();
         let mut renderer_pack = Pack::new(0, 0, GW, 0, "");
         renderer_pack.set_type(PackType::Vertical);
-        renderer_pack.set_spacing(15);
+        renderer_pack.set_spacing(RENDERER_SPACING);
         renderer_pack.end();
-        vpack.add(&renderer_pack);
+        renderer_scroll.add(&renderer_pack);
+        // vpack widens the scroll area with the window, pass that on to the buttons
+        renderer_scroll.resize_callback({
+            let mut renderer_pack = renderer_pack.clone();
+            move |s, _, _, _, _| fit_pack_width(s, &mut renderer_pack)
+        });
+        renderer_scroll.hide();
+        vpack.add(&renderer_scroll);
 
         // setup feedback textbox at the bottom
         let mut flx_feedback = Flex::new(0, 0, GW, PREFERRED_FEEDBACK_H, "");
@@ -1643,6 +1751,8 @@ impl MainForm {
         // Event::Close, hiding the Window and preventing the Close handler being called.
         wind.handle({
             let mut flx_feedback = flx_feedback.clone();
+            let mut renderer_scroll = renderer_scroll.clone();
+            let mut renderer_pack = renderer_pack.clone();
             let mut wind = wind.clone();
             move |w, ev| match ev {
                 Event::Close => {
@@ -1650,17 +1760,14 @@ impl MainForm {
                     true
                 }
                 Event::Resize => {
-                    // resize flx_feedback to the available space after button insertions
-                    // recompute the feedback box height against the new window height
-                    // and only touch it if it actually needs to change.
-                    let target = feedback_target_height(w.h(), flx_feedback.y());
-                    if target != flx_feedback.h() {
-                        flx_feedback.resize(
-                            flx_feedback.x(),
-                            flx_feedback.y(),
-                            flx_feedback.w(),
-                            target,
-                        );
+                    // refit the renderer scroll area and the feedback box to the new
+                    // window height, and only redraw if something actually changed
+                    if fit_bottom_to_window(
+                        w.h(),
+                        &mut renderer_scroll,
+                        &mut renderer_pack,
+                        &mut flx_feedback,
+                    ) {
                         // force a redraw of the textdisplay tb
                         wind.flush();
                     }
@@ -1696,6 +1803,7 @@ impl MainForm {
             status_buf,
             restartbutton: flx_restart,
             renderer_pack,
+            renderer_scroll,
             bwidth: frame.width(),
             bheight: frame.height(),
             wd: *wd,
@@ -1705,7 +1813,7 @@ impl MainForm {
             log_lines: 0,
         };
         // fix the hor scrollbar problem on first show
-        mf.clamp_feedback_height();
+        mf.fit_to_window();
         mf
     }
 
@@ -1743,29 +1851,31 @@ impl MainForm {
     pub fn show_restart_button(&mut self) {
         self.restartbutton.show();
         self.refresh_status();
-        self.clamp_feedback_height();
+        self.fit_to_window();
         app::redraw();
     }
 
     /// `vpack` is an `Fl_Pack`, which auto-grows to fit the total height of its
     /// (visible) children on every draw, regardless of the window's own height
     /// (see `Fl_Pack::draw()` in cfltk). So showing the restart button or
-    /// inserting a renderer button can push `flx_feedback` (the trailing
-    /// feedback log) below the visible window.
-    ///
-    fn clamp_feedback_height(&mut self) {
+    /// inserting a renderer button would push `flx_feedback` (the trailing
+    /// feedback log) below the visible window. Cap the renderer scroll area and
+    /// the feedback box so everything stays inside the window.
+    fn fit_to_window(&mut self) {
+        // the scroll area only takes part in the layout once there are buttons in it
+        if self.renderer_pack.children() > 0 && !self.renderer_scroll.visible() {
+            self.renderer_scroll.show();
+        }
+        // let vpack position its (possibly just shown) children first
         app::redraw();
         app::flush();
-        let target = feedback_target_height(self.wind.h(), self.flx_feedback.y());
-        if target != self.flx_feedback.h() {
-            self.flx_feedback.resize(
-                self.flx_feedback.x(),
-                self.flx_feedback.y(),
-                self.flx_feedback.w(),
-                target,
-            );
-            //app::flush();
-        }
+        fit_bottom_to_window(
+            self.wind.h(),
+            &mut self.renderer_scroll,
+            &mut self.renderer_pack,
+            &mut self.flx_feedback,
+        );
+        app::redraw();
     }
 
     /// refresh the status tab content from the current config
@@ -1950,7 +2060,7 @@ impl MainForm {
         // add the new renderer to the merged global list of renderers
         get_renderers_mut().push(RendererKind::Upnp(new_renderer.clone()));
         self.renderer_pack.insert(&flx_button, 0);
-        self.clamp_feedback_height();
+        self.fit_to_window();
         app::redraw();
         // now add the new player to the global list of renderers
         // check if autoreconnect is set for this renderer
@@ -2119,7 +2229,7 @@ impl MainForm {
         // add the new renderer to the merged global list of renderers
         get_renderers_mut().push(RendererKind::Slim(new_renderer.clone()));
         self.renderer_pack.insert(&flx_button, 0);
-        self.clamp_feedback_height();
+        self.fit_to_window();
         app::redraw();
         // check if autoreconnect is set for this renderer
         if self.auto_reconnect.is_set() {
@@ -2186,5 +2296,44 @@ mod feedback_height_tests {
         // 800px available, well past PREFERRED_FEEDBACK_H (296): should fill it
         // all rather than getting capped back down to the construction-time size
         assert_eq!(feedback_target_height(1200, 400), 800);
+    }
+
+    #[test]
+    fn stacked_height_adds_spacing_between_rows_only() {
+        assert_eq!(stacked_height([], 15), 0);
+        assert_eq!(stacked_height([25], 15), 25);
+        assert_eq!(stacked_height([25, 25, 25], 15), 3 * 25 + 2 * 15);
+    }
+
+    #[test]
+    fn renderer_area_fits_content_when_there_is_room() {
+        // 740 - 400 - spacing - min feedback leaves well over 2 rows
+        let content = stacked_height([25, 25], RENDERER_SPACING);
+        assert_eq!(renderer_area_height(740, 400, content), content);
+    }
+
+    #[test]
+    fn renderer_area_is_capped_above_a_minimum_feedback_box() {
+        let content = stacked_height([25; 20], RENDERER_SPACING);
+        let h = renderer_area_height(740, 400, content);
+        assert_eq!(h, 740 - 400 - VPACK_SPACING - MIN_FEEDBACK_H);
+        // and the feedback box then gets exactly its minimum height
+        assert_eq!(
+            feedback_target_height(740, 400 + h + VPACK_SPACING),
+            MIN_FEEDBACK_H
+        );
+    }
+
+    #[test]
+    fn renderer_area_keeps_two_rows_in_a_tiny_window() {
+        let content = stacked_height([25; 20], RENDERER_SPACING);
+        assert_eq!(renderer_area_height(500, 400, content), MIN_RENDERER_AREA_H);
+        // but never more than the content itself
+        assert_eq!(renderer_area_height(500, 400, 25), 25);
+    }
+
+    #[test]
+    fn renderer_area_is_empty_without_renderers() {
+        assert_eq!(renderer_area_height(740, 400, 0), 0);
     }
 }

@@ -32,7 +32,7 @@ A "Stream-What-You-Hear" implementation written in Rust, MIT licensed.
 
 ## Current Release
 
-The current (pre)release is **[1.21.1](https://github.com/dheijl/swyh-rs/releases/tag/1.21.1)**, refer to the [Changelog](CHANGELOG.md) for more details.
+The current release is **[1.21.1](https://github.com/dheijl/swyh-rs/releases/tag/1.21.1)**, refer to the [Changelog](CHANGELOG.md) for more details.
 
 You can find x86/64  Windows setup and binaries and Linux (Ubuntu/Debian) appimages in [Releases](https://github.com/dheijl/swyh-rs/releases).
 

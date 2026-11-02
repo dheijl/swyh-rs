@@ -1,5 +1,7 @@
 # swyh-rs Changelog
 
+- 1.21.2 (unreleased)
+
 - 1.21.1 (Nov 2 2026, dheijl)
   - GUI: add a tooltip for ssdp-interval = 0 disabling UPNP discvovery, and add a scrollbar (if needed) to the renderers box (issue #309). Added with the assistance of Claude.
   - bugfix: RMS monitor checkbox (p)ushed down off the App tab) visible again

@@ -99,13 +99,13 @@ pub fn run_rms_monitor(
                 total_samples += samples.len();
                 let (chunks, remainder) = samples.as_chunks::<4>();
                 ch_sum = chunks.iter().fold(ch_sum, |acc, x| {
-                    let f4 = f32x4::new(*x);
-                    f4.mul_add(f4, acc)
+                    let f4 = f32x4::from_array(*x);
+                    f4.fast_mul_add(f4, acc)
                 });
                 debug_assert!(remainder.is_empty() || remainder.len() == 2);
                 if remainder.len() == 2 {
                     let f4 = f32x4::from([remainder[0], remainder[1], 0.0, 0.0]);
-                    ch_sum = f4.mul_add(f4, ch_sum);
+                    ch_sum = f4.fast_mul_add(f4, ch_sum);
                 }
             }
             // no samples: clear RMS widgets and reset accumulators

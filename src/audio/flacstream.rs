@@ -220,7 +220,7 @@ fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
     for samples in noise_buf.chunks_mut(4) {
         // prepare 4 samples, possibly wasting 2 if last chunk is only 2 samples
         let f32_array = noise_lanes(rng);
-        let f32_simd = f32x4::new(f32_array);
+        let f32_simd = f32x4::from_array(f32_array);
         let i32_array = f32_to_i32(bd, f32_simd, Dither::NoDither);
         samples.iter_mut().zip(i32_array).for_each(|s| {
             if s.1 >= 0 {

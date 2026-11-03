@@ -77,7 +77,7 @@ fn tpdf_dither_lanes_16_from_bytes(buf: [u8; 32]) -> f32x4 {
         u2[i] = ((word >> 32) as u32 >> 1) as f32;
     }
 
-    (f32x4::new(u1) - f32x4::new(u2)) * COMBINED_SCALE_SIMD
+    (f32x4::from_array(u1) - f32x4::from_array(u2)) * COMBINED_SCALE_SIMD
 }
 
 /// Generate one f32x4 of TPDF dither, reading from `fastrand`'s per-thread RNG.
@@ -116,12 +116,12 @@ fn quantize_chunks<Q: Fn(f32x4) -> [i32; 4]>(
     // loop measured no faster (the zero-fill resize)
     let (chunks, remainder) = f32_samples.as_chunks::<4>();
     chunks.iter().for_each(|chunk| {
-        let f32_array = f32x4::new(*chunk);
+        let f32_array = f32x4::from_array(*chunk);
         let i_array = quantize(f32_array);
         i32_samples.extend_from_slice(&i_array);
     });
     if remainder.len() == 2 {
-        let f32_array = f32x4::new([remainder[0], remainder[1], 0.0, 0.0]);
+        let f32_array = f32x4::from_array([remainder[0], remainder[1], 0.0, 0.0]);
         let i_array = quantize(f32_array);
         i32_samples.extend_from_slice(&i_array[0..2]);
     }
@@ -221,19 +221,19 @@ pub(crate) fn f32x4_to_i32x4_24(f32_simd: f32x4) -> [i32; 4] {
 /// little-endian byte image of 4 i32s. `u8x16::shuffle` lowers to a single PSHUFB on
 /// SSSE3 and `vqtbl1q_u8` on AArch64 (scalar fallback elsewhere); a 0xFF index yields 0
 /// on every path, so the unused tail bytes are don't-cares.
-const PACK_I16LE: u8x16 = u8x16::new([
+const PACK_I16LE: u8x16 = u8x16::from_array([
     0, 1, 4, 5, 8, 9, 12, 13, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 ]);
 /// Low 2 bytes of each i32, byte-swapped.
-const PACK_I16BE: u8x16 = u8x16::new([
+const PACK_I16BE: u8x16 = u8x16::from_array([
     1, 0, 5, 4, 9, 8, 13, 12, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 ]);
 /// Low 3 bytes of each i32, LE.
-const PACK_I24LE: u8x16 = u8x16::new([
+const PACK_I24LE: u8x16 = u8x16::from_array([
     0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 0xFF, 0xFF, 0xFF, 0xFF,
 ]);
 /// Low 3 bytes of each i32, BE (dropping the MSB).
-const PACK_I24BE: u8x16 = u8x16::new([
+const PACK_I24BE: u8x16 = u8x16::from_array([
     2, 1, 0, 6, 5, 4, 10, 9, 8, 14, 13, 12, 0xFF, 0xFF, 0xFF, 0xFF,
 ]);
 
@@ -245,7 +245,7 @@ const PACK_I24BE: u8x16 = u8x16::new([
 fn pack_i32x4(i32_array: &[i32; 4], mask: u8x16, buf: &mut [u8]) {
     let le: [[u8; 4]; 4] = i32_array.map(i32::to_le_bytes);
     // [[u8; 4]; 4] flattens to exactly 16 bytes, so the unwrap is statically infallible
-    let bytes = u8x16::new(*le.as_flattened().as_array::<16>().unwrap());
+    let bytes = u8x16::from_array(*le.as_flattened().as_array::<16>().unwrap());
     buf.copy_from_slice(&bytes.shuffle(mask).to_array()[..buf.len()]);
 }
 
@@ -305,9 +305,9 @@ pub fn downmix_to_stereo(samples: &[f32], channels: u16, stereo: &mut Vec<f32>) 
             stereo.reserve(samples.len() * 2);
             let (chunks, remainder) = samples.as_chunks::<4>();
             for chunk in chunks {
-                let v = f32x4::new(*chunk);
-                stereo.extend_from_slice(v.unpack_lo(v).as_array()); // [a,a,b,b]
-                stereo.extend_from_slice(v.unpack_hi(v).as_array()); // [c,c,d,d]
+                let v = f32x4::from_array(*chunk);
+                stereo.extend_from_slice(v.interleave_low(v).as_array()); // [a,a,b,b]
+                stereo.extend_from_slice(v.interleave_high(v).as_array()); // [c,c,d,d]
             }
             for &s in remainder {
                 stereo.push(s);
@@ -402,7 +402,7 @@ mod tests {
         // 16-bit conversion is dithered, so output is a random variable within
         // ±1 LSB of the deterministic round-to-nearest value. We assert the
         // tolerance band rather than exact equality.
-        let arr = f32x4::new([1.0, -1.0, 0.5, 0.0]);
+        let arr = f32x4::from_array([1.0, -1.0, 0.5, 0.0]);
         let result = f32_to_i32(BitDepth::Bits16, arr, Dither::Dither);
         // For input 1.0: clamp leaves 1.0, multiply gives ≈ 2^31 (in f32). Adding
         // any dither in (−65536, +65536) plus the 32768 nudge then arithmetic-shifting
@@ -425,7 +425,7 @@ mod tests {
         // At 24-bit (no dither) the result is exact; at 16-bit, all clamped-to-1.0
         // inputs always produce exactly i16::MAX (positive dither saturates round_int;
         // negative dither still floors to 32767 after the arithmetic shift).
-        let arr = f32x4::new([1.05, 1.5, 100.0, f32::INFINITY]);
+        let arr = f32x4::from_array([1.05, 1.5, 100.0, f32::INFINITY]);
         let result_24 = f32_to_i32(BitDepth::Bits24, arr, Dither::NoDither);
         for v in result_24 {
             assert_eq!(v, 0x7F_FFFF);
@@ -438,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_f32_to_i32_clamps_below_neg_one() {
-        let arr = f32x4::new([-1.05, -1.5, -100.0, f32::NEG_INFINITY]);
+        let arr = f32x4::from_array([-1.05, -1.5, -100.0, f32::NEG_INFINITY]);
         let result_24 = f32_to_i32(BitDepth::Bits24, arr, Dither::NoDither);
         for v in result_24 {
             assert_eq!(v, -0x80_0000);
@@ -458,7 +458,7 @@ mod tests {
         // NaN is coerced to ±1.0 before quantization. The exact rail it lands on is
         // operand-order-dependent; we only assert the output stays inside the legal
         // i16 range.
-        let arr = f32x4::new([f32::NAN, 0.0, 0.0, 0.0]);
+        let arr = f32x4::from_array([f32::NAN, 0.0, 0.0, 0.0]);
         let result = f32_to_i32(BitDepth::Bits16, arr, Dither::Dither);
         assert!(
             result[0] >= i16::MIN as i32 && result[0] <= i16::MAX as i32,
@@ -472,7 +472,7 @@ mod tests {
         // 24-bit path is undithered and deterministic — known reference values must
         // continue to match exactly. This test guards against accidental dithering
         // creeping into the 24-bit path in the future.
-        let arr = f32x4::new([1.0, -1.0, 0.5, 0.0]);
+        let arr = f32x4::from_array([1.0, -1.0, 0.5, 0.0]);
         let result = f32_to_i32(BitDepth::Bits24, arr, Dither::NoDither);
         // 1.0 · 2^31 saturates to i32::MAX, then >> 8 = 0x7FFFFF
         assert_eq!(result[0], 0x7F_FFFF);
@@ -588,7 +588,7 @@ mod tests {
         //      round-to-nearest value `round(f · 2^15)`, because TPDF is zero-mean.
         //      With N=1000 the standard error of the mean is well below 0.1 LSB.
         let inputs = [0.1f32, -0.3, 0.5, -0.7];
-        let arr = f32x4::new(inputs);
+        let arr = f32x4::from_array(inputs);
         let mut lane_samples: [Vec<i32>; 4] = Default::default();
         for _ in 0..1000 {
             let r = f32_to_i32(BitDepth::Bits16, arr, Dither::Dither);
@@ -871,10 +871,10 @@ mod tests {
             samples_to_i32(&input, &mut out, bd, Dither::NoDither);
             let mut expected = Vec::new();
             for chunk in [&input[0..4], &input[4..8]] {
-                let arr = f32x4::new(chunk.try_into().unwrap());
+                let arr = f32x4::from_array(chunk.try_into().unwrap());
                 expected.extend_from_slice(&f32_to_i32(bd, arr, Dither::NoDither));
             }
-            let tail = f32x4::new([input[8], input[9], 0.0, 0.0]);
+            let tail = f32x4::from_array([input[8], input[9], 0.0, 0.0]);
             expected.extend_from_slice(&f32_to_i32(bd, tail, Dither::NoDither)[0..2]);
             assert_eq!(out, expected);
         }

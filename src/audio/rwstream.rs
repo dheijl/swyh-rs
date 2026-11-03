@@ -58,7 +58,7 @@ fn quantize_and_pack<'b, 's, Q, P>(
     P: Fn(&[i32; 4], &mut [u8]),
 {
     chunks_iter.for_each(|(bch, sch)| {
-        pack(&quantize(f32x4::new(*sch)), bch);
+        pack(&quantize(f32x4::from_array(*sch)), bch);
     });
 }
 

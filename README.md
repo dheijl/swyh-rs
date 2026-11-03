@@ -396,18 +396,18 @@ MAC: I'm sorry but I don't have one... If you have one and would like to contrib
 
 ### Screenshots
 
+- the Status settings tab:
+
+<img width="700" height="927" alt="Schermafdruk van 2026-11-03 10-10-41" src="https://github.com/user-attachments/assets/2863bbb6-f3f5-415c-9b17-9c1c7a024b76" />
+
 - the App settings tab:
 
-<img width="700" height="772" alt="app" src="https://github.com/user-attachments/assets/4f0424e7-5425-4d61-a343-4df6ba915e99" />
-
-- the Audio settings tab:
-
-<img width="700" height="772" alt="image" src="https://github.com/user-attachments/assets/48022539-f403-4882-8b33-05176a0526b7" />
+<img width="700" height="927" alt="Schermafdruk van 2026-11-03 10-11-06" src="https://github.com/user-attachments/assets/6086117b-bd9f-40f9-a2f2-43d79ff067e5" />
 
 - the Network settings tab:
 
-<img width="700" height="772" alt="image" src="https://github.com/user-attachments/assets/35afe373-e11e-4175-a3a0-f3162761716b" />
+<img width="700" height="927" alt="Schermafdruk van 2026-11-03 10-11-28" src="https://github.com/user-attachments/assets/ceb464f7-9f47-497d-8b22-e9180e35d7c9" />
 
-- the Status tab:
+- the Audio settings tab:
 
-<img width="700" height="772" alt="status" src="https://github.com/user-attachments/assets/8335f5f1-453b-4f6e-9569-1b867e36282a" />
+<img width="700" height="927" alt="Schermafdruk van 2026-11-03 10-11-54" src="https://github.com/user-attachments/assets/a3664e80-195f-40f4-8135-c30e187197e3" />

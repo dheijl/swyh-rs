@@ -300,12 +300,11 @@ Recognized options:
     -x (--serve_only) bool: only run the music server, no ssdp discovery [false]
     -v (--volume) u8 : desired player volume between 0 and 100 [unchanged]
     -u (--upfront_buffer) u32 : initial buffering in milliseconds [0]
-    -g (--latency_reduction_delay) u32 : wait this many msec after connecting before dropping audio to reduce latency, giving the renderer's own buffer time to fill [0]
-    -D (--latency_reduction) u32 : once latency_reduction_delay has elapsed, drop this many msec of audio to reduce playback latency [0]
+    -D (--latency_reduction) delay_ms,drop_ms : wait delay_ms msec after connecting (giving the renderer's own buffer time to fill), then drop drop_ms msec of audio to reduce playback latency [0,0]
     -L (--language) string : UI language code (e.g. en-US, nl-BE) [en-US]
     -R (--sample_rate) u32 : sample rate (44100/48000/88200/96000/176400/192000/352800/384000) [configured/44100]
     -d (--dither) bool : use TPDF dither for 16-bit output [true]
-    -P (--slimproto) bool : enable SlimProto/squeezelite support [true]
+    -P (--slimproto) bool : enable SlimProto/squeezelite support [config: enable_slimproto, default true]
 ```
 
 The default values for missing options are given between square brackets. Refer to the GUI description for an explanation of the options.
@@ -314,7 +313,7 @@ Most options except -h, -n and -x are saved in the config file, so once a config
 Options -h, -n and -x will ignore the optional boolean argument (true/false) if specified. Specifying the option alone is equivalent to true.
 Other boolean options accept an optional true/false, because they are remembered in the config file and you should be able to change the stored value.
 
-Short options allow you to append the value to the short option, for example -S44100 is equivalent to -S 44100 and --sample_rate 44100, same for -xno etc...
+Short options allow you to append the value to the short option, for example -R44100 is equivalent to -R 44100 and --sample_rate 44100, same for -xno etc...
 
 Boolean values accept y/yes/n/no/t/true/f/false/1/0.
 

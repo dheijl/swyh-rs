@@ -16,6 +16,8 @@ use crate::{enums::streaming::*, globals::statics::SAMPLE_RATES, utils::traits::
 
 #[derive(Clone, Debug, Default)]
 pub struct Args {
+    /// `-h`/`--help` was given: the caller should print usage and exit.
+    pub help: bool,
     pub dry_run: Option<bool>,
     pub config_id: Option<String>,
     pub server_port: Option<u16>,
@@ -44,7 +46,7 @@ pub struct Args {
 }
 
 impl Args {
-    /// Print usage & bail out.
+    /// Print usage. The caller decides whether to exit.
     pub fn usage(&self) {
         // note: -C is handled in Configuration.read_config(), not here
         println!(
@@ -75,7 +77,6 @@ Recognized options:
     -P (--slimproto) bool : enable SlimProto/squeezelite support [config: enable_slimproto, default true]
 "#
         );
-        println!("{self:?}");
     }
 
     /// Parse commandline arguments.
@@ -88,7 +89,7 @@ Recognized options:
         while let Some(arg) = argparser.next().unwrap() {
             match arg {
                 Short('h') | Long("help") => {
-                    self.usage();
+                    self.help = true;
                 }
                 Short('n') | Long("no_run") => {
                     self.dry_run = Some(true);
@@ -336,7 +337,6 @@ Recognized options:
                 _ => (),
             }
         }
-        println!("{self:?}\n");
         if errors.is_empty() {
             Ok(())
         } else {
@@ -358,6 +358,31 @@ mod tests {
     }
 
     // --- flags without values ---
+
+    #[test]
+    fn help_short() {
+        let a = parse(&["prog", "-h"]).unwrap();
+        assert!(a.help);
+    }
+
+    #[test]
+    fn help_long() {
+        let a = parse(&["prog", "--help"]).unwrap();
+        assert!(a.help);
+    }
+
+    #[test]
+    fn help_not_set_by_default() {
+        let a = parse(&["prog", "-n"]).unwrap();
+        assert!(!a.help);
+    }
+
+    #[test]
+    fn help_with_invalid_arg_still_reports_error() {
+        let errs = parse(&["prog", "-h", "-p", "notaport"]).unwrap_err();
+        assert_eq!(errs.len(), 1);
+        assert!(errs[0].contains("server port"), "{errs:?}");
+    }
 
     #[test]
     fn dry_run_short() {

@@ -74,8 +74,14 @@ fn main() -> Result<(), i32> {
             eprintln!("Argument error: {e}");
         }
         args.usage();
+        println!("{args:?}\n");
         return Err(1);
     }
+    if args.help {
+        args.usage();
+        return Ok(());
+    }
+    println!("{args:?}\n");
     // first initialize cpal audio to prevent COM reinitialize panic on Windows
     // but it's possible that there is no default audio device
     let audio_output_device_opt = get_default_audio_output_device();

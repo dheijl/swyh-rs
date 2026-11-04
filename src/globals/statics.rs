@@ -164,3 +164,18 @@ pub fn get_config() -> RwLockReadGuard<'static, Configuration> {
 pub fn get_config_mut() -> RwLockWriteGuard<'static, Configuration> {
     CONFIG.write().expect("CONFIG write lock poisoned")
 }
+
+/// Mutates the shared config with `f`, persists it to disk, and returns `f`'s result.
+///
+/// The write lock is held only for the duration of the call, so the guard can
+/// never accidentally outlive the update. A failed save is logged, not propagated.
+///
+/// Uses `log::`, so only call this after logging has been set up.
+pub fn update_config_with<R>(f: impl FnOnce(&mut Configuration) -> R) -> R {
+    let mut conf = get_config_mut();
+    let r = f(&mut conf);
+    if let Err(e) = conf.update_config() {
+        log::error!("Failed to save config: {e:#}");
+    }
+    r
+}

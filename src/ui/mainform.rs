@@ -15,7 +15,7 @@ use crate::{
         RendererKind,
         statics::{
             APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
-            get_config, get_config_mut, get_renderers, get_renderers_mut,
+            get_config, get_renderers, get_renderers_mut, update_config_with,
         },
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
@@ -256,12 +256,10 @@ impl AudioTab {
                     LogCategory::Info,
                     &fl!("warn-audio-changed", "name" = &name),
                 );
-                {
-                    let mut conf = get_config_mut();
-                    conf.sound_source = Some(name);
-                    conf.sound_source_index = Some(index);
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| {
+                    c.sound_source = Some(name);
+                    c.sound_source_index = Some(index);
+                });
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
@@ -299,11 +297,7 @@ impl AudioTab {
                     LogCategory::Info,
                     &fl!("info-format-changed", "format" = &format),
                 );
-                {
-                    let mut conf = get_config_mut();
-                    conf.streaming_format = Some(newformat);
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.streaming_format = Some(newformat));
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
@@ -347,13 +341,11 @@ impl AudioTab {
                 if current == Some(streamsize) {
                     return;
                 }
-                let streaming_format = {
-                    let mut conf = get_config_mut();
-                    let fmt = conf.streaming_format.unwrap_or(StreamingFormat::Flac);
-                    conf.set_stream_size_for(fmt, streamsize);
-                    let _ = conf.update_config();
-                    conf.streaming_format.unwrap()
-                };
+                let streaming_format = update_config_with(|c| {
+                    let fmt = c.streaming_format.unwrap_or(StreamingFormat::Flac);
+                    c.set_stream_size_for(fmt, streamsize);
+                    fmt
+                });
                 ui_log(
                     LogCategory::Info,
                     &fl!(
@@ -395,11 +387,7 @@ impl AudioTab {
                 if get_config().use_dither == Some(is_set) {
                     return;
                 }
-                {
-                    let mut conf = get_config_mut();
-                    conf.use_dither = Some(is_set);
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.use_dither = Some(is_set));
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
@@ -411,19 +399,17 @@ impl AudioTab {
                 if get_config().bits_per_sample == Some(new_bits) {
                     return;
                 }
-                {
-                    let mut conf = get_config_mut();
+                update_config_with(|c| {
                     if b.is_set() {
-                        conf.bits_per_sample = Some(24);
+                        c.bits_per_sample = Some(24);
                         use_dither_ref.set(false);
                         use_dither_ref.deactivate();
                     } else {
-                        conf.bits_per_sample = Some(16);
+                        c.bits_per_sample = Some(16);
                         use_dither_ref.activate();
-                        use_dither_ref.set(conf.use_dither.unwrap_or(true));
+                        use_dither_ref.set(c.use_dither.unwrap_or(true));
                     }
-                    let _ = conf.update_config();
-                }
+                });
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
@@ -461,11 +447,7 @@ impl AudioTab {
                 if get_config().sample_rate == new_rate {
                     return;
                 }
-                {
-                    let mut conf = get_config_mut();
-                    conf.sample_rate = new_rate;
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.sample_rate = new_rate);
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
@@ -491,11 +473,7 @@ impl AudioTab {
                 if get_config().inject_silence == Some(is_set) {
                     return;
                 }
-                {
-                    let mut conf = get_config_mut();
-                    conf.inject_silence = Some(is_set);
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.inject_silence = Some(is_set));
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
@@ -525,11 +503,7 @@ impl AudioTab {
                     b = 5_000;
                 }
                 if b as u32 != b_config {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.buffering_delay_msec = Some(b as u32);
-                        let _ = conf.update_config();
-                    }
+                    update_config_with(|c| c.buffering_delay_msec = Some(b as u32));
                     sb.set_text(&StatusTab::format_status(default_sample_rate));
                 }
             }
@@ -559,11 +533,7 @@ impl AudioTab {
                     d = 5_000;
                 }
                 if d as u32 != lat_delay_config {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.latency_reduction_delay_msec = Some(d as u32);
-                        let _ = conf.update_config();
-                    }
+                    update_config_with(|c| c.latency_reduction_delay_msec = Some(d as u32));
                     sb.set_text(&StatusTab::format_status(default_sample_rate));
                 }
             }
@@ -593,11 +563,7 @@ impl AudioTab {
                     l = 5_000;
                 }
                 if l as u32 != lat_amount_config {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.latency_reduction_msec = Some(l as u32);
-                        let _ = conf.update_config();
-                    }
+                    update_config_with(|c| c.latency_reduction_msec = Some(l as u32));
                     sb.set_text(&StatusTab::format_status(default_sample_rate));
                 }
             }
@@ -751,11 +717,7 @@ impl NetworkTab {
                     LogCategory::Info,
                     &fl!("warn-network-changed", "name" = &name),
                 );
-                {
-                    let mut conf = get_config_mut();
-                    conf.last_network = Some(name);
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.last_network = Some(name));
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
@@ -780,11 +742,7 @@ impl NetworkTab {
                     return;
                 }
                 if new_value as u16 != get_config().server_port.unwrap_or_default() {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.server_port = Some(new_value as u16);
-                        let _ = conf.update_config();
-                    }
+                    update_config_with(|c| c.server_port = Some(new_value as u16));
                     sb.set_text(&StatusTab::format_status(default_sample_rate));
                     config_changed.set(true);
                 }
@@ -814,16 +772,10 @@ impl NetworkTab {
                             _ => b.value(),
                         };
                         b.set_value(v);
-                        let mut ssdp_interval_mins: f64 = -1.0;
-                        {
-                            let mut conf = get_config_mut();
-                            if (conf.ssdp_interval_mins - b.value()).abs() > 0.09 {
-                                conf.ssdp_interval_mins = b.value();
-                                ssdp_interval_mins = conf.ssdp_interval_mins;
-                                let _ = conf.update_config();
-                            }
-                        }
-                        if ssdp_interval_mins >= 0.0 {
+                        let ssdp_interval_mins = b.value();
+                        // the read guard in the `if` condition is dropped before the body runs
+                        if (get_config().ssdp_interval_mins - ssdp_interval_mins).abs() > 0.09 {
+                            update_config_with(|c| c.ssdp_interval_mins = ssdp_interval_mins);
                             ui_log(
                                 LogCategory::Warning,
                                 &fl!("warn-ssdp-changed", "interval" = ssdp_interval_mins),
@@ -944,11 +896,7 @@ impl AppTab {
                     LogCategory::Warning,
                     &fl!("warn-language-changed", "lang" = &lang),
                 );
-                {
-                    let mut conf = get_config_mut();
-                    conf.language = Some(lang);
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.language = Some(lang));
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
@@ -982,11 +930,7 @@ impl AppTab {
                 }
                 let name = MainForm::apply_theme(b.value() as usize);
                 debug!("New theme = {name}");
-                {
-                    let mut conf = get_config_mut();
-                    conf.color_theme = Some(new_theme);
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.color_theme = Some(new_theme));
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
@@ -1023,11 +967,7 @@ impl AppTab {
                     return;
                 }
                 let name = STYLES[b.value() as usize];
-                {
-                    let mut conf = get_config_mut();
-                    conf.widget_scheme = Some(new_style);
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.widget_scheme = Some(new_style));
                 ui_log(
                     LogCategory::Warning,
                     &fl!("warn-widget-style-changed", "style" = name),
@@ -1071,11 +1011,7 @@ impl AppTab {
                     LogCategory::Warning,
                     &fl!("warn-log-changed", "level" = level),
                 );
-                {
-                    let mut conf = get_config_mut();
-                    conf.log_level = loglevel;
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.log_level = loglevel);
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
@@ -1100,11 +1036,7 @@ impl AppTab {
                 if get_config().auto_resume == is_set {
                     return;
                 }
-                {
-                    let mut conf = get_config_mut();
-                    conf.auto_resume = is_set;
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.auto_resume = is_set);
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
@@ -1128,11 +1060,7 @@ impl AppTab {
                 if get_config().auto_reconnect == is_set {
                     return;
                 }
-                {
-                    let mut conf = get_config_mut();
-                    conf.auto_reconnect = is_set;
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.auto_reconnect = is_set);
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
@@ -1160,11 +1088,7 @@ impl AppTab {
                     return;
                 }
                 ui_log(LogCategory::Warning, &fl!("warn-slimproto-changed"));
-                {
-                    let mut conf = get_config_mut();
-                    conf.enable_slimproto = is_set;
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.enable_slimproto = is_set);
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
                 config_changed.set(true);
             }
@@ -1207,11 +1131,7 @@ impl AppTab {
                 if get_config().monitor_rms == run_rms {
                     return;
                 }
-                {
-                    let mut conf = get_config_mut();
-                    conf.monitor_rms = run_rms;
-                    let _ = conf.update_config();
-                }
+                update_config_with(|c| c.monitor_rms = run_rms);
                 sb.set_text(&StatusTab::format_status(default_sample_rate));
             }
         });
@@ -1676,9 +1596,7 @@ impl MainForm {
                 // which transmutes the raw code and panics on non-button events (Move, Enter, ...)
                 if ev == Event::Push && app::event_button() == 3 {
                     if !get_config().hidden_renderers.is_empty() {
-                        let mut config = get_config_mut();
-                        config.hidden_renderers.clear();
-                        let _ = config.update_config();
+                        update_config_with(|c| c.hidden_renderers.clear());
                         config_changed.set(true);
                     }
                     true
@@ -1939,11 +1857,7 @@ impl MainForm {
                     if b.is_on() { "ON" } else { "OFF" },
                 );
                 if b.is_on() {
-                    {
-                        let mut conf = get_config_mut();
-                        conf.last_renderer = Some(b.label());
-                        let _ = conf.update_config();
-                    }
+                    update_config_with(|c| c.last_renderer = Some(b.label()));
                     let streaminfo = StreamInfo::new(wd.sample_rate);
                     newr_c.spawn_play(local_addr, streaminfo);
                 } else {
@@ -2044,9 +1958,7 @@ impl MainForm {
                         if let Some(sl) = slider.as_mut() {
                             sl.hide();
                         }
-                        let mut config = get_config_mut();
-                        config.hidden_renderers.push(remote_addr.to_string());
-                        let _ = config.update_config();
+                        update_config_with(|c| c.hidden_renderers.push(remote_addr.to_string()));
                         config_changed.set(true);
                         true
                     }
@@ -2156,9 +2068,7 @@ impl MainForm {
             move |b, ev| match ev {
                 Event::Push if app::event_button() == 3 => {
                     b.hide();
-                    let mut config = get_config_mut();
-                    config.hidden_renderers.push(remote_addr.to_string());
-                    let _ = config.update_config();
+                    update_config_with(|c| c.hidden_renderers.push(remote_addr.to_string()));
                     config_changed.set(true);
                     true
                 }

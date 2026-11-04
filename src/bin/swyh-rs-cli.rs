@@ -481,10 +481,7 @@ fn main() -> Result<(), i32> {
 fn sync_config(config: &Configuration) {
     let _ = config.update_config();
     // update in-memory shared config for other threads
-    {
-        let mut conf = get_config_mut();
-        *conf = config.clone();
-    }
+    *get_config_mut() = config.clone();
 }
 
 /// configure simplelog with both terminal and file sinks

@@ -24,6 +24,7 @@ use swyh_rs::{
         statics::{
             APP_DATE, APP_VERSION, SERVER_PORT, THREAD_STACK, get_clients, get_config_mut,
             get_msgchannel, get_renderers, get_renderers_mut, stop_clients_by_ip,
+            update_config_with,
         },
     },
     rendercontrol::{StreamInfo, WavData, find_matching_upnp_renderer},
@@ -746,11 +747,7 @@ fn shutdown_and_exit() {
         }
     }
     // remember active players in config for auto_reconnect
-    {
-        let mut config = get_config_mut();
-        config.active_renderers = active_players;
-        let _ = config.update_config();
-    }
+    update_config_with(|c| c.active_renderers = active_players);
     // wait for HTTP streaming connections to drain
     for _ in 0..50 {
         if get_clients().is_empty() {

@@ -100,21 +100,18 @@ fn handle_connection(mut stream: TcpStream) {
                 // write handle and peer_port in place instead of silently
                 // dropping the HELO, so playback commands sent after a
                 // reconnect land on the live connection instead of a dead one
+                if let Some(existing) = get_renderers_mut()
+                    .iter_mut()
+                    .filter_map(RendererKind::as_slim_mut)
+                    .find(|r| r.remote_addr == remote_addr)
                 {
-                    let mut renderers = get_renderers_mut();
-                    if let Some(existing) = renderers
-                        .iter_mut()
-                        .filter_map(RendererKind::as_slim_mut)
-                        .find(|r| r.remote_addr == remote_addr)
-                    {
-                        log::info!(
-                            "SlimProto {peer}: renderer {remote_addr} reconnected, refreshing write handle"
-                        );
-                        existing.write_stream = write_stream;
-                        existing.peer_port = peer_port;
-                        spawn_heartbeat(existing.clone(), peer.clone());
-                        continue;
-                    }
+                    log::info!(
+                        "SlimProto {peer}: renderer {remote_addr} reconnected, refreshing write handle"
+                    );
+                    existing.write_stream = write_stream;
+                    existing.peer_port = peer_port;
+                    spawn_heartbeat(existing.clone(), peer.clone());
+                    continue;
                 }
                 let renderer = SlimRenderer::from_helo(&helo, remote_addr, peer_port, write_stream);
                 spawn_heartbeat(renderer.clone(), peer.clone());

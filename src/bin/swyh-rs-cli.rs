@@ -277,12 +277,14 @@ fn main() -> Result<(), i32> {
         );
     } else {
         for ip in &config.active_renderers {
-            if let Some(pl) = get_renderers()
+            // clone the renderer out so the RENDERERS read lock is released
+            // before the blocking SOAP calls below
+            if let Some(mut player) = get_renderers()
                 .iter()
                 .filter_map(RendererKind::as_upnp)
                 .find(|&renderer| renderer.controller.remote_addr == *ip)
+                .cloned()
             {
-                let mut player = pl.clone();
                 if let Some(vol) = args.volume
                     && player.volume > -1
                 {
@@ -905,38 +907,32 @@ fn resolve_player_names(
     }
     // resolve player name to IP address if a name was given instead of an IP
     if let Some(ref pl_ip) = args.player_ip
-        && let Some(r) = get_renderers()
+        && let Some(addr) = get_renderers()
             .iter()
             .filter_map(RendererKind::as_upnp)
             .find(|r| r.controller.dev_name.contains(pl_ip))
+            .map(|r| r.controller.remote_addr.to_string())
     {
         ui_log(
             LogCategory::Info,
-            &fl!(
-                "cli-default-renderer-ip",
-                "ip" = pl_ip,
-                "addr" = &r.controller.remote_addr
-            ),
+            &fl!("cli-default-renderer-ip", "ip" = pl_ip, "addr" = &addr),
         );
-        args.player_ip = Some(r.controller.remote_addr.to_string());
+        args.player_ip = Some(addr);
     }
     if let Some(active_players) = &args.active_players {
         let mut ip_players: Vec<String> = Vec::new();
         active_players.iter().for_each(|ap| {
-            if let Some(r) = get_renderers()
+            if let Some(addr) = get_renderers()
                 .iter()
                 .filter_map(RendererKind::as_upnp)
                 .find(|r| r.controller.dev_name.contains(ap))
+                .map(|r| r.controller.remote_addr.to_string())
             {
-                ip_players.push(r.controller.remote_addr.to_string());
                 ui_log(
                     LogCategory::Info,
-                    &fl!(
-                        "cli-active-renderer",
-                        "name" = ap,
-                        "addr" = &r.controller.remote_addr
-                    ),
+                    &fl!("cli-active-renderer", "name" = ap, "addr" = &addr),
                 );
+                ip_players.push(addr);
             }
         });
         if !ip_players.is_empty() {
@@ -958,12 +954,13 @@ fn select_primary_renderer(config: &Configuration) -> Option<Renderer> {
         .iter()
         .filter_map(RendererKind::as_upnp)
         .find(|r| r.controller.remote_addr == last_renderer)
+        .cloned()
     {
         ui_log(
             LogCategory::Info,
             &fl!("cli-default-player-ip", "ip" = &pl.controller.remote_addr),
         );
-        return Some(pl.clone());
+        return Some(pl);
     }
     if config.enable_slimproto {
         info!(

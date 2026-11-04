@@ -46,18 +46,23 @@ pub fn run_server(
 ) {
     let addr = format!("{local_addr}:{server_port}");
     ui_log(LogCategory::Info, &fl!("srv-listening", "addr" = addr));
-    {
+    // copy the values out so the read lock is released before ui_log runs
+    let (bps, format) = {
         let cfg = get_config();
-        ui_log(
-            LogCategory::Info,
-            &fl!(
-                "srv-default-streaming",
-                "rate" = wd.sample_rate,
-                "bps" = BitDepth::from(cfg.bits_per_sample.unwrap_or(16)),
-                "format" = cfg.streaming_format.unwrap_or(StreamingFormat::Flac),
-            ),
-        );
-    } // drop the read lock before entering the server loop
+        (
+            BitDepth::from(cfg.bits_per_sample.unwrap_or(16)),
+            cfg.streaming_format.unwrap_or(StreamingFormat::Flac),
+        )
+    };
+    ui_log(
+        LogCategory::Info,
+        &fl!(
+            "srv-default-streaming",
+            "rate" = wd.sample_rate,
+            "bps" = bps,
+            "format" = format,
+        ),
+    );
     let server = Arc::new(
         Server::http_with_pool(
             addr,

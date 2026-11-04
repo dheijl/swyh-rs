@@ -194,23 +194,20 @@ impl FlacChannel {
 /// `samples_conv::tpdf_dither_lanes_16_from_bytes`) halves the number of RNG state
 /// advances per 4 samples and skips the rejection loop entirely.
 #[inline(always)]
-fn noise_lanes(rng: &mut Rng) -> [f32; 4] {
-    const MUL: f32 = 1.0 / (1u32 << 31) as f32;
+fn noise_lanes(rng: &mut Rng) -> f32x4 {
+    // (u >> 1) * 2^-31 * 2 - 1  ==  (u >> 1) * 2^-30 - 1 (exact: both factors are powers of two)
+    const SCALE: f32x4 = f32x4::splat(1.0 / (1u32 << 30) as f32);
+    const ONE: f32x4 = f32x4::splat(1.0);
     let mut buf = [0u8; 16];
     rng.fill(&mut buf);
     let mut u = [0.0f32; 4];
     let (words, _) = buf.as_chunks::<8>();
     for (i, w) in words.iter().enumerate() {
         let word = u64::from_ne_bytes(*w);
-        u[2 * i] = ((word as u32) >> 1) as f32 * MUL;
-        u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32 * MUL;
+        u[2 * i] = ((word as u32) >> 1) as f32;
+        u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32;
     }
-    [
-        u[0] * 2.0 - 1.0,
-        u[1] * 2.0 - 1.0,
-        u[2] * 2.0 - 1.0,
-        u[3] * 2.0 - 1.0,
-    ]
+    f32x4::new(u) * SCALE - ONE
 }
 
 ///
@@ -219,8 +216,7 @@ fn noise_lanes(rng: &mut Rng) -> [f32; 4] {
 fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
     for samples in noise_buf.chunks_mut(4) {
         // prepare 4 samples, possibly wasting 2 if last chunk is only 2 samples
-        let f32_array = noise_lanes(rng);
-        let f32_simd = f32x4::new(f32_array);
+        let f32_simd = noise_lanes(rng);
         let i32_array = f32_to_i32(bd, f32_simd, Dither::NoDither);
         samples.iter_mut().zip(i32_array).for_each(|s| {
             if s.1 >= 0 {

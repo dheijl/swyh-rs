@@ -92,7 +92,7 @@ pub fn run_server(
                 std::thread::spawn(move || {
                     debug!(
                         "{:?} {} from {}",
-                        *rq.method(),
+                        rq.method(),
                         rq.url(),
                         rq.remote_addr().unwrap()
                     );

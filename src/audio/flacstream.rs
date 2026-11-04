@@ -4,6 +4,13 @@
 //! [`FlacChannel`] owns a background encoding thread that reads captured f32 samples,
 //! encodes them with `flac-bound`, and injects near-silence bursts when no samples arrive.
 
+use crate::{
+    audio::{rwstream::AudioSamples, samples_conv::samples_to_i32},
+    enums::streaming::{BitDepth, Dither},
+    fl,
+    globals::statics::THREAD_STACK,
+    utils::ui_logger::{LogCategory, ui_log},
+};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use fastrand::Rng;
 use flac_bound::{FlacEncoder, WriteWrapper};
@@ -14,18 +21,6 @@ use std::{
         atomic::{AtomicBool, Ordering::Relaxed},
     },
     time::Duration,
-};
-use wide::f32x4;
-
-use crate::{
-    audio::{
-        rwstream::AudioSamples,
-        samples_conv::{f32_to_i32, samples_to_i32},
-    },
-    enums::streaming::{BitDepth, Dither},
-    fl,
-    globals::statics::THREAD_STACK,
-    utils::ui_logger::{LogCategory, ui_log},
 };
 
 const NOISE_PERIOD_MS: u64 = 250; // milliseconds
@@ -162,7 +157,7 @@ impl FlacChannel {
                     } else if l_active.load(Relaxed) {
                         time_out = Duration::from_millis(NOISE_PERIOD_MS * 2);
                         // if no samples for a certain time: send very faint near silence bursts
-                        fill_noise_buffer(&mut rng, bd, &mut noise_buf);
+                        fill_noise_buffer(&mut rng, &mut noise_buf);
                         if enc
                             .process_interleaved(&noise_buf, (noise_buf.len() / ch as usize) as u32)
                             .is_err()
@@ -187,43 +182,103 @@ impl FlacChannel {
     }
 }
 
-/// Draw 4 independent samples in `[-1, 1)` from one batched `rng.fill()` call
-/// instead of 4 separate `rng.f32()` calls. Each `f32()` call internally does its
-/// own `gen_u64()` draw (plus a rejection-sampling loop); splitting 2 raw `u64`
-/// draws into 4 halves (same shift-then-scale trick as
-/// `samples_conv::tpdf_dither_lanes_16_from_bytes`) halves the number of RNG state
-/// advances per 4 samples and skips the rejection loop entirely.
-#[inline(always)]
-fn noise_lanes(rng: &mut Rng) -> f32x4 {
-    // (u >> 1) * 2^-31 * 2 - 1  ==  (u >> 1) * 2^-30 - 1 (exact: both factors are powers of two)
-    const SCALE: f32x4 = f32x4::splat(1.0 / (1u32 << 30) as f32);
-    const ONE: f32x4 = f32x4::splat(1.0);
-    let mut buf = [0u8; 16];
-    rng.fill(&mut buf);
-    let mut u = [0.0f32; 4];
-    let (words, _) = buf.as_chunks::<8>();
-    for (i, w) in words.iter().enumerate() {
-        let word = u64::from_ne_bytes(*w);
-        u[2 * i] = ((word as u32) >> 1) as f32;
-        u[2 * i + 1] = ((word >> 32) as u32 >> 1) as f32;
-    }
-    f32x4::new(u) * SCALE - ONE
+/// Lowest noise sample value (inclusive), in LSB of the output bit depth.
+const NOISE_MIN: i32 = -4;
+/// Highest noise sample value (exclusive), in LSB of the output bit depth.
+const NOISE_MAX: i32 = 4;
+
+/// Fill the pre-allocated noise buffer with very faint white noise:
+/// uniformly distributed integers in `[NOISE_MIN, NOISE_MAX)` LSB.
+///
+/// The samples are right-justified, so the amplitude in LSB is the same for
+/// every bit depth (and thus ~48 dB quieter at 24 bit than at 16 bit).
+/// The range size is a power of two, so `fastrand` never needs to reject a draw.
+fn fill_noise_buffer(rng: &mut Rng, noise_buf: &mut [i32]) {
+    noise_buf
+        .iter_mut()
+        .for_each(|s| *s = rng.i32(NOISE_MIN..NOISE_MAX));
 }
 
-///
-/// fill the pre-allocated noise buffer with white noise
-///
-fn fill_noise_buffer(rng: &mut Rng, bd: BitDepth, noise_buf: &mut [i32]) {
-    for samples in noise_buf.chunks_mut(4) {
-        // prepare 4 samples, possibly wasting 2 if last chunk is only 2 samples
-        let f32_simd = noise_lanes(rng);
-        let i32_array = f32_to_i32(bd, f32_simd, Dither::NoDither);
-        samples.iter_mut().zip(i32_array).for_each(|s| {
-            if s.1 >= 0 {
-                *s.0 = s.1 & 0x03;
-            } else {
-                *s.0 = s.1 | 0x7ffffffc;
-            }
-        });
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const NOISE_VALUES: usize = (NOISE_MAX - NOISE_MIN) as usize;
+
+    /// one 250 ms burst of 48 kHz stereo, the typical real-world noise buffer
+    fn noise_burst(rng: &mut Rng) -> Vec<i32> {
+        let mut buf = vec![0; 48_000 * 2 / 4];
+        fill_noise_buffer(rng, &mut buf);
+        buf
+    }
+
+    #[test]
+    fn noise_stays_within_range() {
+        let mut rng = Rng::with_seed(79);
+        let buf = noise_burst(&mut rng);
+        assert!(buf.iter().all(|&s| (NOISE_MIN..NOISE_MAX).contains(&s)));
+    }
+
+    #[test]
+    fn noise_is_not_silent() {
+        let mut rng = Rng::with_seed(79);
+        let buf = noise_burst(&mut rng);
+        let nonzero = buf.iter().filter(|&&s| s != 0).count();
+        // 7 of the 8 values are non-zero
+        assert!(
+            nonzero > buf.len() * 3 / 4,
+            "only {nonzero} non-zero samples"
+        );
+    }
+
+    #[test]
+    fn noise_is_uniformly_distributed() {
+        let mut rng = Rng::with_seed(79);
+        let buf = noise_burst(&mut rng);
+        let mut counts = [0usize; NOISE_VALUES];
+        for &s in &buf {
+            counts[(s - NOISE_MIN) as usize] += 1;
+        }
+        let expected = buf.len() / NOISE_VALUES; // 3000, std dev ~51
+        for (i, &c) in counts.iter().enumerate() {
+            let value = i as i32 + NOISE_MIN;
+            assert!(
+                c.abs_diff(expected) < expected / 10,
+                "value {value} occurs {c} times, expected ~{expected}: {counts:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn noise_samples_are_uncorrelated() {
+        let mut rng = Rng::with_seed(79);
+        let buf = noise_burst(&mut rng);
+        let n = buf.len() as f64;
+        let mean = buf.iter().map(|&s| f64::from(s)).sum::<f64>() / n;
+        let var = buf
+            .iter()
+            .map(|&s| (f64::from(s) - mean).powi(2))
+            .sum::<f64>()
+            / n;
+        // lag-1 and lag-2 (same channel in stereo) autocorrelation should be ~0
+        for lag in [1, 2] {
+            let cov = buf
+                .iter()
+                .zip(&buf[lag..])
+                .map(|(&a, &b)| (f64::from(a) - mean) * (f64::from(b) - mean))
+                .sum::<f64>()
+                / (n - lag as f64);
+            let r = cov / var;
+            // std error is 1/sqrt(n) ~ 0.0091
+            assert!(r.abs() < 0.05, "lag-{lag} autocorrelation {r} too high");
+        }
+    }
+
+    #[test]
+    fn successive_bursts_differ() {
+        let mut rng = Rng::with_seed(79);
+        let first = noise_burst(&mut rng);
+        let second = noise_burst(&mut rng);
+        assert_ne!(first, second);
     }
 }

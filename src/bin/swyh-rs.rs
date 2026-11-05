@@ -471,9 +471,7 @@ fn resolve_local_addr(config: &Configuration, networks: &[String]) -> IpAddr {
     match source {
         AddrSource::Configured => {}
         AddrSource::Detected => {
-            let mut conf = get_config_mut();
-            conf.last_network = Some(addr.to_string());
-            let _ = conf.update_config();
+            update_config_with(|c| c.last_network = Some(addr.to_string()));
         }
         AddrSource::Fallback => ui_log(
             LogCategory::Warning,

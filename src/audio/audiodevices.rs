@@ -339,7 +339,7 @@ pub fn capture_output_audio(
             capture_sender,
             "U16",
         ),
-        cpal::SampleFormat::I24 => build_typed_input_stream::<i16>(
+        cpal::SampleFormat::I24 => build_typed_input_stream::<cpal::I24>(
             device,
             audio_cfg.config(),
             channels,
@@ -348,7 +348,7 @@ pub fn capture_output_audio(
             capture_sender,
             "I24",
         ),
-        cpal::SampleFormat::U24 => build_typed_input_stream::<u16>(
+        cpal::SampleFormat::U24 => build_typed_input_stream::<cpal::U24>(
             device,
             audio_cfg.config(),
             channels,

@@ -75,7 +75,7 @@ pub struct ChannelStream {
     pub is_slim: bool,
     pub streaming_format: StreamingFormat,
     fifo: VecDeque<f32>,
-    flac_fifo: VecDeque<u8>,
+    flac_cursor: ChunkCursor,
     // Arc'd to prevent copying when Cloning in the server
     silence: Arc<[f32]>,
     capture_timeout: Duration,
@@ -143,7 +143,7 @@ impl ChannelStream {
             s: tx,
             r: rx,
             fifo: VecDeque::with_capacity(16384),
-            flac_fifo: VecDeque::with_capacity(16384),
+            flac_cursor: ChunkCursor::default(),
             silence: get_silence_buffer(context.sample_rate, capture_timeout / 4).into(),
             capture_timeout: Duration::from_millis(capture_timeout), // silence kicks in after CAPTURE_TIMEOUT seconds
             sending_silence: false,
@@ -250,25 +250,18 @@ impl ChannelStream {
     /// fill the HTTP read buffer with encoded flac data from the FlacChannel
     /// the f32 samples have already been encoded to FLAC and written to the
     /// `flac_out` channel of the `FlacChannel` encoder thread.
-    /// the `flac_in` channel of the `FlacChannel` is read here and pushed on the
-    /// `flac_fifo` `VecDeque` for transmission
+    /// the `flac_in` channel of the `FlacChannel` is read here, and the received
+    /// chunks are copied straight into the read buffer via `flac_cursor`
     fn fill_flac_buffer(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         debug_assert!(self.flac_channel.is_some());
-        // borrow instead of clone: `self.flac_channel` and `self.flac_fifo` are
+        // borrow instead of clone: `self.flac_channel` and `self.flac_cursor` are
         // disjoint fields, so this doesn't need its own `Receiver` handle
         let flac_in = &self.flac_channel.as_ref().unwrap().flac_in;
-        // make sure we have enough data for this read buffer
-        while self.flac_fifo.len() < buf.len() {
-            let Ok(chunk) = flac_in.recv() else {
-                return Err(Error::other("FLAC channel receive error."));
-            };
-            self.flac_fifo.append(&mut VecDeque::from(chunk));
-        }
-        // fill the buffer with the number of FLAC bytes needed from the fifo
-        copy_fifo_front(&self.flac_fifo, buf);
-        // remove the copied bytes from the front of the fifo
-        self.flac_fifo.retain_back(self.flac_fifo.len() - buf.len());
-        Ok(buf.len())
+        self.flac_cursor.fill(buf, || {
+            flac_in
+                .recv()
+                .map_err(|_| Error::other("FLAC channel receive error."))
+        })
     }
 
     /// Fill the HTTP read buffer with LPCM/WAV/RF64 data from the f32 samples `VecDeque` fifo.
@@ -340,24 +333,41 @@ impl ChannelStream {
     }
 }
 
-/// Copy `buf.len()` bytes from the front of `fifo` into `buf`.
-///
-/// `fifo` is a `VecDeque`, so its contents may be split across two
-/// underlying slices; this copies from both as needed.
-/// the fifo instance here is guaranteed to contain at least
-/// buf.len() bytes by the caller
-fn copy_fifo_front(fifo: &VecDeque<u8>, buf: &mut [u8]) {
-    debug_assert!(fifo.len() >= buf.len());
-    let (s1, s2) = fifo.as_slices();
-    let (l1, l2) = if s1.len() >= buf.len() {
-        (buf.len(), 0)
-    } else {
-        (s1.len(), buf.len() - s1.len())
-    };
-    debug_assert!(l1 + l2 == buf.len());
-    buf[..l1].copy_from_slice(&s1[..l1]);
-    if l2 > 0 {
-        buf[l1..].copy_from_slice(&s2[..l2]);
+/// Read position within the most recently received chunk of encoded bytes
+/// (the FLAC encoder output), so chunks can be copied straight into the HTTP
+/// read buffer without first being appended to an intermediate fifo.
+#[derive(Clone, Default)]
+struct ChunkCursor {
+    /// the chunk currently being consumed
+    chunk: Vec<u8>,
+    /// number of bytes of `chunk` already copied out
+    pos: usize,
+}
+
+impl ChunkCursor {
+    /// Fill `buf` completely, first from the unconsumed remainder of the
+    /// current chunk, then from new chunks obtained via `next_chunk`.
+    /// Bytes left over from the last chunk are kept for the next call.
+    /// Returns `buf.len()`, or the first error `next_chunk` returns.
+    fn fill<E>(
+        &mut self,
+        buf: &mut [u8],
+        mut next_chunk: impl FnMut() -> Result<Vec<u8>, E>,
+    ) -> Result<usize, E> {
+        let mut written = 0;
+        while written < buf.len() {
+            if self.pos == self.chunk.len() {
+                // current chunk used up: take the next one
+                self.chunk = next_chunk()?;
+                self.pos = 0;
+                continue;
+            }
+            let n = (buf.len() - written).min(self.chunk.len() - self.pos);
+            buf[written..written + n].copy_from_slice(&self.chunk[self.pos..self.pos + n]);
+            written += n;
+            self.pos += n;
+        }
+        Ok(written)
     }
 }
 
@@ -855,82 +865,69 @@ mod tests {
         assert_eq!(b1, b2);
     }
 
-    /// Build a full `VecDeque<u8>` (`len() == cap`) holding `values` in logical
-    /// order, whose live range is physically split at `head_offset` bytes
-    /// from the end of its backing storage (via push/pop churn that never
-    /// exceeds `cap`, so no reallocation straightens it out), giving
-    /// `as_slices()` two non-empty slices: `cap - head_offset` bytes then
-    /// `head_offset` bytes.
-    fn wrapped_fifo(cap: usize, head_offset: usize, values: &[u8]) -> VecDeque<u8> {
-        assert_eq!(values.len(), cap);
-        assert!(head_offset > 0 && head_offset < cap);
-        let mut fifo: VecDeque<u8> = VecDeque::with_capacity(cap);
-        for v in 0..cap as u8 {
-            fifo.push_back(v);
-        }
-        for _ in 0..head_offset {
-            fifo.pop_front();
-        }
-        for v in 0..head_offset as u8 {
-            fifo.push_back(v);
-        }
-        for (i, &v) in values.iter().enumerate() {
-            fifo[i] = v;
-        }
-        fifo
+    /// Feed `chunks` (in order) to a fresh `ChunkCursor` through successive
+    /// `fill` calls with the given buffer sizes, returning what each call
+    /// produced. Panics if the cursor asks for more chunks than provided.
+    fn fill_sequence(chunks: &[&[u8]], buf_sizes: &[usize]) -> Vec<Vec<u8>> {
+        let mut cursor = ChunkCursor::default();
+        let mut source = chunks.iter().map(|c| c.to_vec());
+        buf_sizes
+            .iter()
+            .map(|&size| {
+                let mut buf = vec![0u8; size];
+                let n = cursor
+                    .fill(&mut buf, || source.next().ok_or("out of chunks"))
+                    .unwrap();
+                assert_eq!(n, size);
+                buf
+            })
+            .collect()
     }
 
     #[test]
-    fn test_copy_fifo_front_split_across_wrap() {
-        let values: Vec<u8> = (10..=80).step_by(10).collect();
-        let fifo = wrapped_fifo(8, 6, &values);
-        assert_eq!(fifo.as_slices().0.len(), 2);
-        assert_eq!(fifo.as_slices().1.len(), 6);
+    fn test_chunk_cursor_buf_spans_several_chunks() {
+        let out = fill_sequence(&[&[1, 2], &[3, 4, 5], &[6]], &[6]);
+        assert_eq!(out, vec![vec![1, 2, 3, 4, 5, 6]]);
+    }
 
-        // buf spans both the 2-byte first slice and part of the second
+    #[test]
+    fn test_chunk_cursor_chunk_spans_several_bufs() {
+        let out = fill_sequence(&[&[1, 2, 3, 4, 5, 6, 7]], &[3, 2, 2]);
+        assert_eq!(out, vec![vec![1, 2, 3], vec![4, 5], vec![6, 7]]);
+    }
+
+    #[test]
+    fn test_chunk_cursor_keeps_leftover_across_calls() {
+        // leftover [4, 5] of the first chunk must come out before the next chunk
+        let out = fill_sequence(&[&[1, 2, 3, 4, 5], &[6, 7, 8]], &[3, 4, 1]);
+        assert_eq!(out, vec![vec![1, 2, 3], vec![4, 5, 6, 7], vec![8]]);
+    }
+
+    #[test]
+    fn test_chunk_cursor_exact_chunk_boundaries() {
+        let out = fill_sequence(&[&[1, 2], &[3, 4]], &[2, 2]);
+        assert_eq!(out, vec![vec![1, 2], vec![3, 4]]);
+    }
+
+    #[test]
+    fn test_chunk_cursor_skips_empty_chunks() {
+        let out = fill_sequence(&[&[], &[1], &[], &[], &[2, 3]], &[3]);
+        assert_eq!(out, vec![vec![1, 2, 3]]);
+    }
+
+    #[test]
+    fn test_chunk_cursor_empty_buf_needs_no_chunk() {
+        // an empty read must not block waiting for a chunk
+        let out = fill_sequence(&[], &[0]);
+        assert_eq!(out, vec![Vec::<u8>::new()]);
+    }
+
+    #[test]
+    fn test_chunk_cursor_propagates_source_error() {
+        let mut cursor = ChunkCursor::default();
+        let mut source = vec![vec![1u8, 2]].into_iter();
         let mut buf = [0u8; 4];
-        copy_fifo_front(&fifo, &mut buf);
-        assert_eq!(buf, [10, 20, 30, 40]);
-    }
-
-    #[test]
-    fn test_copy_fifo_front_entirely_from_first_slice() {
-        let values: Vec<u8> = (10..=80).step_by(10).collect();
-        let fifo = wrapped_fifo(8, 6, &values);
-
-        let mut buf = [0u8; 2];
-        copy_fifo_front(&fifo, &mut buf);
-        assert_eq!(buf, [10, 20]);
-    }
-
-    #[test]
-    fn test_copy_fifo_front_exact_fifo_len() {
-        let values: Vec<u8> = (10..=80).step_by(10).collect();
-        let fifo = wrapped_fifo(8, 6, &values);
-
-        let mut buf = [0u8; 8];
-        copy_fifo_front(&fifo, &mut buf);
-        assert_eq!(buf, values.as_slice());
-    }
-
-    #[test]
-    fn test_copy_fifo_front_contiguous_no_wrap() {
-        let mut fifo: VecDeque<u8> = VecDeque::new();
-        fifo.extend([1, 2, 3, 4]);
-        assert!(fifo.as_slices().1.is_empty());
-
-        let mut buf = [0u8; 3];
-        copy_fifo_front(&fifo, &mut buf);
-        assert_eq!(buf, [1, 2, 3]);
-    }
-
-    #[test]
-    fn test_copy_fifo_front_empty_buf() {
-        let values: Vec<u8> = (10..=80).step_by(10).collect();
-        let fifo = wrapped_fifo(8, 6, &values);
-
-        let mut buf: [u8; 0] = [];
-        copy_fifo_front(&fifo, &mut buf);
-        assert_eq!(buf, [] as [u8; 0]);
+        let result = cursor.fill(&mut buf, || source.next().ok_or("closed"));
+        assert_eq!(result, Err("closed"));
     }
 }

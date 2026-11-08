@@ -43,7 +43,7 @@ pub type AudioSamples = Arc<[f32]>;
 
 /// Quantize each 4-sample chunk with `quantize`, then pack the resulting `[i32; 4]`
 /// into the matching output bytes with `pack`. Generic over both so that each call site
-/// in [`ChannelStream::fill_lpcm_buffer`] — one per `(endianness, bd, use_dither)`
+/// in [`LpcmFormat::convert`] — one per `(endian, bd, dither)`
 /// combination — monomorphizes its own copy of this loop with a specific
 /// quantizer/packer pair resolved at the type level, guaranteeing a branch-free loop
 /// body regardless of optimization level.
@@ -59,6 +59,67 @@ fn quantize_and_pack<'b, 's, Q, P>(
     chunks_iter.for_each(|(bch, sch)| {
         pack(&quantize(f32x4::new(*sch)), bch);
     });
+}
+
+/// LPCM/WAV/RF64 output sample format: how groups of 4 f32 samples are
+/// quantized and packed into the HTTP read buffer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LpcmFormat {
+    /// WAV/RF64 are little endian, raw LPCM is big endian
+    endian: Endian,
+    bd: BitDepth,
+    /// only applies to 16 bit, 24 bit is never dithered
+    dither: Dither,
+}
+
+impl LpcmFormat {
+    /// number of output bytes for one group of 4 samples
+    fn bytes_per_group(self) -> usize {
+        match self.bd {
+            Bits16 => 4 * 2,
+            Bits24 => 4 * 3,
+        }
+    }
+
+    /// Convert `groups` into `out`, which must be exactly
+    /// `groups.len() * self.bytes_per_group()` bytes long.
+    /// `quantize_and_pack` is generic over the quantizer/packer pair, so each
+    /// arm below monomorphizes its own branch-free copy of the loop with a
+    /// specific function pair baked in.
+    fn convert(self, out: &mut [u8], groups: &[[f32; 4]]) {
+        debug_assert_eq!(out.len(), groups.len() * self.bytes_per_group());
+        let chunks_iter = out.chunks_exact_mut(self.bytes_per_group()).zip(groups);
+        match (self.endian, self.bd, self.dither) {
+            (Little, Bits16, Dither) => {
+                quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16le);
+            }
+            (Little, Bits16, NoDither) => {
+                quantize_and_pack(chunks_iter, f32x4_to_i32x4_16, i32_to_i16le);
+            }
+            (Little, Bits24, _) => {
+                quantize_and_pack(chunks_iter, f32x4_to_i32x4_24, i32_to_i24le);
+            }
+            (Big, Bits16, Dither) => {
+                quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16be);
+            }
+            (Big, Bits16, NoDither) => {
+                quantize_and_pack(chunks_iter, f32x4_to_i32x4_16, i32_to_i16be);
+            }
+            (Big, Bits24, _) => {
+                quantize_and_pack(chunks_iter, f32x4_to_i32x4_24, i32_to_i24be);
+            }
+        }
+    }
+}
+
+/// Receive the next chunk of f32 samples from `r`, or a clone of the
+/// `silence` buffer if no samples arrive within `timeout`.
+fn recv_or_silence(
+    r: &Receiver<AudioSamples>,
+    timeout: Duration,
+    silence: &AudioSamples,
+) -> AudioSamples {
+    r.recv_timeout(timeout).unwrap_or_else(|_| silence.clone())
 }
 
 /// Channelstream - used to transport the f32 samples from the `wave_reader`
@@ -78,11 +139,9 @@ pub struct ChannelStream {
     // Arc'd to prevent copying when Cloning in the server
     silence: Arc<[f32]>,
     capture_timeout: Duration,
-    sending_silence: bool,
     wav_hdr: Vec<u8>,
     use_wave_format: bool,
-    bits_per_sample: u16,
-    use_dither: Dither,
+    lpcm_format: LpcmFormat,
     flac_channel: Option<FlacChannel>,
     /// Set by [`Self::request_stop`] to make `Read::read` return EOF on the
     /// next call, ending the HTTP response even if the client itself never
@@ -145,13 +204,15 @@ impl ChannelStream {
             flac_cursor: ChunkCursor::default(),
             silence: get_silence_buffer(context.sample_rate, capture_timeout / 4).into(),
             capture_timeout: Duration::from_millis(capture_timeout), // silence kicks in after CAPTURE_TIMEOUT seconds
-            sending_silence: false,
             remote_ip: context.remote_ip.clone(),
             is_slim: context.slim,
             wav_hdr,
             use_wave_format: context.needs_wav_hdr(),
-            bits_per_sample: context.bits_per_sample as u16,
-            use_dither: context.use_dither,
+            lpcm_format: LpcmFormat {
+                endian: if context.needs_wav_hdr() { Little } else { Big },
+                bd: context.bits_per_sample,
+                dither: context.use_dither,
+            },
             streaming_format: context.streaming_format,
             flac_channel,
             stop: Arc::new(AtomicBool::new(false)),
@@ -267,57 +328,16 @@ impl ChannelStream {
             self.wav_hdr.clear();
             return Ok(i);
         }
-        // the read buffer is filled in groups of 4 samples
-        let bytes_per_sample = (self.bits_per_sample / 8) as usize;
-        let buf_chunksize = bytes_per_sample * 4;
-        // setup sample conversion parameters
-        let endianness: Endian = if self.use_wave_format { Little } else { Big };
-        let bd = BitDepth::from(self.bits_per_sample);
-        let use_dither = self.use_dither;
-        // receive the next chunk of f32 samples from the input channel, or the
-        // silence buffer if no samples arrive within `capture_timeout`.
-        // The closure only captures the fields it uses (not all of `self`), so
-        // it can coexist with the `&mut self.sample_cursor` borrow below.
-        let next_chunk = || {
-            if let Ok(chunk) = self.r.recv_timeout(self.capture_timeout) {
-                self.sending_silence = false;
-                chunk
-            } else {
-                self.sending_silence = true;
-                self.silence.clone()
-            }
-        };
-        let convert = |out: &mut [u8], groups: &[[f32; 4]]| {
-            // zip the buf in chunks of buf_chunksize with the groups of 4 f32 values
-            let chunks_iter = out.chunks_exact_mut(buf_chunksize).zip(groups);
-            // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
-            // `quantize_and_pack` is generic over the quantizer/packer pair, so
-            // each arm below monomorphizes its own branch-free copy of the loop with a
-            // specific function pair baked in
-            match (endianness, bd, use_dither) {
-                (Little, Bits16, Dither) => {
-                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16le);
-                }
-                (Little, Bits16, NoDither) => {
-                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_16, i32_to_i16le);
-                }
-                (Little, Bits24, _) => {
-                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_24, i32_to_i24le);
-                }
-                (Big, Bits16, Dither) => {
-                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16be);
-                }
-                (Big, Bits16, NoDither) => {
-                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_16, i32_to_i16be);
-                }
-                (Big, Bits24, _) => {
-                    quantize_and_pack(chunks_iter, f32x4_to_i32x4_24, i32_to_i24be);
-                }
-            }
-        };
-        Ok(self
-            .sample_cursor
-            .fill(buf, buf_chunksize, next_chunk, convert))
+        // borrow only the fields the closures need (not all of `self`), so they
+        // can coexist with the `&mut self.sample_cursor` borrow below
+        let fmt = self.lpcm_format;
+        let (r, timeout, silence) = (&self.r, self.capture_timeout, &self.silence);
+        Ok(self.sample_cursor.fill(
+            buf,
+            fmt.bytes_per_group(),
+            || recv_or_silence(r, timeout, silence),
+            |out, groups| fmt.convert(out, groups),
+        ))
     }
 }
 
@@ -1107,6 +1127,170 @@ mod tests {
             }
             assert_eq!(all_samples(out), seq(0..(total / 4 * 4) as u16));
         }
+    }
+
+    /// 2 groups of exactly representable samples, including both clip limits
+    const TEST_GROUPS: [[f32; 4]; 2] = [[0.0, 0.5, -0.5, 0.25], [-0.25, 1.0, -1.0, 0.125]];
+
+    fn convert_groups(fmt: LpcmFormat, groups: &[[f32; 4]]) -> Vec<u8> {
+        let mut out = vec![0u8; groups.len() * fmt.bytes_per_group()];
+        fmt.convert(&mut out, groups);
+        out
+    }
+
+    /// decode `bytes_per_sample`-wide signed samples in the given byte order
+    fn decode_signed(buf: &[u8], bytes_per_sample: usize, endian: Endian) -> Vec<i32> {
+        buf.chunks_exact(bytes_per_sample)
+            .map(|s| {
+                let mut be = s.to_vec();
+                if endian == Little {
+                    be.reverse();
+                }
+                // sign-extend from the most significant byte
+                be.iter()
+                    .skip(1)
+                    .fold(i32::from(be[0] as i8), |acc, &b| (acc << 8) | i32::from(b))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_lpcm_format_bytes_per_group() {
+        for endian in [Little, Big] {
+            for dither in [Dither, NoDither] {
+                let f16 = LpcmFormat {
+                    endian,
+                    bd: Bits16,
+                    dither,
+                };
+                let f24 = LpcmFormat {
+                    endian,
+                    bd: Bits24,
+                    dither,
+                };
+                assert_eq!(f16.bytes_per_group(), 8);
+                assert_eq!(f24.bytes_per_group(), 12);
+            }
+        }
+    }
+
+    /// every undithered arm must match its reference quantizer/packer pair
+    #[test]
+    fn test_lpcm_format_convert_matches_reference() {
+        type Quantize = fn(f32x4) -> [i32; 4];
+        type Pack = fn(&[i32; 4], &mut [u8]);
+        type Case = (Endian, BitDepth, Dither, Quantize, Pack);
+        let cases: [Case; 4] = [
+            (Little, Bits16, NoDither, f32x4_to_i32x4_16, i32_to_i16le),
+            (Big, Bits16, NoDither, f32x4_to_i32x4_16, i32_to_i16be),
+            (Little, Bits24, NoDither, f32x4_to_i32x4_24, i32_to_i24le),
+            (Big, Bits24, NoDither, f32x4_to_i32x4_24, i32_to_i24be),
+        ];
+        for (endian, bd, dither, quantize, pack) in cases {
+            let fmt = LpcmFormat { endian, bd, dither };
+            let mut expected = Vec::new();
+            for g in &TEST_GROUPS {
+                let mut b = vec![0u8; fmt.bytes_per_group()];
+                pack(&quantize(f32x4::new(*g)), &mut b);
+                expected.extend(b);
+            }
+            assert_eq!(convert_groups(fmt, &TEST_GROUPS), expected, "{fmt:?}");
+        }
+    }
+
+    /// 24 bit ignores the dither setting
+    #[test]
+    fn test_lpcm_format_24bit_never_dithered() {
+        for endian in [Little, Big] {
+            let d = LpcmFormat {
+                endian,
+                bd: Bits24,
+                dither: Dither,
+            };
+            let nd = LpcmFormat {
+                endian,
+                bd: Bits24,
+                dither: NoDither,
+            };
+            assert_eq!(
+                convert_groups(d, &TEST_GROUPS),
+                convert_groups(nd, &TEST_GROUPS)
+            );
+        }
+    }
+
+    /// little and big endian decode to the same, correctly scaled values
+    #[test]
+    fn test_lpcm_format_endianness_and_scale() {
+        let input = TEST_GROUPS.as_flattened();
+        for (bd, bytes, full_scale) in [(Bits16, 2, 32767.0f32), (Bits24, 3, 8_388_607.0)] {
+            let le = LpcmFormat {
+                endian: Little,
+                bd,
+                dither: NoDither,
+            };
+            let be = LpcmFormat {
+                endian: Big,
+                bd,
+                dither: NoDither,
+            };
+            let le_vals = decode_signed(&convert_groups(le, &TEST_GROUPS), bytes, Little);
+            let be_vals = decode_signed(&convert_groups(be, &TEST_GROUPS), bytes, Big);
+            assert_eq!(le_vals, be_vals, "{bd:?}");
+            for (&got, &s) in le_vals.iter().zip(input) {
+                let want = s * full_scale;
+                assert!((got as f32 - want).abs() <= 1.0, "{bd:?}: {s} -> {got}");
+            }
+        }
+    }
+
+    /// dithered 16 bit stays within a couple of LSBs of the undithered value
+    #[test]
+    fn test_lpcm_format_16bit_dither_close_to_undithered() {
+        for endian in [Little, Big] {
+            let d = LpcmFormat {
+                endian,
+                bd: Bits16,
+                dither: Dither,
+            };
+            let nd = LpcmFormat {
+                endian,
+                bd: Bits16,
+                dither: NoDither,
+            };
+            let dv = decode_signed(&convert_groups(d, &TEST_GROUPS), 2, endian);
+            let ndv = decode_signed(&convert_groups(nd, &TEST_GROUPS), 2, endian);
+            for (a, b) in dv.iter().zip(&ndv) {
+                assert!((a - b).abs() <= 2, "{endian:?}: {a} vs {b}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_recv_or_silence_returns_chunk() {
+        let (tx, rx) = crossbeam_channel::unbounded::<AudioSamples>();
+        let silence: AudioSamples = vec![0.0f32; 8].into();
+        let chunk: AudioSamples = vec![0.5f32; 4].into();
+        tx.send(chunk.clone()).unwrap();
+        let got = recv_or_silence(&rx, Duration::from_millis(100), &silence);
+        assert!(Arc::ptr_eq(&got, &chunk));
+    }
+
+    #[test]
+    fn test_recv_or_silence_times_out_to_silence() {
+        let (_tx, rx) = crossbeam_channel::unbounded::<AudioSamples>();
+        let silence: AudioSamples = vec![0.0f32; 8].into();
+        let got = recv_or_silence(&rx, Duration::from_millis(1), &silence);
+        assert!(Arc::ptr_eq(&got, &silence));
+    }
+
+    #[test]
+    fn test_recv_or_silence_disconnected_gives_silence() {
+        let (tx, rx) = crossbeam_channel::unbounded::<AudioSamples>();
+        drop(tx);
+        let silence: AudioSamples = vec![0.0f32; 8].into();
+        let got = recv_or_silence(&rx, Duration::from_millis(100), &silence);
+        assert!(Arc::ptr_eq(&got, &silence));
     }
 
     use dasp_sample::{I24, Sample};

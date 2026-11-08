@@ -24,7 +24,6 @@ use ecow::EcoString;
 use fastrand::Rng;
 use log::debug;
 use std::{
-    collections::VecDeque,
     io::{Error, Read, Result as IoResult},
     sync::{
         Arc,
@@ -74,7 +73,7 @@ pub struct ChannelStream {
     /// both share the same `remote_ip` (e.g. MoOde exposing both).
     pub is_slim: bool,
     pub streaming_format: StreamingFormat,
-    fifo: VecDeque<f32>,
+    sample_cursor: SampleCursor,
     flac_cursor: ChunkCursor,
     // Arc'd to prevent copying when Cloning in the server
     silence: Arc<[f32]>,
@@ -142,7 +141,7 @@ impl ChannelStream {
         let chs = ChannelStream {
             s: tx,
             r: rx,
-            fifo: VecDeque::with_capacity(16384),
+            sample_cursor: SampleCursor::default(),
             flac_cursor: ChunkCursor::default(),
             silence: get_silence_buffer(context.sample_rate, capture_timeout / 4).into(),
             capture_timeout: Duration::from_millis(capture_timeout), // silence kicks in after CAPTURE_TIMEOUT seconds
@@ -234,19 +233,6 @@ impl ChannelStream {
         let _ = self.s.send(samples);
     }
 
-    /// fill the LPCM/WAV/RF64 fifo buffer with f32 samples
-    /// (or with f32 silence if no samples are coming)
-    fn get_samples(&mut self) {
-        let time_out = self.capture_timeout;
-        if let Ok(chunk) = self.r.recv_timeout(time_out) {
-            self.fifo.extend(chunk.iter());
-            self.sending_silence = false;
-        } else {
-            self.fifo.extend(self.silence.iter());
-            self.sending_silence = true;
-        }
-    }
-
     /// fill the HTTP read buffer with encoded flac data from the FlacChannel
     /// the f32 samples have already been encoded to FLAC and written to the
     /// `flac_out` channel of the `FlacChannel` encoder thread.
@@ -264,13 +250,12 @@ impl ChannelStream {
         })
     }
 
-    /// Fill the HTTP read buffer with LPCM/WAV/RF64 data from the f32 samples `VecDeque` fifo.
-    /// The f32 samples are read from the f32 input channel and buffered in the`VecDeque` fifo.
-    /// The VecDeque is then read for conversion to LPCM/WAV/RF64 data and
-    /// stored in the HTTP transmission buffer as needed
+    /// Fill the HTTP read buffer with LPCM/WAV/RF64 data.
+    /// The f32 sample chunks are read from the f32 input channel (or replaced by
+    /// silence after `capture_timeout`) and converted straight from the received
+    /// chunks into the HTTP transmission buffer via `sample_cursor`, which only
+    /// ever hands out whole groups of 4 samples (SSE2 f32x4).
     fn fill_lpcm_buffer(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        /// the f32 samples are converted in chunks of 4 f32 values (SSE2 f32x4)
-        const CHUNK_SIZE: usize = 4;
         debug_assert!(self.flac_channel.is_none());
         if self.use_wave_format && !self.wav_hdr.is_empty() {
             let i = self.wav_hdr.len();
@@ -282,30 +267,41 @@ impl ChannelStream {
             self.wav_hdr.clear();
             return Ok(i);
         }
-        // make sure we have enough samples ready to fill the read buffer
+        // the read buffer is filled in groups of 4 samples
         let bytes_per_sample = (self.bits_per_sample / 8) as usize;
         let buf_chunksize = bytes_per_sample * 4;
         let chunks_needed = buf.len() / buf_chunksize;
-        let samples_needed: usize = chunks_needed * 4;
-        while self.fifo.len() < samples_needed {
-            self.get_samples();
-        }
         // setup sample conversion parameters
         let endianness: Endian = if self.use_wave_format { Little } else { Big };
         let bd = BitDepth::from(self.bits_per_sample);
-        // make the fifo contiguous so we can slice it directly (avoiding iterator overhead per chunk)
-        // for 16 bit it seems always contiguous, for 24 bit it is not, but never needs rotating either
-        {
-            let samples = self.fifo.make_contiguous();
-            // samples_needed is always a multiple of CHUNK_SIZE, so the remainder is empty
-            let (sample_chunks, _) = samples[..samples_needed].as_chunks::<CHUNK_SIZE>();
-            // zip the buf in chunks of buf_chunksize with the sample chunks of 4 f32 values
-            let chunks_iter = buf.chunks_exact_mut(buf_chunksize).zip(sample_chunks);
+        let use_dither = self.use_dither;
+        // number of groups of 4 samples converted so far
+        let mut done = 0;
+        while done < chunks_needed {
+            if self.sample_cursor.is_empty() {
+                let chunk = self.recv_samples();
+                self.sample_cursor.push(chunk);
+                #[cfg(debug_assertions)]
+                {
+                    let stats = &mut self.sample_cursor.stats;
+                    if stats.report_due() {
+                        debug!(
+                            "LPCM stream to {}: {} chunks, {} misaligned, {} copied",
+                            self.remote_ip, stats.total, stats.misaligned, stats.copied
+                        );
+                    }
+                }
+                continue; // a tiny chunk may leave the cursor still empty
+            }
+            let groups = self.sample_cursor.next_groups(chunks_needed - done);
+            let out = &mut buf[done * buf_chunksize..][..groups.len() * buf_chunksize];
+            done += groups.len();
+            // zip the buf in chunks of buf_chunksize with the groups of 4 f32 values
+            let chunks_iter = out.chunks_exact_mut(buf_chunksize).zip(groups);
             // convert the f32 samples to i16 or i24 little/big endian to fill the buffer
             // `quantize_and_pack` is generic over the quantizer/packer pair, so
             // each arm below monomorphizes its own branch-free copy of the loop with a
             // specific function pair baked in
-            let use_dither = self.use_dither;
             match (endianness, bd, use_dither) {
                 (Little, Bits16, Dither) => {
                     quantize_and_pack(chunks_iter, f32x4_to_i32x4_16_dither, i32_to_i16le);
@@ -326,10 +322,122 @@ impl ChannelStream {
                     quantize_and_pack(chunks_iter, f32x4_to_i32x4_24, i32_to_i24be);
                 }
             }
-        } // make_contiguous borrow ends here
-        // remove the consumed samples from the front of the fifo
-        self.fifo.retain_back(self.fifo.len() - samples_needed);
+        }
         Ok(chunks_needed * buf_chunksize)
+    }
+
+    /// receive the next chunk of f32 samples from the input channel,
+    /// or the silence buffer if no samples arrive within `capture_timeout`
+    fn recv_samples(&mut self) -> AudioSamples {
+        if let Ok(chunk) = self.r.recv_timeout(self.capture_timeout) {
+            self.sending_silence = false;
+            chunk
+        } else {
+            self.sending_silence = true;
+            self.silence.clone()
+        }
+    }
+}
+
+/// Read position within the most recently received chunk of f32 samples, so the
+/// samples can be converted straight from the chunk into the HTTP read buffer
+/// without first being copied into an intermediate fifo.
+///
+/// The converters work on groups of 4 samples (f32x4), so `push` keeps the
+/// invariant that `chunk.len()` is a multiple of 4: an aligned chunk is used as
+/// is (no copy), a misaligned one is joined with the 0..=3 samples left over
+/// from the previous chunk and its whole groups copied into a new chunk.
+#[derive(Clone, Default)]
+struct SampleCursor {
+    /// the chunk currently being consumed, `chunk.len() % 4 == 0`
+    chunk: AudioSamples,
+    /// number of samples of `chunk` already consumed
+    pos: usize,
+    /// 0..=3 samples left over from misaligned chunks, waiting to be completed
+    carry: Vec<f32>,
+    /// debug builds only: chunk alignment statistics
+    #[cfg(debug_assertions)]
+    stats: ChunkStats,
+}
+
+/// Debug-build statistics on the chunks pushed into a [`SampleCursor`],
+/// to see how often chunks have to be copied to keep them 4-sample aligned.
+#[cfg(debug_assertions)]
+#[derive(Clone, Default)]
+struct ChunkStats {
+    /// all chunks pushed
+    total: u64,
+    /// chunks whose length is not a multiple of 4
+    misaligned: u64,
+    /// chunks copied into a new aligned chunk (misaligned, or pending carry)
+    copied: u64,
+    /// when the stats were last reported (`None` = never)
+    last_report: Option<Instant>,
+}
+
+#[cfg(debug_assertions)]
+impl ChunkStats {
+    /// How often [`Self::report_due`] reports
+    const REPORT_INTERVAL: Duration = Duration::from_secs(10);
+
+    /// Returns true (and restarts the interval) once every `REPORT_INTERVAL`,
+    /// the first interval starting at the first call.
+    fn report_due(&mut self) -> bool {
+        let now = Instant::now();
+        match self.last_report {
+            Some(last) if now.duration_since(last) < Self::REPORT_INTERVAL => false,
+            Some(_) => {
+                self.last_report = Some(now);
+                true
+            }
+            None => {
+                self.last_report = Some(now);
+                false
+            }
+        }
+    }
+}
+
+impl SampleCursor {
+    /// true when the current chunk is used up and a new one must be pushed
+    fn is_empty(&self) -> bool {
+        self.pos == self.chunk.len()
+    }
+
+    /// Make `chunk` the current chunk; only call this when `is_empty()`.
+    /// The result can still be empty (a chunk of less than 4 samples only
+    /// grows `carry`), so callers must check `is_empty()` again.
+    fn push(&mut self, chunk: AudioSamples) {
+        debug_assert!(self.is_empty());
+        #[cfg(debug_assertions)]
+        {
+            self.stats.total += 1;
+            if !chunk.len().is_multiple_of(4) {
+                self.stats.misaligned += 1;
+            }
+        }
+        if self.carry.is_empty() && chunk.len().is_multiple_of(4) {
+            // common case: the chunk can be used as is
+            self.chunk = chunk;
+        } else {
+            #[cfg(debug_assertions)]
+            {
+                self.stats.copied += 1;
+            }
+            self.carry.extend_from_slice(&chunk);
+            let aligned = self.carry.len() / 4 * 4;
+            self.chunk = AudioSamples::from(&self.carry[..aligned]);
+            self.carry.drain(..aligned);
+        }
+        self.pos = 0;
+    }
+
+    /// Take up to `max_groups` groups of 4 samples from the current chunk
+    fn next_groups(&mut self, max_groups: usize) -> &[[f32; 4]] {
+        let (groups, _) = self.chunk[self.pos..].as_chunks::<4>();
+        let groups = &groups[..max_groups.min(groups.len())];
+        self.pos += groups.len() * 4;
+        groups
     }
 }
 
@@ -746,99 +854,130 @@ mod tests {
         eprintln!("{noise:?}");
     }
 
-    /// Replays the exact `make_contiguous()` + `retain_back()` sequence used
-    /// by `fill_lpcm_buffer` (see rwstream.rs) against a `VecDeque<u64>` of
-    /// unique, monotonically increasing values, so any reordering, loss, or
-    /// duplication caused by the ring buffer's internal rotation shows up as
-    /// a value mismatch rather than just a length mismatch.
-    ///
-    /// Capacity is pinned deliberately small (4) so that the random mix of
-    /// push/consume sizes below is guaranteed to repeatedly wrap the
-    /// underlying ring buffer and force reallocations, exercising both
-    /// branches inside `retain_back` (head-in-`front`, head-in-`back`) many
-    /// times over, not just the always-unwrapped case right after a single
-    /// `make_contiguous()` call.
-    #[test]
-    #[cfg(debug_assertions)]
-    fn test_make_contiguous_retain_back_fifo_invariant() {
-        use std::collections::VecDeque;
-
-        let mut rng = Rng::with_seed(0x5a17_u64);
-        let mut fifo: VecDeque<u64> = VecDeque::with_capacity(4);
-        let mut oracle: VecDeque<u64> = VecDeque::new();
-        let mut next_value: u64 = 0;
-
-        for _ in 0..5_000 {
-            // simulate `get_samples()`: push a random-sized chunk of new samples
-            let push_count = rng.usize(0..9);
-            for _ in 0..push_count {
-                fifo.push_back(next_value);
-                oracle.push_back(next_value);
-                next_value += 1;
-            }
-
-            // simulate the `samples_needed` computed in `fill_lpcm_buffer`:
-            // anything from nothing up to the entire current fifo
-            let len = fifo.len();
-            let samples_needed = if len == 0 { 0 } else { rng.usize(0..=len) };
-
-            // --- the logic under test, copied verbatim from fill_lpcm_buffer ---
-            let consumed: Vec<u64> = {
-                let samples = fifo.make_contiguous();
-                samples[..samples_needed].to_vec()
-            };
-            fifo.retain_back(fifo.len() - samples_needed);
-            // --- end logic under test ---
-
-            // the consumed slice must be exactly the oldest `samples_needed`
-            // values, in order
-            let expected_consumed: Vec<u64> = oracle.iter().take(samples_needed).copied().collect();
-            assert_eq!(consumed, expected_consumed);
-            oracle.drain(..samples_needed);
-
-            // what's left in the fifo must match the oracle element-for-element,
-            // in order: no gaps, duplicates, or reordering introduced by the
-            // rotate-then-truncate pair
-            assert_eq!(fifo.len(), oracle.len());
-            assert!(fifo.iter().eq(oracle.iter()));
-        }
+    /// Build chunks of the given lengths holding consecutive sample values
+    /// 0.0, 1.0, 2.0, ... (exact in f32), so any loss, duplication or
+    /// reordering by the cursor shows up as a value mismatch.
+    fn numbered_chunks(lens: &[usize]) -> Vec<AudioSamples> {
+        let mut next = 0.0f32;
+        lens.iter()
+            .map(|&len| {
+                let chunk: Vec<f32> = (0..len).map(|i| next + i as f32).collect();
+                next += len as f32;
+                AudioSamples::from(chunk)
+            })
+            .collect()
     }
 
-    /// Deterministic companion to the randomized invariant test above:
-    /// explicitly construct a fifo whose head has wrapped past the end of
-    /// its backing buffer (via push/pop churn on a tiny capacity) *before*
-    /// `make_contiguous()` is ever called, then run one consume cycle and
-    /// check the result by hand.
+    /// Feed `chunks` (in order) to a fresh `SampleCursor` with the same
+    /// push/next_groups loop as `fill_lpcm_buffer`, once per request,
+    /// returning per request the flattened samples and the number of slices
+    /// `next_groups` returned. Panics if more chunks are needed than provided.
+    fn take_sequence(chunks: &[AudioSamples], requests: &[usize]) -> Vec<(Vec<f32>, usize)> {
+        let mut cursor = SampleCursor::default();
+        let mut source = chunks.iter().cloned();
+        requests
+            .iter()
+            .map(|&wanted| {
+                let mut out = Vec::new();
+                let mut slices = 0;
+                let mut done = 0;
+                while done < wanted {
+                    if cursor.is_empty() {
+                        cursor.push(source.next().expect("ran out of chunks"));
+                        continue;
+                    }
+                    let groups = cursor.next_groups(wanted - done);
+                    assert!(!groups.is_empty());
+                    out.extend(groups.as_flattened());
+                    done += groups.len();
+                    slices += 1;
+                }
+                assert_eq!(out.len(), wanted * 4);
+                (out, slices)
+            })
+            .collect()
+    }
+
+    fn seq(range: std::ops::Range<u16>) -> Vec<f32> {
+        range.map(f32::from).collect()
+    }
+
     #[test]
-    fn test_make_contiguous_retain_back_after_wraparound() {
-        use std::collections::VecDeque;
+    fn test_sample_cursor_aligned_chunks_zero_copy() {
+        // aligned chunks are handed out as one slice per chunk, no stitching
+        let chunks = numbered_chunks(&[8, 8]);
+        let out = take_sequence(&chunks, &[4]);
+        assert_eq!(out, vec![(seq(0..16), 2)]);
+    }
 
-        let mut fifo: VecDeque<u32> = VecDeque::with_capacity(4);
-        // churn the ring buffer so head != 0 and the live range wraps
-        // past the end of the backing storage
-        for v in 0..4 {
-            fifo.push_back(v);
-        }
-        for _ in 0..3 {
-            fifo.pop_front();
-        }
-        for v in 4..9 {
-            fifo.push_back(v); // [3, 4, 5, 6, 7, 8], wrapped internally
-        }
-        assert_eq!(
-            fifo.iter().copied().collect::<Vec<_>>(),
-            vec![3, 4, 5, 6, 7, 8]
-        );
+    #[test]
+    fn test_sample_cursor_stitches_group_across_boundary() {
+        // 6 = one whole group + 2 leftovers, joined with the next chunk
+        let chunks = numbered_chunks(&[6, 6]);
+        let out = take_sequence(&chunks, &[3]);
+        // slices: [0..4] from chunk 1, then the rebuilt aligned chunk [4..12]
+        assert_eq!(out, vec![(seq(0..12), 2)]);
+    }
 
-        let samples_needed = 2;
-        let consumed: Vec<u32> = {
-            let samples = fifo.make_contiguous();
-            samples[..samples_needed].to_vec()
-        };
-        fifo.retain_back(fifo.len() - samples_needed);
+    #[test]
+    fn test_sample_cursor_keeps_leftover_across_calls() {
+        let chunks = numbered_chunks(&[10, 10]);
+        let out = take_sequence(&chunks, &[1, 2, 2]);
+        assert_eq!(out[0].0, seq(0..4));
+        assert_eq!(out[1].0, seq(4..12));
+        assert_eq!(out[2].0, seq(12..20));
+    }
 
-        assert_eq!(consumed, vec![3, 4]);
-        assert_eq!(fifo.iter().copied().collect::<Vec<_>>(), vec![5, 6, 7, 8]);
+    #[test]
+    fn test_sample_cursor_tiny_and_empty_chunks() {
+        // groups completed from several chunks shorter than 4, incl. empty ones
+        let chunks = numbered_chunks(&[3, 0, 1, 0, 2, 1, 1]);
+        let out = take_sequence(&chunks, &[2]);
+        // [3] -> carry, [] -> nothing, [1] -> group 0..4, [] -> nothing,
+        // [2] -> carry, [1] -> carry, [1] -> group 4..8
+        assert_eq!(out, vec![(seq(0..8), 2)]);
+    }
+
+    #[test]
+    fn test_sample_cursor_zero_groups_needs_no_chunk() {
+        // an empty read must not block waiting for a chunk
+        let out = take_sequence(&[], &[0]);
+        assert_eq!(out, vec![(Vec::new(), 0)]);
+    }
+
+    #[test]
+    fn test_sample_cursor_cpal_like_chunk_sizes() {
+        // 441 stereo frames = 882 samples, not a multiple of 4
+        let chunks = numbered_chunks(&[882; 5]);
+        let out = take_sequence(&chunks, &[300, 300, 502]);
+        let all: Vec<f32> = out.into_iter().flat_map(|(s, _)| s).collect();
+        assert_eq!(all, (0..4408).map(|v| v as f32).collect::<Vec<_>>());
+    }
+
+    /// Randomized invariant: whatever the chunk lengths and request sizes, the
+    /// concatenated output is exactly the concatenated input, in order.
+    #[test]
+    #[cfg(debug_assertions)]
+    fn test_sample_cursor_random_invariant() {
+        let mut rng = Rng::with_seed(0x5a17_u64);
+        for _ in 0..200 {
+            let lens: Vec<usize> = (0..50).map(|_| rng.usize(0..13)).collect();
+            let total: usize = lens.iter().sum();
+            let chunks = numbered_chunks(&lens);
+            let mut requests = Vec::new();
+            let mut left = total / 4;
+            while left > 0 {
+                let n = rng.usize(0..=left.min(10));
+                requests.push(n);
+                left -= n;
+            }
+            let all: Vec<f32> = take_sequence(&chunks, &requests)
+                .into_iter()
+                .flat_map(|(s, _)| s)
+                .collect();
+            let expected: Vec<f32> = (0..(total / 4) * 4).map(|v| v as f32).collect();
+            assert_eq!(all, expected);
+        }
     }
 
     use dasp_sample::{I24, Sample};

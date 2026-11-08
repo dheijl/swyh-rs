@@ -281,16 +281,6 @@ impl ChannelStream {
             if self.sample_cursor.is_empty() {
                 let chunk = self.recv_samples();
                 self.sample_cursor.push(chunk);
-                #[cfg(debug_assertions)]
-                {
-                    let stats = &mut self.sample_cursor.stats;
-                    if stats.report_due() {
-                        debug!(
-                            "LPCM stream to {}: {} chunks, {} misaligned, {} groups stitched",
-                            self.remote_ip, stats.total, stats.misaligned, stats.stitched
-                        );
-                    }
-                }
                 continue; // a tiny chunk may leave the cursor still empty
             }
             let groups = self.sample_cursor.next_groups(chunks_needed - done);
@@ -364,47 +354,6 @@ struct SampleCursor {
     has_head: bool,
     /// 0..=3 samples left over from previous chunks, waiting to be completed
     carry: Vec<f32>,
-    /// debug builds only: chunk alignment statistics
-    #[cfg(debug_assertions)]
-    stats: ChunkStats,
-}
-
-/// Debug-build statistics on the chunks pushed into a [`SampleCursor`],
-/// to see how often groups of 4 samples straddle a chunk boundary.
-#[cfg(debug_assertions)]
-#[derive(Clone, Default)]
-struct ChunkStats {
-    /// all chunks pushed
-    total: u64,
-    /// chunks whose length is not a multiple of 4
-    misaligned: u64,
-    /// groups stitched together across a chunk boundary
-    stitched: u64,
-    /// when the stats were last reported (`None` = never)
-    last_report: Option<Instant>,
-}
-
-#[cfg(debug_assertions)]
-impl ChunkStats {
-    /// How often [`Self::report_due`] reports
-    const REPORT_INTERVAL: Duration = Duration::from_secs(10);
-
-    /// Returns true (and restarts the interval) once every `REPORT_INTERVAL`,
-    /// the first interval starting at the first call.
-    fn report_due(&mut self) -> bool {
-        let now = Instant::now();
-        match self.last_report {
-            Some(last) if now.duration_since(last) < Self::REPORT_INTERVAL => false,
-            Some(_) => {
-                self.last_report = Some(now);
-                true
-            }
-            None => {
-                self.last_report = Some(now);
-                false
-            }
-        }
-    }
 }
 
 impl SampleCursor {
@@ -418,13 +367,6 @@ impl SampleCursor {
     /// only grows `carry`), so callers must check `is_empty()` again.
     fn push(&mut self, chunk: AudioSamples) {
         debug_assert!(self.is_empty());
-        #[cfg(debug_assertions)]
-        {
-            self.stats.total += 1;
-            if !chunk.len().is_multiple_of(4) {
-                self.stats.misaligned += 1;
-            }
-        }
         let mut start = 0;
         if !self.carry.is_empty() {
             // complete the pending group from the start of the new chunk
@@ -434,10 +376,6 @@ impl SampleCursor {
                 self.head.copy_from_slice(&self.carry);
                 self.has_head = true;
                 self.carry.clear();
-                #[cfg(debug_assertions)]
-                {
-                    self.stats.stitched += 1;
-                }
             }
         }
         // whole groups after `start`, the 0..=3 samples after them go to `carry`

@@ -286,8 +286,8 @@ impl ChannelStream {
                     let stats = &mut self.sample_cursor.stats;
                     if stats.report_due() {
                         debug!(
-                            "LPCM stream to {}: {} chunks, {} misaligned, {} copied",
-                            self.remote_ip, stats.total, stats.misaligned, stats.copied
+                            "LPCM stream to {}: {} chunks, {} misaligned, {} groups stitched",
+                            self.remote_ip, stats.total, stats.misaligned, stats.stitched
                         );
                     }
                 }
@@ -343,17 +343,26 @@ impl ChannelStream {
 /// samples can be converted straight from the chunk into the HTTP read buffer
 /// without first being copied into an intermediate fifo.
 ///
-/// The converters work on groups of 4 samples (f32x4), so `push` keeps the
-/// invariant that `chunk.len()` is a multiple of 4: an aligned chunk is used as
-/// is (no copy), a misaligned one is joined with the 0..=3 samples left over
-/// from the previous chunk and its whole groups copied into a new chunk.
+/// The converters work on groups of 4 samples (f32x4), but chunk lengths are
+/// arbitrary (e.g. 882 samples for 441-frame WASAPI periods at 44.1 kHz). So
+/// `push` splits each chunk into:
+/// - a stitched `head` group: the 0..=3 samples left over from the previous
+///   chunk, completed with the first samples of this one (copied, max 4 samples)
+/// - the whole groups `chunk[pos..end]`, handed out without copying
+/// - the 0..=3 leftover samples `chunk[end..]`, saved in `carry` for the next push
 #[derive(Clone, Default)]
 struct SampleCursor {
-    /// the chunk currently being consumed, `chunk.len() % 4 == 0`
+    /// the chunk currently being consumed
     chunk: AudioSamples,
-    /// number of samples of `chunk` already consumed
+    /// next unread sample in `chunk`
     pos: usize,
-    /// 0..=3 samples left over from misaligned chunks, waiting to be completed
+    /// end of the whole groups in `chunk`, `(end - pos) % 4 == 0`
+    end: usize,
+    /// stitched group straddling the previous chunk boundary
+    head: [f32; 4],
+    /// `head` still has to be handed out (before `chunk[pos..end]`)
+    has_head: bool,
+    /// 0..=3 samples left over from previous chunks, waiting to be completed
     carry: Vec<f32>,
     /// debug builds only: chunk alignment statistics
     #[cfg(debug_assertions)]
@@ -361,7 +370,7 @@ struct SampleCursor {
 }
 
 /// Debug-build statistics on the chunks pushed into a [`SampleCursor`],
-/// to see how often chunks have to be copied to keep them 4-sample aligned.
+/// to see how often groups of 4 samples straddle a chunk boundary.
 #[cfg(debug_assertions)]
 #[derive(Clone, Default)]
 struct ChunkStats {
@@ -369,8 +378,8 @@ struct ChunkStats {
     total: u64,
     /// chunks whose length is not a multiple of 4
     misaligned: u64,
-    /// chunks copied into a new aligned chunk (misaligned, or pending carry)
-    copied: u64,
+    /// groups stitched together across a chunk boundary
+    stitched: u64,
     /// when the stats were last reported (`None` = never)
     last_report: Option<Instant>,
 }
@@ -399,14 +408,14 @@ impl ChunkStats {
 }
 
 impl SampleCursor {
-    /// true when the current chunk is used up and a new one must be pushed
+    /// true when all whole groups are used up and a new chunk must be pushed
     fn is_empty(&self) -> bool {
-        self.pos == self.chunk.len()
+        !self.has_head && self.pos == self.end
     }
 
     /// Make `chunk` the current chunk; only call this when `is_empty()`.
-    /// The result can still be empty (a chunk of less than 4 samples only
-    /// grows `carry`), so callers must check `is_empty()` again.
+    /// The result can still be empty (a chunk too short to complete a group
+    /// only grows `carry`), so callers must check `is_empty()` again.
     fn push(&mut self, chunk: AudioSamples) {
         debug_assert!(self.is_empty());
         #[cfg(debug_assertions)]
@@ -416,25 +425,37 @@ impl SampleCursor {
                 self.stats.misaligned += 1;
             }
         }
-        if self.carry.is_empty() && chunk.len().is_multiple_of(4) {
-            // common case: the chunk can be used as is
-            self.chunk = chunk;
-        } else {
-            #[cfg(debug_assertions)]
-            {
-                self.stats.copied += 1;
+        let mut start = 0;
+        if !self.carry.is_empty() {
+            // complete the pending group from the start of the new chunk
+            start = (4 - self.carry.len()).min(chunk.len());
+            self.carry.extend_from_slice(&chunk[..start]);
+            if self.carry.len() == 4 {
+                self.head.copy_from_slice(&self.carry);
+                self.has_head = true;
+                self.carry.clear();
+                #[cfg(debug_assertions)]
+                {
+                    self.stats.stitched += 1;
+                }
             }
-            self.carry.extend_from_slice(&chunk);
-            let aligned = self.carry.len() / 4 * 4;
-            self.chunk = AudioSamples::from(&self.carry[..aligned]);
-            self.carry.drain(..aligned);
         }
-        self.pos = 0;
+        // whole groups after `start`, the 0..=3 samples after them go to `carry`
+        let end = start + (chunk.len() - start) / 4 * 4;
+        self.carry.extend_from_slice(&chunk[end..]);
+        self.chunk = chunk;
+        self.pos = start;
+        self.end = end;
     }
 
-    /// Take up to `max_groups` groups of 4 samples from the current chunk
+    /// Take up to `max_groups` (at least 1) groups of 4 samples: the stitched
+    /// head group if pending, else whole groups from the current chunk
     fn next_groups(&mut self, max_groups: usize) -> &[[f32; 4]] {
-        let (groups, _) = self.chunk[self.pos..].as_chunks::<4>();
+        if self.has_head {
+            self.has_head = false;
+            return std::slice::from_ref(&self.head);
+        }
+        let (groups, _) = self.chunk[self.pos..self.end].as_chunks::<4>();
         let groups = &groups[..max_groups.min(groups.len())];
         self.pos += groups.len() * 4;
         groups
@@ -912,11 +933,11 @@ mod tests {
 
     #[test]
     fn test_sample_cursor_stitches_group_across_boundary() {
-        // 6 = one whole group + 2 leftovers, joined with the next chunk
+        // 6 = one whole group + 2 leftovers, completed by 2 samples of the next chunk
         let chunks = numbered_chunks(&[6, 6]);
         let out = take_sequence(&chunks, &[3]);
-        // slices: [0..4] from chunk 1, then the rebuilt aligned chunk [4..12]
-        assert_eq!(out, vec![(seq(0..12), 2)]);
+        // slices: [0..4] from chunk 1, stitched head [4..8], [8..12] from chunk 2
+        assert_eq!(out, vec![(seq(0..12), 3)]);
     }
 
     #[test]

@@ -139,8 +139,8 @@ pub struct ChannelStream {
     // Arc'd to prevent copying when Cloning in the server
     silence: Arc<[f32]>,
     capture_timeout: Duration,
-    wav_hdr: Vec<u8>,
-    use_wave_format: bool,
+    /// WAV/RF64 header still to be sent, `None` for other formats or once sent
+    wav_hdr: Option<Vec<u8>>,
     lpcm_format: LpcmFormat,
     flac_channel: Option<FlacChannel>,
     /// Set by [`Self::request_stop`] to make `Read::read` return EOF on the
@@ -184,19 +184,23 @@ impl ChannelStream {
             None
         };
         let capture_timeout = u64::from(get_config().capture_timeout.unwrap_or(5));
-        let mut wav_hdr = match context.streaming_format {
-            StreamingFormat::Wav => {
-                create_wav_hdr(context.sample_rate, context.bits_per_sample as u16)
-            }
-            StreamingFormat::Rf64 => {
-                create_rf64_hdr(context.sample_rate, context.bits_per_sample as u16)
-            }
-            _ => Vec::new(),
-        };
-        // Trim the header when the client requested Range: bytes=N- (N within header)
-        if header_offset > 0 && !wav_hdr.is_empty() {
-            wav_hdr.drain(..header_offset.min(wav_hdr.len()));
+        let wav_hdr = match context.streaming_format {
+            StreamingFormat::Wav => Some(create_wav_hdr(
+                context.sample_rate,
+                context.bits_per_sample as u16,
+            )),
+            StreamingFormat::Rf64 => Some(create_rf64_hdr(
+                context.sample_rate,
+                context.bits_per_sample as u16,
+            )),
+            _ => None,
         }
+        // Trim the header when the client requested Range: bytes=N- (N within header)
+        .map(|mut hdr| {
+            hdr.drain(..header_offset.min(hdr.len()));
+            hdr
+        })
+        .filter(|hdr| !hdr.is_empty());
         let chs = ChannelStream {
             s: tx,
             r: rx,
@@ -207,7 +211,6 @@ impl ChannelStream {
             remote_ip: context.remote_ip.clone(),
             is_slim: context.slim,
             wav_hdr,
-            use_wave_format: context.needs_wav_hdr(),
             lpcm_format: LpcmFormat {
                 endian: if context.needs_wav_hdr() { Little } else { Big },
                 bd: context.bits_per_sample,
@@ -318,14 +321,13 @@ impl ChannelStream {
     /// ever hands out whole groups of 4 samples (SSE2 f32x4).
     fn fill_lpcm_buffer(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         debug_assert!(self.flac_channel.is_none());
-        if self.use_wave_format && !self.wav_hdr.is_empty() {
-            let i = self.wav_hdr.len();
+        if let Some(hdr) = self.wav_hdr.take() {
+            let i = hdr.len();
             debug_assert!(
                 buf.len() >= i,
                 "HTTP read buffer smaller than WAV/RF64 header!"
             );
-            buf[..i].copy_from_slice(&self.wav_hdr);
-            self.wav_hdr.clear();
+            buf[..i].copy_from_slice(&hdr);
             return Ok(i);
         }
         // borrow only the fields the closures need (not all of `self`), so they

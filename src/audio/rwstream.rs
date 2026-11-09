@@ -74,11 +74,8 @@ struct LpcmFormat {
 
 impl LpcmFormat {
     /// number of output bytes for one group of 4 samples
-    fn bytes_per_group(self) -> usize {
-        match self.bd {
-            Bits16 => 4 * 2,
-            Bits24 => 4 * 3,
-        }
+    const fn bytes_per_group(self) -> usize {
+        4 * self.bd.bytes()
     }
 
     /// Convert `groups` into `out`, which must be exactly
@@ -872,7 +869,7 @@ mod tests {
     }
 
     /// bytes per group in the test conversion: 4 samples as u16 LE
-    const TEST_GROUP_BYTES: usize = 8;
+    const TEST_GROUP_BYTES: usize = 4 * BitDepth::Bits16.bytes();
 
     /// Test stand-in for the real converters: write each sample as its u16 LE
     /// value, so the bytes in the buffer can be decoded back to the samples.

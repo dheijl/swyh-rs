@@ -108,7 +108,7 @@ pub(crate) const U64MAXNOTCHUNKED: (Option<usize>, usize) =
 
 impl StreamSize {
     #[must_use]
-    pub fn values(&self) -> (Option<usize>, usize) {
+    pub const fn values(&self) -> (Option<usize>, usize) {
         match self {
             StreamSize::NoneChunked => NONECHUNKED,
             StreamSize::U32maxChunked => U32MAXCHUNKED,
@@ -169,10 +169,18 @@ pub enum BitDepth {
 impl BitDepth {
     /// Right-shift applied to an `i32` sample to extract the target bit depth.
     /// `i32 >> 8` yields 24 significant bits; `i32 >> 16` yields 16.
-    pub fn shift_value(&self) -> u8 {
+    pub const fn shift_value(&self) -> u8 {
         match self {
             BitDepth::Bits24 => 8u8,
             BitDepth::Bits16 => 16u8,
+        }
+    }
+
+    /// Number of bytes per sample in the output stream.
+    pub const fn bytes(self) -> usize {
+        match self {
+            BitDepth::Bits16 => 2,
+            BitDepth::Bits24 => 3,
         }
     }
 }
@@ -312,7 +320,7 @@ impl StreamingContext {
 
     /// Byte length of the WAV/RF64 header prepended to this stream, or 0 for LPCM/FLAC.
     #[inline]
-    pub fn wav_header_size(&self) -> usize {
+    pub const fn wav_header_size(&self) -> usize {
         match self.streaming_format {
             StreamingFormat::Wav => 44,
             StreamingFormat::Rf64 => 80,

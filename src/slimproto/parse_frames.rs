@@ -43,7 +43,7 @@ pub enum DscoReason {
 impl DscoReason {
     /// Maps a raw wire `DSCO` reason byte to a known variant, or
     /// [`Self::Unknown`] for anything squeezelite doesn't document.
-    pub fn from_byte(byte: u8) -> Self {
+    pub const fn from_byte(byte: u8) -> Self {
         match byte {
             0 => Self::EndOfStream,
             1 => Self::ConnectionReset,

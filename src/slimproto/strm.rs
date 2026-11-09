@@ -59,7 +59,7 @@ fn pcm_rate_code(rate: u32) -> Option<u8> {
 
 /// Encode `bits_per_sample` as the strm packet's `pcm_sample_size` byte:
 /// squeezelite computes `bytes_per_sample = byte - '0' + 1`.
-fn pcm_size_code(bits_per_sample: BitDepth) -> u8 {
+const fn pcm_size_code(bits_per_sample: BitDepth) -> u8 {
     match bits_per_sample {
         BitDepth::Bits16 => b'1', // 2 bytes/sample
         BitDepth::Bits24 => b'2', // 3 bytes/sample

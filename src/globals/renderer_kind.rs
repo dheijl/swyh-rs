@@ -22,13 +22,6 @@ impl RendererKind {
         }
     }
 
-    pub fn as_upnp_mut(&mut self) -> Option<&mut Renderer> {
-        match self {
-            Self::Upnp(r) => Some(r),
-            Self::Slim(_) => None,
-        }
-    }
-
     pub fn as_slim(&self) -> Option<&SlimRenderer> {
         match self {
             Self::Slim(r) => Some(r),

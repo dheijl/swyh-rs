@@ -130,7 +130,6 @@ pub struct ChannelStream {
     /// distinguishes a SlimProto fetch from an UPnP fetch when
     /// both share the same `remote_ip` (e.g. MoOde exposing both).
     pub is_slim: bool,
-    pub streaming_format: StreamingFormat,
     sample_cursor: SampleCursor,
     flac_cursor: ChunkCursor,
     // Arc'd to prevent copying when Cloning in the server
@@ -213,7 +212,6 @@ impl ChannelStream {
                 bd: context.bits_per_sample,
                 dither: context.use_dither,
             },
-            streaming_format: context.streaming_format,
             flac_channel,
             stop: Arc::new(AtomicBool::new(false)),
             connected_at: Instant::now(),

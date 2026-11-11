@@ -44,7 +44,6 @@ pub struct SlimRenderer {
     /// connection.
     pub peer_port: u16,
     pub mac: [u8; 6],
-    pub device_id: u8,
     pub capabilities: EcoString,
     pub playing: bool,
     /// The slider's starting *display* position only — unlike UPnP's
@@ -68,7 +67,6 @@ impl SlimRenderer {
             remote_addr,
             peer_port,
             mac: helo.mac,
-            device_id: helo.device_id,
             capabilities: helo.capabilities.clone(),
             playing: false,
             volume: 20,

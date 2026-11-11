@@ -4,8 +4,8 @@
 use std::sync::{Arc, LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicBool};
 
 use crate::{
-    audio::rwstream::ChannelStream, enums::messages::MessageType,
-    globals::renderer_kind::RendererKind, utils::configuration::Configuration,
+    audio::rwstream::ChannelStream, enums::messages::MessageType, globals::RendererKind,
+    utils::configuration::Configuration,
 };
 
 use arc_swap::{ArcSwap, Guard};

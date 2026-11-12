@@ -129,7 +129,7 @@ fn handle_connection(mut stream: TcpStream) {
                 last_ignored_opcode = None;
             }
             Ok(Frame::Other { opcode, payload }) => {
-                if &opcode == b"STAT" {
+                if opcode == parse_frames::STAT_OPCODE {
                     // STAT is sent very frequently and we don't act on its contents
                     // only the very first one per connection gets logged in full;
                     // every one after that collapses into a single summary

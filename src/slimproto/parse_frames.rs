@@ -6,6 +6,17 @@
 use ecow::EcoString;
 use std::io::{self, Read};
 
+/// Opcode of the client handshake frame.
+const HELO_OPCODE: [u8; 4] = *b"HELO";
+
+/// Opcode of the client "stream disconnected" frame.
+const DSCO_OPCODE: [u8; 4] = *b"DSCO";
+
+/// Opcode of the client status/heartbeat frame. Not decoded here (it comes
+/// back as [`Frame::Other`]), but the server matches on it to throttle
+/// logging.
+pub(crate) const STAT_OPCODE: [u8; 4] = *b"STAT";
+
 /// Fixed portion of a parsed `HELO` frame — the SlimProto client handshake.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlimHelo {
@@ -88,14 +99,12 @@ pub fn read_frame(stream: &mut impl Read) -> io::Result<Frame> {
     let mut payload = vec![0u8; length as usize];
     stream.read_exact(&mut payload)?;
 
-    if &opcode == b"HELO" {
-        Ok(Frame::Helo(parse_helo(&payload)?))
-    } else if &opcode == b"DSCO" {
-        Ok(Frame::Dsco {
+    match opcode {
+        HELO_OPCODE => Ok(Frame::Helo(parse_helo(&payload)?)),
+        DSCO_OPCODE => Ok(Frame::Dsco {
             reason: parse_dsco(&payload)?,
-        })
-    } else {
-        Ok(Frame::Other { opcode, payload })
+        }),
+        _ => Ok(Frame::Other { opcode, payload }),
     }
 }
 
@@ -167,7 +176,7 @@ mod tests {
         payload.extend_from_slice(capabilities.as_bytes());
 
         let mut frame = Vec::new();
-        frame.extend_from_slice(b"HELO");
+        frame.extend_from_slice(&HELO_OPCODE);
         frame.extend_from_slice(&(payload.len() as u32).to_be_bytes());
         frame.extend_from_slice(&payload);
         frame
@@ -198,7 +207,7 @@ mod tests {
     fn skips_unknown_frame_and_reads_next() {
         let mut bytes = Vec::new();
         // an unrelated frame (e.g. STAT) with a 5-byte payload we don't understand yet
-        bytes.extend_from_slice(b"STAT");
+        bytes.extend_from_slice(&STAT_OPCODE);
         bytes.extend_from_slice(&5u32.to_be_bytes());
         bytes.extend_from_slice(b"junk!");
         // followed by a real HELO frame
@@ -209,7 +218,7 @@ mod tests {
         assert_eq!(
             first,
             Frame::Other {
-                opcode: *b"STAT",
+                opcode: STAT_OPCODE,
                 payload: b"junk!".to_vec()
             }
         );
@@ -224,7 +233,7 @@ mod tests {
     #[test]
     fn parses_dsco_frame() {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"DSCO");
+        bytes.extend_from_slice(&DSCO_OPCODE);
         bytes.extend_from_slice(&1u32.to_be_bytes());
         bytes.push(1); // ConnectionReset
         let mut cursor = Cursor::new(bytes);
@@ -241,7 +250,7 @@ mod tests {
     #[test]
     fn parses_dsco_frame_with_unknown_reason() {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"DSCO");
+        bytes.extend_from_slice(&DSCO_OPCODE);
         bytes.extend_from_slice(&1u32.to_be_bytes());
         bytes.push(42);
         let mut cursor = Cursor::new(bytes);
@@ -267,7 +276,7 @@ mod tests {
     #[test]
     fn rejects_empty_dsco_payload() {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"DSCO");
+        bytes.extend_from_slice(&DSCO_OPCODE);
         bytes.extend_from_slice(&0u32.to_be_bytes());
         let mut cursor = Cursor::new(bytes);
 
@@ -278,7 +287,7 @@ mod tests {
     #[test]
     fn rejects_truncated_helo_payload() {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"HELO");
+        bytes.extend_from_slice(&HELO_OPCODE);
         bytes.extend_from_slice(&10u32.to_be_bytes());
         bytes.extend_from_slice(&[0u8; 10]);
         let mut cursor = Cursor::new(bytes);
@@ -290,7 +299,7 @@ mod tests {
     #[test]
     fn rejects_oversized_frame_without_allocating_payload() {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"HELO");
+        bytes.extend_from_slice(&HELO_OPCODE);
         bytes.extend_from_slice(&(MAX_FRAME_PAYLOAD_LEN + 1).to_be_bytes());
         // deliberately no payload bytes follow: if `read_frame` tried to
         // read the (oversized) payload it would fail with UnexpectedEof

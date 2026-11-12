@@ -480,6 +480,7 @@ fn main() -> Result<(), i32> {
     }
 }
 
+/// update config file en sync in-memory shared config
 fn sync_config(config: &Configuration) {
     let _ = config.update_config();
     // update in-memory shared config for other threads

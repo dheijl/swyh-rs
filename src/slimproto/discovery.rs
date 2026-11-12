@@ -4,6 +4,13 @@
 use anyhow::{Context, Result};
 use std::net::UdpSocket;
 
+/// Discovery request byte in squeezelite's `discover_server()` broadcasts.
+const DISCOVERY_REQUEST: u8 = b'e';
+
+/// Discovery reply byte sent back to squeezelite. Its content is never
+/// inspected — only the reply's source address matters.
+const DISCOVERY_RESPONSE: u8 = b'E';
+
 /// Bind the SlimProto discovery UDP socket on the given port.
 ///
 /// Split out from [`serve`] so tests can bind on port `0` and discover the
@@ -13,10 +20,7 @@ pub fn bind(port: u16) -> Result<UdpSocket> {
         .with_context(|| format!("failed to bind SlimProto discovery socket on port {port}"))
 }
 
-/// Discovery request byte squeezelite's `discover_server()` broadcasts.
-const DISCOVERY_REQUEST: u8 = b'e';
-
-/// Serve discovery requests on `socket` forever.
+/// Serve discovery requests on the squeezelite `socket` forever.
 ///
 /// squeezelite's `discover_server()` broadcasts a single byte `'e'` on the
 /// SlimProto port and only inspects the *source address* of whatever reply
@@ -34,7 +38,7 @@ pub fn serve(socket: UdpSocket) -> ! {
                     continue;
                 }
                 log::debug!("SlimProto discovery request from {src}");
-                if let Err(e) = socket.send_to(b"E", src) {
+                if let Err(e) = socket.send_to(&[DISCOVERY_RESPONSE], src) {
                     log::warn!("failed to send SlimProto discovery reply to {src}: {e}");
                 }
             }
@@ -76,7 +80,9 @@ mod tests {
         client
             .set_read_timeout(Some(Duration::from_secs(2)))
             .unwrap();
-        client.send_to(b"e", loopback_addr(server_addr)).unwrap();
+        client
+            .send_to(&[DISCOVERY_REQUEST], loopback_addr(server_addr))
+            .unwrap();
 
         let mut buf = [0u8; 32];
         let (n, from) = client
@@ -86,7 +92,7 @@ mod tests {
         // is routed from the concrete loopback address rather than 0.0.0.0
         assert_eq!(from.port(), server_addr.port());
         assert!(from.ip().is_loopback());
-        assert!(n > 0);
+        assert_eq!(&buf[..n], &[DISCOVERY_RESPONSE]);
     }
 
     #[test]

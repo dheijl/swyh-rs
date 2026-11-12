@@ -81,7 +81,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 socket2 = "0.6.5"
 simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
-tiny_http_dh = { version = "0.12.3" }
+tiny_http_dh = { version = "0.12.4" }
 toml = "1.2.1"
 ureq = { version = "3.5.2", default-features = false, features = [
     "charset",

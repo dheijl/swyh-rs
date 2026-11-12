@@ -6,6 +6,8 @@
   - bugfix: I24/U24 audio capture was actually opening the device as I16/U16 (losing 8 bits, or failing on devices without 16-bit support)
   - FLAC streaming: copy encoded chunks straight into the HTTP buffer from the flac channel instead of going through an intermediate fifo (one copy less)
   - LPCM streaming: remove the intermediate VecDeque fifo and create chunks directly from the input channel, with misaligned chunks causing a negligible overhead
+  - rustc 1.100
+  - fix(utils): gate local-ip-address usage on the cli feature, prevents new rustc 1.100 Cargo unused dependency warning
 
 - 1.21.1 (Nov 2 2026, dheijl)
   - GUI: add a tooltip for ssdp-interval = 0 disabling UPNP discvovery, and add a scrollbar (if needed) to the renderers box (issue #309). Added with the assistance of Claude.

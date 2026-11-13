@@ -158,3 +158,10 @@ srv-stream-terminated = =>与 { $addr } 的 HTTP 流媒体请求已终止 [{ $er
 
 srv-range-not-satisfiable = 来自 { $addr } 的范围请求无法满足，响应 416
 audio-downmix = 将 { $channels } 声道输入下混为立体声进行流式传输 (ITU-R BS.775)
+
+# About dialog
+btn-about = 关于...
+about-title = 关于 swyh-rs
+about-tagline = Stream What You Hear，使用 Rust 编写
+about-fltk = swyh-rs 通过 fltk-rs 使用 FLTK 图形界面工具包 (https://www.fltk.org)。
+about-third-party = 第三方许可证：参见 THIRD-PARTY-LICENSES.md

@@ -158,3 +158,10 @@ srv-stream-terminated = =>{ $addr } との HTTP ストリーミングリクエ�
 
 srv-range-not-satisfiable = { $addr } からの範囲リクエストは満たせません、416 を返します
 audio-downmix = { $channels } チャンネル入力をストリーミング用にステレオへダウンミックスしています (ITU-R BS.775)
+
+# About dialog
+btn-about = バージョン情報...
+about-title = swyh-rs について
+about-tagline = Stream What You Hear（Rust 製）
+about-fltk = swyh-rs は fltk-rs を通じて FLTK GUI ツールキット (https://www.fltk.org) を使用しています。
+about-third-party = サードパーティのライセンス: THIRD-PARTY-LICENSES.md を参照

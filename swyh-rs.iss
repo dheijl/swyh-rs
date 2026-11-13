@@ -32,6 +32,8 @@ AppReadmeFile=Readme.md
 Source: "target\release\swyh-rs.exe"; DestDir: "{app}"; DestName: "swyh-rs.exe"
 Source: "target\release\swyh-rs-cli.exe"; DestDir: "{app}"; DestName: "swyh-rs-cli.exe"
 Source: "Readme.md"; DestDir: "{app}"; Flags: isreadme
+Source: "LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"
+Source: "THIRD-PARTY-LICENSES.md"; DestDir: "{app}"
 
 [Icons]
 Name: "{group}\swyh-rs"; Filename: "{app}\swyh-rs.exe"

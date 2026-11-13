@@ -159,3 +159,10 @@ srv-stream-terminated = =>Http streaming verzoek met { $addr } beëindigd [{ $er
 
 srv-range-not-satisfiable = Bereikverzoek van { $addr } niet vervulbaar, antwoord 416
 audio-downmix = { $channels }-kanaals invoer wordt naar stereo gedownmixt voor streaming (ITU-R BS.775)
+
+# About dialog
+btn-about = Over...
+about-title = Over swyh-rs
+about-tagline = Stream What You Hear, geschreven in Rust
+about-fltk = swyh-rs gebruikt de FLTK GUI-toolkit (https://www.fltk.org) via fltk-rs.
+about-third-party = Licenties van derden: zie THIRD-PARTY-LICENSES.md

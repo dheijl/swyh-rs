@@ -16,6 +16,10 @@ use hashbrown::HashMap;
 /// app version
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const APP_DATE: Option<&str> = option_env!("BUILD_DAY");
+/// copyright notice, keep in sync with the LICENSE file
+pub const COPYRIGHT: &str = "Copyright (c) 2020-2026 dheijl";
+/// project home page
+pub const APP_URL: &str = "https://github.com/dheijl/swyh-rs";
 
 /// the HTTP server port
 pub const SERVER_PORT: u16 = 5901;

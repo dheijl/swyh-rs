@@ -15,6 +15,8 @@ done
 cargo fmt --all
 cargo test --all-features
 cargo clippy --all-features
+# third-party license notices (needs: cargo install cargo-about)
+cargo about generate --all-features about.hbs -o THIRD-PARTY-LICENSES.md
 export BUILD_DAY=`date -I`
 cargo build --bin swyh-rs-cli --features cli --no-default-features
 cargo build --bin swyh-rs

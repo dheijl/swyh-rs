@@ -158,3 +158,10 @@ srv-bad-request = Unrecognized request '{ $url }' from '{ $addr }'
 srv-stream-terminated = =>Http streaming request with { $addr } terminated [{ $error }]
 
 srv-range-not-satisfiable = Range request from { $addr } not satisfiable, responding 416
+
+# About dialog
+btn-about = About...
+about-title = About swyh-rs
+about-tagline = Stream What You Hear, written in Rust
+about-fltk = swyh-rs uses the FLTK GUI toolkit (https://www.fltk.org) through fltk-rs.
+about-third-party = Third-party licenses: see THIRD-PARTY-LICENSES.md

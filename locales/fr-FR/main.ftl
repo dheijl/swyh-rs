@@ -158,3 +158,10 @@ srv-stream-terminated = =>Requête de streaming HTTP avec { $addr } terminée [{
 
 srv-range-not-satisfiable = Requête de plage de { $addr } non satisfaisable, réponse 416
 audio-downmix = Mixage de l'entrée à { $channels } canaux vers stéréo pour la diffusion (ITU-R BS.775)
+
+# About dialog
+btn-about = À propos...
+about-title = À propos de swyh-rs
+about-tagline = Stream What You Hear, écrit en Rust
+about-fltk = swyh-rs utilise la boîte à outils graphique FLTK (https://www.fltk.org) via fltk-rs.
+about-third-party = Licences tierces : voir THIRD-PARTY-LICENSES.md

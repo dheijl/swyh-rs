@@ -14,8 +14,9 @@ use crate::{
     globals::{
         RendererKind,
         statics::{
-            APP_DATE, APP_VERSION, NSTYLES, NTHEMES, RUN_RMS_MONITOR, SAMPLE_RATES, STYLES, THEMES,
-            get_config, get_renderers, get_renderers_mut, update_config_with,
+            APP_DATE, APP_URL, APP_VERSION, COPYRIGHT, NSTYLES, NTHEMES, RUN_RMS_MONITOR,
+            SAMPLE_RATES, STYLES, THEMES, get_config, get_renderers, get_renderers_mut,
+            update_config_with,
         },
     },
     rendercontrol::{Renderer, StreamInfo, WavData},
@@ -167,6 +168,7 @@ const RENDERER_SPACING: i32 = 15;
 /// even if that pushes the feedback box partly out of a very small window
 const MIN_RENDERER_AREA_H: i32 = 2 * ROW_H + RENDERER_SPACING;
 const LABEL_W: i32 = 130;
+const ABOUT_BTN_W: i32 = 120;
 const LABEL_W_NET: i32 = 179;
 
 /// Adds a `label: widget` row (fixed-width label, flexed widget) to `col`.
@@ -1138,6 +1140,24 @@ impl AppTab {
         (show_rms, rms_mon_l, rms_mon_r)
     }
 
+    /// "About..." button that pops up version, copyright and license info
+    fn build_about_button() -> Button {
+        let about_lbl = fl!("btn-about");
+        let mut about_btn = Button::new(0, 0, 0, 0, about_lbl.as_str());
+        about_btn.set_callback(|_| {
+            let text = format!(
+                "swyh-rs {APP_VERSION} (build: {})\n{}\n\n{COPYRIGHT} - MIT License\n{APP_URL}\n\n{}\n{}",
+                APP_DATE.unwrap_or("beta"),
+                fl!("about-tagline"),
+                fl!("about-fltk"),
+                fl!("about-third-party"),
+            );
+            fltk::dialog::message_title(&fl!("about-title"));
+            fltk::dialog::message_default(&text);
+        });
+        about_btn
+    }
+
     fn new(ctx: &TabCtx) -> AppTab {
         let mut group = Group::new(0, TAB_BAR_H, GW, INNER_H, "");
         group.set_label(&fl!("tab-app"));
@@ -1210,6 +1230,9 @@ impl AppTab {
         flx_rms.set_type(FlexType::Row);
         flx_rms.end();
         flx_rms.add(&show_rms);
+        let about_btn = Self::build_about_button();
+        flx_rms.add(&about_btn);
+        flx_rms.fixed(&about_btn, ABOUT_BTN_W);
         app_col.add(&flx_rms);
         app_col.fixed(&flx_rms, ROW_H);
 

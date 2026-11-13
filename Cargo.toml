@@ -97,7 +97,6 @@ fltk-theme = { version = "0.7.9", optional = true }
 winapi-easy = { version = "0.3.0", default-features = false, features = [
     "process",
 ] }
-winres = "0.1.12"
 
 [target.'cfg(unix)'.dependencies]
 fltk = { version = "1.5.23", features = ["use-ninja"], optional = true }

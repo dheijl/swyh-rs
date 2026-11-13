@@ -8,6 +8,7 @@
   - LPCM streaming: remove the intermediate VecDeque fifo and create chunks directly from the input channel, with misaligned chunks causing a negligible overhead
   - rustc 1.100
   - fix(utils): gate local-ip-address usage on the cli feature, prevents new rustc 1.100 Cargo unused dependency warning
+  - GUI: add an "About..." button on the App tab showing version, copyright, MIT license, project URL and FLTK acknowledgement. Third-party crate licenses are now generated with cargo-about into THIRD-PARTY-LICENSES.md and shipped, together with the LICENSE file, in the Windows installer and the AppImages. Added with the assistance of Claude.
 
 - 1.21.1 (Nov 2 2026, dheijl)
   - GUI: add a tooltip for ssdp-interval = 0 disabling UPNP discvovery, and add a scrollbar (if needed) to the renderers box (issue #309). Added with the assistance of Claude.

@@ -11,13 +11,25 @@ fi
 done
 #cargo clippy --all --fix --allow-dirty --features=cli -- -W clippy::all -W clippy::pedantic
 #cargo clippy --all --fix --allow-dirty --features=gui -- -W clippy::all -W clippy::pedantic
-#rm -rf .cargo vendor repo .flatpak-builder ## flatpak 
+#rm -rf .cargo vendor repo .flatpak-builder ## flatpak
+echo "format, test and clippy" 
 cargo fmt --all
 cargo test --all-features
 cargo clippy --all-features
+echo "building third-party license file"
 # third-party license notices (needs: cargo install cargo-about)
-# (awk drops duplicate crate lines: a crate is listed once per license file it ships)
-cargo about generate --all-features about.hbs | awk '/^## /{split("", seen)} !/^- / || !seen[$0]++' > THIRD-PARTY-LICENSES.md
+# awk post-processing of each license's "Used by:" list:
+# - drops duplicate crate lines (a crate is listed once per license file it ships)
+# - sorts the crates by name, because cargo-about orders them by license-text group,
+#   which differs per platform (e.g. swyh-rs's own LICENSE has CRLF line endings on Windows)
+cargo about generate --all-features about.hbs | awk -v cmd='LC_ALL=C sort' '
+/^## /        { if (used) { close(cmd); print "" } used = 0; split("", seen) }
+used && /^- / { if (!seen[$0]++) print | cmd; next }
+used && /^$/  { next }
+              { print }
+/^Used by:/   { used = 1; print ""; fflush() }
+END           { if (used) close(cmd) }' > THIRD-PARTY-LICENSES.md
+echo "building binaries"
 export BUILD_DAY=`date -I`
 cargo build --bin swyh-rs-cli --features cli --no-default-features
 cargo build --bin swyh-rs

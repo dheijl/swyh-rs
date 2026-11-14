@@ -2,7 +2,7 @@
 
 swyh-rs uses the following third-party Rust crates, grouped by license.
 
-swyh-rs uses the FLTK GUI toolkit (https://www.fltk.org) through fltk-rs.
+swyh-rs uses the FLTK GUI toolkit (https://fltk.org) through fltk-rs.
 
 ## Overview
 
@@ -10,17 +10,19 @@ swyh-rs uses the FLTK GUI toolkit (https://www.fltk.org) through fltk-rs.
 - {{{name}}} ({{count}})
 {{/each}}
 
-{{#each licenses}}
+{{#each overview}}
 ## {{{name}}}
+
+License text: https://spdx.org/licenses/{{id}}.html
 
 Used by:
 
+{{#each indices}}
+{{#with (lookup ../../licenses this)}}
 {{#each used_by}}
 - {{{crate.name}}} {{crate.version}}{{#if crate.repository}} ({{{crate.repository}}}){{/if}}
 {{/each}}
-
-```text
-{{{text}}}
-```
+{{/with}}
+{{/each}}
 
 {{/each}}

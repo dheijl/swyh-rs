@@ -669,36 +669,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fluent-template-macros"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f17b7ed5b7108d57ca049e1fa7583d4fadbb71ef0e47a72dc847c1e704f37fb"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
- "unic-langid",
- "walkdir",
-]
-
-[[package]]
-name = "fluent-templates"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97fc3bfc211d9a9210bd7ccba798da57148e5b02c62b98b6cef09d7228f2f232"
-dependencies = [
- "fluent-bundle",
- "fluent-langneg",
- "fluent-syntax",
- "fluent-template-macros",
- "intl-memoizer",
- "log",
- "thiserror 2.0.21",
- "unic-langid",
- "walkdir",
-]
-
-[[package]]
 name = "fluent-uri"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1406,12 +1376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proc-macro-hack"
-version = "0.5.20+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc375e1527247fe1a97d8b7156678dfe7c1af2fc075c9a4db3690ecd2a148068"
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1730,7 +1694,7 @@ dependencies = [
  "flac-bound",
  "fltk",
  "fltk-theme",
- "fluent-templates",
+ "fluent-bundle",
  "fluent-uri",
  "hashbrown",
  "htmlescape",
@@ -1747,6 +1711,7 @@ dependencies = [
  "tempfile",
  "tiny_http_dh",
  "toml 1.2.1+spec-1.1.0",
+ "unic-langid",
  "ureq",
  "wide",
  "winapi-easy",
@@ -1994,7 +1959,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a28ba52c9b05311f4f6e62d5d9d46f094bd6e84cb8df7b3ef952748d752a7d05"
 dependencies = [
  "unic-langid-impl",
- "unic-langid-macros",
 ]
 
 [[package]]
@@ -2004,30 +1968,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dce1bf08044d4b7a94028c93786f8566047edc11110595914de93362559bc658"
 dependencies = [
  "tinystr",
-]
-
-[[package]]
-name = "unic-langid-macros"
-version = "0.9.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5957eb82e346d7add14182a3315a7e298f04e1ba4baac36f7f0dbfedba5fc25"
-dependencies = [
- "proc-macro-hack",
- "tinystr",
- "unic-langid-impl",
- "unic-langid-macros-impl",
-]
-
-[[package]]
-name = "unic-langid-macros-impl"
-version = "0.9.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1249a628de3ad34b821ecb1001355bca3940bcb2f88558f1a8bd82e977f75b5"
-dependencies = [
- "proc-macro-hack",
- "quote",
- "syn 2.0.119",
- "unic-langid-impl",
 ]
 
 [[package]]

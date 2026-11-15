@@ -54,10 +54,7 @@ dirs = "7.0.0"
 ecow = "0.3.1"
 fastrand = "2.5.0"
 fluent-uri = "0.4.1"
-fluent-templates = { version = "0.15.1", default-features = false, features = [
-    "macros",
-    "walkdir",
-] }
+fluent-bundle = "0.16.0"
 figura = { version = "3.2.0", features = ["zmij", "foldhash"] }
 flac-bound = { version = "0.5.0", default-features = false, features = [
     "libflac-noogg",
@@ -83,6 +80,7 @@ simplelog = { version = "0.12.2", features = ["local-offset"] }
 sys-locale = "0.3"
 tiny_http_dh = { version = "0.12.4" }
 toml = "1.2.1"
+unic-langid = "0.9.6"
 ureq = { version = "3.5.2", default-features = false, features = [
     "charset",
     "gzip",

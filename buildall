@@ -7,7 +7,20 @@ do
         echo "Updating dependencies"
         cargo update 
         cargo upgrade  --verbose
-fi
+        echo "rebuilding third-party license file"
+        # third-party license notices (needs: cargo install cargo-about)
+        # awk post-processing of each license's "Used by:" list:
+        # - drops duplicate crate lines (a crate is listed once per license file it ships)
+        # - sorts the crates by name, because cargo-about orders them by license-text group,
+        #   which can differ per platform
+        cargo about generate --all-features about.hbs | awk -v cmd='LC_ALL=C sort' '
+/^## /        { if (used) { close(cmd); print "" } used = 0; split("", seen) }
+used && /^- / { if (!seen[$0]++) print | cmd; next }
+used && /^$/  { next }
+              { print }
+/^Used by:/   { used = 1; print ""; fflush() }
+END           { if (used) close(cmd) }' > THIRD-PARTY-LICENSES.md
+    fi
 done
 #cargo clippy --all --fix --allow-dirty --features=cli -- -W clippy::all -W clippy::pedantic
 #cargo clippy --all --fix --allow-dirty --features=gui -- -W clippy::all -W clippy::pedantic
@@ -16,19 +29,6 @@ echo "format, test and clippy"
 cargo fmt --all
 cargo test --all-features
 cargo clippy --all-features
-echo "building third-party license file"
-# third-party license notices (needs: cargo install cargo-about)
-# awk post-processing of each license's "Used by:" list:
-# - drops duplicate crate lines (a crate is listed once per license file it ships)
-# - sorts the crates by name, because cargo-about orders them by license-text group,
-#   which differs per platform (e.g. swyh-rs's own LICENSE has CRLF line endings on Windows)
-cargo about generate --all-features about.hbs | awk -v cmd='LC_ALL=C sort' '
-/^## /        { if (used) { close(cmd); print "" } used = 0; split("", seen) }
-used && /^- / { if (!seen[$0]++) print | cmd; next }
-used && /^$/  { next }
-              { print }
-/^Used by:/   { used = 1; print ""; fflush() }
-END           { if (used) close(cmd) }' > THIRD-PARTY-LICENSES.md
 echo "building binaries"
 export BUILD_DAY=`date -I`
 cargo build --bin swyh-rs-cli --features cli --no-default-features

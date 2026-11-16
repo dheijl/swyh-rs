@@ -11,6 +11,7 @@
   - fix: remove winres as runtime dependency (rustc 1.100 Cargo unused dependency warning)
   - GUI: add an "About..." button on the App tab showing version, copyright, MIT license, project URL and FLTK acknowledgement.
   - Third-party crate licenses are now generated with cargo-about into THIRD-PARTY-LICENSES.md and shipped, together with the LICENSE file, in the Windows installer and the AppImages. Added with the assistance of Claude.
+  - replace fluent-templates with fluent-bundle, cutting down dependencies with almost no code changes.
 
 - 1.21.1 (Nov 2 2026, dheijl)
   - GUI: add a tooltip for ssdp-interval = 0 disabling UPNP discvovery, and add a scrollbar (if needed) to the renderers box (issue #309). Added with the assistance of Claude.

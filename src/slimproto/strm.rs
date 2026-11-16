@@ -3,9 +3,11 @@
 //!
 //! Byte layout verified against squeezelite's `slimproto.h` (`struct
 //! strm_packet`) and `slimserver`'s `Slim::Player::Squeezebox::stream_s`,
-//! not from memory: a 24-byte fixed struct (no padding) immediately
-//! followed, in the same frame payload, by a raw HTTP request line the
-//! client sends verbatim on the new connection it opens back to us.
+//! not from memory: a 28-byte `#pragma pack(1)` struct whose first 4 bytes
+//! are the opcode, so 24 fixed payload bytes, immediately followed, in the
+//! same frame payload, by a raw HTTP request the client sends verbatim on
+//! the new connection it opens back to us (`stream_sock()` copies it,
+//! `send_header()` writes it unmodified, both in squeezelite's `stream.c`).
 //!
 //! **The outer envelope is not symmetric with client -> server frames.**
 //! `parse_frames::read_frame` parses client -> server frames (`HELO`, `STAT`, ...)
@@ -94,6 +96,11 @@ pub fn build_strm_start(
     // UPnP-only `TransferMode.dlna.org` header for *any* SlimProto format.
     // Forcing the WAV/RF64 header-drain for Flac/Lpcm too is a harmless
     // no-op there, since `wav_header_size()` is already 0 for both.
+    //
+    // HTTP/1.0 is deliberate and must stay: squeezelite treats everything
+    // after the response headers as raw body and has no chunked
+    // transfer-encoding support, which tiny_http would use for HTTP/1.1. See
+    // `StreamingContext::new` (enums/streaming.rs) for the server-side half.
     let request_line = format!("GET /stream/swyh.{}?slim=1 HTTP/1.0\r\n\r\n", fmt.as_str());
 
     let pcm = if fmt == StreamingFormat::Flac {
@@ -154,11 +161,13 @@ pub const fn build_strm_stop() -> &'static [u8] {
 
 /// Build a `strm` "status" (time) request frame — a no-op as far as
 /// playback goes, used purely as a heartbeat: squeezelite's control
-/// connection has its own idle-read timeout (observed ~35-40s in the wild)
-/// and treats hitting it as the connection dying, tearing down any
-/// in-progress stream along with it. A real SlimProto server avoids this by
-/// periodically sending *something*; this is that something. Same
-/// all-other-fields-zeroed shape as `build_strm_stop`.
+/// connection gives up after 35 consecutive 1-second polls without a server
+/// message (`slimproto_run()` in `slimproto.c`, "expect message from server
+/// every 5 seconds") and treats that as the connection dying, tearing down
+/// any in-progress stream along with it. A real SlimProto server avoids this
+/// by periodically sending *something*; this is that something. Same
+/// all-other-fields-zeroed shape as `build_strm_stop`; the client answers
+/// with a `STAT` `STMt` that echoes the (zero) `replay_gain` field.
 #[inline(always)]
 pub const fn build_strm_status() -> &'static [u8] {
     const FRAME: [u8; 30] = build_strm_control_frame(b't');
@@ -167,8 +176,9 @@ pub const fn build_strm_status() -> &'static [u8] {
 
 /// Build a minimal strm frame carrying just `command`, every other field
 /// zeroed and no request line — used for `'q'` and `'t'`, where the client
-/// ignores everything but `command`. It's a `const fn` so;that the frame
-/// does not have to be rebuilt on every call ('t' hartbeat!).
+/// uses nothing but `command` (`'t'` only echoes `replay_gain` back). It's a
+/// `const fn` so that the frame does not have to be rebuilt on every call
+/// (`'t'` heartbeat!).
 const fn build_strm_control_frame(command: u8) -> [u8; 30] {
     let mut frame = [0u8; 30];
     // length (BE u16) covers opcode[4] + payload[24] = 28

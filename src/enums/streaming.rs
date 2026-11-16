@@ -285,10 +285,15 @@ impl StreamingContext {
         // to buffering the *entire* response body into memory via `read_to_end()`
         // before writing anything at all — fatal for a live/infinite audio
         // stream, which never returns EOF (verified against tiny_http 0.12's
-        // `Response::raw_print`). SlimProto clients (squeezelite) always request
-        // HTTP/1.0, so force one of the "NotChunked" variants (a large declared
-        // size, same trick already used for the WAV/RF64 headers' own "infinite"
-        // size fields) whenever nothing more specific was already requested.
+        // `Response::raw_print`). SlimProto requests arrive as HTTP/1.0 because
+        // *we* put that request line in the `strm` packet (`slimproto/strm.rs`):
+        // squeezelite sends the server-supplied header verbatim (`stream_sock()`
+        // / `send_header()` in its `stream.c`). It must stay 1.0: squeezelite
+        // treats everything after the response headers as raw body and has no
+        // chunked-decoding support. So force one of the "NotChunked" variants (a
+        // large declared size, same trick already used for the WAV/RF64 headers'
+        // own "infinite" size fields) whenever nothing more specific was already
+        // requested.
         let (streamsize, chunksize) = if streamsize.is_none() && *rq.http_version() <= (1, 0) {
             StreamSize::U64maxNotChunked.values()
         } else {

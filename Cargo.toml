@@ -48,7 +48,7 @@ winres = "0.1.12"
 cpal = { version = "0.18.2" }
 anyhow = "1"
 crossbeam-channel = "0.5.17"
-ctrlc = { version = "3.5.2", features = ["termination"], optional = true }
+ctrlc = { version = "3.5.3", features = ["termination"], optional = true }
 dasp_sample = "0.11.0"
 dirs = "7.0.0"
 ecow = "0.3.1"

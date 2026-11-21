@@ -1,12 +1,8 @@
-Written for: the fltk-rs maintainers on GitHub. Paste-ready Markdown below.
-
----
-
-**Title:** Windows build fails with MSVC 14.52 (VS 2026): `copysign` C2169 in FL/math.h, and fltk.patch no longer applies
+**Title:** Windows build fails with MSVC 14.52 (VS 2026 18.12): `copysign` C2169 in FL/math.h, and fltk.patch no longer applies
 
 **Description**
 
-With the MSVC 14.52 toolset that comes with Visual Studio 2026, building `fltk-sys` 1.5.23 from source fails while compiling the bundled FLTK. This now breaks CI on GitHub's `windows-latest` runner:
+With the MSVC 14.52 toolset that ships with Visual Studio 2026 18.12, building `fltk-sys` 1.5.23 from source fails while compiling the bundled FLTK. Earlier VS 2026 toolsets are not affected: MSVC 14.51 builds fine. This now breaks CI on GitHub's `windows-latest` runner, and it will break local builds as soon as VS updates to 14.52:
 
 ```text
 fltk/src/FL/math.h(46): error C2169: 'copysign': intrinsic function, cannot be defined
@@ -17,8 +13,9 @@ The error is raised while compiling `Fl_Chart.cxx` (built with the `use-ninja` f
 **Environment**
 
 - fltk / fltk-sys 1.5.23, features `["use-ninja"]`
-- GitHub Actions `windows-latest` (Visual Studio 18, MSVC 14.52): fails
+- GitHub Actions `windows-latest` (Visual Studio 18, MSVC 14.52.37025): fails
 - GitHub Actions `windows-2022` (VS 2022, MSVC 14.4x): builds fine
+- Local VS 2026, MSVC 14.51 (cl 19.51.36263): builds fine
 
 **Problems**
 
@@ -42,12 +39,8 @@ The error is raised while compiling `Fl_Chart.cxx` (built with the `use-ninja` f
 
 **Related**
 
-# 1705 tried to fix both problems but was closed without merging. This issue tracks the underlying problem
+PR #1705 tried to fix both problems but was closed without merging. This issue tracks the underlying problem.
 
 **Workaround**
 
-Pin the CI runner to `windows-2022`, or build with the MSVC v14.4x toolset.
-
----
-
-If you'd rather not link to #1705, you can delete the "Related" section and nothing else needs to change.
+Pin the CI runner to `windows-2022`, or build with an MSVC toolset older than 14.52 (14.4x or 14.51).

@@ -29,7 +29,8 @@ jobs:
       matrix:
         # windows-2022 pinned: windows-latest now ships VS 2026 / MSVC 14.52, where
         # copysign is an intrinsic and the bundled FLTK FL/math.h redefinition
-        # fails with C2169 (fltk-sys 1.5.23). Revert once fltk-sys is fixed.
+        # fails with C2169 (fltk-sys 1.5.23). Revert once fltk-sys is fixed:
+        # https://github.com/fltk-rs/fltk-rs/issues/1706
         os: [windows-2022, ubuntu-latest]
 
     steps:

@@ -114,6 +114,8 @@ harness = false
 #zmij = { git = "https://github.com/dtolnay/zmij" }
 #figura = { git = "https://github.com/dheijl/figura_dh" }
 #fltk = { git = "https://github.com/fltk-rs/fltk-rs" }
+# MSVC 14.52 copysign C2169 + stale fltk.patch, see fltk-rs/fltk-rs#1706
+fltk-sys = { git = "https://github.com/dheijl/fltk-rs" }
 #tiny_http = { git = "https://github.com/dheijl/tiny-http-dh" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git", branch = "stable-0.18" }
 #cpal = { git = "https://github.com/RustAudio/cpal.git" }

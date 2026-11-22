@@ -617,8 +617,7 @@ dependencies = [
 [[package]]
 name = "fltk-sys"
 version = "1.5.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d9c99e29458923abe3f07b7f8a3bc5b5de3a2c04ad82273fd96402b3666ed06"
+source = "git+https://github.com/dheijl/fltk-rs#1e766665af94d730f0f6d673bfb52e46d2a5d11b"
 dependencies = [
  "cmake",
  "cmk",

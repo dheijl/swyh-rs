@@ -247,7 +247,7 @@ and restart Pipewire.
 
 #### App tab
 
-- **Language / Theme**: select the UI language and FLTK colour theme. Supported languages: en-US, nl-NL, fr-FR, it-IT, de-DE, zh-CN, ja-JP. On a fresh installation the system locale is used automatically; if the exact locale has no translation, the nearest base locale is tried (e.g. nl-BE → nl-NL, fr-CH → fr-FR), falling back to en-US.
+- **Language / Theme**: select the UI language and FLTK colour theme. Supported languages: en-US, nl-NL, fr-FR, it-IT, de-DE, es-ES, cy-GB, zh-CN, ja-JP. On a fresh installation the system locale is used automatically; if the exact locale has no translation, the nearest base locale is tried (e.g. nl-BE → nl-NL, fr-CH → fr-FR), falling back to en-US.
 - **Log level**: set the logging verbosity (info / debug). Log files are written to the _.swyh-rs_ folder in your home directory. Use the debug build and a console window to capture Rust "panic" messages that a release build cannot log.
 - **Auto-resume**: automatically resume streaming if a renderer stops unexpectedly. Always try disabling _Chunked Transfer Encoding_ first to see if that alone fixes the problem before enabling Auto-resume.
 - **Auto-reconnect**: re-activate all renderers that were active when swyh-rs was last closed.

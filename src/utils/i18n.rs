@@ -17,6 +17,7 @@ const FALLBACK: &str = "en-US";
 /// All embedded locales, sorted by tag.
 /// Adding a language = add a `locales/xx-XX/main.ftl` file and a line here.
 const LOCALES: &[(&str, &str)] = &[
+    ("cy-GB", include_str!("../../locales/cy-GB/main.ftl")),
     ("de-DE", include_str!("../../locales/de-DE/main.ftl")),
     ("en-US", include_str!("../../locales/en-US/main.ftl")),
     ("es-ES", include_str!("../../locales/es-ES/main.ftl")),

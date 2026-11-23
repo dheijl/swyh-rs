@@ -62,9 +62,9 @@ checksum = "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000"
 
 [[package]]
 name = "anyhow"
-version = "1.0.104"
+version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+checksum = "2cb931c189b85683d69a5cfad41d4d418671e1ac413dd209f3f2fc31e3cfd902"
 
 [[package]]
 name = "arc-swap"
@@ -602,22 +602,22 @@ dependencies = [
 
 [[package]]
 name = "fltk"
-version = "1.5.23"
+version = "1.5.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78e4a0494d4c6c020514ae1d0b6cc44beddd5f37f0b81bc8e84334652ee15291"
+checksum = "6acfa51a6d98065984e5f6f21fca6d421791b7b8b6a1351d1966c9799d2c7c60"
 dependencies = [
  "bitflags",
  "crossbeam-channel",
  "fltk-sys",
  "minipaste",
  "once_cell",
- "ttf-parser",
 ]
 
 [[package]]
 name = "fltk-sys"
-version = "1.5.23"
-source = "git+https://github.com/dheijl/fltk-rs#1e766665af94d730f0f6d673bfb52e46d2a5d11b"
+version = "1.5.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c4875e000369874f50a6c09abf99f08ff45b867daa340ffe5965122a849c83b"
 dependencies = [
  "cmake",
  "cmk",
@@ -749,9 +749,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.17.1"
+version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+checksum = "735eaa21a6a5ffb2e84362faaeb90c05ba8e19797ca30428478cb6ea3a4921bc"
 dependencies = [
  "equivalent",
  "foldhash",
@@ -1935,12 +1935,6 @@ name = "toml_writer"
 version = "1.2.0+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "009dbb7700f11c55ef83aebbe4c0e9cf1f1ac0844bd8d6f00dc38f302026e13a"
-
-[[package]]
-name = "ttf-parser"
-version = "0.25.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
 
 [[package]]
 name = "type-map"
